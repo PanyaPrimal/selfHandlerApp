@@ -1,0 +1,47 @@
+# OS / editors
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# PHP / Composer
+vendor/
+
+# Laravel
+bootstrap/cache/*.php
+bootstrap/cache/packages.php
+bootstrap/cache/services.php
+storage/*.key
+storage/logs/
+storage/framework/cache/
+storage/framework/sessions/
+storage/framework/testing/
+storage/framework/views/
+
+# Test / coverage
+coverage/
+
+# Mobile
+android/.gradle/
+android/local.properties
+ios/Pods/
+
+# IDE
+.idea/
+.vscode/
+
+# Build artifacts
+bin/
+obj/
