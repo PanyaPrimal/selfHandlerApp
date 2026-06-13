@@ -1,5 +1,7 @@
 # MVP Scope
 
+> The full system is designed in [design/](design/) (all 11 modules). This MVP is the **first thin slice** of that design — intentionally narrow. Everything else in the design docs is deferred to later iterations.
+
 ## First Product Slice
 
 The first useful slice should stay intentionally small:

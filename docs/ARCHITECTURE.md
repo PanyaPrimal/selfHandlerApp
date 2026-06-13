@@ -1,5 +1,7 @@
 # Architecture
 
+> Detailed product and domain design lives in [design/](design/) — module specs, ER diagrams, and cross-cutting mechanisms. Start at [design/README.md](design/README.md).
+
 ## Goal
 
 Build SelfHandler as a monorepo with separated delivery units and a shared local development setup.
