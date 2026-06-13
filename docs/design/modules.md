@@ -1,808 +1,808 @@
-# SelfHandler — Спецификация модулей
+# SelfHandler — Module Specification
 
-> Детальное описание каждого модуля: что трекаем, какие поля, поведение. Основа для схемы БД.
+> Detailed description of each module: what we track, which fields, behavior. The basis for the database schema.
 
-Назад к плану: [Vision & Plan](vision.md)
-
----
-
-## Архитектурные принципы
-
-> Сквозные правила, действуют на все модули.
-> 📐 **Сквозные механизмы и правила схемы (отдельные доки):** [Recurrence Engine](recurrence-engine.md) (движок повторений) · [Notifications](notifications.md) (уведомления) · [Attachments](attachments.md) (вложения/файлы) · [Integrations](integrations.md) (внешние интеграции: календари, фитнес, банки) · [Data Conventions](data-conventions.md) (Money, полиморфизм, user_id, удаление/архив, таймзоны, агрегаты) · [Finance ER](finance-er.md) (схема Финансов).
-
-### AI — опциональная надстройка, а не фундамент
-- **Основа системы реализуется программно** (детерминированная логика, правила, расчёты на бэке)
-- Приложение должно быть **полностью работоспособно без LLM**: расчёт норм, журнал замеров, рекомендации по правилам, аналитика — всё работает без AI
-- «Модуль 11 — AI-ассистент (сквозной слой)» — это усилитель «умнее/живее», подключаемый поверх. Недоступен провайдер / нет ключа / юзер отказался слать данные → система продолжает работать
-- Практическое следствие: для каждой «умной» фичи есть программный базовый уровень (ср. рекомендации: Уровень 1 правила = обязателен, Уровень 2 LLM = опционален)
-
-> 📌 **TODO (позже, по всем модулям):** пройтись по КАЖДОМУ модулю отдельно и продумать его LLM-надстройку — какие именно сценарии AI добавляет поверх программной базы (рекомендации, генерация, разбор, подсказки). Сейчас фиксируем по ходу там, где очевидно (питание, тренировки, бег, рекомендации); системный проход — отдельным этапом после базового проектирования.
-
-### Итоги считает сам модуль (агрегация)
-- Каждый модуль сам считает свои итоги/агрегаты за день/неделю/месяц (логика рядом с данными)
-- «Модуль 9 — Аналитика» — витрина: собирает готовые цифры от модулей, не дублирует логику подсчёта
-- **Исключение — композитные кросс-модульные показатели** (уточнено 2026-06-13): «балл дня» («Модуль 6 — Ежедневный отчёт») и cash flow собираются ИЗ готовых итогов нескольких модулей. У них нет «модуля-владельца данных» — их считает агрегатор (Отчёт/Аналитика) поверх чужих готовых цифр. Это осознанное исключение из «логика рядом с данными»
-
-### Профиль — единый источник входных данных пользователя (добавлено 2026-06-13)
-- **Профиль («Модуль 0 — Профиль пользователя») хранит ВХОДЫ**, на которые опираются модули: антропометрия (вес/рост/возраст/пол/%жира), **базовая активность вне спорта**, **базовая валюта**, таймзона, язык/единицы, тон рекомендаций, выбор формулы BMR
-- **Расчёты на основе этих входов делают сами модули** (норма БЖУ/воды — Питание; пересчёт в базовую валюту — Финансы). Профиль не считает за них
-- ✅ Закрывает open-вопросы: «где живёт базовая валюта» → **в профиле/настройках пользователя**, не в настройках Финансов. «Источник антропометрии» → профиль
-
-### Прогноз запасов и докупки (общий паттерн расходуемых ресурсов)
-- Паттерн «запас → расход → прогноз окончания → напоминание о докупке → бюджет» полезен шире питания/добавок (быт: стиральный порошок и т.п. тоже кончаются)
-- 📌 Заложить как **общий механизм** расходуемых ресурсов (а не дублировать в каждом модуле)
-- ⚠️ Сейчас НЕ реализуем как универсальный — фокус на текущих модулях (питание/добавки). Вынос в общий — позже, чтобы не оверинжинирить
-- ⚠️ **«Прогноз запаса» ≠ «recurring-правило»** (уточнено 2026-06-13). Это два РАЗНЫХ механизма: прогноз по остатку+дозе (Модуль 2а) порождает **разовый** плановый расход когда добавка кончается; recurring («Движок расписания (переиспользуемый) — КАНОНИЧЕСКОЕ определение») — фиксированные повторяющиеся операции (подписка/зарплата). Докупка добавки использует ПЕРВЫЙ, не recurring
+Back to the plan: [Vision & Plan](vision.md)
 
 ---
 
-## Модуль 0 — Профиль пользователя
+## Architectural principles
 
-> Добавлен 2026-06-07. Общие данные пользователя, на которые опираются другие модули.
+> Cross-cutting rules that apply to all modules.
+> 📐 **Cross-cutting mechanisms and schema rules (separate docs):** [Recurrence Engine](recurrence-engine.md) (recurrence engine) · [Notifications](notifications.md) (notifications) · [Attachments](attachments.md) (attachments/files) · [Integrations](integrations.md) (external integrations: calendars, fitness, banks) · [Data Conventions](data-conventions.md) (Money, polymorphism, user_id, deletion/archiving, time zones, aggregates) · [Finance ER](finance-er.md) (Finance schema).
 
-### Антропометрия (базовая)
-- Вес, рост, возраст, пол
-- (% жира) — опционально
-- Уровень активности
-- → основа для расчёта BMR/TDEE и нормы БЖУ/калорий в «Модуль 2 — Питание» и для «Модуль 3 — Тренировки»
+### AI is an optional layer, not a foundation
+- **The core of the system is implemented programmatically** (deterministic logic, rules, calculations on the backend)
+- The application must be **fully functional without an LLM**: target calculations, the measurement log, rule-based recommendations, analytics — all work without AI
+- "Module 11 — AI Assistant (cross-cutting layer)" is a "smarter/livelier" amplifier plugged in on top. If the provider is unavailable / there is no key / the user declines to send data → the system keeps working
+- Practical implication: every "smart" feature has a programmatic baseline (cf. recommendations: Level 1 rules = mandatory, Level 2 LLM = optional)
 
-### Журнал замеров (snapshot профиля с историей)
-- Профиль периодически **пересматривается** (например, раз в месяц)
-- **Напоминание**: приходит оповещение «пора взвеситься и сделать замеры» → пересечение с «Модуль 5 — Планнер» (уведомления / повторяющееся событие)
-- Пользователь меряет и вводит в форму набор метрик: вес, **руки, ноги, талия, грудь, ягодицы/таз** и т.д. (список расширяемый)
-- Каждый замер сохраняется как запись с **датой** → журнал замеров привязан к профилю
-- Это **лог с историей** (snapshot во времени), а не одно значение
+> 📌 **TODO (later, across all modules):** go through EACH module individually and think through its LLM layer — exactly which scenarios AI adds on top of the programmatic baseline (recommendations, generation, parsing, hints). For now we capture this as we go where it is obvious (nutrition, workouts, running, recommendations); a systematic pass is a separate stage after the baseline design.
 
-### Роль в системе — маркер результата
-- Замеры — это **обратная связь / маркер результата** всего цикла: питание + тренировки → изменения тела
-- Данные с динамикой уходят в «Модуль 9 — Аналитика»
-- На их основе делаются выводы об **эффективности тренировок и/или системы питания**
-- Составная часть процесса, замыкающая цикл (цель → действия → результат → корректировка)
+### Each module computes its own aggregates
+- Each module computes its own totals/aggregates per day/week/month (logic lives next to the data)
+- "Module 9 — Analytics" is a display layer: it gathers ready-made figures from modules, it does not duplicate the aggregation logic
+- **Exception — composite cross-module metrics** (clarified 2026-06-13): the "day score" ("Module 6 — Daily Review") and cash flow are assembled FROM ready-made totals of several modules. They have no "data-owner module" — they are computed by an aggregator (Review/Analytics) on top of other modules' ready-made figures. This is a deliberate exception to "logic lives next to the data"
 
-### Механизм рекомендаций (корректировка)
-> Система не только показывает цифры, но и даёт **рекомендации по корректировке** на основе тренда замеров + цели + факта питания.
+### Profile is the single source of user input (added 2026-06-13)
+- **The Profile ("Module 0 — User Profile") stores the INPUTS** that modules rely on: anthropometrics (weight/height/age/sex/body fat %), **baseline non-sport activity**, **base currency**, time zone, language/units, recommendation tone, choice of BMR formula
+- **Calculations based on these inputs are done by the modules themselves** (macro/water targets — Nutrition; conversion to base currency — Finance). The Profile does not compute on their behalf
+- ✅ Closes open questions: "where does the base currency live" → **in the user's profile/settings**, not in Finance settings. "Source of anthropometrics" → the Profile
 
-- Примеры посыла: «вес растёт быстрее нормы — урежь профицит» / «недобираешь, при цели "масса" вес стоит — добавь калорий»
-- **Уровень 1 — правила (детерминированно, на бэке):** сопоставление тренда (журнал замеров) + тип цели («Модуль 4 — Цели») + факт питания → готовые советы по `if`-правилам. Предсказуемо, без внешних зависимостей.
-- **Уровень 2 — LLM (опционально, позже):** генерация рекомендаций живым текстом с характером через сквозной «Модуль 11 — AI-ассистент (сквозной слой)». Зависимость от внешнего сервиса + токены.
-- **Тон рекомендаций — настройка пользователя:** жёсткий/стёбный («хочешь остаться дрыщём?») ↔ дружелюбный ↔ нейтральный. Стёб мотивирует не всех — дать выбор.
-- Пересечение: «Модуль 9 — Аналитика» (источник трендов), «Модуль 4 — Цели» (контекст цели), «Модуль 6 — Ежедневный отчёт» (где показывать советы?)
+### Stock forecast and restocking (a general pattern for consumable resources)
+- The pattern "stock → consumption → run-out forecast → restock reminder → budget" is useful beyond nutrition/supplements (household: laundry detergent and the like also run out)
+- 📌 Design it as a **general mechanism** for consumable resources (rather than duplicating it in every module)
+- ⚠️ Not implementing it as universal right now — focus on the current modules (nutrition/supplements). Extracting it into a general mechanism comes later, to avoid over-engineering
+- ⚠️ **"Stock forecast" ≠ "recurring rule"** (clarified 2026-06-13). These are two DIFFERENT mechanisms: the forecast based on remaining stock + dose (Module 2a) spawns a **one-off** planned expense when a supplement runs out; recurring ("Scheduling engine (reusable) — CANONICAL definition") covers fixed repeating operations (subscription/salary). Restocking a supplement uses the FIRST one, not recurring
+
+---
+
+## Module 0 — User Profile
+
+> Added 2026-06-07. Common user data that other modules rely on.
+
+### Anthropometrics (baseline)
+- Weight, height, age, sex
+- (body fat %) — optional
+- Activity level
+- → the basis for computing BMR/TDEE and the macro/calorie targets in "Module 2 — Nutrition" and for "Module 3 — Workouts"
+
+### Measurement log (a profile snapshot with history)
+- The profile is **revisited** periodically (for example, once a month)
+- **Reminder**: a notification "time to weigh in and take measurements" arrives → intersects with "Module 5 — Planner" (notifications / a recurring event)
+- The user takes the measurements and enters a set of metrics into a form: weight, **arms, legs, waist, chest, glutes/hips**, etc. (an extensible list)
+- Each measurement is saved as a record with a **date** → the measurement log is tied to the profile
+- This is a **log with history** (a snapshot over time), not a single value
+
+### Role in the system — a result marker
+- Body measurements are the **feedback / result marker** of the whole cycle: nutrition + workouts → body changes
+- The data, with its trends, flows into "Module 9 — Analytics"
+- On that basis, conclusions are drawn about the **effectiveness of the workouts and/or the nutrition system**
+- A component of the process that closes the loop (goal → actions → result → adjustment)
+
+### Recommendation mechanism (adjustment)
+> The system not only shows figures but also gives **adjustment recommendations** based on the measurement trend + the goal + actual nutrition.
+
+- Example messages: "weight is rising faster than the target — cut the surplus" / "you're undereating; with a 'mass' goal your weight is stalling — add calories"
+- **Level 1 — rules (deterministic, on the backend):** matching the trend (measurement log) + goal type ("Module 4 — Goals") + actual nutrition → ready-made advice via `if`-rules. Predictable, with no external dependencies.
+- **Level 2 — LLM (optional, later):** generating recommendations as living text with personality via the cross-cutting "Module 11 — AI Assistant (cross-cutting layer)". A dependency on an external service plus tokens.
+- **Recommendation tone — a user setting:** harsh/snarky ("want to stay a scrawny weakling?") ↔ friendly ↔ neutral. Snark does not motivate everyone — give the choice.
+- Intersections: "Module 9 — Analytics" (source of trends), "Module 4 — Goals" (goal context), "Module 6 — Daily Review" (where to show the advice?)
 
 ### TODO
-- Остальные поля профиля (имя, аватар, настройки и т.д.)
-- Спроектировать: какие метрики замеров фиксированы, какие пользователь добавляет сам
-- Периодичность пересмотра — настраиваемая? (по умолчанию раз в месяц)
+- The remaining profile fields (name, avatar, settings, etc.)
+- Design: which measurement metrics are fixed and which the user adds themselves
+- Review cadence — configurable? (once a month by default)
 
 ---
 
-## Модуль 1 — Режим дня и сон
+## Module 1 — Daily Routine & Sleep
 
-### Сон
-- Плановое время отбоя и подъёма
-- Фактическое время отбоя и подъёма
-- Качество сна: 1–10
+### Sleep
+- Planned bedtime and wake-up time
+- Actual bedtime and wake-up time
+- Sleep quality: 1–10
 
-### Рутины
-- Шаблон рутины — название (утренняя / вечерняя / любое, пользователь задаёт сам)
-- Активности внутри шаблона:
-  - Название
-  - Порядок (обязательно)
-  - Время (опционально)
-  - Числовой прогресс (опционально) — например "йога, занятие №___" из 48
-- При планировании дня выбирается шаблон на утро и шаблон на вечер (независимо друг от друга)
-- Каждая активность отмечается отдельно: выполнено / пропущено
-- Данные агрегируются в аналитику по дням
-
----
-
-## Модуль 2 — Питание
-
-> Статус: проектируется (2026-06-07)
-
-### Решения
-- **Основа:** берём наработки из приложения друга — [calorie-tracker](https://github.com/Podvodila/calorie-tracker) (Vue 3 + TS + Vite + Tailwind + Dexie/IndexedDB). Бэка/MySQL у него нет — переиспользуем фронт и модель данных продукта, хранилище портируем на Laravel + MySQL. Адаптируем под себя позже.
-- **Выбор еды:** из списка продуктов (справочник продуктов).
-
-### Сущности и поведение
-
-#### Приём пищи (лог за день) — динамический
-- Юзер сам решает структуру: либо категории (завтрак / обед / ужин), либо свободные приёмы со временем — **динамически**
-- Приём пищи = запись с:
-  - категория (опционально: завтрак/обед/ужин/свой) ИЛИ просто время
-  - время приёма
-  - список позиций (что съедено)
-- Категории не жёстко фиксированы
-
-#### Позиция приёма — два уровня детализации
-- Юзер может ввести **блюдо целиком + вес**, ИЛИ **детализировать по компонентам и весу** — как угодно
-- → Блюдо может быть **атомарным** (одна позиция + вес) ИЛИ **составным** (список компонентов-продуктов с весами)
-- Составное блюдо = по сути рецепт: продукт + продукт + … каждый со своим весом
-- БЖУ/калории блюда = сумма по компонентам (если детализировано) либо по самому блюду
-- ↔ важно для фото-фичи: распознавание раскладывает блюдо на компоненты с весами
-
-#### Продукт (справочник)
-- БЖУ + калории хранятся **на 100 г**; фактическое потребление считается пропорцией от введённого веса
-- Поля: название, белки/жиры/углеводы на 100г, калории, качество/полезность (см. ниже)
-- ❓ свериться с моделью продукта из calorie-tracker
-
-#### Напитки (расширенный трекинг воды)
-- Трекаем **чистую воду** + другие напитки: чаи разных сортов, кофе разных типов, энергетики, комбуча, кола и т.д.
-- У напитков есть И БЖУ/калории (кола ≠ вода), И вклад в гидратацию
-- → напиток = подвид позиции питания (продукт-напиток в справочнике) + объём (мл)
-- **Норма чистой воды в день — считается из профиля юзера** (вес/активность → суточная норма воды), система контролирует выполнение
-- Дневной прогресс по воде: выпито / норма, как и по калориям/БЖУ
-
-### Оценка и аналитика рациона
-- На основании рациона приложение выдаёт **оценку** того, как пользователь питался
-- Аналитика за периоды: **предыдущий день / неделя / месяц**
-- ✅ **Итоги (агрегацию) считает сам Модуль 2** (Вариант А): питание знает, как сложить свои приёмы в дневной/недельный/месячный итог. «Модуль 9 — Аналитика» берёт готовые цифры. Логика подсчёта живёт рядом с данными.
-
-#### Норма БЖУ/калорий (откуда берётся)
-- Считается из **антропометрии пользователя**: вес, рост, возраст, пол, (% жира), уровень активности → BMR/TDEE
-- **Формула — на выбор пользователя:**
-  - **Миффлин-Сан Жеор** (по умолчанию) — не требует % жира, подходит большинству
-  - **Катч-МакАрдл** — по сухой массе, точнее если известен % жира
-- **Цель** пользователя — модификатор нормы: набор массы (профицит) / сушка (дефицит) / поддержание (баланс) / др.
-- **Цель учитывает желаемый результат, а не только тип.** Пример: мужчина 80 кг хочет набрать +10 кг → норма должна давать достаточный профицit (2000 ккал не хватит). Т.е. размах цели (на сколько кг и за какой срок) влияет на величину профицита/дефицита в калориях. → детализируется в «Модуль 4 — Цели»
-- ✅ **Динамический TDEE — норма учитывает нагрузки и активность.** Расход калорий от тренировок («Модуль 3 — Тренировки») добавляется к норме: в дни тренировок/высокой активности норма калорий выше. Норма = база (BMR×активность) + расход от тренировок.
-  - ⚠️ **Двойной учёт активности — избегаем.** При динамическом TDEE множитель «уровень активности» в профиле берётся как **базовый/сидячий** (BMR×~1.2), а тренировки добавляются **сверху** отдельной строкой. Иначе тренировки посчитаются дважды (стандартные множители Миффлина уже включают «3–5 тренировок/нед»). Решение: профиль хранит «базовую активность вне спорта», спорт идёт из Модуля 3.
-  - ⚠️ **Норма не «плавает» задним числом.** Целевая дневная норма для оценки дня считается из **плановой активности дня** (запланированные тренировки из «Модуль 5 — Планнер»), а не пересчитывается каждый раз при добавлении факта. Иначе «попадание в норму» — недостижимая подвижная мишень (поел → потом потренировался → норма выросла → «недобор»). Факт тренировки уточняет норму **на конец дня** (для вечернего отчёта/аналитики), а в течение дня ориентир — плановая норма. ❓ точную политику (план vs вечерний пересчёт) финализировать при реализации
-- Задействует три блока: **Питание** (норма + факт), **Модуль 4 — Цели** (тип цели), и **антропометрия** (новый источник данных)
-- ✅ Антропометрия живёт в **профиле пользователя** (см. «Модуль 0 — Профиль пользователя») — на неё опираются и питание, и тренинг
-
-#### Из чего складывается оценка
-- Попадание в норму по **калориям**
-- Попадание в норму по **БЖУ** (раздельно Б/Ж/У)
-- **«Качество» еды** — атрибут продукта (печёный батат+спаржа > чипсы со вкусом сыра)
-  - → у продукта в справочнике появляется поле «качество/полезность»
-  - источник значения: задаётся в справочнике и/или из фото-фичи (оценка полезности блюда)
-
-### Будущая фича — распознавание по фото
-- Фото блюда хранится как вложение ([Attachments](attachments.md)); распознавание — через AI ([Modules Spec](modules.md))
-- Определение компонентов блюда по фотографии
-- Автоматический расчёт БЖУ по распознанным компонентам
-- Калории — из БЖУ
-- Оценка полезности блюда
-
-### TODO (спроектировать)
-- Сущности: продукт (справочник), приём пищи / запись за день (лог), порции
-- Поля продукта: название, БЖУ на 100г, калории, **качество/полезность** и т.д. (свериться с моделью calorie-tracker)
+### Routines
+- A routine template — a name (morning / evening / anything, the user defines it themselves)
+- Activities within the template:
+  - Name
+  - Order (required)
+  - Time (optional)
+  - Numeric progress (optional) — for example "yoga, session no. ___" out of 48
+- When planning the day, a morning template and an evening template are chosen (independently of each other)
+- Each activity is marked separately: done / skipped
+- The data is aggregated into analytics by day
 
 ---
 
-## Модуль 2а — Добавки и витамины
+## Module 2 — Nutrition
 
-> Вынесено из «Питания» в отдельный модуль (2026-06-07): у добавок другая природа — курсы, дозировки, расписание приёма, разные направленности.
-> Проектируется (2026-06-07).
+> Status: in design (2026-06-07)
 
-### Сущность «Добавка/препарат» (справочник)
-- Название
-- Тип/направленность: витамин / спортпит / ноотроп / др. курсовые препараты (расширяемо)
-- Форма: капсулы / порошок / таблетки / жидкость / инъекция
-- Дозировка на приём
-- Объём упаковки + цена (для прогноза запасов и финансов — см. ниже)
+### Decisions
+- **Foundation:** we take the work from a friend's app — [calorie-tracker](https://github.com/Podvodila/calorie-tracker) (Vue 3 + TS + Vite + Tailwind + Dexie/IndexedDB). It has no backend/MySQL — we reuse the frontend and the product data model, porting storage to Laravel + MySQL. We will adapt it to our needs later.
+- **Food selection:** from a list of food items (food item reference).
 
-> **Рамка по любым курсовым/рецептурным препаратам:** модуль — это **нейтральный трекер мониторинга** (что/когда/сколько принято, факт приёма, остаток, напоминание). Система НЕ даёт протоколов, схем курсов, дозировок, медицинских советов по применению/комбинациям. Только фиксирует введённое пользователем. AI-ассистент (Модуль 11) по этой категории не генерит рекомендации по применению — только нейтральный мониторинг (принял/пропустил, остаток, напоминание).
+### Entities and behavior
 
-### Курс + расписание (гибкий движок)
-- **Курс** — период приёма (с даты по дату / N дней). Напр. «пить 2 месяца»
-- **Гибкие паттерны расписания** — движок должен покрывать:
-  - несколько раз в день (с временем, утро/вечер, с едой/натощак)
-  - каждый день
-  - N раз в неделю в определённые дни (напр. 2 раза/нед: пн, чт)
-  - сложные циклы (напр. «3 раза в одну неделю месяца», через день, неделя приёма / неделя пауза)
-- → расписание = повторяющееся правило (паттерн) + конкретные запланированные приёмы, разворачиваемые из правила
-- ✅ модель правила определена: **свой набор полей + опц. rrule-выход** — общий движок [Recurrence Engine](recurrence-engine.md) (циклы «неделя приёма/пауза» = `cycle_on`/`cycle_off`, мультиразовые = `times_per_day`). Добавки — потребитель, не своя реализация
-- Несколько приёмов/инъекций в день у одной позиции
+#### Meal (a daily log) — dynamic
+- The user decides the structure themselves: either categories (breakfast / lunch / dinner) or free-form meals with a time — **dynamically**
+- A meal = a record with:
+  - category (optional: breakfast/lunch/dinner/custom) OR just a time
+  - meal time
+  - a list of items (what was eaten)
+- Categories are not rigidly fixed
 
-### Напоминания + факт приёма (важно)
-- Система **напоминает** о приёме
-- Если юзер не закинулся — **повторно напоминает** (эскалация), чтобы не пропускал → реализуется подсистемой [Notifications](notifications.md) (повтор через интервал до отметки, настраиваемо)
-- Каждый запланированный приём (`PlannedOccurrence` из [Recurrence Engine](recurrence-engine.md)) отмечается **выполнен / пропущен** (факт)
-- → факт идёт в аналитику и ежедневный отчёт
+#### Meal item — two levels of detail
+- The user can enter a **whole dish + weight**, OR **break it down into components and weights** — whichever they like
+- → A dish can be **atomic** (a single item + weight) OR **composite** (a list of food-item components with weights)
+- A composite dish is essentially a recipe: food item + food item + … each with its own weight
+- The macros/calories of a dish = the sum over its components (if broken down) or from the dish itself
+- ↔ important for the photo feature: recognition breaks a dish down into components with weights
 
-### Запасы + прогноз + финансы (ключевая связка)
-> Пример: купил 1.5 кг гейнера за 900 грн, доза 100 г/день → хватит на 15 дней → система прогнозирует дату окончания → напоминает «пора докупить, заложи ~900 грн» → подсказка про экономию на объёме (пакет 6 кг выгоднее за кг).
+#### Food item (reference)
+- Macros + calories are stored **per 100 g**; actual consumption is computed as a proportion of the entered weight
+- Fields: name, protein/fat/carbs per 100 g, calories, quality/healthiness (see below)
+- ❓ cross-check against the food item model from calorie-tracker
 
-- Учёт **остатка** добавки (сколько есть)
-- Из объёма упаковки + дозы на приём + частоты → **прогноз: на сколько хватит / дата окончания**
-- Напоминание «пора докупить» заранее
-- **Стоимость приёма**: цена за единицу → стоимость дня/месяца курса
-- Связь с «Модуль 10 — Финансы»: расход на добавки в бюджете; планирование докупки (заложить N в бюджет)
-- (опц.) подсказка экономии: сравнение цены за грамм у разных фасовок
+#### Beverages (extended water tracking)
+- We track **plain water** + other beverages: teas of various kinds, coffees of various types, energy drinks, kombucha, cola, etc.
+- Beverages have BOTH macros/calories (cola ≠ water) AND a hydration contribution
+- → a beverage = a subtype of a nutrition item (a beverage food item in the reference) + volume (ml)
+- **The daily plain-water target is computed from the user's profile** (weight/activity → daily water target); the system monitors compliance
+- Daily water progress: consumed / target, just like calories/macros
 
-### Связи
-- «Модуль 5 — Планнер» — напоминания о приёме и о конце курса (обязательно)
-- «Модуль 9 — Аналитика» — своевременность/соблюдение курса (% приёмов), как принимал
-- «Модуль 6 — Ежедневный отчёт» — отметки приёма за день
-- «Модуль 10 — Финансы» — расходы на добавки, прогноз докупки
-- «Модуль 4 — Цели» — добавки опционально под цель (набор → протеин/креатин, сушка → жиросжигатели). Связь условная/мягкая
+### Diet assessment and analytics
+- Based on the diet, the app produces an **assessment** of how the user has been eating
+- Analytics over periods: **the previous day / week / month**
+- ✅ **Module 2 computes the aggregates itself** (Option A): Nutrition knows how to roll its meals up into a daily/weekly/monthly total. "Module 9 — Analytics" takes the ready-made figures. The aggregation logic lives next to the data.
 
-### Итоги
-- ✅ Соблюдение курса (% приёмов за период) считает сам модуль (см. принцип агрегации)
+#### Macro/calorie targets (where they come from)
+- Computed from the **user's anthropometrics**: weight, height, age, sex, (body fat %), activity level → BMR/TDEE
+- **Formula — chosen by the user:**
+  - **Mifflin-St Jeor** (default) — does not require body fat %, suits most people
+  - **Katch-McArdle** — based on lean mass, more accurate if body fat % is known
+- The user's **goal** is a modifier of the target: gaining mass (surplus) / cutting (deficit) / maintenance (balance) / other
+- **The goal accounts for the desired result, not just the type.** Example: an 80 kg man who wants to gain +10 kg → the target must provide a sufficient surplus (2000 kcal won't be enough). That is, the goal's magnitude (how many kg and over what timeframe) affects the size of the surplus/deficit in calories. → detailed in "Module 4 — Goals"
+- ✅ **Dynamic TDEE — the target accounts for load and activity.** Calorie expenditure from workouts ("Module 3 — Workouts") is added to the target: on training/high-activity days the calorie target is higher. Target = base (BMR × activity) + expenditure from workouts.
+  - ⚠️ **Avoid double-counting activity.** With dynamic TDEE, the "activity level" multiplier in the profile is taken as **baseline/sedentary** (BMR × ~1.2), and workouts are added **on top** as a separate line. Otherwise workouts get counted twice (the standard Mifflin multipliers already include "3–5 workouts/week"). Decision: the profile stores "baseline non-sport activity," sport comes from Module 3.
+  - ⚠️ **The target does not "drift" retroactively.** The target daily figure used to assess the day is computed from the **day's planned activity** (planned workouts from "Module 5 — Planner"), not recomputed every time an actual entry is added. Otherwise "hitting the target" becomes an unattainable moving target (ate → then worked out → target grew → "shortfall"). Actual workout data refines the target **at the end of the day** (for the evening review/analytics), while during the day the reference is the planned target. ❓ finalize the exact policy (plan vs evening recompute) at implementation time
+- Involves three blocks: **Nutrition** (target + actual), **Module 4 — Goals** (goal type), and **anthropometrics** (a new data source)
+- ✅ Anthropometrics live in the **user's profile** (see "Module 0 — User Profile") — relied on by both nutrition and training
 
----
+#### What the assessment is made of
+- Hitting the **calorie** target
+- Hitting the **macro** target (protein/fat/carbs separately)
+- **Food "quality"** — an attribute of the food item (baked sweet potato + asparagus > cheese-flavored chips)
+  - → the food item in the reference gains a "quality/healthiness" field
+  - source of the value: set in the reference and/or from the photo feature (assessing the healthiness of a dish)
 
-## Модуль 3 — Тренировки
+### Future feature — photo recognition
+- A dish photo is stored as an attachment ([Attachments](attachments.md)); recognition is via AI ([Modules Spec](modules.md))
+- Identifying the components of a dish from a photo
+- Automatic macro calculation from the recognized components
+- Calories — from macros
+- Assessing the healthiness of the dish
 
-> Проектируется (2026-06-07).
-
-### Типы тренировок (полиморфизм по типу)
-- **Силовые** (железо) — упражнения, подходы, вес, повторы
-- **Кардио** — бег, вело, ходьба, **плавание** — длительность/дистанция/пульс/калории
-- **Гибкость/йога** — по времени/занятиям
-- **Спорт/активности** — футбол, единоборства и т.д. — факт + длительность
-- → общая обёртка «Тренировка» (дата, тип, длительность, заметка) + специфика по типу (как у «Модуль 4 — Цели»)
-
-### Силовая — два режима детализации (на выбор юзера)
-> Как в питании (блюдо целиком vs по компонентам) — паттерн повторяется.
-- **Простой:** констатация — «пожал 100, присел 120» (упражнение + результат)
-- **Детальный:** упражнение → подходы, каждый подход = вес × повторы + отдых (опционально)
-- Детальный нужен для прогрессии по сложным силовым системам; простой — для быстрой записи
-
-### Бег (специализированный подтип кардио)
-> Кейс: юзер записался на 21 км (полумарафон) осенью, подготовку не начал, уровень «новичок, но не нулевой». Бег — отдельная дисциплина со своей структурой, не просто «кардио с дистанцией».
-
-#### Уровень подготовленности бегуна
-- Градации: нулевой новичок / новичок / любитель / продвинутый
-- **Определение: самооценка + корректировка по факту** (тестовая пробежка, далее уточняется по реальным результатам — темп, макс. дистанция, недельный объём)
-
-#### Целевое событие (забег)
-- Дата + дистанция (5/10/21/42 км / своя)
-- Дедлайн-цель → связь с «Модуль 4 — Цели» (тип «Тренинг», подтип «забег») и «Модуль 5 — Планнер» (дата события)
-
-#### План подготовки — вариативный (3 уровня)
-- **Ручной** — для опытных, сами строят (опц. с рекомендациями)
-- **Расчёт по дате** — из дистанции + даты + уровня → недельный план по готовым шаблонам (наращивание объёма → пик → тейпер перед стартом)
-- **LLM-агент (опц.)** — персонализация/корректировка под реалии бегуна через «Модуль 11 — AI-ассистент (сквозной слой)»
-- (паттерн как везде: ручная база + готовые шаблоны + LLM сверху)
-
-#### Беговые метрики (желательно все)
-- Дистанция + темп (мин/км)
-- Пульс / пульсовые зоны
-- Тип пробежки: лёгкая / темповая / интервалы / длинная
-- Гео/маршрут: GPS-трек (GPX как вложение, см. [Attachments](attachments.md)), набор высоты (сложнее — нужен GPS/импорт)
-
-#### Источник данных
-- **Базовый — ручной ввод** (дистанция/время/пульс после пробежки)
-- **Интеграции** (добавим): Strava / Garmin / Apple Health и т.п. → через общий слой [Integrations](integrations.md) (тот же контракт, что календари; добавляются как провайдеры `kind=fitness`)
-- **LLM-агент (опц.)** для ведения/подсказок
-- ❓ Гео/маршрут реалистичен в основном через интеграции (ручной ввод трека неудобен)
-
-### Справочник упражнений + программы
-- **Справочник упражнений:** название, мышцы/группа, оборудование, тип
-- **Готовые программы** «из коробки» (подсмотреть где-нибудь) + **свои сохранённые программы/сплиты** (шаблон → план, как рутины в «Модуль 1 — Режим дня и сон»)
-- Личный сценарий: юзер сам собирает тренировку на каждый день (программа не обязательна)
-
-### Прогрессия, PR, подсказки
-- **История по упражнению** — все подходы/веса во времени
-- **PR (личные рекорды)** — авто-отслеживание максимумов, рост рабочих весов, графики динамики
-- **Подсказки прогрессии** на следующую тренировку (пора добавить вес/повторы)
-  - **Уровень 1 (правила, обязателен):** детерминированная прогрессия по правилам (напр. +2.5кг если выполнил все повторы N раз)
-  - **Уровень 2 (LLM, опционально):** умный составитель/советчик программы через «Модуль 11 — AI-ассистент (сквозной слой)» — собирает/корректирует тренировку
-- Следующая тренировка получает **дату в «Модуль 5 — Планнер»**
-
-### Связи
-- «Модуль 4 — Цели» — тип цели «Тренинг» (присесть 100кг, пробежать 10км, N трен/нед); прогресс цели из истории тренировок
-- «Модуль 0 — Профиль пользователя» — замеры как маркер результата тренинга
-- «Модуль 2 — Питание» — расход калорий от тренировок (влияет на TDEE/норму?)
-- «Модуль 5 — Планнер» — расписание тренировок, дата следующей
-- «Модуль 9 — Аналитика» — объём/частота/динамика весов
-- «Модуль 0 — Профиль пользователя» — антропометрия как вход
-
-### Итоги
-- ✅ Объём/частоту/PR/динамику считает сам модуль (принцип агрегации)
-
-### Расход калорий тренировки → питание
-- ✅ Тренировки **добавляют расход** в дневную норму питания (динамический TDEE, см. «Норма БЖУ/калорий (откуда берётся)»)
-- Расход считается по типу/длительности/интенсивности (MET-коэффициенты или формулы по типу)
-
-### TODO / открытые вопросы
-- Модель прогрессии по правилам — какие схемы (линейная, двойная прогрессия и т.д.)
-- Где взять готовые программы (источник/лицензия)
-- Точность расчёта расхода калорий (MET-таблицы, пульс?)
+### TODO (to design)
+- Entities: food item (reference), meal / daily record (log), portions
+- Food item fields: name, macros per 100 g, calories, **quality/healthiness**, etc. (cross-check against the calorie-tracker model)
 
 ---
 
-## Модуль 4 — Цели
+## Module 2a — Supplements & Vitamins
 
-> Проектируется (2026-06-07).
-> ⚠️ **Цели — сквозная сущность.** К этому модулю возвращаемся при проектировании «Модуль 3 — Тренировки», «Модуль 10 — Финансы» и др. Цель по телу/питанию (набрать/сбросить) — лишь один из видов; будут цели по тренировкам (присесть 100кг, пробежать 10км), по финансам (накопить N, закрыть кредит) и т.д.
+> Split out of "Nutrition" into a separate module (2026-06-07): supplements have a different nature — intake courses, dosages, an intake schedule, different purposes.
+> In design (2026-06-07).
+
+### The "Supplement/medication" entity (reference)
+- Name
+- Type/purpose: vitamin / sports nutrition / nootropic / other course-based medications (extensible)
+- Form: capsules / powder / tablets / liquid / injection
+- Dose per intake
+- Package volume + price (for stock forecasting and finance — see below)
+
+> **Framing for any course-based/prescription medications:** the module is a **neutral monitoring tracker** (what/when/how much was taken, the fact of intake, remaining stock, reminders). The system does NOT provide protocols, course schemes, dosages, or medical advice on use/combinations. It only records what the user entered. The AI Assistant (Module 11) does not generate usage recommendations for this category — only neutral monitoring (taken/skipped, remaining stock, reminders).
+
+### Course + schedule (a flexible engine)
+- A **course** is an intake period (from date to date / N days). E.g. "take for 2 months"
+- **Flexible schedule patterns** — the engine must cover:
+  - several times a day (with times, morning/evening, with food/on an empty stomach)
+  - every day
+  - N times a week on specific days (e.g. 2 times/week: Mon, Thu)
+  - complex cycles (e.g. "3 times in one week of the month," every other day, a week on / a week off)
+- → a schedule = a recurring rule (pattern) + the concrete planned intakes expanded from the rule
+- ✅ the rule model is defined: **a custom set of fields + an optional rrule output** — the shared [Recurrence Engine](recurrence-engine.md) (cycles like "intake week/off week" = `cycle_on`/`cycle_off`, multiple intakes = `times_per_day`). Supplements are a consumer, not their own implementation
+- Several intakes/injections per day for a single item
+
+### Reminders + intake fact (important)
+- The system **reminds** about an intake
+- If the user hasn't taken it — it **reminds again** (escalation), so they don't miss it → implemented by the [Notifications](notifications.md) subsystem (repeat after an interval until marked, configurable)
+- Each planned intake (`PlannedOccurrence` from the [Recurrence Engine](recurrence-engine.md)) is marked **done / skipped** (actual)
+- → the actual data flows into analytics and the daily review
+
+### Stock + forecast + finance (the key link)
+> Example: bought 1.5 kg of gainer for 900 UAH, dose 100 g/day → lasts 15 days → the system forecasts the run-out date → reminds "time to restock, set aside ~900 UAH" → a hint about saving on bulk (a 6 kg pack is cheaper per kg).
+
+- Tracking the **remaining stock** of a supplement (how much is left)
+- From package volume + dose per intake + frequency → a **forecast: how long it will last / the run-out date**
+- A "time to restock" reminder ahead of time
+- **Cost per intake**: unit price → cost per day/month of the course
+- Link to "Module 10 — Finance": supplement expenses in the budget; planning the restock (set aside N in the budget)
+- (opt.) a savings hint: comparing the price per gram across different pack sizes
+
+### Relationships with other modules
+- "Module 5 — Planner" — reminders about intakes and about the end of a course (required)
+- "Module 9 — Analytics" — timeliness/course adherence (% of intakes), how it was taken
+- "Module 6 — Daily Review" — intake marks for the day
+- "Module 10 — Finance" — supplement expenses, restock forecast
+- "Module 4 — Goals" — supplements optionally tied to a goal (mass → protein/creatine, cutting → fat burners). A conditional/soft link
+
+### Aggregates
+- ✅ Course adherence (% of intakes over a period) is computed by the module itself (see the aggregation principle)
+
+---
+
+## Module 3 — Workouts
+
+> In design (2026-06-07).
+
+### Workout types (polymorphism by type)
+- **Strength** (iron) — exercises, sets, weight, reps
+- **Cardio** — running, cycling, walking, **swimming** — duration/distance/heart rate/calories
+- **Flexibility/yoga** — by time/sessions
+- **Sports/activities** — football, martial arts, etc. — the fact + duration
+- → a common "Workout" wrapper (date, type, duration, note) + type-specific details (as in "Module 4 — Goals")
+
+### Strength — two levels of detail (user's choice)
+> As in nutrition (a whole dish vs by components) — the pattern repeats.
+- **Simple:** a statement — "benched 100, squatted 120" (exercise + result)
+- **Detailed:** exercise → sets, each set = weight × reps + rest (optional)
+- The detailed level is needed for progression on complex strength systems; the simple level is for quick logging
+
+### Running (a specialized cardio subtype)
+> Case: the user signed up for a 21 km (half-marathon) in the autumn, hasn't started preparing, level "beginner, but not from zero." Running is a separate discipline with its own structure, not just "cardio with distance."
+
+#### Runner's fitness level
+- Grades: complete beginner / beginner / amateur / advanced
+- **Determination: self-assessment + adjustment based on actual data** (a test run, then refined by real results — pace, max distance, weekly volume)
+
+#### Target event (race)
+- Date + distance (5/10/21/42 km / custom)
+- A deadline goal → a link to "Module 4 — Goals" (type "Training," subtype "race") and "Module 5 — Planner" (event date)
+
+#### Training plan — variable (3 levels)
+- **Manual** — for the experienced, they build it themselves (optionally with recommendations)
+- **Computed from the date** — from distance + date + level → a weekly plan from ready-made templates (volume buildup → peak → taper before the start)
+- **LLM agent (opt.)** — personalization/adjustment to the runner's realities via "Module 11 — AI Assistant (cross-cutting layer)"
+- (the pattern as everywhere: a manual baseline + ready-made templates + an LLM on top)
+
+#### Running metrics (ideally all of them)
+- Distance + pace (min/km)
+- Heart rate / heart-rate zones
+- Run type: easy / tempo / intervals / long
+- Geo/route: a GPS track (GPX as an attachment, see [Attachments](attachments.md)), elevation gain (harder — needs GPS/import)
+
+#### Data source
+- **Baseline — manual entry** (distance/time/heart rate after a run)
+- **Integrations** (to be added): Strava / Garmin / Apple Health, etc. → via the shared [Integrations](integrations.md) layer (the same contract as calendars; added as providers with `kind=fitness`)
+- **LLM agent (opt.)** for guidance/hints
+- ❓ Geo/route is realistic mainly via integrations (manual track entry is inconvenient)
+
+### Exercise reference + programs
+- **Exercise reference:** name, muscles/group, equipment, type
+- **Ready-made programs** "out of the box" (to be sourced somewhere) + **custom saved programs/splits** (template → plan, like routines in "Module 1 — Daily Routine & Sleep")
+- Personal scenario: the user builds the workout for each day themselves (a program is not required)
+
+### Progression, PRs, hints
+- **Per-exercise history** — all sets/weights over time
+- **PRs (personal records)** — auto-tracking of maximums, growth of working weights, trend charts
+- **Progression hints** for the next workout (time to add weight/reps)
+  - **Level 1 (rules, mandatory):** deterministic progression by rules (e.g. +2.5 kg if all reps were completed N times)
+  - **Level 2 (LLM, optional):** a smart program builder/advisor via "Module 11 — AI Assistant (cross-cutting layer)" — builds/adjusts the workout
+- The next workout gets a **date in "Module 5 — Planner"**
+
+### Relationships with other modules
+- "Module 4 — Goals" — goal type "Training" (squat 100 kg, run 10 km, N workouts/week); goal progress from workout history
+- "Module 0 — User Profile" — body measurements as a marker of training results
+- "Module 2 — Nutrition" — calorie expenditure from workouts (affects TDEE/target?)
+- "Module 5 — Planner" — workout schedule, the date of the next one
+- "Module 9 — Analytics" — volume/frequency/weight trends
+- "Module 0 — User Profile" — anthropometrics as an input
+
+### Aggregates
+- ✅ Volume/frequency/PRs/trends are computed by the module itself (the aggregation principle)
+
+### Workout calorie expenditure → nutrition
+- ✅ Workouts **add expenditure** to the daily nutrition target (dynamic TDEE, see "Macro/calorie targets (where they come from)")
+- Expenditure is computed by type/duration/intensity (MET coefficients or per-type formulas)
+
+### TODO / open questions
+- The rule-based progression model — which schemes (linear, double progression, etc.)
+- Where to get ready-made programs (source/license)
+- Accuracy of the calorie expenditure calculation (MET tables, heart rate?)
+
+---
+
+## Module 4 — Goals
+
+> In design (2026-06-07).
+> ⚠️ **Goals are a cross-cutting entity.** We return to this module when designing "Module 3 — Workouts," "Module 10 — Finance," and others. A body/nutrition goal (gain/lose) is just one kind; there will be training goals (squat 100 kg, run 10 km), finance goals (save N, pay off a loan), etc.
 >
-> ✅ **Решено: общий механизм целей с типами** — одна сущность «Цель» на всё приложение, тип задаёт специфику (тело / тренинг / финансы / ...). Единый список целей, переиспользуемая логика прогресса/статуса/майлстоунов.
+> ✅ **Decided: a general goal mechanism with types** — a single "Goal" entity for the whole app, the type defining the specifics (body / training / finance / ...). A unified list of goals, reusable progress/status/milestone logic.
 
-### Архитектура — общий механизм
-- Одна сущность **Цель** с **типом** (тело, тренинг, финансы, …; расширяемо)
-- **Общие поля** (для любой цели): название, тип, срок (дедлайн), статус (активна/выполнена/брошена/просрочена), текущий прогресс, дата создания
-- **Специфика по типу** — отдельно (см. ниже по каждому типу)
-- **Несколько активных целей одновременно**, в т.ч. разных типов (тело + тренинг + финансы параллельно)
+### Architecture — a general mechanism
+- A single **Goal** entity with a **type** (body, training, finance, …; extensible)
+- **Common fields** (for any goal): name, type, deadline, status (active/completed/abandoned/overdue), current progress, creation date
+- **Type-specific details** — separate (see each type below)
+- **Several active goals at once**, including of different types (body + training + finance in parallel)
 
-### Майлстоуны (промежуточные вехи)
-- Цель можно разбить на **этапы**: напр. 80→90 кг через 82, 84, 86, 88
-- Майлстоун = промежуточное целевое значение + (опц.) свой срок + статус достижения
-- Помогают отслеживать прогресс и мотивируют
-- Майлстоун — общий механизм для целей любого типа
+### Milestones (intermediate checkpoints)
+- A goal can be broken into **stages**: e.g. 80→90 kg via 82, 84, 86, 88
+- A milestone = an intermediate target value + (opt.) its own deadline + an achievement status
+- They help track progress and provide motivation
+- Milestones are a general mechanism for goals of any type
 
-### Тип «Тело/состав» (питание + замеры)
-- Направление: набор массы / сушка / поддержание / др.
-- **Ввод — два способа (взаимно пересчитываются):**
-  - целевой показатель + срок (напр. «80→90 кг за 4 мес»)
-  - темп в неделю (напр. «+0.5 кг/нед»)
-- Система пересчитывает одно в другое и **предупреждает о нездоровом темпе** (слишком быстрый набор/сброс)
-- Связь с «Модуль 2 — Питание»: из цели выводится профицит/дефицит калорий и норма БЖУ
-- Связь с «Модуль 0 — Профиль пользователя»: прогресс измеряется журналом замеров (вес/обхваты)
+### Type "Body/composition" (nutrition + measurements)
+- Direction: gaining mass / cutting / maintenance / other
+- **Input — two ways (mutually convertible):**
+  - target value + deadline (e.g. "80→90 kg in 4 months")
+  - weekly rate (e.g. "+0.5 kg/week")
+- The system converts one into the other and **warns about an unhealthy rate** (gaining/losing too fast)
+- Link to "Module 2 — Nutrition": the calorie surplus/deficit and macro targets are derived from the goal
+- Link to "Module 0 — User Profile": progress is measured by the measurement log (weight/girths)
 
-### Тип «Тренинг» (см. «Модуль 3 — Тренировки»)
-- Подтипы цели: целевой рабочий вес (присесть 100кг), результат кардио (пробежать 10км / за время), регулярность (N тренировок/нед)
-- Прогресс цели берётся из **истории тренировок** (PR, рабочие веса, кол-во сессий)
-- Майлстоуны применимы (90 → 95 → 100 кг)
+### Type "Training" (see "Module 3 — Workouts")
+- Goal subtypes: target working weight (squat 100 kg), a cardio result (run 10 km / under a time), regularity (N workouts/week)
+- Goal progress is taken from **workout history** (PRs, working weights, number of sessions)
+- Milestones are applicable (90 → 95 → 100 kg)
 
-### Тип «Финансы» (см. «Модуль 10 — Финансы») — спроектирован 2026-06-13
-- Подтипы: **накопить N** (прогресс = накоплено в связанной «Копилке»), **закрыть кредит/долг** (прогресс = остаток связанного «Долга» к нулю)
-- ⚠️ Источник прогресса «накопить N» — **всегда Копилка** (она сама знает, виртуальная она или на реальном счёте), НЕ «баланс счёта» напрямую. Иначе виртуальная копилка без счёта не имеет источника прогресса
-- Майлстоуны применимы (накопить 50k → 100k → 150k); темп целевая сумма+срок ↔ N/мес
+### Type "Finance" (see "Module 10 — Finance") — designed 2026-06-13
+- Subtypes: **save N** (progress = amount saved in the linked "Saving Fund"), **pay off a loan/debt** (progress = the linked "Debt" balance approaching zero)
+- ⚠️ The progress source for "save N" is **always the Saving Fund** (it knows itself whether it is virtual or on a real account), NOT the "account balance" directly. Otherwise a virtual Saving Fund without an account has no progress source
+- Milestones are applicable (save 50k → 100k → 150k); rate target amount + deadline ↔ N/month
 
-### TODO (типы целей — детализировать при смежных модулях)
-- Как считается «прогресс» для каждого типа (разный источник: замеры / рабочие веса / **накоплено в копилке** / остаток долга)
-
----
-
-## Модуль 5 — Планнер
-
-> Проектируется (2026-06-07). Узловой модуль — сходятся напоминания/события всех модулей.
-
-### Роль — полноценный планировщик дня
-- **Единый хаб событий/напоминаний** со всех модулей: приём добавок + конец курса, тренировки (дата следующей), замеры (повторяющееся), забеги (событие с датой), планирование дня из рутин «Модуль 1 — Режим дня и сон»
-- **+ свои задачи/события** юзера, не привязанные к модулям (врач, встреча)
-- **+ планирование дня:** тайм-блоки, распорядок, связь с рутинами
-- Планнер сам не порождает доменные данные — он их **планирует/отображает/напоминает**; источники — модули
-
-### Движок расписания (переиспользуемый) — КАНОНИЧЕСКОЕ определение
-> 📌 **Единый сквозной механизм на всё приложение.** Все модули, где есть повторения (добавки-курсы, тренировки, замеры, задачи, фин-операции/долги/подушка, привычки), используют ЭТИ ДВЕ сущности с этими именами. Раньше они назывались по-разному в разных модулях («запланированный приём», «событие», «PLANNED_OCCURRENCE», «частота») — это ОДНО И ТО ЖЕ. Унифицировано 2026-06-13.
-> 📐 **Полная спека движка:** [Recurrence Engine](recurrence-engine.md) (формат правила, материализация, пропуски/перенос, таймзоны, границы с Уведомлениями).
-
-- **`RecurringRule`** — повторяющееся правило: паттерн повторения (рекомендуется **RRULE / RFC 5545**, покрывает «через день», «неделя приёма/неделя пауза», «N раз/нед по дням»), dtstart, until/count, timezone + **полиморфная привязка к владельцу** (добавка / тренировка-программа / замер / задача / фин-операция / долг / копилка / привычка).
-- **`PlannedOccurrence`** — конкретный запланированный экземпляр, развёрнутый из правила: плановая дата+время, плановое значение/сумма, статус (план / выполнено / пропущено / перенесено). Факт = ссылка на доменную запись (транзакция, приём добавки, выполненная тренировка).
-- **Материализация (важно, см. [Finance ER](finance-er.md) open Q):** окно вперёд (напр. +90 дней) + **уникальный ключ `(rule_id, occurrence_date)`** → идемпотентность (повторный разворот = no-op, без дублей). Решается ОДИН раз для движка.
-- **Этот механизм — кандидат №1 «спроектировать до кода»**: его используют 6+ модулей, переделка после написания катастрофична. Должен быть готов ДО схем модулей 2а/3/5/8/10.
-- Все ссылки вида «движок расписания», «движок паттернов», «повторяющееся правило» в других модулях указывают СЮДА.
-
-### Напоминания / уведомления
-- ✅ Вынесено в отдельную подсистему **[Notifications](notifications.md)** (спроектирована 2026-06-13). Планнер = хаб ЧТО запланировано; доставка/каналы/эскалация/тихие часы — в Уведомлениях
-- Каналы: in-app (сейчас) + push/email/Telegram (адаптеры, наращиваем). Эскалация «повторно если не закинулся», тихие часы, дневная сводка — там же
-- Планнер показывает события/напоминания и инициирует уведомления; механику доставки не несёт
-
-### Синхронизация с внешним календарём (опционально, выбор юзера)
-- Режимы на выбор: только календарь аппки / аппка + внешний (Google / Apple Calendar)
-- ✅ Спроектировано в **[Integrations](integrations.md)** (общий слой интеграций, календари — первый представитель): **двусторонняя** синхронизация, OAuth-подключение, маппинг локальное↔внешнее, конфликты. Планнер показывает свои + импортированные внешние события в едином календаре
-
-### Пропущенные дела — оба варианта (решает юзер)
-- **Фиксировать пропуск** → «пропущено», идёт в «Модуль 9 — Аналитика» / «Модуль 6 — Ежедневный отчёт» (дисциплина)
-- **Перенос (reschedule)** → на другой день/время
-- Юзер выбирает, что сделать с конкретным делом
-
-### Связи
-- Все модули с напоминаниями/датами: 0 (замеры), 1 (рутины), 2а (добавки), 3 (тренировки/забеги), 4 (дедлайны целей)
-- «Модуль 9 — Аналитика» / «Модуль 6 — Ежедневный отчёт» — выполнение/пропуски запланированного
-
-### TODO / открытые вопросы
-- Модель «события»: общая сущность для модульных и пользовательских событий? (кандидат — контракт `Schedulable`, см. [Recurrence Engine](recurrence-engine.md) open Q6)
-- ✅ Push-инфраструктура / каналы / кто шлёт → вынесено в [Notifications](notifications.md) (Laravel Scheduler+queue, in-app сейчас, push/Telegram позже)
-- Синхронизация с внешним календарём (Google/Apple) — отдельная интеграция, позже
+### TODO (goal types — detail when working on the adjacent modules)
+- How "progress" is computed for each type (different sources: body measurements / working weights / **amount saved in the Saving Fund** / debt balance)
 
 ---
 
-## Модуль 6 — Ежедневный отчёт
+## Module 5 — Planner
 
-> Проектируется (2026-06-07).
+> In design (2026-06-07). A hub module — reminders/events from all modules converge here.
 
-### Когда и зачем — вечерний ритуал + онлайн-сводка
-- **Вечером:** итог прошедшего дня + **планирование следующего дня** (двойной ритуал: закрыл сегодня → распланировал завтра)
-- Планирование завтра живёт в «Модуль 5 — Планнер»; отчёт его **инициирует и показывает** (не дублирует логику)
-- **Онлайн-сводка дня** (дашборд «сегодня») — доступна в течение дня, обновляется по мере ввода данных; можно заглянуть в любой момент
+### Role — a full-fledged day planner
+- **A single event/reminder hub** for all modules: supplement intakes + the end of a course, workouts (the date of the next one), body measurements (recurring), races (an event with a date), planning the day from routines in "Module 1 — Daily Routine & Sleep"
+- **+ the user's own tasks/events** not tied to modules (doctor, meeting)
+- **+ day planning:** time blocks, the daily schedule, a link to routines
+- The Planner does not produce domain data itself — it **plans/displays/reminds** about it; the sources are the modules
 
-### Содержимое — сводка из всех модулей
-- Питание: калории/БЖУ факт vs норма, вода
-- Тренировки: была/нет, что сделано
-- Добавки: приёмы выполнено/пропущено
-- Привычки/антипривычки: отметки, стрики
-- Планнер: что из запланированного выполнено/пропущено
-- (каждый модуль отдаёт готовые итоги — принцип агрегации)
+### Scheduling engine (reusable) — CANONICAL definition
+> 📌 **A single cross-cutting mechanism for the whole app.** All modules that have recurrence (supplement courses, workouts, body measurements, tasks, financial operations/debts/emergency fund, habits) use THESE TWO entities with these names. Previously they were named differently in different modules ("planned intake," "event," "PLANNED_OCCURRENCE," "frequency") — these are ONE AND THE SAME. Unified 2026-06-13.
+> 📐 **The full engine spec:** [Recurrence Engine](recurrence-engine.md) (rule format, materialization, skips/reschedule, time zones, the boundary with Notifications).
 
-### Ручной ввод (все варианты)
-- **Самооценка дня** (1–10 / эмодзи)
-- **Самочувствие:** энергия, стресс, настроение (отдельные метрики — для корреляций в аналитике)
-- **Свободная заметка / дневник**
+- **`RecurringRule`** — a recurring rule: the recurrence pattern (RRULE / RFC 5545 is recommended, covering "every other day," "intake week/off week," "N times/week on given days"), dtstart, until/count, timezone + **a polymorphic link to the owner** (supplement / workout program / body measurement / task / financial operation / debt / Saving Fund / habit).
+- **`PlannedOccurrence`** — a concrete planned instance expanded from a rule: the planned date+time, the planned value/amount, the status (planned / done / skipped / rescheduled). The actual = a reference to a domain record (transaction, supplement intake, completed workout).
+- **Materialization (important, see [Finance ER](finance-er.md) open Q):** a window ahead (e.g. +90 days) + **a unique key `(rule_id, occurrence_date)`** → idempotency (re-expanding = no-op, no duplicates). Solved ONCE for the engine.
+- **This mechanism is the No. 1 candidate to "design before code"**: it is used by 6+ modules, and reworking it after writing is catastrophic. It must be ready BEFORE the schemas of modules 2a/3/5/8/10.
+- All references like "scheduling engine," "pattern engine," "recurring rule" in other modules point HERE.
 
-### Итоговый балл дня
-- ✅ Система считает **балл дня** из выполнения: питание в норме + тренировка + добавки + привычки + план
-- Геймификация дисциплины
-- ❓ состав и веса балла — фикс или настраиваемые (пока: считаем, состав уточнить)
+### Reminders / notifications
+- ✅ Extracted into a separate **[Notifications](notifications.md)** subsystem (designed 2026-06-13). The Planner is the hub for WHAT is scheduled; delivery/channels/escalation/quiet hours are in Notifications
+- Channels: in-app (now) + push/email/Telegram (adapters, added incrementally). Escalation "remind again if not taken," quiet hours, the daily digest — also there
+- The Planner displays events/reminders and triggers notifications; it does not carry the delivery mechanics
 
-### Доставка
-- **Напоминание** вечером «заполни/посмотри отчёт» через «Модуль 5 — Планнер»
-- **LLM-саммари (опц.):** «Модуль 11 — AI-ассистент (сквозной слой)» пишет живое резюме дня с выводами (поверх программной сводки; без LLM — обычная сводка работает)
+### Sync with an external calendar (optional, user's choice)
+- Modes to choose from: app calendar only / app + external (Google / Apple Calendar)
+- ✅ Designed in **[Integrations](integrations.md)** (the shared integrations layer, calendars being the first representative): **two-way** sync, OAuth connection, local↔external mapping, conflicts. The Planner shows its own + imported external events in a single calendar
 
-### Связи
-- Все модули (источники сводки), «Модуль 5 — Планнер» (план завтра + напоминание), «Модуль 9 — Аналитика» (самочувствие/балл в динамике)
+### Missed items — both options (the user decides)
+- **Record the skip** → "skipped," flows into "Module 9 — Analytics" / "Module 6 — Daily Review" (discipline)
+- **Reschedule** → to another day/time
+- The user chooses what to do with a specific item
 
-### TODO / открытые вопросы
-- Состав и веса «балла дня»
-- Где граница Отчёт ↔ Аналитика (отчёт = срез одного дня; аналитика = динамика за период)
+### Relationships with other modules
+- All modules with reminders/dates: 0 (body measurements), 1 (routines), 2a (supplements), 3 (workouts/races), 4 (goal deadlines)
+- "Module 9 — Analytics" / "Module 6 — Daily Review" — completion/skips of scheduled items
 
----
-
-## Модуль 7 — Хранилище
-
-> Проектируется (2026-06-13). Единое место для **задач, идей, списков и покупок** с быстрым захватом в инбокс. Узловой для «оформления хаоса в дело»: идея → проект/цель, задача → день, покупка → расход.
-
-### Решения (зафиксировано 2026-06-13)
-- **Гибридная архитектура** — общая база «Элемент» (захват/заголовок/статус/инбокс) + **полиморфная специфика по типу** (задача / идея / покупка / пункт списка). Паттерн как у «Модуль 4 — Цели» и Долгов («Долги и обязательства (debt) — добавлено 2026-06-13»). Даёт единый быстрый захват и лёгкую конвертацию идея→задача
-- **Задачи:** проекты (основная группировка) + теги (поперечные контексты) + приоритет + статус
-- **Зависимости:** иерархия **родитель → дети** (самоссылка, как двухуровневые категории в Финансах) + флаг **«блокер»** на ребёнке. Незакрытый блокер не даёт закрыть родителя
-- **Списки:** простые пункты + статус/рейтинг; кастомные поля по типу списка — позже
-
-### Сущность «Элемент» (item) — общая база
-- **Тип:** задача / идея / покупка / пункт списка (полиморфизм по типу)
-- Заголовок (быстрый захват — минимум трения: одно поле и готово), (опц.) описание/заметка
-- **Статус:** инбокс (не разобрано) → активен/в работе → готово/закрыто/архив (набор статусов зависит от типа)
-- **Инбокс-флаг:** только что захваченный элемент попадает в общий инбокс на разбор (быстрый захват → инбокс → сортировка → оформление, см. «Принципы взаимодействия»)
-- Теги (поперечная классификация, общий механизм тегов)
-- **parent_id** (самоссылка) — родитель/дети; + флаг **is_blocker** на элементе (блокирует ли закрытие родителя)
-- Даты: создан, (опц.) дедлайн/запланирован-на (→ Планнер)
-- Приоритет (опц., в основном для задач)
-
-### Тип «Задача» (task)
-- **Проект** (опц.) — основная группировка задач (см. сущность «Проект» ниже)
-- Приоритет, статус (входящая / в работе / готово), дедлайн
-- Может иметь подзадачи (через parent_id), быть подэлементом идеи
-- Дата/дедлайн → событие в «Модуль 5 — Планнер» + напоминания; выполнение за день → «Модуль 6 — Ежедневный отчёт» (вклад в балл дня)
-
-### Тип «Идея» (idea)
-- **Поток:** быстрый ввод → инбокс → сортировка → **оформление в план/проект/цель**
-- Идея — источник большой работы: оформляется в **Проект** или **цель** «Модуль 4 — Цели» («идея оправилась в план» из Vision)
-- **Зависимые покупки/задачи как дети** (parent_id): идея и её зависимости живут вместе, не расползаются по спискам. Дочерняя покупка с флагом блокера → идея не «готова», пока покупка не куплена
-- Статус идеи учитывает блокеры (открытый дочерний блокер держит идею)
-
-### Тип «Покупка» (purchase) — wish-лист
-- Что купить, (опц.) оценочная цена + валюта, приоритет, статус (хочу / куплено / отменено)
-- Может быть **дочерней к идее** (покупка ради реализации идеи) ИЛИ самостоятельной в wish-листе
-- **Связь с «Модуль 10 — Финансы» — точка связи (определена 2026-06-13):** транзакция расхода (или рассрочка = «Долг») ссылается на покупку через **полиморфную ссылку источника** `TRANSACTION.source` (см. [Finance ER](finance-er.md) — поле «ссылка на источник-модуль»: добавка / **покупка-item**). FK живёт на стороне транзакции (покупка не знает о деньгах, деньги знают об источнике)
-- **Инвариант:** покупка в статусе «куплено» ⟺ существует связанная транзакция расхода или рассрочка-долг. Отмена транзакции → покупка возвращается в «хочу»
-- Куплена дочерняя покупка-блокер → разблокирует родительскую идею
-
-### Тип «Пункт списка» (list item)
-- Принадлежит **Списку** (книги / фильмы / сериалы / что угодно)
-- Поля: текст + **статус** (хочу / в процессе / готово/просмотрено) + (опц.) рейтинг/заметка
-- Простая модель сейчас; кастомные поля по типу списка (книга: автор/страницы; фильм: режиссёр/год) — позже (см. TODO)
-
-### Контейнеры — «Проект» и «Список»
-- **Проект** — группировка задач/идей вокруг крупной работы (ремонт, запуск, обучение). Имеет название, статус, (опц.) связь с целью «Модуль 4 — Цели». Задачи и идеи ссылаются на проект
-- **Список** — именованная коллекция пунктов одного назначения (wish-лист книг, фильмов и т.д.). Тип/назначение списка — свободный
-- ❓ «Проект» и «Список» — общий механизм «контейнер с типом» или две сущности — решить при схеме
-
-### Теги (поперечная классификация)
-- Общий механизм тегов: контексты (@дом/@работа/@звонки), темы. Многие-ко-многим с элементами
-- 📌 кандидат в **общий механизм тегов** на всё приложение (заметки отчёта, привычки и т.д.) — пока локально в Хранилище
-
-### Связи с модулями
-- «Модуль 10 — Финансы» — **покупка → расход/рассрочка**; статус покупки ↔ транзакция (замыкает связь, заложенную со стороны Финансов)
-- «Модуль 5 — Планнер» — **задача с датой/дедлайном → событие** + напоминания; задачи встраиваются в планирование дня
-- «Модуль 4 — Цели» — **идея → цель/проект**; проект может реализовывать цель (прогресс цели из задач проекта)
-- «Модуль 6 — Ежедневный отчёт» — выполненные за день задачи → балл дня; быстрый захват идей вечером (вечерний ритуал)
-- «Модуль 8 — Привычки и антипривычки» — (косвенно) задача-рутина vs привычка: разовое дело — задача, регулярное — привычка/рутина
-
-### Итоги (агрегация — принцип модуля)
-- ✅ Кол-во задач по статусам/проектам, размер инбокса (сколько не разобрано), выполнено за период, открытые блокеры — считает сам модуль. «Модуль 9 — Аналитика» / «Модуль 6 — Ежедневный отчёт» берут готовое
-
-### AI-надстройка (опц., см. «AI — опциональная надстройка, а не фундамент»)
-- **Уровень 1 (правила, обязателен):** ручной разбор инбокса, сортировка по тегам/проектам/приоритету — без LLM
-- **Уровень 2 (LLM, опц.):** авто-разбор инбокса (предложить тип/проект/теги для захваченного текста), разложить идею на задачи и покупки, саммари проекта — через «Модуль 11 — AI-ассистент (сквозной слой)»
-
-### TODO / открытые вопросы
-- «Проект» и «Список» — общий «контейнер с типом» vs отдельные сущности
-- Модель полиморфизма «Элемента»: single-table (тип + nullable поля) vs STI vs отдельные таблицы деталей — решить при схеме (ср. полиморфизм Целей/Тренировок)
-- Кастомные поля пунктов списка по типу (книга/фильм) — JSON-поле vs схемы на тип; нужны ли в MVP
-- Набор статусов на каждый тип элемента (у задачи/идеи/покупки/пункта он разный)
-- Теги — локально в Хранилище vs общий механизм на всё приложение (когда выносить)
-- Глубина иерархии parent→дети: только 2 уровня (идея→покупки) или произвольная (подзадачи подзадач)
-- Что считается «инбоксом»: отдельный статус vs отдельное представление (фильтр «не разобрано»)
+### TODO / open questions
+- The "event" model: a common entity for module and user events? (candidate — a `Schedulable` contract, see [Recurrence Engine](recurrence-engine.md) open Q6)
+- ✅ Push infrastructure / channels / who sends → extracted into [Notifications](notifications.md) (Laravel Scheduler+queue, in-app now, push/Telegram later)
+- Sync with an external calendar (Google/Apple) — a separate integration, later
 
 ---
 
-## Модуль 8 — Привычки и антипривычки
+## Module 6 — Daily Review
 
-> Проектируется (2026-06-07).
+> In design (2026-06-07).
 
-### Привычки (что хотим делать)
-- **Факт выполнения** (да/нет) + **числовые метрики** (страницы прочитано, минуты, повторы) — для аналитики «сколько за месяц»
-- **Время выполнения** фиксируется — важно для аналитики «когда обычно делаю»
-- Частота через общий «Движок расписания (переиспользуемый)» (каждый день / N раз в нед / по дням)
+### When and why — an evening ritual + an online summary
+- **In the evening:** the summary of the day that passed + **planning the next day** (a double ritual: closed out today → planned tomorrow)
+- Planning tomorrow lives in "Module 5 — Planner"; the review **triggers and displays** it (it does not duplicate the logic)
+- **An online day summary** (a "today" dashboard) — available throughout the day, updating as data is entered; you can check in at any moment
 
-### Конструктор привычек по «Атомным привычкам» (Дж. Клир)
-> Не просто чек-лист — **механизм встраивания привычки в жизнь** по методологии книги.
-- **Habit stacking** — «После [существующее действие] я делаю [новая привычка]» → прямая связка с **рутинами** «Модуль 1 — Режим дня и сон» (привычка цепляется к рутине)
-- **Implementation intention** — «Я делаю [привычка] в [время] в [место]» → связка с «Модуль 5 — Планнер»
-- **Правило 2 минут** — старт с микроверсии привычки
-- **Не разрывать цепь** — streak как ядро мотивации
-- (опц.) 4 закона как подсказки при создании привычки: очевидная / привлекательная / лёгкая / приятная
+### Contents — a summary from all modules
+- Nutrition: calories/macros actual vs target, water
+- Workouts: done or not, what was done
+- Supplements: intakes done/skipped
+- Habits/anti-habits: marks, streaks
+- Planner: which scheduled items were done/skipped
+- (each module provides ready-made totals — the aggregation principle)
 
-### Антипривычки (что хотим ограничить/бросить) — два режима
-- **Полный отказ:** стрик воздержания («N дней без»), фиксация срывов, рекорд серии
-- **Ступенчатый лимит:** ограничение, **снижающееся по плану во времени**
-  - пример: энергетики — макс 1/день → потом 5/нед → потом 3/нед (постепенное снижение, а не резкий отказ)
-  - ⚠️ **Ступенчатый лимит ≠ майлстоун** (уточнено 2026-06-13). Майлстоун «Модуль 4 — Цели» = промежуточная **достигаемая веха** (целевое значение, которого надо достичь). Ступенчатый лимит = **действующее ограничение-потолок** (которое нельзя превышать) + смена единицы измерения (день→неделя). Это семантически разные сущности (достигаем vs ограничиваем). Общее у них только структурно: «массив (значение, срок, статус)». НЕ моделировать одной сущностью вслепую — см. TODO
+### Manual input (all options)
+- **Day self-rating** (1–10 / emoji)
+- **Well-being:** energy, stress, mood (separate metrics — for correlations in analytics)
+- **A free-form note / diary**
 
-### Геймификация — стрики + статистика
-- Streak (текущая серия), лучшая серия, % выполнения
-- Без избыточных игровых наград — мотивация через цепочку и цифры
+### The day score
+- ✅ The system computes a **day score** from completion: nutrition on target + a workout + supplements + habits + the plan
+- Gamification of discipline
+- ❓ the composition and weights of the score — fixed or configurable (for now: we compute it, refine the composition later)
 
-### Связи
-- «Модуль 1 — Режим дня и сон» — привычка как часть рутины (habit stacking)
-- «Модуль 5 — Планнер» — напоминания, implementation intention (время/место)
-- «Модуль 4 — Цели» — привычка/антипривычка под цель (бросить курить = цель со стриком; снижение лимита = майлстоуны)
-- «Модуль 9 — Аналитика» / «Модуль 6 — Ежедневный отчёт» — динамика, % выполнения, «когда/сколько»
+### Delivery
+- An evening **reminder** "fill out / look at the review" via "Module 5 — Planner"
+- **LLM summary (opt.):** "Module 11 — AI Assistant (cross-cutting layer)" writes a living summary of the day with conclusions (on top of the programmatic summary; without an LLM, the regular summary works)
 
-### Итоги
-- ✅ Streak / % выполнения / суммы метрик считает сам модуль (принцип агрегации)
+### Relationships with other modules
+- All modules (summary sources), "Module 5 — Planner" (tomorrow's plan + reminder), "Module 9 — Analytics" (well-being/score over time)
 
-### TODO / открытые вопросы
-- Реф методологии: «Атомные привычки» — какие именно механики в MVP
-- Модель «лимита, меняющегося во времени» — отдельная сущность «ступенчатая шкала» (значение+срок+статус), НЕ переиспользовать майлстоун цели вслепую (разная семантика: ограничение vs достижение). ❓ нужна ли вообще общая абстракция или две независимые модели
+### TODO / open questions
+- The composition and weights of the "day score"
+- Where the Review ↔ Analytics boundary lies (review = a single-day cross-section; analytics = trends over a period)
 
 ---
 
-## Модуль 9 — Аналитика
+## Module 7 — Storage
 
-> Проектируется (2026-06-07). Витрина: собирает готовые итоги от модулей (см. «Итоги считает сам модуль (агрегация)»), не дублирует подсчёт.
-> Граница с «Модуль 6 — Ежедневный отчёт»: отчёт = срез одного дня; аналитика = динамика за период.
+> In design (2026-06-13). A single place for **tasks, ideas, lists, and purchases** with quick capture into an inbox. A hub for "turning chaos into action": idea → project/goal, task → day, purchase → expense.
 
-### Ядро — динамика + корреляции
-- **Динамика:** графики трендов по метрикам во времени (вес/обхваты, калории/БЖУ, рабочие веса, стрики, сон, балл дня и т.д.)
-- **Корреляции (главная фишка):** связи между метриками — выводы об эффективности
-  - примеры: сон → энергия; питание → вес; тренировки → рабочие веса; самочувствие → дисциплина
-  - источник «маркера результата» — журнал замеров «Модуль 0 — Профиль пользователя», самочувствие из «Модуль 6 — Ежедневный отчёт»
+### Decisions (recorded 2026-06-13)
+- **Hybrid architecture** — a common "Item" base (capture/title/status/inbox) + **polymorphic type-specific details** (task / idea / purchase / list item). The pattern as in "Module 4 — Goals" and Debts ("Debts and obligations (debt) — added 2026-06-13"). It gives a single quick capture and easy idea→task conversion
+- **Tasks:** projects (the main grouping) + tags (cross-cutting contexts) + priority + status
+- **Dependencies:** a **parent → children** hierarchy (self-reference, like the two-level categories in Finance) + a **"blocker"** flag on a child. An unclosed blocker prevents closing the parent
+- **Lists:** simple items + status/rating; custom fields per list type — later
 
-### Периоды и срезы
-- День / неделя / месяц + **произвольный диапазон дат**
-- **Сравнение периодов** (этот месяц vs прошлый)
+### The "Item" entity — a common base
+- **Type:** task / idea / purchase / list item (polymorphism by type)
+- Title (quick capture — minimum friction: one field and done), (opt.) description/note
+- **Status:** inbox (unsorted) → active/in progress → done/closed/archive (the set of statuses depends on the type)
+- **Inbox flag:** a just-captured item lands in the common inbox for sorting (quick capture → inbox → sorting → processing, see "Interaction principles")
+- Tags (cross-cutting classification, the common tag mechanism)
+- **parent_id** (self-reference) — parent/children; + an **is_blocker** flag on the item (whether it blocks closing the parent)
+- Dates: created, (opt.) deadline/scheduled-for (→ Planner)
+- Priority (opt., mainly for tasks)
 
-### Выводы — правила + LLM (паттерн «надстройка»)
-- **Уровень 1 (правила, обязателен):** детерминированные корреляции/выводы по правилам (порог, тренд, сравнение с нормой) — работает без AI
-- **Уровень 2 (LLM, опц.):** глубокие инсайты живым текстом через «Модуль 11 — AI-ассистент (сквозной слой)»
-- Связь с «Механизм рекомендаций (корректировка)» — аналитика даёт тренды для рекомендаций
+### Type "Task" (task)
+- **Project** (opt.) — the main grouping of tasks (see the "Project" entity below)
+- Priority, status (inbox / in progress / done), deadline
+- May have subtasks (via parent_id), be a sub-item of an idea
+- Date/deadline → an event in "Module 5 — Planner" + reminders; completion during the day → "Module 6 — Daily Review" (a contribution to the day score)
 
-### Экспорт (важно)
-- Экспорт данных/отчётов: CSV / PDF (показать врачу/тренеру, бэкап)
-- ❓ форматы и состав (per-модуль / сводно / период)
+### Type "Idea" (idea)
+- **Flow:** quick entry → inbox → sorting → **processing into a plan/project/goal**
+- An idea is a source of big work: it is processed into a **Project** or a goal in "Module 4 — Goals" ("an idea went into the plan" from the Vision)
+- **Dependent purchases/tasks as children** (parent_id): an idea and its dependencies live together, they don't scatter across lists. A child purchase with a blocker flag → the idea is not "done" until the purchase is bought
+- The idea's status accounts for blockers (an open child blocker keeps the idea open)
 
-### Связи
-- Все модули — источники готовых итогов
-- «Модуль 0 — Профиль пользователя» (замеры), «Модуль 6 — Ежедневный отчёт» (самочувствие/балл), «Модуль 4 — Цели» (прогресс), «Модуль 11 — AI-ассистент (сквозной слой)» (инсайты)
+### Type "Purchase" (purchase) — wishlist
+- What to buy, (opt.) estimated price + currency, priority, status (want / bought / canceled)
+- May be a **child of an idea** (a purchase for the sake of realizing the idea) OR standalone in the wishlist
+- **Link to "Module 10 — Finance" — the connection point (defined 2026-06-13):** an expense transaction (or an installment plan = a "Debt") references a purchase via a **polymorphic source reference** `TRANSACTION.source` (see [Finance ER](finance-er.md) — the "reference to the source module" field: supplement / **purchase item**). The FK lives on the transaction side (the purchase doesn't know about money, money knows about its source)
+- **Invariant:** a purchase in the "bought" status ⟺ there exists a linked expense transaction or installment-plan debt. Canceling the transaction → the purchase returns to "want"
+- A child blocker purchase is bought → it unblocks the parent idea
 
-### TODO / открытые вопросы
-- Какие именно корреляции считаем по правилам (список пар метрик)
-- Производительность на больших периодах (предрасчёт/кэш агрегатов?)
-- Форматы экспорта
+### Type "List item" (list item)
+- Belongs to a **List** (books / movies / TV shows / anything)
+- Fields: text + **status** (want / in progress / done/watched) + (opt.) rating/note
+- A simple model for now; custom fields per list type (book: author/pages; movie: director/year) — later (see TODO)
 
----
+### Containers — "Project" and "List"
+- A **Project** — a grouping of tasks/ideas around a large body of work (renovation, a launch, learning). It has a name, a status, (opt.) a link to a goal in "Module 4 — Goals". Tasks and ideas reference the project
+- A **List** — a named collection of items of a single purpose (a wishlist of books, movies, etc.). The list's type/purpose is free-form
+- ❓ "Project" and "List" — a common "container with a type" mechanism or two entities — to decide at the schema stage
 
-## Модуль 10 — Финансы
+### Tags (cross-cutting classification)
+- The common tag mechanism: contexts (@home/@work/@calls), themes. Many-to-many with items
+- 📌 a candidate to become the **common tag mechanism** for the whole app (review notes, habits, etc.) — for now local to Storage
 
-> Проектируется (2026-06-13). Учёт доходов/расходов, мультивалютные счета, бюджет план/факт, финансовые цели. Узловой для денежных связей: докупки добавок, покупки из идей, регулярные платежи.
-> 📐 **ER-схема сущностей и связей:** [Finance ER](finance-er.md)
+### Relationships with other modules
+- "Module 10 — Finance" — **purchase → expense/installment plan**; the purchase status ↔ the transaction (closing the link laid out from the Finance side)
+- "Module 5 — Planner" — **a task with a date/deadline → an event** + reminders; tasks are woven into day planning
+- "Module 4 — Goals" — **idea → goal/project**; a project may realize a goal (goal progress from the project's tasks)
+- "Module 6 — Daily Review" — tasks completed during the day → the day score; quick capture of ideas in the evening (the evening ritual)
+- "Module 8 — Habits & Anti-habits" — (indirectly) a routine task vs a habit: a one-off matter is a task, a regular one is a habit/routine
 
-### Решения (зафиксировано 2026-06-13)
-- **Много счетов + переводы** — наличка / карты / накопительные / валютные. У каждого свой баланс. Перевод между счетами = двойная транзакция (списание с одного + зачисление на другой), не доход и не расход.
-- **Мультивалютность сразу** — счета в разных валютах (грн/USD/EUR/…), хранение курсов, пересчёт в базовую валюту для сводной аналитики.
-- **Инвестиции отложены** — портфель активов с котировками НЕ делаем сейчас. Накопления трекаются как обычный счёт-копилка (тип счёта «накопительный»). Активы/доходность — отдельный подэтап позже.
-- **Категории двухуровневые** — группа → подкатегория (напр. «Еда → Продукты / Кафе / Доставка»). Удобно для сворачивания в аналитике.
-- **Бюджет — лимиты по категориям на месяц** — на категорию задаётся месячный лимит; система показывает «потрачено X из Y» и предупреждает о приближении/превышении.
+### Aggregates (the module's principle)
+- ✅ The count of tasks by status/project, the inbox size (how much is unsorted), completed over a period, open blockers — computed by the module itself. "Module 9 — Analytics" / "Module 6 — Daily Review" take the ready-made figures
 
-### Сущность «Счёт» (account)
-- Название, тип (наличка / карта / накопительный / валютный — расширяемо)
-- **Валюта счёта** (одна на счёт)
-- Текущий баланс (производная: стартовый баланс + сумма транзакций; **итог считает сам модуль**, см. «Итоги считает сам модуль (агрегация)»)
-- Флаг «архивный» (закрытый счёт не удаляем — история транзакций должна жить)
-- ❓ стартовый баланс: отдельное поле или первая «корректирующая» транзакция — решить при проектировании схемы
+### AI layer (opt., see "AI is an optional layer, not a foundation")
+- **Level 1 (rules, mandatory):** manual inbox processing, sorting by tags/projects/priority — without an LLM
+- **Level 2 (LLM, opt.):** auto-processing the inbox (suggest a type/project/tags for the captured text), break an idea down into tasks and purchases, a project summary — via "Module 11 — AI Assistant (cross-cutting layer)"
 
-### Сущность «Транзакция» (transaction)
-- Тип: **доход / расход / перевод**
-- Сумма + валюта (наследуется от счёта)
-- Счёт (для перевода — счёт-источник и счёт-получатель)
-- Категория (для дохода/расхода; перевод категории не имеет)
-- Дата, заметка, (опц.) тег
-- **Перевод между валютами** хранит обе суммы (списано 1000 грн → зачислено 24 USD) + эффективный курс операции
-- (опц.) ссылка на источник-модуль (докупка добавки, покупка из идеи) — см. связи ниже
-
-### Категории (двухуровневые)
-- **Группа** (верхний уровень) → **подкатегория** (нижний). Транзакция вешается на подкатегорию (или на группу, если без детализации)
-- Признак направления: категория расхода vs категория дохода (доходные и расходные не смешиваем)
-- Пользовательские + набор дефолтных «из коробки»
-- Архивирование вместо удаления (сохранить историю по категории)
-- Примеры двухуровневой структуры: «Еда → Продукты / Кафе / Доставка», **«Медицина → Стоматология / Анализы / Лекарства»**
-  - Кейс стоматологии: регулярная профилактика (чинить зубы вовремя, чтобы не влететь на крупную замену) — это **регулярный плановый расход** по подкатегории + напоминание о визите через «Модуль 5 — Планнер» (профилактический визит как повторяющееся событие). Аналитика по подкатегории показывает динамику трат на стоматологию
-  - 📌 паттерн «дешёвая профилактика сейчас vs дорогая авария потом» применим и к другим подкатегориям (ТО авто, и т.п.) — общая идея, не спец-механизм
-
-### Мультивалютность и курсы
-- **Базовая валюта пользователя** (в «Модуль 0 — Профиль пользователя» / настройках) — в неё сводится общая картина
-- Курсы: ручной ввод + (позже) подтягивание из внешнего источника (НБУ/API). На старте — ручной/последний известный
-- Пересчёт для **сводной** аналитики; внутри счёта суммы остаются в его валюте (не теряем исходные данные)
-- ⚠️ хранить **исторический курс на дату операции** для переводов, а не только текущий — иначе сводные цифры «поплывут»
-
-### Бюджет (план vs факт)
-- На **категорию** (группу или подкатегорию) — месячный **лимит**
-- Факт = сумма транзакций категории за месяц (готовый итог от модуля)
-- Состояния: в пределах / близко к лимиту (порог, напр. 80%) / превышен
-- Сводный месячный бюджет = сумма лимитов; «осталось до конца месяца»
-- 📌 предупреждения о приближении/превышении → канал уведомлений «Модуль 5 — Планнер»
-- ❓ перенос остатка лимита на след. месяц — да/нет (по умолчанию нет; конверты-режим — позже, если захочется)
-
-### Долги и обязательства (debt) — добавлено 2026-06-13
-> Кейсы: рассрочка на предмет (N платежей по X/мес), «должен человеку — отдаю по X/мес», «закрыть кредитку на X тыс в банке Y». **Общий механизм долга с типами** (паттерн как у «Модуль 4 — Цели»: одна сущность + тип/режим задаёт специфику).
-
-#### Сущность «Долг» (общие поля)
-- Название / описание (на что, кому)
-- **Направление:** я должен (обязательство) / мне должны (актив-требование) — обе стороны в одной модели
-- **Контрагент:** кому/от кого (банк, магазин, человек) — свободный текст или ссылка на справочник контрагентов (позже)
-- **Исходная сумма** + **остаток** (остаток уменьшается платежами; итог считает сам модуль)
-- Валюта (мультивалютность, см. «Мультивалютность и курсы»)
-- Дата возникновения, (опц.) дедлайн полного погашения
-- Статус: активен / погашен / просрочен
-- (опц.) ссылка на счёт, **с которого платится** (для авто-транзакции платежа)
-
-#### Режим графика — два варианта (флаг на долге)
-- **Фиксированный график** (рассрочка): сумма + число платежей + периодичность (X/мес) → система **разворачивает график** конкретных платежей (дата + сумма каждого). Каждый платёж: запланирован / оплачен / просрочен
-- **Свободное гашение** (кредитка, долг человеку без срока): только остаток, платежи вносятся когда угодно произвольной суммой; график не фиксирован. Напоминания опциональны
-- → переиспользует общий «Движок расписания (переиспользуемый)» для регулярных платежей фиксированного графика
-
-#### Проценты/переплата — опционально
-- Можно НЕ указывать (рассрочка 0%, долг человеку) — тогда трекается чистое тело долга
-- Если указано: ставка ИЛИ полная сумма переплаты → система показывает, сколько из платежа идёт в **тело**, сколько в **проценты**, и общую переплату
-- ⚠️ полная амортизация с капанием % на остаток (аннуитет/дифференцированный) — НЕ сейчас, при необходимости позже (см. TODO)
-
-#### Платёж по долгу
-- Факт платежа = транзакция расхода (для «я должен») / дохода (для «мне должны») со ссылкой на долг → **уменьшает остаток**
-- Для фиксированного графика платёж закрывает конкретный запланированный платёж (оплачен)
-- Связь с транзакциями (см. «Сущность «Транзакция» (transaction)»): платёж по долгу — обычная транзакция + ссылка на долг
-
-#### Привязки
-- Рассрочка может ссылаться на **покупку/предмет** (потенциально из «Модуль 7 — Хранилище» — wish-лист/идея → купил в рассрочку → долг)
-- **Регулярные платежи** долга идут тем же механизмом, что «Регулярные платежи (recurring) — переиспользование движка»
-- Напоминания о платеже → «Модуль 5 — Планнер»
-- «Закрыть кредитку/долг» как **цель** → связывается с долгом (прогресс цели = остаток долга к нулю), см. ниже
-
-#### Итоги (агрегация)
-- ✅ Остаток по каждому долгу, суммарный долг «я должен» / «мне должны», прогноз даты погашения (из остатка + темпа платежей), переплата — считает сам модуль
-
-### Копилки / накопления на цель (sinking funds) — добавлено 2026-06-13
-> Кейсы: «накопить X на ремонт в гараже», «накопить X на путешествие в горы». Кастомное накопление на конкретную цель/категорию.
-
-#### Сущность «Копилка»
-- Название (ремонт гаража, поездка в горы), (опц.) привязка к **категории трат** (на что копим)
-- **Целевая сумма** + **накоплено** (прогресс к цели), валюта
-- (опц.) срок-дедлайн → пересчёт «сколько докладывать/мес, чтобы успеть»
-- Статус: активна / цель достигнута / потрачена (закрыта)
-
-#### Где лежат деньги — два варианта (выбор юзера)
-- **Виртуальная копилка (конверт):** не отдельный счёт, а «отложено X на ремонт» поверх общего баланса; деньги физически на любом счёте. Не плодим счета под каждую цель
-- **Привязка к реальному счёту:** прогресс копилки = баланс конкретного накопительного счёта (см. тип счёта «накопительный»)
-- → одна модель, флаг режима; виртуальная сумма vs ссылка на счёт
-
-#### Пополнение
-- Пополнение копилки = операция «отложить» (для виртуальной — внутренний перевод в конверт; для счёта — реальный перевод на накопительный счёт)
-- Может быть **регулярным** (X/мес через «Регулярные операции (recurring) — доходы И расходы, переиспользование движка») или разовым вручную
-- Достижение цели → уведомление; потом деньги тратятся на цель (транзакция расхода в привязанной категории, копилка закрывается)
-
-### Подушка безопасности (emergency fund) — добавлено 2026-06-13
-> Особый, выделенный вид накопления: **обязательное** ежемесячное наращивание, **бессрочное** (не разовая цель «накопил и закрыл», а постоянная дисциплина). Поэтому отдельно от обычных копилок.
-
-#### Отличие от копилки
-- **Бессрочная** и **обязательная** — пополняется каждый месяц в обязательном порядке, входит в обязательные расходы месяца (как платёж по долгу), а не в «по возможности»
-- Выделена визуально и в cash flow (это «нельзя трогать» деньги)
-
-#### Правило пополнения — три режима (выбор юзера)
-- **Фиксированная сумма/мес** (напр. 2000 грн)
-- **% от месячного дохода** (напр. 10% — масштабируется от «планового дохода»)
-- **Целевой размер = N месяцев расходов** (напр. 6 мес): система берёт средние траты (готовый итог модуля) → целевой размер подушки + сколько докладывать/мес до цели
-- → правило пополнения настраиваемое; при достижении целевого размера (для 3-го режима) — статус «подушка набрана», дальше поддержание
-
-#### Поведение
-- Обязательное пополнение разворачивается как **регулярная операция** (приоритетный обязательный «расход → в подушку») через движок расписания
-- Просадка подушки (пришлось потратить на форс-мажор) → подушка снова «недобрана» → возобновляется обязательное наращивание
-- Прогресс/динамика подушки → «Модуль 9 — Аналитика»; напоминание о пополнении → «Модуль 5 — Планнер»
-- 📌 концептуально подушка — частный случай копилки с флагами «обязательная + бессрочная»; в модели можно переиспользовать сущность копилки + тип/флаги (решить при схеме)
-
-### Финансовые цели (тип цели «Финансы») — связь с «Модуль 4 — Цели»
-- Реализует TODO из «Модуль 4 — Цели» (тип «Финансы»): **накопить N**, **закрыть кредит/долг**
-- **Цель «накопить N на …»** связывается с «Копилкой» (ремонт/путешествие); **прогресс = накоплено в копилке** (копилка сама знает: виртуальная или на счёте). Т.е. копилка = механизм накопления, фин-цель = обёртка со сроком/майлстоунами поверх неё. ⚠️ прогресс берётся из Копилки, НЕ из «баланса счёта» напрямую (ср. «тело» → замеры, «тренинг» → рабочие веса, «накопить» → копилка)
-- **Цель «закрыть кредит/долг»** связывается с конкретным **Долгом** (см. «Долги и обязательства (debt) — добавлено 2026-06-13»); прогресс = убывание остатка долга к нулю
-- **Майлстоуны** применимы: накопить 50k → 100k → 150k (общий механизм вех)
-- Темп: целевая сумма + срок ↔ «откладывать N/мес» (взаимный пересчёт, как у цели «тело»: целевой показатель ↔ темп)
-
-### Связи с модулями
-- «Модуль 4 — Цели» — тип цели «Финансы»: прогресс «накопить N» из связанной Копилки, «закрыть кредит» из остатка Долга, майлстоуны
-- «Модуль 2а — Добавки и витамины» — связка **запасы → прогноз → финансы**: расход на докупку заложить в бюджет, прогноз даты докупки → плановый расход. Докупка порождает **разовый плановый расход** (из прогноза остатка добавки), НЕ recurring-правило — см. разграничение в «Регулярные операции (recurring) — доходы И расходы, переиспользование движка». Транзакция расхода ссылается на добавку через `TRANSACTION.source`
-- «Модуль 7 — Хранилище» — wish-лист покупок и «идея → зависимые покупки»: покупка → транзакция расхода/рассрочка через **`TRANSACTION.source` (полиморфная ссылка)**; инвариант «куплено ⟺ есть транзакция». FK на стороне транзакции. Связь определена с обеих сторон (см. «Тип «Покупка» (purchase) — wish-лист»)
-- «Модуль 5 — Планнер» — **регулярные операции** (расходы: подписки/коммуналка/кредит/аренда; доходы: зарплата 3×/мес) как повторяющиеся события + напоминания (платёж, поступление зарплаты, пополнение подушки, профилактический визит к стоматологу) через «Движок расписания (переиспользуемый)»; предупреждения бюджета как уведомления
-- «Модуль 9 — Аналитика» — куда уходят деньги (разрез по категориям/группам, в т.ч. подкатегории вроде стоматологии), динамика по месяцам, сравнение периодов, доходы vs расходы, **cash flow** (плановый доход − обязательные расходы), прогресс подушки/копилок; экспорт (CSV/PDF)
-
-### Регулярные операции (recurring) — доходы И расходы, переиспользование движка
-> Симметрия: движок повторений работает в обе стороны — плановый расход (коммуналка) и плановый доход (зарплата). На этом строится прогноз cash flow.
-
-- **Регулярные расходы:** подписки / коммуналка / кредит / аренда — **повторяющееся правило** из общего «Движок расписания (переиспользуемый)» (тот же, что курсы добавок и события планнера)
-- **Регулярные доходы:** зарплата, гонорары и т.п. — то же правило, но направление «доход»
-  - Кейс: **зарплата 3 раза/мес фиксированными суммами** (пока грн) — три правила дохода с датами и суммами (аванс / основная / премия и т.п.), или одно правило с несколькими выплатами в периоде
-  - **Календарь поступлений:** видно на таймлайне когда и сколько придёт → понимание cash flow (хватит ли денег до следующей зарплаты)
-- Из правила разворачиваются **плановые транзакции** (доход/расход); факт отмечается при наступлении (получено / оплачено / пропущено), как приём добавки
-- **Плановый доход месяца** = сумма регулярных доходов → база для планирования бюджета и копилок/подушки (от чего отталкиваются лимиты и «% от дохода»)
-- **Прогноз cash flow:** плановые доходы − обязательные расходы (регулярные + платежи по долгам + обязательное пополнение подушки) → свободные деньги месяца
-- ❓ нерегулярные/разовые ожидаемые доходы (бонус, возврат) — как плановый доход без правила (разовое запланированное поступление)
-
-### Итоги (агрегация — принцип модуля)
-- ✅ Баланс каждого счёта, сводный баланс (в базовой валюте), сумма по категории за период, факт бюджета, доходы/расходы/сальдо за день/неделю/месяц, **плановый доход месяца**, **cash flow** (плановый доход − обязательные расходы), накоплено в копилках, размер/недобор подушки, остаток долгов — **считает сам Модуль 10**. «Модуль 9 — Аналитика» берёт готовые цифры
-
-### AI-надстройка (опц., см. «AI — опциональная надстройка, а не фундамент»)
-- **Уровень 1 (правила, обязателен):** детерминированная аналитика трат, предупреждения бюджета, прогноз обязательных платежей, расчёт cash flow и недобора подушки — работает без LLM
-- **Уровень 2 (LLM, опц.):** инсайты живым текстом («в этом месяце на доставку ушло вдвое больше обычного», «при текущем темпе на ремонт гаража накопишь к марту»), советы по экономии, разбор структуры трат — через «Модуль 11 — AI-ассистент (сквозной слой)»
-
-### TODO / открытые вопросы
-- Стартовый баланс счёта: поле vs корректирующая транзакция
-- Хранение курсов: модель (валютная пара + дата + курс), ручной ввод vs внешний источник (НБУ/API)
-- Перенос остатка лимита бюджета на след. месяц (нужен ли)
-- Модель «перевода»: одна запись с двумя счетами vs две связанные записи
-- Категория дефолтная «из коробки» — какой стартовый набор
-- Где живёт «базовая валюта» — профиль («Модуль 0 — Профиль пользователя») или настройки финансов
-- Связь докупки добавок / покупки из идеи с транзакцией — обязательная ссылка или мягкая (детали при Модулях 2а/7)
-- **Долги:** справочник контрагентов (кому должен) — отдельная сущность или свободный текст
-- **Долги:** полная амортизация с % на остаток (аннуитет/дифференцированный) — нужна ли, или хватает опционального тела+переплаты
-- **Долги:** как считать «просрочку» свободного гашения (без графика дедлайн есть, платежей нет)
-- **Копилки/подушка:** общая сущность с флагами (обычная копилка / обязательная-бессрочная подушка) vs две отдельные — решить при схеме
-- **Копилки:** виртуальный «конверт» — как технически держать сумму отдельно от баланса счёта, не задваивая деньги (резервирование части баланса)
-- **Подушка:** для режима «N месяцев расходов» — на каких тратах считать средние (все / только обязательные), за какой период
-- **Доходы:** нерегулярные ожидаемые поступления (бонус/возврат) — разовый плановый доход без правила повторения
-- **Доходы:** мультивалютность доходов (пока грн), но заложить поле валюты как везде
+### TODO / open questions
+- "Project" and "List" — a common "container with a type" vs separate entities
+- The "Item" polymorphism model: single-table (type + nullable fields) vs STI vs separate detail tables — to decide at the schema stage (cf. the Goals/Workouts polymorphism)
+- Custom list-item fields per type (book/movie) — a JSON field vs per-type schemas; whether they are needed in the MVP
+- The set of statuses for each item type (a task/idea/purchase/item have different ones)
+- Tags — local to Storage vs a common mechanism for the whole app (when to extract)
+- The depth of the parent→children hierarchy: only 2 levels (idea→purchases) or arbitrary (subtasks of subtasks)
+- What counts as the "inbox": a separate status vs a separate view (an "unsorted" filter)
 
 ---
 
-## Модуль 11 — AI-ассистент (сквозной слой)
+## Module 8 — Habits & Anti-habits
 
-> Добавлен 2026-06-07. НЕ фича одного модуля, а **встроенный помощник для всей системы**.
-> ⚠️ **Опциональная надстройка** — см. «AI — опциональная надстройка, а не фундамент». Система работает и без него.
+> In design (2026-06-07).
 
-### Назначение
-- Сквозной AI-помощник, доступный из всех модулей
-- Видит контекст всей системы: профиль/замеры, питание, тренировки, цели, привычки, аналитика
-- Сценарии: рекомендации по корректировке (см. «Механизм рекомендаций (корректировка)»), разбор тренировки, анализ динамики замеров, ответы на вопросы пользователя, советы по питанию
+### Habits (what we want to do)
+- **The fact of completion** (yes/no) + **numeric metrics** (pages read, minutes, reps) — for "how much over the month" analytics
+- **The time of completion** is recorded — important for "when I usually do it" analytics
+- Frequency via the common "Scheduling engine (reusable)" (every day / N times/week / on specific days)
 
-### Абстракция провайдера — на уровне пользователя (BYOK)
-> **Bring Your Own Key.** Провайдер настраивается НЕ в конфиге приложения, а самим пользователем через форму. Юзер подключает СВОЙ агента по API (свой проплаченный аккаунт Claude/OpenAI/др.). Токены платит юзер.
+### A habit builder based on "Atomic Habits" (J. Clear)
+> Not just a checklist — a **mechanism for embedding a habit into life** following the book's methodology.
+- **Habit stacking** — "After [an existing action] I do [a new habit]" → a direct link to **routines** in "Module 1 — Daily Routine & Sleep" (a habit attaches to a routine)
+- **Implementation intention** — "I do [habit] at [time] in [place]" → a link to "Module 5 — Planner"
+- **The 2-minute rule** — start with a micro version of the habit
+- **Don't break the chain** — a streak as the core of motivation
+- (opt.) the 4 laws as hints when creating a habit: obvious / attractive / easy / satisfying
 
-- Система **не привязана к одному LLM** — выбор провайдера делает пользователь
-- Учётные данные LLM = **данные пользователя** (отдельная сущность, привязка к юзеру):
-  - провайдер (Claude/Anthropic, OpenAI, кастомный endpoint и т.д.)
-  - API-ключ
-  - модель + параметры
-  - возможно несколько подключений с выбором активного
-- Форма в настройках: добавить/редактировать/удалить подключение, выбрать активное, тест связи
-- Паттерн остаётся: единый **контракт** (напр. `LlmProvider`) + адаптеры под провайдеров
-- Но выбор реализации — **в рантайме из данных юзера**, НЕ из статического конфига (фабрика по провайдеру юзера)
-- ⚠️ Поддержка «кастомного агента/endpoint» — продумать: только известные провайдеры или произвольный OpenAI-совместимый URL?
-- Учебная ценность: Strategy/Adapter + Laravel Service Container, рантайм-резолв
+### Anti-habits (what we want to limit/quit) — two modes
+- **Full abstinence:** an abstinence streak ("N days without"), recording relapses, the best streak record
+- **Stepped limit:** a limit that **decreases on a plan over time**
+  - example: energy drinks — max 1/day → then 5/week → then 3/week (a gradual reduction, not an abrupt quit)
+  - ⚠️ **A stepped limit ≠ a milestone** (clarified 2026-06-13). A "Module 4 — Goals" milestone = an intermediate **achievable checkpoint** (a target value that must be reached). A stepped limit = an **active ceiling constraint** (which must not be exceeded) + a change of the unit of measurement (day→week). These are semantically different entities (we reach vs we constrain). They share only the structure: "an array of (value, deadline, status)." Do NOT model them with one entity blindly — see TODO
 
-### ⚠️ Безопасность API-ключей пользователей
-- Чужие API-ключи в БД — чувствительные секреты, высокая ответственность
-- **Шифровать в БД** (Laravel encrypted cast / Crypt), не хранить в открытом виде
-- **Никогда не отдавать ключ обратно на фронт** в открытом виде (только маска `sk-...abcd`, статус «подключено»)
-- Защита от утечки, аудит доступа, отзыв ключа
+### Gamification — streaks + statistics
+- Streak (the current streak), the best streak, % completion
+- Without excessive game rewards — motivation through the chain and the numbers
+
+### Relationships with other modules
+- "Module 1 — Daily Routine & Sleep" — a habit as part of a routine (habit stacking)
+- "Module 5 — Planner" — reminders, implementation intention (time/place)
+- "Module 4 — Goals" — a habit/anti-habit tied to a goal (quitting smoking = a goal with a streak; lowering a limit = milestones)
+- "Module 9 — Analytics" / "Module 6 — Daily Review" — trends, % completion, "when/how much"
+
+### Aggregates
+- ✅ Streak / % completion / metric sums are computed by the module itself (the aggregation principle)
+
+### TODO / open questions
+- A reference for the methodology: "Atomic Habits" — exactly which mechanics in the MVP
+- The model for a "limit that changes over time" — a separate "stepped scale" entity (value+deadline+status), do NOT reuse a goal milestone blindly (different semantics: a constraint vs an achievement). ❓ whether a shared abstraction is needed at all, or two independent models
+
+---
+
+## Module 9 — Analytics
+
+> In design (2026-06-07). A display layer: it gathers ready-made totals from the modules (see "Each module computes its own aggregates"), it does not duplicate the aggregation.
+> The boundary with "Module 6 — Daily Review": the review = a single-day cross-section; analytics = trends over a period.
+
+### The core — trends + correlations
+- **Trends:** trend charts for metrics over time (weight/girths, calories/macros, working weights, streaks, sleep, the day score, etc.)
+- **Correlations (the headline feature):** links between metrics — conclusions about effectiveness
+  - examples: sleep → energy; nutrition → weight; workouts → working weights; well-being → discipline
+  - the "result marker" source is the measurement log of "Module 0 — User Profile," well-being from "Module 6 — Daily Review"
+
+### Periods and cross-sections
+- Day / week / month + **an arbitrary date range**
+- **Period comparison** (this month vs last)
+
+### Conclusions — rules + LLM (the "layer" pattern)
+- **Level 1 (rules, mandatory):** deterministic correlations/conclusions by rules (a threshold, a trend, a comparison with a target) — works without AI
+- **Level 2 (LLM, opt.):** deep insights as living text via "Module 11 — AI Assistant (cross-cutting layer)"
+- A link to the "Recommendation mechanism (adjustment)" — analytics provides the trends for the recommendations
+
+### Export (important)
+- Exporting data/reports: CSV / PDF (to show a doctor/trainer, for backup)
+- ❓ formats and composition (per-module / consolidated / by period)
+
+### Relationships with other modules
+- All modules — sources of ready-made totals
+- "Module 0 — User Profile" (body measurements), "Module 6 — Daily Review" (well-being/score), "Module 4 — Goals" (progress), "Module 11 — AI Assistant (cross-cutting layer)" (insights)
+
+### TODO / open questions
+- Exactly which correlations we compute by rules (a list of metric pairs)
+- Performance over large periods (precomputation/caching of aggregates?)
+- Export formats
+
+---
+
+## Module 10 — Finance
+
+> In design (2026-06-13). Tracking income/expenses, multi-currency accounts, planned/actual budgeting, financial goals. A hub for monetary links: supplement restocks, purchases from ideas, recurring payments.
+> 📐 **The ER schema of entities and relationships:** [Finance ER](finance-er.md)
+
+### Decisions (recorded 2026-06-13)
+- **Many accounts + transfers** — cash / cards / savings / currency. Each has its own balance. A transfer between accounts = a double transaction (a debit from one + a credit to another), neither income nor expense.
+- **Multi-currency from the start** — accounts in different currencies (UAH/USD/EUR/…), storing exchange rates, conversion to the base currency for consolidated analytics.
+- **Investments deferred** — an asset portfolio with quotes is NOT being built now. Savings are tracked as a regular Saving Fund account (account type "savings"). Assets/returns are a separate sub-stage later.
+- **Two-level categories** — group → subcategory (e.g. "Food → Groceries / Cafe / Delivery"). Convenient for collapsing in analytics.
+- **Budget — limits per category per month** — a monthly limit is set per category; the system shows "spent X of Y" and warns about approaching/exceeding it.
+
+### The "Account" entity (account)
+- Name, type (cash / card / savings / currency — extensible)
+- **The account's currency** (one per account)
+- The current balance (a derivative: starting balance + sum of transactions; **the module computes the total itself**, see "Each module computes its own aggregates")
+- An "archived" flag (a closed account is not deleted — the transaction history must live on)
+- ❓ starting balance: a separate field or the first "adjusting" transaction — to decide when designing the schema
+
+### The "Transaction" entity (transaction)
+- Type: **income / expense / transfer**
+- Amount + currency (inherited from the account)
+- Account (for a transfer — a source account and a destination account)
+- Category (for income/expense; a transfer has no category)
+- Date, note, (opt.) tag
+- A **transfer between currencies** stores both amounts (debited 1000 UAH → credited 24 USD) + the effective rate of the operation
+- (opt.) a reference to the source module (a supplement restock, a purchase from an idea) — see the relationships below
+
+### Categories (two-level)
+- **Group** (the top level) → **subcategory** (the bottom). A transaction is hung on a subcategory (or on a group, if without detail)
+- A direction marker: an expense category vs an income category (we don't mix income and expense)
+- User-defined + a set of defaults "out of the box"
+- Archiving instead of deletion (to preserve the history per category)
+- Examples of a two-level structure: "Food → Groceries / Cafe / Delivery," **"Medicine → Dentistry / Lab tests / Medications"**
+  - The dentistry case: regular prevention (fixing teeth in time so as not to get hit with a major replacement) — this is a **regular planned expense** by subcategory + a reminder about a visit via "Module 5 — Planner" (a preventive visit as a recurring event). Analytics by subcategory shows the trend of dentistry spending
+  - 📌 the pattern "cheap prevention now vs an expensive breakdown later" applies to other subcategories too (car maintenance, etc.) — a general idea, not a special-purpose mechanism
+
+### Multi-currency and exchange rates
+- **The user's base currency** (in "Module 0 — User Profile" / settings) — everything is consolidated into it
+- Exchange rates: manual entry + (later) pulling from an external source (NBU/API). At the start — manual / the last known
+- Conversion for **consolidated** analytics; within an account the amounts stay in its currency (we don't lose the original data)
+- ⚠️ store the **historical rate as of the operation date** for transfers, not just the current one — otherwise the consolidated figures will "drift"
+
+### Budget (planned vs actual)
+- Per **category** (a group or a subcategory) — a monthly **limit**
+- Actual = the sum of the category's transactions for the month (a ready-made total from the module)
+- States: within / close to the limit (a threshold, e.g. 80%) / exceeded
+- A consolidated monthly budget = the sum of the limits; "remaining until the end of the month"
+- 📌 warnings about approaching/exceeding → the notification channel of "Module 5 — Planner"
+- ❓ carrying the remaining limit over to the next month — yes/no (no by default; envelope mode — later, if desired)
+
+### Debts and obligations (debt) — added 2026-06-13
+> Cases: an installment plan on an item (N payments of X/month), "I owe a person — paying back X/month," "pay off a credit card of X thousand at bank Y." **A general debt mechanism with types** (the pattern as in "Module 4 — Goals": a single entity + a type/mode defining the specifics).
+
+#### The "Debt" entity (common fields)
+- Name / description (for what, to whom)
+- **Direction:** I owe (a liability) / I am owed (an asset-claim) — both sides in one model
+- **Counterparty:** to/from whom (a bank, a store, a person) — free text or a reference to a counterparty directory (later)
+- **Original amount** + **balance** (the balance decreases with payments; the module computes the total itself)
+- Currency (multi-currency, see "Multi-currency and exchange rates")
+- Origination date, (opt.) a deadline for full repayment
+- Status: active / repaid / overdue
+- (opt.) a reference to the account **it is paid from** (for an auto payment transaction)
+
+#### Schedule mode — two options (a flag on the debt)
+- **Fixed schedule** (installment plan): amount + number of payments + frequency (X/month) → the system **expands the schedule** of concrete payments (the date + amount of each). Each payment: scheduled / paid / overdue
+- **Free repayment** (a credit card, a debt to a person without a term): only the balance, payments are made whenever, in arbitrary amounts; the schedule is not fixed. Reminders are optional
+- → reuses the common "Scheduling engine (reusable)" for the regular payments of a fixed schedule
+
+#### Interest/overpayment — optional
+- Can be left unspecified (a 0% installment plan, a debt to a person) — then the pure principal is tracked
+- If specified: a rate OR the total overpayment amount → the system shows how much of a payment goes toward the **principal**, how much toward **interest**, and the total overpayment
+- ⚠️ full amortization with interest accruing on the balance (annuity/declining) — NOT now, later if needed (see TODO)
+
+#### Debt payment
+- The fact of a payment = an expense transaction (for "I owe") / an income transaction (for "I am owed") with a reference to the debt → **decreases the balance**
+- For a fixed schedule, a payment closes out a specific scheduled payment (paid)
+- A link to transactions (see "The 'Transaction' entity (transaction)"): a debt payment is a regular transaction + a reference to the debt
+
+#### Bindings
+- An installment plan may reference a **purchase/item** (potentially from "Module 7 — Storage" — a wishlist/idea → bought on installments → a debt)
+- A debt's **recurring payments** go through the same mechanism as "Recurring payments (recurring) — reusing the engine"
+- Payment reminders → "Module 5 — Planner"
+- "Pay off a credit card/debt" as a **goal** → linked to the debt (goal progress = the debt balance approaching zero), see below
+
+#### Aggregates
+- ✅ The balance per debt, the total "I owe" / "I am owed" debt, a repayment-date forecast (from the balance + the payment rate), the overpayment — computed by the module itself
+
+### Saving Funds / saving toward a goal (sinking funds) — added 2026-06-13
+> Cases: "save X for the garage renovation," "save X for a trip to the mountains." A custom saving toward a specific goal/category.
+
+#### The "Saving Fund" entity
+- Name (garage renovation, mountain trip), (opt.) a link to a **spending category** (what we're saving for)
+- **Target amount** + **saved** (progress toward the goal), currency
+- (opt.) a deadline → recompute of "how much to put aside/month to make it in time"
+- Status: active / target reached / spent (closed)
+
+#### Where the money sits — two options (the user's choice)
+- **A virtual Saving Fund (envelope):** not a separate account, but "X set aside for the renovation" on top of the overall balance; the money is physically on any account. We don't spawn an account per goal
+- **A link to a real account:** the Saving Fund's progress = the balance of a specific savings account (see the account type "savings")
+- → a single model, a mode flag; a virtual amount vs a reference to an account
+
+#### Top-up
+- A Saving Fund top-up = a "set aside" operation (for a virtual one — an internal transfer into the envelope; for an account — a real transfer to the savings account)
+- It can be **recurring** (X/month via "Recurring operations (recurring) — income AND expenses, reusing the engine") or a one-off by hand
+- Reaching the goal → a notification; then the money is spent on the goal (an expense transaction in the linked category, the Saving Fund is closed)
+
+### Emergency Fund (emergency fund) — added 2026-06-13
+> A special, dedicated kind of saving: **mandatory** monthly buildup, **open-ended** (not a one-off goal of "saved it and closed it," but an ongoing discipline). That's why it's separate from regular Saving Funds.
+
+#### The difference from a Saving Fund
+- **Open-ended** and **mandatory** — topped up every month without fail, included in the month's mandatory expenses (like a debt payment), not in "if possible"
+- Highlighted visually and in cash flow (this is "don't touch" money)
+
+#### The top-up rule — three modes (the user's choice)
+- **A fixed amount/month** (e.g. 2000 UAH)
+- **A % of monthly income** (e.g. 10% — scales from the "planned income")
+- **A target size = N months of expenses** (e.g. 6 months): the system takes average spending (a ready-made total from the module) → the target Emergency Fund size + how much to put aside/month until the goal
+- → the top-up rule is configurable; upon reaching the target size (for the 3rd mode) — the status "Emergency Fund is full," after which it's maintenance
+
+#### Behavior
+- The mandatory top-up is expanded as a **recurring operation** (a priority mandatory "expense → into the Emergency Fund") via the scheduling engine
+- A drawdown of the Emergency Fund (had to spend on a force majeure) → the Emergency Fund is "under-funded" again → the mandatory buildup resumes
+- The Emergency Fund's progress/trend → "Module 9 — Analytics"; a top-up reminder → "Module 5 — Planner"
+- 📌 conceptually the Emergency Fund is a special case of a Saving Fund with the flags "mandatory + open-ended"; in the model the Saving Fund entity can be reused + a type/flags (to decide at the schema stage)
+
+### Financial goals (goal type "Finance") — a link to "Module 4 — Goals"
+- Implements the TODO from "Module 4 — Goals" (type "Finance"): **save N**, **pay off a loan/debt**
+- The **goal "save N for …"** is linked to a "Saving Fund" (renovation/travel); **progress = the amount saved in the Saving Fund** (the Saving Fund knows itself: virtual or on an account). That is, the Saving Fund = the saving mechanism, the finance goal = a wrapper with a deadline/milestones on top of it. ⚠️ progress is taken from the Saving Fund, NOT from the "account balance" directly (cf. "body" → body measurements, "training" → working weights, "save" → the Saving Fund)
+- The **goal "pay off a loan/debt"** is linked to a specific **Debt** (see "Debts and obligations (debt) — added 2026-06-13"); progress = the debt balance decreasing toward zero
+- **Milestones** are applicable: save 50k → 100k → 150k (the general checkpoint mechanism)
+- Rate: target amount + deadline ↔ "set aside N/month" (mutual conversion, as in the "body" goal: target value ↔ rate)
+
+### Relationships with other modules
+- "Module 4 — Goals" — goal type "Finance": "save N" progress from the linked Saving Fund, "pay off a loan" from the Debt balance, milestones
+- "Module 2a — Supplements & Vitamins" — the **stock → forecast → finance** link: factor the restock expense into the budget, the restock-date forecast → a planned expense. A restock spawns a **one-off planned expense** (from the supplement's remaining-stock forecast), NOT a recurring rule — see the distinction in "Recurring operations (recurring) — income AND expenses, reusing the engine". The expense transaction references the supplement via `TRANSACTION.source`
+- "Module 7 — Storage" — the purchase wishlist and "idea → dependent purchases": purchase → an expense transaction/installment plan via **`TRANSACTION.source` (a polymorphic reference)**; the invariant "bought ⟺ there is a transaction". The FK is on the transaction side. The link is defined from both sides (see "Type 'Purchase' (purchase) — wishlist")
+- "Module 5 — Planner" — **recurring operations** (expenses: subscriptions/utilities/loan/rent; income: salary 3×/month) as recurring events + reminders (a payment, salary arriving, an Emergency Fund top-up, a preventive dentist visit) via the "Scheduling engine (reusable)"; budget warnings as notifications
+- "Module 9 — Analytics" — where the money goes (a breakdown by categories/groups, including subcategories like dentistry), monthly trends, period comparison, income vs expenses, **cash flow** (planned income − mandatory expenses), Emergency Fund/Saving Fund progress; export (CSV/PDF)
+
+### Recurring operations (recurring) — income AND expenses, reusing the engine
+> Symmetry: the recurrence engine works both ways — a planned expense (utilities) and planned income (salary). The cash flow forecast is built on this.
+
+- **Recurring expenses:** subscriptions / utilities / loan / rent — a **recurring rule** from the common "Scheduling engine (reusable)" (the same one as supplement courses and planner events)
+- **Recurring income:** salary, fees, etc. — the same rule, but with the direction "income"
+  - Case: **salary 3 times/month in fixed amounts** (UAH for now) — three income rules with dates and amounts (advance / main / bonus, etc.), or one rule with several payouts in the period
+  - **A receipts calendar:** you can see on a timeline when and how much will come in → an understanding of cash flow (whether there's enough money until the next paycheck)
+- From a rule, **planned transactions** (income/expense) are expanded; the actual is marked when it occurs (received / paid / skipped), like a supplement intake
+- **The month's planned income** = the sum of recurring income → the basis for planning the budget and the Saving Funds/Emergency Fund (what the limits and the "% of income" are based on)
+- **The cash flow forecast:** planned income − mandatory expenses (recurring + debt payments + the mandatory Emergency Fund top-up) → the month's free money
+- ❓ irregular/one-off expected income (a bonus, a refund) — as planned income without a rule (a one-off scheduled receipt)
+
+### Aggregates (the module's principle)
+- ✅ The balance of each account, the consolidated balance (in the base currency), the sum per category over a period, the budget actual, income/expenses/net for the day/week/month, the **month's planned income**, **cash flow** (planned income − mandatory expenses), the amount saved in the Saving Funds, the size/under-funding of the Emergency Fund, the debt balances — **computed by Module 10 itself**. "Module 9 — Analytics" takes the ready-made figures
+
+### AI layer (opt., see "AI is an optional layer, not a foundation")
+- **Level 1 (rules, mandatory):** deterministic spending analytics, budget warnings, a forecast of mandatory payments, computing cash flow and the Emergency Fund under-funding — works without an LLM
+- **Level 2 (LLM, opt.):** insights as living text ("this month you spent twice as much as usual on delivery," "at the current rate you'll have saved for the garage renovation by March"), savings advice, a breakdown of the spending structure — via "Module 11 — AI Assistant (cross-cutting layer)"
+
+### TODO / open questions
+- Account starting balance: a field vs an adjusting transaction
+- Storing exchange rates: the model (currency pair + date + rate), manual entry vs an external source (NBU/API)
+- Carrying the remaining budget limit over to the next month (whether it's needed)
+- The "transfer" model: a single record with two accounts vs two linked records
+- The default "out of the box" categories — which starter set
+- Where the "base currency" lives — the profile ("Module 0 — User Profile") or the finance settings
+- Linking a supplement restock / a purchase from an idea to a transaction — a mandatory reference or a soft one (details when working on Modules 2a/7)
+- **Debts:** a counterparty directory (whom you owe) — a separate entity or free text
+- **Debts:** full amortization with interest on the balance (annuity/declining) — whether it's needed, or an optional principal+overpayment is enough
+- **Debts:** how to compute "overdue" for free repayment (without a schedule there is a deadline, but no payments)
+- **Saving Funds/Emergency Fund:** a common entity with flags (a regular Saving Fund / a mandatory-open-ended Emergency Fund) vs two separate ones — to decide at the schema stage
+- **Saving Funds:** a virtual "envelope" — how to technically keep the amount separate from the account balance without double-counting the money (reserving part of the balance)
+- **Emergency Fund:** for the "N months of expenses" mode — on which spending to base the average (all / mandatory only), over what period
+- **Income:** irregular expected receipts (a bonus/refund) — a one-off planned income without a recurrence rule
+- **Income:** multi-currency income (UAH for now), but lay out a currency field as everywhere
+
+---
+
+## Module 11 — AI Assistant (cross-cutting layer)
+
+> Added 2026-06-07. NOT a feature of one module, but a **built-in helper for the whole system**.
+> ⚠️ **An optional layer** — see "AI is an optional layer, not a foundation". The system works without it too.
+
+### Purpose
+- A cross-cutting AI helper available from all modules
+- Sees the context of the whole system: profile/body measurements, nutrition, workouts, goals, habits, analytics
+- Scenarios: adjustment recommendations (see "Recommendation mechanism (adjustment)"), workout breakdown, analyzing measurement trends, answering the user's questions, nutrition advice
+
+### Provider abstraction — at the user level (BYOK)
+> **Bring Your Own Key.** The provider is configured NOT in the app's config, but by the user themselves through a form. The user connects THEIR OWN agent via API (their own paid Claude/OpenAI/other account). The user pays for the tokens.
+
+- The system is **not tied to a single LLM** — the provider choice is made by the user
+- LLM credentials = **the user's data** (a separate entity, tied to the user):
+  - the provider (Claude/Anthropic, OpenAI, a custom endpoint, etc.)
+  - the API key
+  - the model + parameters
+  - possibly several connections with a choice of the active one
+- A form in the settings: add/edit/delete a connection, choose the active one, test the connection
+- The pattern stays the same: a single **contract** (e.g. `LlmProvider`) + adapters for the providers
+- But the choice of implementation is **at runtime from the user's data**, NOT from a static config (a factory by the user's provider)
+- ⚠️ Support for a "custom agent/endpoint" — to think through: only known providers or an arbitrary OpenAI-compatible URL?
+- Learning value: Strategy/Adapter + the Laravel Service Container, runtime resolution
+
+### ⚠️ Security of users' API keys
+- Other people's API keys in the DB are sensitive secrets, a high responsibility
+- **Encrypt them in the DB** (Laravel encrypted cast / Crypt), do not store them in plaintext
+- **Never return the key back to the frontend** in plaintext (only a mask `sk-...abcd`, the status "connected")
+- Protection against leaks, access auditing, key revocation
 
 ### TODO
-- Контракт `LlmProvider` (методы: chat/complete, передача контекста, стрим?)
-- Какой контекст системы и как собирается/передаётся (RAG по данным юзера?)
-- Управление токенами/стоимостью, лимиты
-- Сущность «LLM-подключение юзера»: поля, шифрование ключа, активное подключение
-- Форма подключения агента + тест связи; маскирование ключа на фронте
-- Поддержка кастомного OpenAI-совместимого endpoint — да/нет?
-- Дефолт/референс провайдер для документации: Claude API (Anthropic) — свериться с моделями/ценами через справочник claude-api
-- Приватность: данные юзера уходят во внешний LLM (его собственный) — предупреждение/согласие
+- The `LlmProvider` contract (methods: chat/complete, passing context, streaming?)
+- Which system context and how it is assembled/passed (RAG over the user's data?)
+- Token/cost management, limits
+- The "user's LLM connection" entity: fields, key encryption, the active connection
+- The agent connection form + a connection test; masking the key on the frontend
+- Support for a custom OpenAI-compatible endpoint — yes/no?
+- The default/reference provider for the documentation: Claude API (Anthropic) — cross-check against models/pricing via the claude-api reference
+- Privacy: the user's data goes to an external LLM (their own) — a warning/consent

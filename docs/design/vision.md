@@ -1,163 +1,163 @@
 # SelfHandler
 
-> Единое приложение для управления собой: режим, здоровье, цели, задачи, идеи.
+> A single app for self-management: routine, health, goals, tasks, ideas.
 
 ---
 
-## Проблема
+## The Problem
 
-Информация о личной жизни разбросана по десяткам мест: Google Keep, таблицы, чаты, заметки. Идеи теряются, планы забываются, отчётности нет. Нужна **одна точка входа** для всего, что касается управления собой.
-
----
-
-## Ключевые модули
-
-### 1. Режим дня и сон
-- Планирование расписания на следующий день / неделю
-- Трекинг сна (время отбоя, подъёма, качество)
-- Шаблоны дня (рабочий день, выходной, тренировочный)
-
-### 2. Питание и добавки
-- Планирование приёмов пищи
-- Трекер БАДов и лекарственных препаратов (что, когда, дозировка)
-- Напоминания о приёме
-
-### 3. Тренировки
-- Разные типы тренировок под разные цели (сила, кардио, гибкость и т.д.)
-- Планирование тренировочных программ
-- Логирование выполненных тренировок
-
-### 4. Цели
-- Постановка целей на разные сроки:
-  - **Долгосрочные** (год+)
-  - **Среднесрочные** (месяц–квартал)
-  - **Краткосрочные** (неделя)
-- Привязка ежедневных действий к целям
-- Прогресс-трекинг
-
-### 5. Ежедневный отчёт (вечерний чекин)
-- Что сделано за день по каждому модулю
-- Самооценка дня
-- Корректировка плана на завтра
-
-### 6. Планнер
-- **На завтра** — конкретный план дня
-- **На неделю** — обзор и приоритеты
-- Генерация плана на основе целей, тренировок, расписания
-
-### 7. Хранилище
-- **Задачи** — входящие, приоритизированные, по проектам
-- **Идеи** — быстрый ввод → инбокс → сортировка → оформление в план/проект
-- **Списки** — книги, фильмы, сериалы, что угодно (wish-листы)
-- **Wish-лист покупок** — линкуется к идеям (идея → нужные покупки для реализации)
-  - Идея и её зависимые покупки живут вместе, не расползаются по разным спискам
-  - Статус покупки влияет на статус идеи (блокер)
-
-### 8. Привычки и антипривычки
-- **Привычки** — то, что хочу делать регулярно (стрики за выполнение)
-- **Антипривычки** — то, от чего хочу избавиться (стрики за воздержание)
-  - Пример: "Не залипал в рилсах — 14 дней подряд"
-  - Сброс стрика при срыве, история лучших серий
-  - Визуальная мотивация: чем длиннее стрик, тем больнее его терять
-- Привязка к целям (привычка/антипривычка как инструмент достижения цели)
-
-### 9. Аналитика и визуализация
-- Дашборд с диаграммами и графиками по трекаемой рутине
-- Комбо-стрики (серии дней без пропусков)
-- Визуализация прогресса: сон, тренировки, питание, привычки
-- Тренды и паттерны (неделя к неделе, месяц к месяцу)
-- Корреляции (как сон влияет на продуктивность и т.д.)
-- Столбики / чарты степени вовлечённости и успешности по каждой рутине
-
-### 10. Финансы
-- Учёт доходов и расходов
-- Категоризация трат
-- Инвестиции и сбережения — трекинг портфеля / накоплений
-- Бюджетирование (план vs факт)
-- Финансовые цели (связь с модулем целей)
-- Аналитика: куда уходят деньги, динамика по месяцам
+Everything about your personal life is scattered across dozens of places: Google Keep, spreadsheets, chats, notes. Ideas slip through the cracks, plans get forgotten, and there's no record of any of it. What's needed is **a single point of entry** for everything that touches self-management.
 
 ---
 
-## Ритмы и ревью
+## Core Modules
 
-### Ежедневно (вечер)
-- Отметить выполненные / невыполненные рутины
-- Заполнить планнер на завтра
+### 1. Daily Routine & Sleep
+- Schedule planning for the next day / week
+- Sleep tracking (bedtime, wake-up time, quality)
+- Day templates (workday, day off, training day)
 
-### Еженедельно (воскресенье)
-- Ревью недели: что удалось, что нет
-- Планирование следующей недели
+### 2. Nutrition & Supplements
+- Meal planning
+- A tracker for supplements and medications (what, when, dosage)
+- Intake reminders
 
-### Ежемесячно
-- Ревью месяца, корректировка целей
-- Планирование следующего месяца
+### 3. Workouts
+- Different workout types for different goals (strength, cardio, flexibility, and so on)
+- Planning of training programs
+- Logging of completed workouts
 
-### Типы периодичности рутин
-- Несколько раз в день (например, приём добавок утром и вечером)
-- Однократно ежедневно
-- Несколько раз в неделю (пн/ср/пт)
-- Несколько раз в месяц
+### 4. Goals
+- Setting goals across different horizons:
+  - **Long-term** (a year or more)
+  - **Mid-term** (a month to a quarter)
+  - **Short-term** (a week)
+- Linking daily actions to goals
+- Progress tracking
+
+### 5. Daily Review (evening check-in)
+- What got done during the day, per module
+- A self-assessment of the day
+- Adjusting tomorrow's plan
+
+### 6. Planner
+- **For tomorrow** — a concrete plan for the day
+- **For the week** — an overview and priorities
+- Plan generation based on goals, workouts, and schedule
+
+### 7. Storage
+- **Tasks** — incoming, prioritized, organized by project
+- **Ideas** — quick capture → inbox → triage → shaping into a plan/project
+- **Lists** — books, films, series, anything (wishlists)
+- **Shopping wishlist** — linked to ideas (idea → the purchases needed to make it happen)
+  - An idea and its dependent purchases live together instead of drifting across separate lists
+  - A purchase's status affects the idea's status (a blocker)
+
+### 8. Habits & Anti-habits
+- **Habits** — things you want to do regularly (streaks for following through)
+- **Anti-habits** — things you want to quit (streaks for staying clean)
+  - For example: "No doomscrolling reels — 14 days straight"
+  - Streak resets on a slip, with a history of your best runs
+  - Visual motivation: the longer the streak, the more it hurts to lose it
+- Linking to goals (a habit/anti-habit as a tool for reaching a goal)
+
+### 9. Analytics & Visualization
+- A dashboard with charts and graphs for the routines you track
+- Combo streaks (runs of days without a miss)
+- Progress visualization: sleep, workouts, nutrition, habits
+- Trends and patterns (week over week, month over month)
+- Correlations (how sleep affects productivity, and so on)
+- Bars and charts showing how engaged and successful you are with each routine
+
+### 10. Finance
+- Income and expense tracking
+- Spending categorization
+- Investments and savings — tracking your portfolio / nest egg
+- Budgeting (planned vs. actual)
+- Financial goals (tied into the Goals module)
+- Analytics: where the money goes, month-over-month dynamics
 
 ---
 
-## Принципы взаимодействия
+## Rhythms & Reviews
 
-- **Быстрый захват** — скинуть идею/задачу за секунды, без трения
-- **Единая точка входа** — всё в одном месте, никаких внешних табличек
-- **Вечерний ритуал** — ежедневный отчёт и планирование завтра
-- **Недельный обзор** — приоритеты и корректировка курса
+### Daily (evening)
+- Mark routines as done / not done
+- Fill in tomorrow's planner
+
+### Weekly (Sunday)
+- Weekly review: what worked, what didn't
+- Planning the week ahead
+
+### Monthly
+- Monthly review, adjusting goals
+- Planning the month ahead
+
+### Routine recurrence types
+- Multiple times a day (for example, supplements in the morning and evening)
+- Once daily
+- Several times a week (Mon/Wed/Fri)
+- Several times a month
 
 ---
 
-## Технический стек
+## Interaction Principles
 
-| Слой | Технология | Заметки |
+- **Quick capture** — drop an idea or task in seconds, with zero friction
+- **Single point of entry** — everything in one place, no external spreadsheets
+- **Evening ritual** — the daily review and planning for tomorrow
+- **Weekly review** — priorities and a course correction
+
+---
+
+## Technology Stack
+
+| Layer | Technology | Notes |
 |------|-----------|---------|
-| **Backend** | PHP 8.3 + Laravel 11 | REST API, очереди, расписания |
-| **База данных** | MySQL 8 | Основное хранилище |
-| **Frontend (web)** | Vue.js 3 (без мета-фреймворка) | SPA, Composition API, Vite |
-| **Mobile** | Capacitor (обёртка Vue-приложения) | Android APK, потенциально iOS |
-| **Чарты** | Chart.js или ApexCharts (Vue-обёртки) | Дашборды и аналитика |
-| **Кеш/очереди** | Redis | Для Laravel Queue + кеширование |
-| **VPN** | WireGuard | Прямой доступ, без посредников |
-| **Сервер** | Firebat N100 (16GB DDR5, 512GB) | Homelab, WSL2 + Docker |
+| **Backend** | PHP 8.3 + Laravel 11 | REST API, queues, schedules |
+| **Database** | MySQL 8 | Primary data store |
+| **Frontend (web)** | Vue.js 3 (no meta-framework) | SPA, Composition API, Vite |
+| **Mobile** | Capacitor (wrapper around the Vue app) | Android APK, potentially iOS |
+| **Charts** | Chart.js or ApexCharts (Vue wrappers) | Dashboards and analytics |
+| **Cache/queues** | Redis | For Laravel Queue + caching |
+| **VPN** | WireGuard | Direct access, no middlemen |
+| **Server** | Firebat N100 (16GB DDR5, 512GB) | Homelab, WSL2 + Docker |
 
-### Контейнеры (Docker Compose)
-- `nginx` — реверс-прокси
+### Containers (Docker Compose)
+- `nginx` — reverse proxy
 - `php-fpm` — Laravel backend
-- `mysql` — база данных
-- `redis` — кеш и очереди
-- `node` — сборка фронтенда (dev)
+- `mysql` — database
+- `redis` — cache and queues
+- `node` — frontend build (dev)
 
-### Клиенты
-- **Web** — браузер на Windows (основной)
-- **Android** — APK через Capacitor (тот же Vue-код)
-- **Будущее** — архитектура позволяет добавить iOS / macOS без переписывания
-
----
-
-## Технологический roadmap
-
-Порядок поднятия стека — от инфраструктуры к фичам:
-
-1. **Docker + WSL2** — среда разработки в контейнерах
-2. **Laravel** — роутинг, контроллеры, миграции, Eloquent ORM
-3. **MySQL** — схема, связи, запросы
-4. **REST API** — endpoints, ресурсы, валидация
-5. **Vue 3** — реактивность, компоненты, Composition API
-6. **Связка фронт + бэк** — HTTP-клиент, авторизация, CORS
-7. **Capacitor** — обёртка Vue-приложения в Android APK
-8. **WireGuard** — VPN для доступа к homelab извне
-9. **Аналитика** — Chart.js / ApexCharts, дашборды
+### Clients
+- **Web** — browser on Windows (primary)
+- **Android** — APK via Capacitor (the same Vue code)
+- **Future** — the architecture allows adding iOS / macOS without a rewrite
 
 ---
 
-## Открытые вопросы
+## Technology Roadmap
 
-- [x] ~~Платформа~~ → Web + Android (Capacitor), архитектура под расширение
-- [x] ~~Технический стек~~ → Laravel + MySQL + Vue 3 + Capacitor
-- [x] ~~Доступ к homelab извне~~ → WireGuard
-- [ ] Авторизация: single-user сейчас, но закладываем multi-user
-- [x] ~~Нотификации и напоминания — push, telegram-бот, email?~~ → подсистема [Notifications](notifications.md): единый контракт каналов, in-app первым, push/telegram/email — адаптеры позже
-- [x] ~~Интеграции с чем-то существующим?~~ → общий слой [Integrations](integrations.md): календари (Google/Apple, двусторонне) первыми; Strava/Garmin/Apple Health (бег), банк-выписки — позже тем же контрактом
+The order in which the stack comes up — from infrastructure to features:
+
+1. **Docker + WSL2** — a containerized development environment
+2. **Laravel** — routing, controllers, migrations, Eloquent ORM
+3. **MySQL** — schema, relationships, queries
+4. **REST API** — endpoints, resources, validation
+5. **Vue 3** — reactivity, components, Composition API
+6. **Wiring frontend to backend** — HTTP client, auth, CORS
+7. **Capacitor** — wrapping the Vue app into an Android APK
+8. **WireGuard** — a VPN for reaching the homelab from outside
+9. **Analytics** — Chart.js / ApexCharts, dashboards
+
+---
+
+## Open questions
+
+- [x] ~~Platform~~ → Web + Android (Capacitor), architecture built for expansion
+- [x] ~~Technology stack~~ → Laravel + MySQL + Vue 3 + Capacitor
+- [x] ~~External access to the homelab~~ → WireGuard
+- [ ] Authentication: single-user for now, but built with multi-user in mind
+- [x] ~~Notifications and reminders — push, Telegram bot, email?~~ → the [Notifications](notifications.md) subsystem: a unified channel contract, in-app first, with push/telegram/email as adapters later
+- [x] ~~Integrations with anything existing?~~ → a shared [Integrations](integrations.md) layer: calendars (Google/Apple, two-way) first; Strava/Garmin/Apple Health (running) and bank statements later via the same contract

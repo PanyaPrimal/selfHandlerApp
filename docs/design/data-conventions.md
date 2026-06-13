@@ -1,94 +1,95 @@
-# SelfHandler — Сквозные правила схемы (Data Conventions)
+# SelfHandler — Data Conventions (schema-wide rules)
 
-> Решения «как моделировать», действующие на ВСЕ таблицы. Принять ДО первой миграции — иначе переделка задним числом по всем модулям. Не подсистема, а свод правил.
+> "How to model" decisions that apply to ALL tables. Adopt these before the first migration — otherwise you'll be retrofitting changes across every module after the fact. Not a subsystem, but a set of rules.
+
 >
-> Связки: [Finance ER](finance-er.md) · [Modules Spec](modules.md) · решения: [Decisions Log](decisions.md)
+> Related: [Finance ER](finance-er.md) · [Modules Spec](modules.md) · decisions: [Decisions Log](decisions.md)
 
 ---
 
-## 1. Деньги — `Money` (DECIMAL + value object)
+## 1. Money — `Money` (DECIMAL + value object)
 
-- **Тип хранения:** `DECIMAL(19,4)` для всех денежных сумм. **Никогда float** (теряет копейки в агрегатах баланса/cash flow).
-- **Value Object `Money`** = `amount` (DECIMAL) + `currency` (код). Eloquent-каст аттрибута через VO — модель отдаёт `Money`, а не голое число.
-- **Валюта рядом с суммой** везде, где сумма мультивалютна (счёт, транзакция, долг, копилка, цена добавки/покупки). База — справочник `currencies`.
-- **Сводный пересчёт валют — в момент чтения**, по выбранному курсу: текущий для «сколько у меня сейчас», исторический (на дату) для «сколько стоило тогда». НЕ хранить пересчитанное (иначе прошлое «плывёт»). См. [Finance ER](finance-er.md).
-- Где это: все денежные поля Финансов (М10), цена в Добавках (М2а), оценочная цена Покупки (М7).
+- **Storage type:** `DECIMAL(19,4)` for all monetary amounts. **Never float** (it loses cents in balance/cash flow aggregates).
+- **Value Object `Money`** = `amount` (DECIMAL) + `currency` (code). An Eloquent attribute cast through the VO — the model returns a `Money`, not a bare number.
+- **Currency alongside the amount** everywhere an amount is multi-currency (account, transaction, debt, saving fund, price of an add-on/purchase). The reference table is `currencies`.
+- **Currency conversion for summaries happens at read time**, using the chosen rate: the current rate for "how much do I have now", the historical rate (as of a date) for "how much it cost back then". Do NOT store the converted value (otherwise the past "drifts"). See [Finance ER](finance-er.md).
+- Where this applies: all monetary fields in Finance (M10), price in Add-ons (M2a), the estimated price of a Purchase (M7).
 
-## 2. Полиморфизм «общая база + тип» — гибрид
+## 2. Polymorphism "shared base + type" — hybrid
 
-> Паттерн встречается в Целях (М4), Тренировках (М3), Хранилище/Элемент (М7), Долгах (М10), Копилке-vs-Подушке (М10). **Единое правило выбора стратегии:**
+> This pattern shows up in Goals (M4), Workouts (M3), Storage/Item (M7), Debts (M10), and Saving Fund vs Emergency Fund (M10). **A single rule for choosing the strategy:**
 
-### Правило выбора
-- **Class-table (база + отдельная таблица деталей на тип)** — когда у типов **МНОГО РАЗНЫХ полей**:
-  - **Тренировка** (М3): база `workouts` (дата/тип/длительность/заметка) + `strength_sets` / `cardio_logs` / `run_logs` (свои поля у каждого). Подходы×вес×повторы НЕ в JSON — это реляционные данные, нужны запросы «история жима», PR, агрегаты
-- **Single-table + тип + nullable/JSON** — когда типы **БЛИЗКИ** (общих полей много, специфики мало):
-  - **Цель** (М4): одна таблица `goals` + `type` + специфика (целевой вес / рабочий вес / сумма) в nullable-колонках или `payload` JSON
-  - **Элемент Хранилища** (М7): `items` + `type` (задача/идея/покупка/пункт) + общие поля; редкая специфика — nullable/JSON
-  - **Долг** (М10): `debts` + направление/режим — близкие, single-table
-  - **Копилка/Подушка** (М10): `saving_funds` + флаги `is_emergency`/`is_perpetual`
+### Selection rule
+- **Class-table inheritance (base + a separate detail table per type)** — when the types have **MANY DIVERGENT fields**:
+  - **Workout** (M3): base `workouts` (date/type/duration/note) + `strength_sets` / `cardio_logs` / `run_logs` (each with its own fields). Sets×weight×reps do NOT go in JSON — this is relational data, you need queries like "bench press history", PRs, and aggregates.
+- **Single-table + type + nullable/JSON** — when the types are **similar** (many shared fields, little specifics):
+  - **Goal** (M4): a single `goals` table + `type` + the specifics (target weight / working weight / amount) in nullable columns or a `payload` JSON.
+  - **Storage Item** (M7): `items` + `type` (task/idea/purchase/note) + shared fields; rare specifics go in nullable/JSON.
+  - **Debt** (M10): `debts` + direction/mode — similar types, single-table.
+  - **Saving Fund/Emergency Fund** (M10): `saving_funds` + `is_emergency`/`is_perpetual` flags.
 
-### Без STI-магии
-- **Обычные Eloquent-модели**, без `tightenco/parental` и прочей STI-магии (Laravel нативно STI не поддерживает — пакеты прячут запросы).
-- Для single-table: одна модель + `type`-колонка + **query scopes по типу** (`Goal::ofType('body')`), либо отдельные модели с глобальным скоупом на ту же таблицу — но явно.
-- Для class-table: базовая модель + `morphTo`/`hasOne` на таблицу деталей (`$workout->details` → strength/cardio/run).
-- Принцип: **видно каждый запрос**, никакой скрытой магии (учебная цель — понять Eloquent, а не обёртку над ним).
+### No STI magic
+- **Plain Eloquent models**, without `tightenco/parental` or any other STI magic (Laravel doesn't support STI natively — the packages hide the queries).
+- For single-table: one model + a `type` column + **query scopes by type** (`Goal::ofType('body')`), or separate models with a global scope on the same table — but done explicitly.
+- For class-table: a base model + `morphTo`/`hasOne` to the detail table (`$workout->details` → strength/cardio/run).
+- Principle: **every query is visible**, no hidden magic (the learning goal is to understand Eloquent, not a wrapper over it).
 
-### JSON — осознанно
-- JSON-колонка ТОЛЬКО для редких/необязательных полей, по которым НЕ нужны запросы/индексы/валидация на уровне БД.
-- Если по полю надо фильтровать/агрегировать/валидировать — это колонка или таблица деталей, не JSON.
+### JSON — deliberately
+- A JSON column ONLY for rare/optional fields that you do NOT need to query, index, or validate at the database level.
+- If a field needs to be filtered/aggregated/validated, it's a column or a detail table, not JSON.
 
-## 3. Владелец и multi-user — `user_id` с первого дня
+## 3. Owner and multi-user — `user_id` from day one
 
-- **`user_id` на КАЖДОЙ доменной таблице** с самого начала, даже при single-user сейчас.
-- Глобальный скоуп по текущему юзеру (Laravel global scope) — чтобы потом не добавлять 30 миграций и не переписывать запросы под multi-user.
-- Реляции и уникальные ключи учитывают `user_id` (напр. уникальность категории — в рамках юзера).
-- Это дешёвая страховка: заложить сейчас ≈ 0 усилий, добавить потом ≈ переписать всё.
+- **`user_id` on EVERY domain table** from the very start, even while single-user for now.
+- A global scope by the current user (Laravel global scope) — so you don't later have to add 30 migrations and rewrite queries for multi-user.
+- Relations and unique keys account for `user_id` (e.g. category uniqueness is scoped to the user).
+- This is cheap insurance: laying it down now ≈ 0 effort, adding it later ≈ rewriting everything.
 
-## 4. Удаление: мягкое удаление ≠ архивирование
+## 4. Deletion: soft delete ≠ archiving
 
-> Две РАЗНЫЕ вещи, не смешивать (ревью-находка):
-- **`SoftDeletes` (`deleted_at`)** — техническое скрытие/корзина/восстановление. Запись «удалена», не видна нигде по умолчанию.
-- **Доменный флаг `is_archived` / статус** — счёт закрыт, категория не используется, но **видна в истории и аналитике** (транзакции по ней живут).
-- **Что показывает аналитика:** архивные — ДА (история важна), удалённые — НЕТ.
-- Для доменных записей (транзакция/приём/тренировка/задача) — политика удаления задаётся per-сущность (мягкое vs запрет правки задним числом для финансов).
+> Two DIFFERENT things, don't conflate them (review finding):
+- **`SoftDeletes` (`deleted_at`)** — technical hiding/trash/restore. The record is "deleted", not visible anywhere by default.
+- **Domain flag `is_archived` / status** — an account is closed, a category is no longer used, but it's **still visible in history and analytics** (its transactions live on).
+- **What analytics shows:** archived — YES (history matters), deleted — NO.
+- For domain records (transaction/intake/workout/task) — the deletion policy is set per entity (soft delete vs. forbidding back-dated edits for finance).
 
-## 5. Деньги времени — даты, таймзоны
+## 5. The money of time — dates, timezones
 
-- **Хранение в БД — UTC** везде.
-- **Таймзона юзера — в профиле** ([Modules Spec](modules.md)), конвертация на границе отображения/разворота расписаний.
-- TZ-чувствительно: время отбоя/подъёма, время приёма, время привычки, расписания с временем (см. [Recurrence Engine](recurrence-engine.md)).
-- `created_at`/`updated_at` (Laravel timestamps) — на всех таблицах по умолчанию.
+- **Storage in the DB is UTC** everywhere.
+- **The user's timezone lives in the profile** ([Modules Spec](modules.md)), with conversion at the boundary of display / schedule expansion.
+- TZ-sensitive: bedtime/wake-up time, intake time, habit time, schedules with a time-of-day (see [Recurrence Engine](recurrence-engine.md)).
+- `created_at`/`updated_at` (Laravel timestamps) — on all tables by default.
 
-## 6. Единицы измерения
+## 6. Units of measurement
 
-- Хранить значения в **канонической базовой единице**: вес — граммы, объём — мл, дистанция — метры, время — секунды. Отображать в предпочитаемой единице юзера (кг/фунты, км/мили).
-- Метрика замеров (расширяемый список) — несёт свою единицу.
-- Не плодить `вес_в_кг` + `вес_в_г` — одна колонка в базовой единице + конвертация на отображении.
-- Единицы/локаль — в профиле/настройках.
+- Store values in the **canonical base unit**: weight in grams, volume in ml, distance in meters, time in seconds. Display them in the user's preferred unit (kg/lbs, km/miles).
+- A measurement metric (an extensible list) carries its own unit.
+- Don't multiply `weight_in_kg` + `weight_in_g` — one column in the base unit + conversion at display time.
+- Units/locale live in the profile/settings.
 
-## 7. Агрегаты «итоги считает модуль» — стратегия (важно для перфа)
+## 7. Aggregates — "the module computes the totals" — strategy (important for performance)
 
-> Балансы/остатки/стрики/факт бюджета — производные. Чтобы дашборд «Сегодня» и Аналитика не легли:
-- **Кэш-значение + event-driven пересчёт** для горячих производных (баланс счёта, остаток долга, накоплено в копилке): Observer на факт-запись (Transaction и т.п.) обновляет кэш в той же транзакции БД. «На лету» — источник истины для сверки/пересчёта.
-- **Слой daily-rollup** для аналитики на длинных периодах: таблица `daily_metrics` (date, metric, value), заполняется по факту/ночной джобой. Аналитика читает rollup, не сырые логи за годы.
-- Решить ДО дашборда «Сегодня» и Модуля 9 (иначе переписывать запросы).
-- ⚠️ это физическая реализация принципа [Modules Spec](modules.md).
+> Balances/remaining amounts/streaks/actual budget figures are derived. So that the "Today" dashboard and Analytics don't grind to a halt:
+- **Cached value + event-driven recomputation** for hot derived values (account balance, remaining debt, amount saved in a fund): an Observer on the source record (Transaction, etc.) updates the cache within the same DB transaction. The "on the fly" computation is the source of truth for reconciliation/recomputation.
+- **A daily-rollup layer** for analytics over long periods: a `daily_metrics` table (date, metric, value), populated on write or by a nightly job. Analytics reads the rollup, not years of raw logs.
+- Decide this before the "Today" dashboard and Module 9 (otherwise you'll be rewriting queries).
+- ⚠️ This is the physical implementation of the principle in [Modules Spec](modules.md).
 
 ---
 
-## Чек-лист «до первой миграции»
+## Checklist "before the first migration"
 
-- [ ] Money VO + DECIMAL(19,4) каст готов
-- [ ] Решено по каждой полиморфной сущности: class-table или single-table (см. §2)
-- [ ] `user_id` + global scope — в шаблон миграции/модели
-- [ ] SoftDeletes vs is_archived — определено per-сущность
-- [ ] UTC + таймзона из профиля — политика дат
-- [ ] Базовые единицы измерения зафиксированы
-- [ ] Стратегия агрегатов (кэш + rollup) — до аналитики/дашборда
+- [ ] Money VO + DECIMAL(19,4) cast ready
+- [ ] Decided for each polymorphic entity: class-table or single-table (see §2)
+- [ ] `user_id` + global scope — in the migration/model template
+- [ ] SoftDeletes vs is_archived — defined per entity
+- [ ] UTC + timezone from the profile — date policy
+- [ ] Base units of measurement fixed
+- [ ] Aggregate strategy (cache + rollup) — before analytics/dashboard
 
-## Открытые вопросы
+## Open questions
 
-1. Money: хранить DECIMAL или минорные единицы BIGINT (центы) — оба валидны, выбрать один.
-2. Daily-rollup: какие метрики в rollup, частота пересчёта (ночь vs по факту).
-3. Аудит изменений финансовых записей (кто/когда правил транзакцию) — нужен ли `laravel-auditable` точечно, или хватит timestamps.
-4. JSON vs nullable-колонки для специфики близких типов — финализировать на каждой сущности при миграции.
+1. Money: store DECIMAL or minor units as BIGINT (cents) — both are valid, pick one.
+2. Daily-rollup: which metrics go in the rollup, and the recomputation frequency (nightly vs. on write).
+3. Audit trail for changes to financial records (who edited a transaction and when) — do we need `laravel-auditable` selectively, or are timestamps enough?
+4. JSON vs. nullable columns for the specifics of similar types — finalize per entity at migration time.

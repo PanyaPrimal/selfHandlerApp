@@ -1,84 +1,84 @@
-# SelfHandler — Вложения (Attachments)
+# SelfHandler — Attachments
 
-> Сквозной механизм прикрепления файлов (фото/документы/треки) к любым доменным записям. Один механизм на всё приложение — не колонка `photo_path` в каждом модуле.
+> A cross-cutting mechanism for attaching files (photos/documents/tracks) to any domain record. One mechanism for the whole app — not a `photo_path` column in every module.
 >
-> Связки: [Data Conventions](data-conventions.md) (disk-абстракция, user_id) · решения: [Decisions Log](decisions.md)
+> Related: [Data Conventions](data-conventions.md) (disk abstraction, user_id) · decisions: [Decisions Log](decisions.md)
 
 ---
 
-## Зачем и кто потребители
+## Why It Exists and Who the Consumers Are
 
-| Модуль | Что прикрепляем | Зачем |
+| Module | What we attach | Why |
 |--------|------------------|-------|
-| 0 Профиль / замеры | Фото прогресса тела (до/после) | маркер результата |
-| 2 Питание | Фото блюда | фото-распознавание → компоненты+вес (см. [Modules Spec](modules.md)) |
-| 3 Тренировки / бег | GPS-трек (GPX), фото | гео/маршрут (чаще из интеграций) |
-| 7 Хранилище | Картинки к идеям, документы к задачам | контекст |
-| 10 Финансы | Фото чека/квитанции | подтверждение траты |
-| 11 AI | Фото на вход агенту | разбор блюда/чека |
+| 0 Profile / body measurements | Body progress photos (before/after) | result marker |
+| 2 Nutrition | Meal photo | photo recognition → components + weight (see [Modules Spec](modules.md)) |
+| 3 Workouts / running | GPS track (GPX), photos | geo/route (usually from integrations) |
+| 7 Storage | Images for ideas, documents for tasks | context |
+| 10 Finance | Receipt photo | spending proof |
+| 11 AI | Photo as agent input | meal/receipt breakdown |
 
-Без единого механизма в каждом модуле своя загрузка/превью/чистка/хранилище — дублирование.
-
----
-
-## Решения (зафиксировано 2026-06-13)
-
-- **Хранение — локальный диск + disk-абстракция** (Laravel Filesystem, драйвер `local`). Файлы на homelab-сервере; переключение на S3/MinIO позже — сменой драйвера, без переписывания кода. НЕ BLOB в БД (раздувает базу, бьёт перф).
-- **Полиморфная привязка** — одно вложение цепляется к любой сущности.
+Without a single mechanism, every module ends up with its own upload/preview/cleanup/storage — duplication.
 
 ---
 
-## Сущность `Attachment`
+## Decisions (locked in 2026-06-13)
+
+- **Storage — local disk + disk abstraction** (Laravel Filesystem, `local` driver). Files live on the homelab server; switching to S3/MinIO later is a driver swap, no code rewrite. NOT a BLOB in the DB (bloats the database, hurts performance).
+- **Polymorphic association** — a single attachment can hook onto any entity.
+
+---
+
+## The `Attachment` Entity
 
 - `id`, `user_id`
-- **Полиморфная привязка** `attachable_type` + `attachable_id` — к чему прикреплено (замер / приём пищи / тренировка / идея / транзакция / …)
-- `disk` (имя диска Laravel: local/s3) + `path` (путь на диске) — НЕ хардкодить абсолютный путь
+- **Polymorphic association** `attachable_type` + `attachable_id` — what it's attached to (measurement / meal / workout / idea / transaction / …)
+- `disk` (Laravel disk name: local/s3) + `path` (path on the disk) — do NOT hardcode an absolute path
 - `original_name`, `mime`, `size`
-- `kind` (опц.): photo / document / track / receipt — для UI и логики (трек ≠ фото)
-- `meta` (JSON, опц.): размеры картинки, гео, что распозналось (для фото-фичи питания)
+- `kind` (optional): photo / document / track / receipt — for UI and logic (a track ≠ a photo)
+- `meta` (JSON, optional): image dimensions, geo, recognition results (for the nutrition photo feature)
 - `created_at`
 
-> Файл физически — на диске; в БД только метаданные и путь. Скачивание/превью — через `FileStorage`-сервис (см. ниже), не прямой доступ к ФС.
+> The file lives physically on disk; the DB holds only metadata and the path. Download/preview goes through the `FileStorage` service (see below), never direct filesystem access.
 
 ---
 
-## `FileStorage` — единый сервис
+## `FileStorage` — The Single Service
 
-- Обёртка над Laravel Filesystem: `store(file, attachable, kind)` / `url(attachment)` / `delete(attachment)` / `stream(attachment)`
-- **Disk-абстракция:** код работает с логическим диском (`config('filesystems.default')`), не с путями. Сменить local→S3 = поправить конфиг
-- **Валидация на входе:** допустимые mime/размер (фото vs документ vs gpx), лимиты
-- **Превью/тумбнейлы** для картинок (генерация при загрузке или по запросу) — опц., позже
-- **Очистка:** при удалении доменной записи — удалить связанные вложения (с диска тоже). Политика — согласовать с [Data Conventions](data-conventions.md) (мягко удалённая запись → файл держим до окончательной чистки)
-
----
-
-## Capacitor / мобильный сценарий
-
-- Источник фото на мобиле — **камера/галерея** (Capacitor Camera plugin) → загрузка на бэк через API
-- ⚠️ **Оффлайн:** фото снято без сети (зал, улица) → локальная очередь загрузки, досыл при появлении сети. Связано с общим open-вопросом оффлайна (см. backlog ревью). На MVP — online-only явно, очередь позже
-- Сжатие на клиенте перед отправкой (фото тяжёлые) — желательно
+- A wrapper over Laravel Filesystem: `store(file, attachable, kind)` / `url(attachment)` / `delete(attachment)` / `stream(attachment)`
+- **Disk abstraction:** the code works with a logical disk (`config('filesystems.default')`), not with paths. Switching local→S3 = a config change.
+- **Inbound validation:** allowed mime types/sizes (photo vs document vs gpx), limits.
+- **Previews/thumbnails** for images (generated on upload or on demand) — optional, later.
+- **Cleanup:** when a domain record is deleted, remove the associated attachments (from disk too). The policy is to be aligned with [Data Conventions](data-conventions.md) (a soft-deleted record → keep the file until final cleanup).
 
 ---
 
-## Безопасность / приватность
+## Capacitor / Mobile Scenario
 
-- Файлы — **приватные** (не публичный URL): доступ через подписанные URL / проксирование через бэк с проверкой `user_id`
-- Особо: фото тела, чеки — чувствительны. Не отдавать по прямой ссылке
-- Multi-user готовность: вложение скоупится по `user_id` ([Data Conventions](data-conventions.md))
-
----
-
-## Границы
-
-- **Вложение** = файл + метаданные + привязка. НЕ несёт доменной логики
-- **Что с фото делать** (распознать блюдо, разобрать чек) — в модуле-владельце или [Modules Spec](modules.md). Attachment лишь хранит и отдаёт файл
-- GPS-трек как файл (GPX) хранится тут; разбор трека в беговые метрики — Модуль 3 / интеграции
+- The photo source on mobile is the **camera/gallery** (Capacitor Camera plugin) → uploaded to the backend via the API.
+- ⚠️ **Offline:** a photo taken with no connectivity (gym, outdoors) → a local upload queue, delivered once the network is back. Tied to the broader offline open question (see backlog review). For the MVP, explicitly online-only; the queue comes later.
+- Client-side compression before upload (photos are heavy) — desirable.
 
 ---
 
-## Открытые вопросы
+## Security / Privacy
 
-1. Превью/тумбнейлы — генерить при загрузке (диск+) vs на лету (CPU+).
-2. Оффлайн-очередь загрузки на Capacitor — в какой версии (на MVP online-only).
-3. Лимиты хранилища (homelab-диск конечен) — квота/чистка старых вложений.
-4. Дедупликация одинаковых файлов (hash) — нужна ли.
+- Files are **private** (no public URL): access via signed URLs / proxying through the backend with a `user_id` check.
+- Especially: body photos and receipts are sensitive. Do not serve them via a direct link.
+- Multi-user readiness: an attachment is scoped by `user_id` ([Data Conventions](data-conventions.md)).
+
+---
+
+## Responsibility Boundaries
+
+- An **attachment** = file + metadata + association. It carries no domain logic.
+- **What to do with the photo** (recognize a meal, parse a receipt) lives in the owning module or [Modules Spec](modules.md). Attachment only stores and serves the file.
+- A GPS track as a file (GPX) is stored here; parsing the track into running metrics is Module 3 / integrations.
+
+---
+
+## Open Questions
+
+1. Previews/thumbnails — generate on upload (more disk) vs on the fly (more CPU).
+2. Offline upload queue on Capacitor — in which release (online-only for the MVP).
+3. Storage limits (the homelab disk is finite) — quota / cleanup of old attachments.
+4. Deduplication of identical files (hash) — is it needed.

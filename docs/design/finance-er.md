@@ -1,12 +1,12 @@
-# SelfHandler — Финансы: ER-схема
+# SelfHandler — Finance: ER Diagram
 
-> Концептуальная ER-схема Модуля 10 (Финансы). Логические сущности и связи — мостик к реализации на Laravel/MySQL. Не финальный DDL: конкретные типы/индексы/nullable уточняются при создании миграций (открытые вопросы — внизу и в [Modules Spec](modules.md)).
+> Conceptual ER diagram for Module 10 (Finance). Logical entities and relationships — a bridge toward the Laravel/MySQL implementation. Not the final DDL: concrete types/indexes/nullability are pinned down when the migrations are written (open questions — at the bottom and in the [Modules Spec](modules.md)).
 >
-> Спека: [Modules Spec](modules.md) · Решения: [Decisions Log](decisions.md)
+> Spec: [Modules Spec](modules.md) · Decisions: [Decisions Log](decisions.md)
 
 ---
 
-## Диаграмма
+## Diagram
 
 ```mermaid
 erDiagram
@@ -53,88 +53,88 @@ erDiagram
     GOAL ||--o| SAVING_FUND : "tracks (save-N)"
 ```
 
-> ⚠️ Mermaid ER не рисует две связи между одной парой сущностей с разными ролями идеально (ACCOUNT↔TRANSACTION источник/получатель, CURRENCY↔EXCHANGE_RATE from/to) — в реальной схеме это два FK на одну таблицу. Текстовая расшифровка ниже — источник истины.
+> ⚠️ Mermaid ER doesn't render two relationships between the same pair of entities with different roles cleanly (ACCOUNT↔TRANSACTION source/destination, CURRENCY↔EXCHANGE_RATE from/to) — in the real schema these are two FKs on a single table. The textual breakdown below is the source of truth.
 
 ---
 
-## Сущности (логически)
+## Entities (logical)
 
-### Ядро денег
-- **USER** — владелец всего (single-user сейчас, поле user_id заложено под multi-user). Хранит **базовую валюту**.
-- **CURRENCY** — справочник валют (грн/USD/EUR…). Код валюты.
-- **EXCHANGE_RATE** — курс: валюта_from + валюта_to + **дата** + курс. Исторический (на дату операции), не только текущий.
-- **ACCOUNT** — счёт: название, тип (наличка/карта/накопительный/валютный), **валюта** (одна), флаг архивный. Баланс — производная (не колонка, а агрегат), либо денормализованный кэш.
-- **CATEGORY** — категория: название, направление (доход/расход), **parent_id** (самоссылка: группа → подкатегория, 2 уровня), флаг архивная. Пример: Медицина → Стоматология.
-- **TRANSACTION** — транзакция: тип (доход/расход/перевод), сумма+валюта, счёт-источник, счёт-получатель (только перевод), категория (доход/расход), дата, заметка, тег. Для валютного перевода — обе суммы + эффективный курс. Опц. ссылки: на DEBT (платёж по долгу), на SAVING_FUND (пополнение).
-  - **`source` — полиморфная ссылка на источник** (`source_type` + `source_id`): добавка (Модуль 2а, докупка) / **покупка-item (Модуль 7)** / null. Это точка связи Хранилище↔Финансы и Добавки↔Финансы. FK живёт здесь (на стороне денег), доменные сущности о деньгах не знают.
-- **PURCHASE (item, Модуль 7)** — внешняя сущность Хранилища (не таблица Финансов), показана для полноты связи. Покупка из wish-листа. Инвариант: статус «куплено» ⟺ существует TRANSACTION с `source` = эта покупка (или связанный DEBT-рассрочка).
+### Money core
+- **USER** — the owner of everything (single-user for now, the user_id field is in place for multi-user). Stores the **base currency**.
+- **CURRENCY** — currency reference table (UAH/USD/EUR…). Currency code.
+- **EXCHANGE_RATE** — exchange rate: currency_from + currency_to + **date** + rate. Historical (as of the operation date), not just the current one.
+- **ACCOUNT** — account: name, type (cash/card/savings/foreign-currency), **currency** (single), archived flag. The balance is a derived value (not a column but an aggregate), or a denormalized cache.
+- **CATEGORY** — category: name, direction (income/expense), **parent_id** (self-reference: group → subcategory, 2 levels), archived flag. Example: Medical → Dentistry.
+- **TRANSACTION** — transaction: type (income/expense/transfer), amount+currency, source account, destination account (transfer only), category (income/expense), date, note, tag. For a cross-currency transfer — both amounts + the effective exchange rate. Optional references: to DEBT (debt payment), to SAVING_FUND (top-up).
+  - **`source` — polymorphic reference to the origin** (`source_type` + `source_id`): supplement (Module 2a, restock) / **purchase item (Module 7)** / null. This is the connection point between Storage↔Finance and Supplements↔Finance. The FK lives here (on the money side); the domain entities know nothing about money.
+- **PURCHASE (item, Module 7)** — an external Storage entity (not a Finance table), shown here for completeness of the relationship. A purchase from the wish list. Invariant: status "bought" ⟺ a TRANSACTION exists with `source` = this purchase (or a linked installment DEBT).
 
-### Бюджет
-- **BUDGET** — лимит: категория + период (месяц/год) + сумма лимита. Факт считается агрегатом транзакций категории за период (не хранится).
+### Budget
+- **BUDGET** — limit: category + period (month/year) + limit amount. The actual is computed as an aggregate of the category's transactions over the period (not stored).
 
-### Долги
-- **COUNTERPARTY** — контрагент (банк/магазин/человек). ⚠️ open: отдельная сущность vs свободный текст в DEBT.
-- **DEBT** — долг: направление (я должен / мне должны), контрагент, исходная сумма + остаток, валюта, режим графика (фиксированный / свободный), опц. проценты/переплата, дедлайн, статус, опц. счёт списания.
-- **DEBT_PAYMENT** — запланированный платёж графика (только для фикс-режима): дата, сумма, статус (запланирован/оплачен/просрочен). Факт оплаты = ссылка на TRANSACTION.
+### Debts
+- **COUNTERPARTY** — counterparty (bank/store/person). ⚠️ open: a separate entity vs free text in DEBT.
+- **DEBT** — debt: direction (I owe / owed to me), counterparty, original amount + remaining, currency, schedule mode (fixed / flexible), optional interest/overpayment, deadline, status, optional charge account.
+- **DEBT_PAYMENT** — a scheduled payment in the schedule (fixed mode only): date, amount, status (scheduled/paid/overdue). The fact of payment = a reference to a TRANSACTION.
 
-### Накопления
-- **SAVING_FUND** — копилка/подушка (единая сущность с флагами): название, целевая сумма + накоплено, валюта, опц. категория и срок, режим хранения (виртуальный конверт / привязка к ACCOUNT), статус.
-  - Флаги **подушки безопасности**: `is_emergency` (обязательная) + `is_perpetual` (бессрочная) + правило пополнения (фикс-сумма / % от дохода / N месяцев расходов).
-  - ⚠️ open: единая сущность с флагами vs отдельные таблицы FUND/EMERGENCY_FUND.
+### Savings
+- **SAVING_FUND** — saving fund / emergency fund (a single entity with flags): name, target amount + accumulated, currency, optional category and term, storage mode (virtual envelope / linked to an ACCOUNT), status.
+  - **Emergency Fund** flags: `is_emergency` (mandatory) + `is_perpetual` (open-ended) + a top-up rule (fixed amount / % of income / N months of expenses).
+  - ⚠️ open: a single entity with flags vs separate FUND/EMERGENCY_FUND tables.
 
-### Регулярность (СКВОЗНОЙ движок — НЕ локальный для Финансов)
-> ⚠️ `RECURRING_RULE` / `PLANNED_OCCURRENCE` здесь — это **тот же сквозной механизм**, что канонически определён в [Modules Spec](modules.md). Финансы — лишь один из 6+ потребителей (добавки/тренировки/замеры/задачи/привычки/финансы). Не дублировать таблицу под Финансы — она общая, с полиморфной привязкой к владельцу.
-- **RECURRING_RULE** — повторяющееся правило (RRULE/RFC 5545 рекомендован): паттерн, dtstart, until/count, timezone, полиморфный владелец. Для Финансов владелец = фин-операция / долг / копилка-подушка; несёт направление (доход/расход), сумму, валюту, счёт, категорию.
-- **PLANNED_OCCURRENCE** — запланированный экземпляр из правила: плановая дата + сумма + статус (план/получено/оплачено/пропущено/перенесено). Факт = ссылка на TRANSACTION. Идемпотентность: уникальный `(rule_id, occurrence_date)`.
+### Recurrence (CROSS-CUTTING engine — NOT local to Finance)
+> ⚠️ `RECURRING_RULE` / `PLANNED_OCCURRENCE` here are **the same cross-cutting mechanism** canonically defined in the [Modules Spec](modules.md). Finance is just one of 6+ consumers (supplements/workouts/measurements/tasks/habits/finance). Don't duplicate the table for Finance — it's shared, with a polymorphic binding to the owner.
+- **RECURRING_RULE** — a recurring rule (RRULE/RFC 5545 recommended): pattern, dtstart, until/count, timezone, polymorphic owner. For Finance the owner = a financial operation / debt / emergency saving fund; carries direction (income/expense), amount, currency, account, category.
+- **PLANNED_OCCURRENCE** — a planned instance generated from a rule: planned date + amount + status (planned/received/paid/skipped/rescheduled). The fact = a reference to a TRANSACTION. Idempotency: a unique `(rule_id, occurrence_date)`.
 
-### Цели (из Модуля 4, не дублируется тут)
-- **GOAL** (тип «Финансы») — обёртка со сроком/майлстоунами: «накопить N» → tracks SAVING_FUND; «закрыть кредит» → tracks DEBT. Прогресс берётся из связанной сущности.
+### Goals (from Module 4, not duplicated here)
+- **GOAL** (type "Finance") — a wrapper with a term/milestones: "save N" → tracks SAVING_FUND; "close a loan" → tracks DEBT. Progress is taken from the linked entity.
 
 ---
 
-## Ключевые связи и инварианты
+## Key relationships and invariants
 
-| Связь | Кардинальность | Смысл |
+| Relationship | Cardinality | Meaning |
 |-------|----------------|-------|
-| ACCOUNT → TRANSACTION | 1 : N (×2 роли) | source_account_id (всегда) + dest_account_id (только перевод) |
-| CATEGORY → CATEGORY | 1 : N (self) | parent_id; глубина ровно 2 (группа/подкатегория) |
-| CATEGORY → TRANSACTION | 1 : N | только доход/расход; перевод без категории |
-| BUDGET → CATEGORY | N : 1 | лимит на категорию/период; факт = агрегат |
-| DEBT → DEBT_PAYMENT | 1 : N | только фикс-график; свободный режим — без строк графика |
-| DEBT_PAYMENT → TRANSACTION | 1 : 0..1 | плановый платёж закрывается фактической транзакцией |
-| SAVING_FUND → ACCOUNT | N : 0..1 | только режим «реальный счёт»; виртуальный — без FK, сумма в самой копилке |
-| RECURRING_RULE → PLANNED_OCCURRENCE | 1 : N | правило разворачивается в плановые операции |
-| PLANNED_OCCURRENCE → TRANSACTION | 1 : 0..1 | план реализуется фактом |
-| GOAL → DEBT / SAVING_FUND | 1 : 0..1 | цель «закрыть кредит» / «накопить N» |
-| PURCHASE → TRANSACTION (source) | 1 : 0..1 | полиморфный `TRANSACTION.source`; FK на стороне транзакции |
-| PURCHASE → DEBT | 1 : 0..1 | покупка в рассрочку → долг (направление FK: debt.purchase_id) |
+| ACCOUNT → TRANSACTION | 1 : N (×2 roles) | source_account_id (always) + dest_account_id (transfer only) |
+| CATEGORY → CATEGORY | 1 : N (self) | parent_id; depth is exactly 2 (group/subcategory) |
+| CATEGORY → TRANSACTION | 1 : N | income/expense only; a transfer has no category |
+| BUDGET → CATEGORY | N : 1 | a limit per category/period; the actual = an aggregate |
+| DEBT → DEBT_PAYMENT | 1 : N | fixed schedule only; flexible mode has no schedule rows |
+| DEBT_PAYMENT → TRANSACTION | 1 : 0..1 | a scheduled payment is settled by an actual transaction |
+| SAVING_FUND → ACCOUNT | N : 0..1 | "real account" mode only; virtual has no FK, the amount lives in the saving fund itself |
+| RECURRING_RULE → PLANNED_OCCURRENCE | 1 : N | a rule expands into planned operations |
+| PLANNED_OCCURRENCE → TRANSACTION | 1 : 0..1 | a plan is realized by an actual |
+| GOAL → DEBT / SAVING_FUND | 1 : 0..1 | a "close a loan" / "save N" goal |
+| PURCHASE → TRANSACTION (source) | 1 : 0..1 | polymorphic `TRANSACTION.source`; FK on the transaction side |
+| PURCHASE → DEBT | 1 : 0..1 | an installment purchase → a debt (FK direction: debt.purchase_id) |
 
-**Инварианты:**
-- Перевод: source_account и dest_account обязаны различаться; категория null; для разных валют хранятся обе суммы.
-- Транзакция-перевод не считается доходом и не расходом (не попадает в бюджет/cash flow как доход/расход).
-- Баланс счёта = стартовый + Σ(зачисления) − Σ(списания); не редактируется напрямую.
-- Остаток долга = исходная сумма − Σ(платежей по долгу).
-- Cash flow месяца = Σ(плановые доходы) − Σ(обязательные расходы: регулярные расходы + DEBT_PAYMENT месяца + обязательное пополнение подушки).
-- **Покупка «куплено» ⟺ существует TRANSACTION с source = эта покупка (или связанный DEBT-рассрочка).** Отмена транзакции → покупка возвращается в «хочу».
-- Прогресс фин-цели «накопить N» = накоплено в связанной SAVING_FUND (не баланс счёта напрямую — копилка может быть виртуальной).
+**Invariants:**
+- Transfer: source_account and dest_account must differ; category is null; for differing currencies both amounts are stored.
+- A transfer transaction counts as neither income nor expense (it doesn't enter the budget/cash flow as income or expense).
+- Account balance = opening + Σ(credits) − Σ(debits); not edited directly.
+- Debt remaining = original amount − Σ(debt payments).
+- Monthly cash flow = Σ(planned income) − Σ(mandatory expenses: recurring expenses + this month's DEBT_PAYMENT + the mandatory emergency fund top-up).
+- **A purchase is "bought" ⟺ a TRANSACTION exists with source = this purchase (or a linked installment DEBT).** Reverting the transaction → the purchase returns to "want".
+- Progress of a "save N" financial goal = the amount accumulated in the linked SAVING_FUND (not the account balance directly — the fund may be virtual).
 
 ---
 
-## Открытые вопросы схемы (решить при миграциях)
+## Open schema questions (to resolve during migrations)
 
-> Часть закрыта ревью-проходом 2026-06-13 (есть рекомендация). Открытые — без галочки.
+> Some were closed by the review pass on 2026-06-13 (a recommendation is given). Open ones — without a checkmark.
 
-1. **Стартовый баланс счёта:** колонка `opening_balance` vs первая корректирующая TRANSACTION. ⬜ открыт.
-2. ✅ **Перевод → две связанные записи** (transfer_out + transfer_in, `transfer_group_id`). Чище для баланса каждого счёта и для разных валют (каждая нога в своей валюте). (рекомендация ревью)
-3. **Копилка ↔ подушка:** единая SAVING_FUND с флагами vs отдельные таблицы. ⬜ открыт (склоняемся к единой с флагами).
-4. **Виртуальный конверт:** ✅ решение — **«свободный баланс» = баланс счёта − Σ конвертов на нём**, конверт НЕ двигает деньги физически. Инвариант: Σ конвертов ≤ баланс. Это вычисляемая величина, не отдельные деньги.
-5. **Контрагент:** COUNTERPARTY как сущность vs строка в DEBT. ⬜ открыт (рекомендация — сущность сразу, дешевле дедупа потом).
-6. ✅ **Базовая валюта → в профиле/настройках пользователя** (Модуль 0), не в настройках Финансов. Закрыто принципом «Профиль — источник входов».
-7. ✅ **RECURRING_RULE → RRULE (RFC 5545)** через готовую либу. Сквозной формат, см. [Modules Spec](modules.md).
-8. ✅ **PLANNED_OCCURRENCE → материализация с окном вперёд** (+90 дней) + уникальный `(rule_id, occurrence_date)` для идемпотентности. (рекомендация ревью)
-9. ✅ **Деньги → DECIMAL(19,4)** (или минорные единицы BIGINT) + value object `Money` (amount+currency). Глобально, не float. Сводный пересчёт валют — **в момент чтения** по выбранному курсу (текущий для «сейчас», исторический для «тогда»), не хранить пересчитанное.
-10. **Покупка↔транзакция (Модуль 7):** ✅ полиморфный `TRANSACTION.source` + инвариант «куплено ⟺ есть транзакция». FK на стороне транзакции.
-11. ✅ **Полиморфизм по типу (сквозной)** → гибрид: class-table для разнополевых (Тренировки), single-table+nullable/JSON для близких (Цели/Хранилище/Долги). Без STI-магии. Зафиксировано в [Data Conventions](data-conventions.md).
-12. ✅ **Агрегаты** → кэш-значение + event-пересчёт (Observer) для горячих производных + daily-rollup для аналитики. См. [Data Conventions](data-conventions.md).
+1. **Account opening balance:** an `opening_balance` column vs the first adjusting TRANSACTION. ⬜ open.
+2. ✅ **Transfer → two linked records** (transfer_out + transfer_in, `transfer_group_id`). Cleaner for each account's balance and for differing currencies (each leg in its own currency). (review recommendation)
+3. **Saving fund ↔ emergency fund:** a single SAVING_FUND with flags vs separate tables. ⬜ open (leaning toward a single one with flags).
+4. **Virtual envelope:** ✅ decision — **"available balance" = account balance − Σ envelopes on it**, the envelope does NOT move money physically. Invariant: Σ envelopes ≤ balance. It's a computed value, not separate money.
+5. **Counterparty:** COUNTERPARTY as an entity vs a string in DEBT. ⬜ open (recommendation — an entity from the start, cheaper than deduping later).
+6. ✅ **Base currency → in the user's profile/settings** (Module 0), not in the Finance settings. Closed by the "Profile is the source of inputs" principle.
+7. ✅ **RECURRING_RULE → RRULE (RFC 5545)** via an off-the-shelf library. A cross-cutting format, see the [Modules Spec](modules.md).
+8. ✅ **PLANNED_OCCURRENCE → materialization with a look-ahead window** (+90 days) + a unique `(rule_id, occurrence_date)` for idempotency. (review recommendation)
+9. ✅ **Money → DECIMAL(19,4)** (or minor units as BIGINT) + a `Money` value object (amount+currency). Globally, not float. Roll-up currency conversion happens **at read time** using the chosen rate (the current one for "now", the historical one for "back then"); don't store the converted value.
+10. **Purchase ↔ transaction (Module 7):** ✅ polymorphic `TRANSACTION.source` + the "bought ⟺ a transaction exists" invariant. FK on the transaction side.
+11. ✅ **Polymorphism by type (cross-cutting)** → a hybrid: class-table for entities with divergent fields (Workouts), single-table + nullable/JSON for similar ones (Goals/Storage/Debts). No STI magic. Pinned down in [Data Conventions](data-conventions.md).
+12. ✅ **Aggregates** → a cached value + event-driven recompute (Observer) for hot derived values + a daily rollup for analytics. See [Data Conventions](data-conventions.md).
 
-> Money (#9), перевод (#2), конверт (#4), валюты, user_id, удаление/архив, таймзоны — сведены в [Data Conventions](data-conventions.md).
+> Money (#9), transfer (#2), envelope (#4), currencies, user_id, deletion/archival, time zones — consolidated in [Data Conventions](data-conventions.md).

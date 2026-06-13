@@ -1,106 +1,106 @@
-# SelfHandler — Подсистема Уведомлений (Notifications)
+# SelfHandler — Notifications subsystem
 
-> Сквозной механизм доставки напоминаний на все модули. Отделена от Планнера (Планнер = ЧТО запланировано; Уведомления = КАК и КОГДА об этом сообщаем) и от Движка повторений (тот даёт статус экземпляра; Уведомления его доставляют и эскалируют).
+> Cross-cutting mechanism for delivering reminders across all modules. Separated from the Planner (Planner = WHAT is scheduled; Notifications = HOW and WHEN we report it) and from the Recurrence engine (which provides the occurrence status; Notifications deliver and escalate it).
 >
-> Связки: [Recurrence Engine](recurrence-engine.md) (источник «что напомнить») · [Modules Spec](modules.md) (хаб дат/событий) · решения: [Decisions Log](decisions.md)
+> Links: [Recurrence Engine](recurrence-engine.md) (the source of "what to remind about") · [Modules Spec](modules.md) (the hub for dates/events) · decisions: [Decisions Log](decisions.md)
 
 ---
 
-## Зачем и кто потребители
+## Purpose and consumers
 
-| Модуль | Что напоминаем | Особенность |
-|--------|----------------|-------------|
-| 0 Профиль | «Пора взвеситься / сделать замеры» | раз в месяц |
-| 2а Добавки | Приём + **повторно если не закинулся** | эскалация |
-| 3 Тренировки | Дата следующей тренировки | — |
-| 4 Цели | Дедлайн цели приближается | — |
-| 5 Планнер | События дня, задачи с датой | хаб |
-| 6 Отчёт | «Заполни/посмотри вечерний отчёт» | ключевой ритуал |
-| 8 Привычки | Время привычки (implementation intention) | — |
-| 10 Финансы | Платёж/зарплата/пополнение подушки, предупреждение бюджета | — |
+| Module | What we remind about | Notes |
+|--------|----------------------|-------|
+| 0 Profile | "Time to weigh in / take measurements" | once a month |
+| 2a Supplements | Intake + **re-reminder if not taken** | escalation |
+| 3 Workouts | Date of the next workout | — |
+| 4 Goals | A goal deadline is approaching | — |
+| 5 Planner | Events of the day, tasks with a date | hub |
+| 6 Report | "Fill in / review the evening report" | key ritual |
+| 8 Habits | Habit time (implementation intention) | — |
+| 10 Finances | Payment / paycheck / emergency-fund top-up, budget warning | — |
 
-Без единой подсистемы каждый модуль слепит свою рассылку → нельзя единые «тихие часы», дедупликацию, выбор канала, эскалацию.
-
----
-
-## Решения (зафиксировано 2026-06-13)
-
-- **Каналы — единый контракт под все, in-app первым.** Strategy/Adapter поверх **Laravel Notifications**: in-app (БД-канал) включаем сейчас; push (FCM/Capacitor) / email / Telegram — адаптеры, добавляются без переделки. (Паттерн как BYOK-провайдеры в [Modules Spec](modules.md).)
-- **Эскалация — повтор через интервал до отметки.** Если напоминание не «закрыто» (дело не отмечено) — повтор через N минут, макс K раз, пока не отмечено/просрочено. Интервал и лимит — настраиваемы по типу.
-- **Антиспам — тихие часы + дневная сводка.** Глобальные «не беспокоить» (ночь) + сворачивание мелких напоминаний в одну сводку («3 дела на сегодня»).
+Without a single subsystem, every module would roll its own delivery → no shared quiet hours, deduplication, channel selection, or escalation.
 
 ---
 
-## Сущность `Notification` (in-app запись)
+## Decisions (fixed 2026-06-13)
+
+- **Channels — a unified contract for all, in-app first.** A Strategy/Adapter layer on top of **Laravel Notifications**: in-app (DB channel) is enabled now; push (FCM/Capacitor) / email / Telegram are adapters that can be added without a rewrite. (Same pattern as the BYOK providers in [Modules Spec](modules.md).)
+- **Escalation — repeat at an interval until marked done.** If a reminder is not "closed" (the task is not marked done), repeat after N minutes, at most K times, until it is marked done or overdue. Interval and limit are configurable per type.
+- **Anti-spam — quiet hours + daily digest.** Global "do not disturb" (night) + collapsing minor reminders into a single digest ("3 tasks for today").
+
+---
+
+## The `Notification` entity (in-app record)
 
 - `id`, `user_id`
-- **Полиморфный источник** `source_type` + `source_id` — что породило (PlannedOccurrence движка / дедлайн цели / предупреждение бюджета / ручное). Чаще всего — `PlannedOccurrence` из [Recurrence Engine](recurrence-engine.md)
-- `type` / `category` — для группировки и настроек (приём добавки / платёж / отчёт / привычка …)
-- `title`, `body`, опц. `action` (deep-link в модуль: «отметить приём», «открыть отчёт»)
-- `scheduled_at` — когда показать/доставить (UTC, см. таймзоны)
+- **Polymorphic source** `source_type` + `source_id` — what produced it (engine's PlannedOccurrence / goal deadline / budget warning / manual). Most often a `PlannedOccurrence` from the [Recurrence Engine](recurrence-engine.md)
+- `type` / `category` — for grouping and settings (supplement intake / payment / report / habit …)
+- `title`, `body`, optional `action` (deep link into a module: "mark intake", "open report")
+- `scheduled_at` — when to show/deliver (UTC, see time zones)
 - `status`: `scheduled` / `sent` / `read` / `dismissed` / `snoozed` / `actioned` / `cancelled`
-- `channels` — через какие каналы ушло (in-app всегда + опц. push/telegram/email)
-- Эскалация: `escalation_count`, `next_escalation_at`, `max_escalations`
-- `snoozed_until` (опц.)
+- `channels` — which channels it went out through (in-app always + optional push/telegram/email)
+- Escalation: `escalation_count`, `next_escalation_at`, `max_escalations`
+- `snoozed_until` (optional)
 
-> ⚠️ Уведомление НЕ дублирует доменный статус. «Дело сделано» живёт в `PlannedOccurrence.status` (движок). Уведомление лишь сообщает; при отметке дела (occurrence → done) связанные уведомления авто-закрываются (`actioned`/`cancelled`).
-
----
-
-## Каналы (Strategy/Adapter)
-
-- Единый контракт `NotificationChannel` (метод «доставить»): `deliver(Notification, recipientPrefs)`
-- Реализации:
-  - **in-app** (БД) — список в приложении, бейдж непрочитанного. Включён сейчас
-  - **local push** (Capacitor Local Notifications) — без сервера, для вечернего ритуала. Ранний кандидат
-  - **push** (FCM/Web Push) — серверный, позже
-  - **telegram** (бот) — внешний канал, позже (референс концепции: skill telegram-mcp-setup)
-  - **email** — позже
-- Выбор каналов на тип уведомления — из **настроек пользователя** (см. ниже). Резолв канала в рантайме (фабрика по типу+настройкам)
+> ⚠️ A notification does NOT duplicate the domain status. "Task done" lives in `PlannedOccurrence.status` (the engine). A notification merely reports it; once the task is marked done (occurrence → done) the related notifications are auto-closed (`actioned` / `cancelled`).
 
 ---
 
-## Настройки уведомлений (per-user)
+## Channels (Strategy/Adapter)
 
-- **Глобальные «тихие часы»** (напр. 23:00–08:00) — в этот период не доставляем (откладываем на конец тихих часов или сворачиваем в сводку)
-- **Per-категория:** включено/выключено + какие каналы (приём добавок → in-app+push; бюджет → только in-app)
-- **Дневная сводка:** время (напр. 08:00) — собрать мелкие/несрочные в одно сводное уведомление «N дел на сегодня»
-- Таймзона/язык — из профиля ([Modules Spec](modules.md))
-- 📌 живёт в едином доме настроек (кандидат — будущий модуль Settings)
-
----
-
-## Эскалация «повторно напомнить» (кейс Модуля 2а)
-
-- Триггер: связанный `PlannedOccurrence` остаётся `planned` после `occurrence_time`
-- Повтор: через `escalation_interval` (напр. 30 мин), увеличивая `escalation_count`, до `max_escalations` (напр. 3) ИЛИ пока occurrence не `done`/`skipped`/просрочен
-- Интервал и лимит — **настраиваемы по типу** (добавки — настойчивее, чем «погладить рубашку»)
-- Останавливается при: отметке дела (done), ручном dismiss, наступлении тихих часов (переносится), достижении лимита → дело уходит в «пропущено»
-- ⚠️ эскалация **читает** статус из Движка повторений, но **живёт здесь** (не в движке) — это и есть граница ответственности
+- A unified `NotificationChannel` contract (a "deliver" method): `deliver(Notification, recipientPrefs)`
+- Implementations:
+  - **in-app** (DB) — the in-app list, an unread badge. Enabled now
+  - **local push** (Capacitor Local Notifications) — serverless, for the evening ritual. Early candidate
+  - **push** (FCM/Web Push) — server-based, later
+  - **telegram** (bot) — an external channel, later (concept reference: skill telegram-mcp-setup)
+  - **email** — later
+- Channel selection per notification type comes from the **user's settings** (see below). Channel resolution happens at runtime (a factory keyed by type + settings)
 
 ---
 
-## Доставка — как технически шлётся
+## Notification settings (per-user)
 
-- **Планировщик (Laravel Scheduler + queue):** периодическая джоба берёт `Notification` с `status=scheduled` и `scheduled_at <= now` (и вне тихих часов) → доставляет через выбранные каналы → `sent`
-- Источник большинства уведомлений — материализованные `PlannedOccurrence` (Движок): при/после материализации для occurrence создаётся scheduled-уведомление по правилам типа
-- **Идемпотентность:** уникальность по `(source_type, source_id, escalation_count)` — джоба не задвоит доставку при рестарте
-- Дневная сводка — отдельная джоба в заданное время: агрегирует несрочные за день в одно уведомление
-
----
-
-## Границы ответственности
-
-| Механизм | Отвечает за | НЕ отвечает за |
-|----------|-------------|----------------|
-| [Recurrence Engine](recurrence-engine.md) | что и когда запланировано, статус экземпляра | доставку, напоминания |
-| **Уведомления (этот док)** | доставку, каналы, эскалацию, тихие часы, сводку | доменную логику факта, расписание |
-| [Modules Spec](modules.md) | хаб дат/событий, планирование дня, UI календаря | механику доставки |
-| Модуль-владелец | доменный факт (списать остаток, уменьшить долг) | напоминания |
+- **Global quiet hours** (e.g. 23:00–08:00) — during this window we do not deliver (we defer to the end of quiet hours or fold into the digest)
+- **Per-category settings:** on/off + which channels (supplement intake → in-app + push; budget → in-app only)
+- **Daily digest:** time (e.g. 08:00) — collect the minor/non-urgent items into one digest notification, "N tasks for today"
+- Time zone/language — from the profile ([Modules Spec](modules.md))
+- 📌 lives in a single settings home (candidate — a future Settings module)
 
 ---
 
-## Диаграмма
+## "Re-reminder" escalation (Module 2a case)
+
+- Trigger: the related `PlannedOccurrence` is still `planned` after `occurrence_time`
+- Repeat: after `escalation_interval` (e.g. 30 min), incrementing `escalation_count`, up to `max_escalations` (e.g. 3) OR until the occurrence is `done` / `skipped` / overdue
+- Interval and limit are **configurable per type** (supplements are more insistent than "iron a shirt")
+- Stops on: marking the task done (done), a manual dismiss, the onset of quiet hours (deferred), reaching the limit → the task moves to "missed"
+- ⚠️ Escalation **reads** the status from the Recurrence engine but **lives here** (not in the engine) — this is exactly the responsibility boundary
+
+---
+
+## Delivery — how it is sent technically
+
+- **Scheduler (Laravel Scheduler + queue):** a periodic job picks up `Notification` records with `status=scheduled` and `scheduled_at <= now` (and outside quiet hours) → delivers them through the selected channels → `sent`
+- The source of most notifications is materialized `PlannedOccurrence` records (the engine): on/after materializing an occurrence, a scheduled notification is created per the type's rules
+- **Idempotency:** uniqueness on `(source_type, source_id, escalation_count)` — the job won't double-deliver on restart
+- The daily digest is a separate job at the configured time: it aggregates the day's non-urgent items into a single notification
+
+---
+
+## Responsibility boundaries
+
+| Mechanism | Responsible for | NOT responsible for |
+|-----------|-----------------|---------------------|
+| [Recurrence Engine](recurrence-engine.md) | what is scheduled and when, occurrence status | delivery, reminders |
+| **Notifications (this doc)** | delivery, channels, escalation, quiet hours, digest | the domain logic of the fact, the schedule |
+| [Modules Spec](modules.md) | the dates/events hub, day planning, calendar UI | the delivery mechanics |
+| Owning module | the domain fact (deduct stock, reduce debt) | reminders |
+
+---
+
+## Diagram
 
 ```mermaid
 erDiagram
@@ -109,17 +109,17 @@ erDiagram
     SOURCE ||--o{ NOTIFICATION : raises
     NOTIFICATION ||--o{ DELIVERY : "sent via channel"
 
-    %% SOURCE = PlannedOccurrence (чаще) / дедлайн цели / предупреждение бюджета / ручное
-    %% DELIVERY = факт отправки через конкретный канал (in-app/push/telegram/email)
+    %% SOURCE = PlannedOccurrence (most common) / goal deadline / budget warning / manual
+    %% DELIVERY = the fact of sending via a specific channel (in-app/push/telegram/email)
 ```
 
 ---
 
-## Открытые вопросы (решить при реализации)
+## Open questions (to resolve during implementation)
 
-1. Хранить ли `DELIVERY` отдельной таблицей (история по каналам) или массивом `channels` на уведомлении — зависит от нужды в аудите доставки.
-2. Тихие часы: откладывать на конец периода vs сворачивать в утреннюю сводку (или выбор юзера).
-3. Дедупликация при множестве источников на одно дело (occurrence + ручное напоминание о том же).
-4. Где провести границу «срочное (шлём сразу) vs несрочное (в сводку)» — флаг на типе.
-5. Push для Capacitor: local notifications (без сервера) vs FCM (сервер) — что в первой реальной версии.
-6. Снэпшот настроек на момент создания уведомления vs чтение актуальных при доставке.
+1. Whether to store `DELIVERY` as a separate table (per-channel history) or as a `channels` array on the notification — depends on the need to audit delivery.
+2. Quiet hours: defer to the end of the window vs fold into the morning digest (or let the user choose).
+3. Deduplication when multiple sources map to one task (occurrence + a manual reminder about the same thing).
+4. Where to draw the line between "urgent (send immediately) vs non-urgent (into the digest)" — a flag on the type.
+5. Push for Capacitor: local notifications (serverless) vs FCM (server) — which one for the first real version.
+6. A snapshot of settings at notification-creation time vs reading the current ones at delivery time.

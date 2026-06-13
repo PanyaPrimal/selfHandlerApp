@@ -1,35 +1,35 @@
 # SelfHandler — Design Docs
 
-Детальное проектирование системы: видение, спецификация модулей, схемы данных и сквозные механизмы. Документы — основа для реализации (Laravel API + Vue web + Capacitor mobile).
+Detailed system design: vision, module specifications, data schemas, and cross-cutting mechanisms. These documents are the foundation for implementation (Laravel API + Vue web + Capacitor mobile).
 
-> Эти доки описывают **полностью спроектированную** систему. Реализация ведётся слоями от MVP-среза (см. [../MVP.md](../MVP.md)). Не всё спроектированное входит в первую версию.
+> These docs describe a **fully designed** system. Implementation proceeds in layers, starting from the MVP slice (see [../MVP.md](../MVP.md)). Not everything that has been designed ships in the first version.
 
-## С чего читать
+## Where to start
 
-1. **[vision.md](vision.md)** — продуктовое видение, 11 модулей, стек, roadmap. Точка входа.
-2. **[modules.md](modules.md)** — детальная спецификация каждого модуля (что трекаем, поля, поведение, связи). Основа схемы БД.
-3. **[decisions.md](decisions.md)** — лог продуктовых и архитектурных решений + «почему так». Что закрыто, что отложено.
+1. **[vision.md](vision.md)** — product vision, 11 modules, stack, roadmap. The entry point.
+2. **[modules.md](modules.md)** — detailed specification of each module (what we track, fields, behavior, relationships). The basis for the database schema.
+3. **[decisions.md](decisions.md)** — log of product and architectural decisions plus the "why" behind them. What's settled, what's deferred.
 
-## Сквозные механизмы (общие для всех модулей)
+## Cross-cutting mechanisms (shared across all modules)
 
-Проектируются один раз, переиспользуются везде — заложить до написания кода:
+Designed once and reused everywhere — to be laid down before any code is written:
 
-- **[data-conventions.md](data-conventions.md)** — правила схемы: деньги (Money/DECIMAL), полиморфизм «база+тип», `user_id` с первого дня, удаление vs архив, таймзоны, единицы, стратегия агрегатов.
-- **[recurrence-engine.md](recurrence-engine.md)** — движок повторений (`RecurringRule` + `PlannedOccurrence`): расписания, курсы, регулярные платежи, привычки. Один формат на всё приложение.
-- **[notifications.md](notifications.md)** — подсистема уведомлений: каналы (in-app/push/email/telegram), эскалация, тихие часы, дневная сводка.
-- **[attachments.md](attachments.md)** — вложения (фото/документы/треки): полиморфная привязка + disk-абстракция.
-- **[integrations.md](integrations.md)** — внешние интеграции (календари Google/Apple, позже Strava/Garmin/банки): единый контракт + адаптеры.
+- **[data-conventions.md](data-conventions.md)** — schema conventions: money (Money/DECIMAL), "base + type" polymorphism, `user_id` from day one, deletion vs. archiving, time zones, units, aggregation strategy.
+- **[recurrence-engine.md](recurrence-engine.md)** — recurrence engine (`RecurringRule` + `PlannedOccurrence`): schedules, courses, recurring payments, habits. One format for the entire application.
+- **[notifications.md](notifications.md)** — notification subsystem: channels (in-app/push/email/telegram), escalation, quiet hours, daily digest.
+- **[attachments.md](attachments.md)** — attachments (photos/documents/tracks): polymorphic association + disk abstraction.
+- **[integrations.md](integrations.md)** — external integrations (Google/Apple calendars, later Strava/Garmin/banks): a single contract + adapters.
 
-## Схемы
+## Diagrams
 
-- **[finance-er.md](finance-er.md)** — ER-схема модуля Финансы (счета, транзакции, бюджет, долги, копилки, подушка). Mermaid-диаграмма + инварианты.
+- **[finance-er.md](finance-er.md)** — ER diagram for the Finance module (accounts, transactions, budget, debts, saving funds, emergency fund). Mermaid diagram + invariants.
 
-## Связанные документы
+## Related documents
 
-- [../ARCHITECTURE.md](../ARCHITECTURE.md) — высокоуровневая архитектура монорепо
-- [../MVP.md](../MVP.md) — MVP-срез (с чего начинаем реализацию)
-- [../OPEN_SERVER.md](../OPEN_SERVER.md) — локальный backend-рантайм (Open Server)
+- [../ARCHITECTURE.md](../ARCHITECTURE.md) — high-level architecture of the monorepo
+- [../MVP.md](../MVP.md) — MVP slice (where implementation begins)
+- [../OPEN_SERVER.md](../OPEN_SERVER.md) — local backend runtime (Open Server)
 
-## Статус
+## Status
 
-Все 11 модулей и сквозные механизмы спроектированы. Следующий шаг — реализация по слоям от MVP. Чек-лист «до первой миграции» — в конце [data-conventions.md](data-conventions.md).
+All 11 modules and cross-cutting mechanisms are designed. The next step is layered implementation starting from the MVP. The "before the first migration" checklist is at the end of [data-conventions.md](data-conventions.md).

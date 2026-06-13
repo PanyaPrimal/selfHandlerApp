@@ -1,91 +1,91 @@
-# SelfHandler — Внешние интеграции (Integrations)
+# SelfHandler — External Integrations
 
-> Сквозной механизм подключения внешних сервисов через OAuth/токены + синхронизация данных. Единый контракт + адаптеры под провайдеров. Первый представитель — **календари (Google/Apple)**; сюда же лягут Strava/Garmin/Apple Health (бег) и банк-выписки (финансы).
+> Cross-cutting mechanism for connecting external services via OAuth/tokens plus data synchronization. A single contract with per-provider adapters. The first member is **calendars (Google/Apple)**; Strava/Garmin/Apple Health (running) and bank statements (finances) will fit into the same layer.
 >
-> Связки: [Recurrence Engine](recurrence-engine.md) · [Modules Spec](modules.md) · [Modules Spec](modules.md) · решения: [Decisions Log](decisions.md)
+> Related: [Recurrence Engine](recurrence-engine.md) · [Modules Spec](modules.md) · [Modules Spec](modules.md) · decisions: [Decisions Log](decisions.md)
 
 ---
 
-## Зачем — единый механизм, не точечно
+## Why a single mechanism, not one-off implementations
 
-| Провайдер | Домен | Направление | Когда |
-|-----------|-------|-------------|-------|
-| **Google Calendar** | события | дву­сторонняя | сейчас (первый) |
-| **Apple Calendar** | события | двусторонняя | сейчас (первый) |
-| Strava / Garmin | бег/тренировки | импорт | позже |
-| Apple Health | активность/пульс | импорт | позже |
-| Банк-выписка (CSV/API) | транзакции | импорт | позже |
+| Provider | Domain | Direction | When |
+|----------|--------|-----------|------|
+| **Google Calendar** | events | two-way | now (first) |
+| **Apple Calendar** | events | two-way | now (first) |
+| Strava / Garmin | running/workouts | import | later |
+| Apple Health | activity/heart rate | import | later |
+| Bank statement (CSV/API) | transactions | import | later |
 
-Все они — «внешний источник с OAuth/токеном + синхронизация». **Паттерн как BYOK-LLM (М11) и каналы Уведомлений:** единый контракт + адаптеры. Не делать календари точечно, иначе Strava/банки переписывать заново.
-
----
-
-## Решения (зафиксировано 2026-06-13)
-
-- **Общий слой интеграций** — календари первый представитель, контракт переиспользуемый.
-- **Двусторонняя синхронизация календарей:** события SelfHandler → внешний календарь И внешние события → в Планнер (видеть занятость дня целиком).
-- Подключение — **выбор пользователя** (опционально, см. [Modules Spec](modules.md)): только календарь аппки / аппка + внешний.
+All of them are "an external source with OAuth/token + synchronization." **Same pattern as BYOK-LLM (M11) and Notification channels:** a single contract with adapters. Don't build calendars as a one-off, otherwise Strava/banks would have to be rewritten from scratch.
 
 ---
 
-## Сущность `Integration` (подключение)
+## Decisions (locked in on 2026-06-13)
+
+- **Shared integration layer** — calendars are the first member, the contract is reusable.
+- **Two-way calendar sync:** SelfHandler events → external calendar AND external events → into the Planner (to see the full day's busy slots).
+- A connection is a **user choice** (optional, see [Modules Spec](modules.md)): app calendar only / app + external.
+
+---
+
+## The `Integration` entity (connection)
 
 - `id`, `user_id`
 - `provider` (google_calendar / apple_calendar / strava / …)
-- `kind` (calendar / fitness / bank — тип домена)
-- **OAuth-данные:** access_token, refresh_token, expires_at — **шифровать в БД** (как BYOK-ключи, [Modules Spec](modules.md)); НЕ отдавать на фронт открыто
-- `external_account` (какой аккаунт/календарь подключён), опц. выбор конкретного календаря
+- `kind` (calendar / fitness / bank — domain type)
+- **OAuth data:** access_token, refresh_token, expires_at — **encrypted in the DB** (like BYOK keys, [Modules Spec](modules.md)); never exposed to the frontend in plaintext
+- `external_account` (which account/calendar is connected), optionally selecting a specific calendar
 - `status` (active / expired / revoked), `last_sync_at`
-- `settings` (JSON): направление синка, какие типы событий синкать, конфликт-политика
+- `settings` (JSON): sync direction, which event types to sync, conflict policy
 
-## Сущность `SyncedItem` (маппинг локальное ↔ внешнее)
+## The `SyncedItem` entity (local ↔ external mapping)
 
-- Связь локальной записи (событие/occurrence) с внешним ID: `integration_id`, локальная полиморфная ссылка, `external_id`, `etag`/`updated_at` обеих сторон
-- Нужна для **дедупликации и разрешения конфликтов** (не создать дубль, понять что изменилось)
-
----
-
-## Контракт провайдера (Strategy/Adapter)
-
-- Единый интерфейс `CalendarProvider` (и шире `IntegrationProvider`): `authUrl()` / `exchangeCode()` / `refresh()` / `pull(since)` / `push(event)` / `delete(externalId)`
-- Реализации: `GoogleCalendarProvider`, `AppleCalendarProvider` (CalDAV) — разные API, один контракт
-- Резолв провайдера в рантайме по `Integration.provider` (фабрика) — как каналы Уведомлений и LLM-провайдеры
+- Links a local record (event/occurrence) to an external ID: `integration_id`, a polymorphic local reference, `external_id`, `etag`/`updated_at` from both sides
+- Required for **deduplication and conflict resolution** (avoid creating duplicates, determine what changed)
 
 ---
 
-## Двусторонняя синхронизация — механика
+## Provider contract (Strategy/Adapter)
 
-### Экспорт (SelfHandler → внешний)
-- Что публикуем: события из Планнера и `PlannedOccurrence` ([Recurrence Engine](recurrence-engine.md)) — тренировки, платежи, замеры, дедлайны (выбор юзера, что синкать)
-- Повторяющиеся правила → нативный RRULE внешнего календаря (если поддержан) ИЛИ развёрнутые экземпляры
-
-### Импорт (внешний → SelfHandler)
-- Внешние события (встречи, ДР) → в Планнер как «внешние занятые слоты» (не доменные данные, помечены источником)
-- Не порождают доменную логику — просто видимость занятости дня (cash flow дня времени)
-
-### Направление истины и конфликты
-- **Per-событие источник истины:** созданное в SelfHandler — наше; импортированное извне — внешнее. `SyncedItem` хранит, кто владелец
-- **Конфликт** (изменено с обеих сторон между синками): стратегия из `settings` — last-write-wins по `updated_at` ИЛИ ручное разрешение. На старте — простая (last-write-wins), отметить open
-- Удаление с одной стороны → удалить/отвязать на другой (по политике)
-
-### Как синкается технически
-- Периодическая джоба (Laravel Scheduler+queue): `pull` изменений с `last_sync_at`, `push` локальных. Инкрементально (по etag/updated_at)
-- Webhook/push-уведомления от Google (если есть) — позже; на старте поллинг
+- A single `CalendarProvider` interface (and the broader `IntegrationProvider`): `authUrl()` / `exchangeCode()` / `refresh()` / `pull(since)` / `push(event)` / `delete(externalId)`
+- Implementations: `GoogleCalendarProvider`, `AppleCalendarProvider` (CalDAV) — different APIs, one contract
+- Provider resolution at runtime by `Integration.provider` (factory) — like Notification channels and LLM providers
 
 ---
 
-## Границы ответственности
+## Two-way synchronization — mechanics
 
-| Механизм | Отвечает за |
-|----------|-------------|
-| **Integrations (этот док)** | OAuth, токены, контракт провайдера, синк, маппинг, конфликты |
-| [Recurrence Engine](recurrence-engine.md) | что/когда запланировано локально (источник для экспорта) |
-| [Modules Spec](modules.md) | показ событий (свои + импортированные внешние) в едином календаре |
-| Модуль-владелец | доменные данные (тренировка, платёж) |
+### Export (SelfHandler → external)
+- What we publish: events from the Planner and `PlannedOccurrence` ([Recurrence Engine](recurrence-engine.md)) — workouts, payments, measurements, deadlines (the user chooses what to sync)
+- Recurring rules → native RRULE of the external calendar (if supported) OR expanded instances
+
+### Import (external → SelfHandler)
+- External events (meetings, birthdays) → into the Planner as "external busy slots" (not domain data, tagged with their source)
+- They don't trigger domain logic — they only provide visibility into the day's busy slots (the day's time cash flow)
+
+### Source of truth and conflicts
+- **Per-event source of truth:** created in SelfHandler — ours; imported from outside — external. `SyncedItem` records the owner
+- **Conflict** (changed on both sides between syncs): the strategy comes from `settings` — last-write-wins by `updated_at` OR manual resolution. At launch — keep it simple (last-write-wins), flag as open
+- Deletion on one side → delete/unlink on the other (per policy)
+
+### How the sync works technically
+- A periodic job (Laravel Scheduler + queue): `pull` changes since `last_sync_at`, `push` local ones. Incrementally (by etag/updated_at)
+- Webhook/push notifications from Google (where available) — later; polling at launch
 
 ---
 
-## Диаграмма
+## Responsibility boundaries
+
+| Mechanism | Responsible for |
+|-----------|-----------------|
+| **Integrations (this doc)** | OAuth, tokens, provider contract, sync, mapping, conflicts |
+| [Recurrence Engine](recurrence-engine.md) | what/when is scheduled locally (the source for export) |
+| [Modules Spec](modules.md) | displaying events (own + imported external) in a unified calendar |
+| Owner module | domain data (workout, payment) |
+
+---
+
+## Diagram
 
 ```mermaid
 erDiagram
@@ -94,17 +94,17 @@ erDiagram
     SYNCED_ITEM ||--o| LOCAL_EVENT : "local side"
     SYNCED_ITEM ||--o| EXTERNAL_EVENT : "external id"
 
-    %% LOCAL_EVENT = событие Планнера / PlannedOccurrence
+    %% LOCAL_EVENT = a Planner event / PlannedOccurrence
     %% provider: google_calendar / apple_calendar / strava / bank ...
 ```
 
 ---
 
-## Открытые вопросы
+## Open questions
 
-1. Apple Calendar — через CalDAV (сложнее OAuth) vs только Google на старте.
-2. Конфликт-стратегия: last-write-wins (просто) vs ручное разрешение vs per-провайдер.
-3. RRULE-маппинг: наш движок ([Recurrence Engine](recurrence-engine.md) — свой набор полей) → RRULE внешнего календаря. Тут пригодится `rrule`-выход правила.
-4. Какие типы локальных событий по умолчанию экспортировать (приватность: выгружать ли «приём добавок» в общий Google-календарь?).
-5. ICS-фид (подписка календарём, read-only) как дешёвый промежуточный вариант экспорта до полного OAuth.
-6. Объём прав OAuth (scope) — минимально необходимый.
+1. Apple Calendar — via CalDAV (more complex than OAuth) vs. Google only at launch.
+2. Conflict strategy: last-write-wins (simple) vs. manual resolution vs. per-provider.
+3. RRULE mapping: our engine ([Recurrence Engine](recurrence-engine.md) — its own set of fields) → the external calendar's RRULE. The rule's `rrule` output will come in handy here.
+4. Which local event types to export by default (privacy: should "supplement intake" be pushed to a shared Google calendar?).
+5. ICS feed (calendar subscription, read-only) as a cheap intermediate export option before full OAuth.
+6. OAuth scope — the minimum necessary.
