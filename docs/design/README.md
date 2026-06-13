@@ -19,6 +19,7 @@ Designed once and reused everywhere — to be laid down before any code is writt
 - **[notifications.md](notifications.md)** — notification subsystem: channels (in-app/push/email/telegram), escalation, quiet hours, daily digest.
 - **[attachments.md](attachments.md)** — attachments (photos/documents/tracks): polymorphic association + disk abstraction.
 - **[integrations.md](integrations.md)** — external integrations (Google/Apple calendars, later Strava/Garmin/banks): a single contract + adapters.
+- **[llm-layer.md](llm-layer.md)** — the optional AI layer: per-module Level-2 scenarios on top of the deterministic baseline, the context/tool-calling contract, and privacy/safety boundaries (BYOK).
 
 ## Diagrams
 

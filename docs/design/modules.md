@@ -9,7 +9,7 @@ Back to the plan: [Vision & Plan](vision.md)
 ## Architectural principles
 
 > Cross-cutting rules that apply to all modules.
-> 📐 **Cross-cutting mechanisms and schema rules (separate docs):** [Recurrence Engine](recurrence-engine.md) (recurrence engine) · [Notifications](notifications.md) (notifications) · [Attachments](attachments.md) (attachments/files) · [Integrations](integrations.md) (external integrations: calendars, fitness, banks) · [Data Conventions](data-conventions.md) (Money, polymorphism, user_id, deletion/archiving, time zones, aggregates) · [Finance ER](finance-er.md) (Finance schema).
+> 📐 **Cross-cutting mechanisms and schema rules (separate docs):** [Recurrence Engine](recurrence-engine.md) (recurrence engine) · [Notifications](notifications.md) (notifications) · [Attachments](attachments.md) (attachments/files) · [Integrations](integrations.md) (external integrations: calendars, fitness, banks) · [LLM Layer](llm-layer.md) (optional AI scenarios per module) · [Data Conventions](data-conventions.md) (Money, polymorphism, user_id, deletion/archiving, time zones, aggregates) · [Finance ER](finance-er.md) (Finance schema).
 
 ### AI is an optional layer, not a foundation
 - **The core of the system is implemented programmatically** (deterministic logic, rules, calculations on the backend)
@@ -17,7 +17,7 @@ Back to the plan: [Vision & Plan](vision.md)
 - "Module 11 — AI Assistant (cross-cutting layer)" is a "smarter/livelier" amplifier plugged in on top. If the provider is unavailable / there is no key / the user declines to send data → the system keeps working
 - Practical implication: every "smart" feature has a programmatic baseline (cf. recommendations: Level 1 rules = mandatory, Level 2 LLM = optional)
 
-> 📌 **TODO (later, across all modules):** go through EACH module individually and think through its LLM layer — exactly which scenarios AI adds on top of the programmatic baseline (recommendations, generation, parsing, hints). For now we capture this as we go where it is obvious (nutrition, workouts, running, recommendations); a systematic pass is a separate stage after the baseline design.
+> ✅ **Systematic LLM pass — done (2026-06-13):** the per-module AI (Level-2) scenarios are designed in [LLM Layer](llm-layer.md) — what AI adds on top of each module's deterministic baseline, the context the agent sees, interaction type, backend tool-calls, and privacy/safety boundaries.
 
 ### Each module computes its own aggregates
 - Each module computes its own totals/aggregates per day/week/month (logic lives next to the data)
@@ -775,6 +775,7 @@ Back to the plan: [Vision & Plan](vision.md)
 - A cross-cutting AI helper available from all modules
 - Sees the context of the whole system: profile/body measurements, nutrition, workouts, goals, habits, analytics
 - Scenarios: adjustment recommendations (see "Recommendation mechanism (adjustment)"), workout breakdown, analyzing measurement trends, answering the user's questions, nutrition advice
+- ✅ **Full per-module scenario catalog + the technical contract (context assembly / RAG, interaction types, backend tool-calls, privacy boundaries):** [LLM Layer](llm-layer.md). This module is the **infrastructure** (provider/BYOK/key security); the LLM Layer doc is the **scenarios**.
 
 ### Provider abstraction — at the user level (BYOK)
 > **Bring Your Own Key.** The provider is configured NOT in the app's config, but by the user themselves through a form. The user connects THEIR OWN agent via API (their own paid Claude/OpenAI/other account). The user pays for the tokens.

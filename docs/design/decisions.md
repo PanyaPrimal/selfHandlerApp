@@ -6,7 +6,7 @@
 
 ## Cross-cutting architectural principles
 
-- **AI is an optional layer, not a foundation.** The core is implemented programmatically (deterministically). The app works fully without an LLM. AI augments on top. Every smart feature has a baseline programmatic layer underneath. **TODO:** as a separate phase, go through each module and design its LLM layer.
+- **AI is an optional layer, not a foundation.** The core is implemented programmatically (deterministically). The app works fully without an LLM. AI augments on top. Every smart feature has a baseline programmatic layer underneath. ✅ The per-module Level-2 scenarios are designed in [LLM Layer](llm-layer.md) (2026-06-13).
 - **Each module computes its own aggregates** (aggregation lives next to the data). Analytics is a presentation surface that reads ready-made results.
 - **The pattern of almost every smart feature:** manual baseline → ready-made templates/integrations → LLM on top.
 - **Candidates for shared mechanisms** (plan for them, don't duplicate): the recurrence engine for recurring rules (schedules/courses/events); supply forecasting and restocking (consumable resources); milestones ↔ stepped limit for anti-habits. We are NOT over-engineering right now — focus is on the current modules.
@@ -166,4 +166,5 @@
 
 - ✅ Designed: 0, 1, 2, 2a, 3, 4, 5, 6, 7, 8, 9, 10, 11 — **all modules designed; contradictions cleaned up (2026-06-13)**
 - ⬜ Remaining per module: —
-- 📌 Deferred (cross-cutting / next phase): cross-cutting mechanisms BEFORE code (the RRULE recurrence engine, notifications, attachments, Money/DECIMAL, polymorphism, aggregates/rollup); the gap backlog above (the review entity, "Today", quick capture, settings, import/export); the shared tags/templates/supply mechanism; the LLM pass over the modules; investments/portfolio (M10); auth single → multi-user
+- 📌 Deferred (cross-cutting / next phase): the gap backlog above (the review entity, "Today", quick capture, settings, import/export); the shared tags/templates/supply mechanism; investments/portfolio (M10); auth single → multi-user
+- ✅ Designed (separate docs): recurrence engine (RRULE), notifications, attachments, integrations, data conventions (Money/DECIMAL, polymorphism, user_id, aggregates/rollup), Finance ER, **LLM layer** (per-module AI scenarios)
