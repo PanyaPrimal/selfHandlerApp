@@ -29,6 +29,7 @@ Designed once and reused everywhere — to be laid down before any code is writt
 
 - [../ARCHITECTURE.md](../ARCHITECTURE.md) — high-level architecture of the monorepo
 - [../MVP.md](../MVP.md) — MVP slice (where implementation begins)
+- [../MVP_TECHNICAL_DESIGN.md](../MVP_TECHNICAL_DESIGN.md) — technical contract for the first MVP slice
 - [../OPEN_SERVER.md](../OPEN_SERVER.md) — local backend runtime (Open Server)
 
 ## Status

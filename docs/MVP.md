@@ -11,6 +11,8 @@ The first useful slice should stay intentionally small:
 3. Goals linked to routines
 4. Simple dashboard with streaks and completion rate
 
+Implementation contract: [MVP Technical Design](MVP_TECHNICAL_DESIGN.md).
+
 ## Why This Slice
 
 - It matches the core project idea.

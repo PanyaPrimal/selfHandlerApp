@@ -32,6 +32,10 @@ storage/framework/views/
 
 # Test / coverage
 coverage/
+_tmp/
+test-results/
+playwright-report/
+apps/api/database/e2e.sqlite
 
 # Mobile
 android/.gradle/

@@ -1,34 +1,40 @@
 <template>
-  <main class="shell">
-    <section class="hero">
-      <p class="eyebrow">selfHandler</p>
-      <h1>One place for routines, goals, and daily reviews.</h1>
-      <p class="lead">
-        We are starting with a focused MVP: routines, evening check-ins, goal
-        tracking, and a simple progress dashboard.
-      </p>
-    </section>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <RouterLink class="brand" to="/">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>SELFHANDLER</span>
+      </RouterLink>
+      <nav class="nav-list" aria-label="Primary navigation">
+        <RouterLink to="/">
+          <span class="nav-dot" aria-hidden="true"></span>
+          <span>Today</span>
+        </RouterLink>
+        <RouterLink to="/routines">
+          <span class="nav-dot" aria-hidden="true"></span>
+          <span>Routines</span>
+        </RouterLink>
+        <RouterLink to="/goals">
+          <span class="nav-dot" aria-hidden="true"></span>
+          <span>Goals</span>
+        </RouterLink>
+        <RouterLink to="/review">
+          <span class="nav-dot" aria-hidden="true"></span>
+          <span>Review</span>
+        </RouterLink>
+      </nav>
 
-    <section class="grid">
-      <article class="card">
-        <h2>Routines</h2>
-        <p>Track repeatable actions for mornings, evenings, workouts, and health.</p>
-      </article>
+      <div class="user-pill">
+        <span>A</span>
+        <div>
+          <strong>Alex</strong>
+          <small>single-user</small>
+        </div>
+      </div>
+    </aside>
 
-      <article class="card">
-        <h2>Evening Review</h2>
-        <p>Close the day with a lightweight check-in and plan the next one.</p>
-      </article>
-
-      <article class="card">
-        <h2>Goals</h2>
-        <p>Connect everyday actions to short-term and long-term outcomes.</p>
-      </article>
-
-      <article class="card">
-        <h2>Analytics</h2>
-        <p>Measure streaks, completion rate, and simple trends over time.</p>
-      </article>
-    </section>
-  </main>
+    <main class="content-shell">
+      <RouterView />
+    </main>
+  </div>
 </template>
