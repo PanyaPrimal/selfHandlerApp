@@ -29,3 +29,17 @@ SelfHandler is a personal system for managing routines, health, goals, tasks, id
 3. Create Vue web app.
 4. Attach Capacitor to the web client.
 5. Configure Open Server workflow for local backend development.
+
+## Spec-Driven Workflow
+
+SelfHandler uses GitHub Spec Kit for feature delivery. Long-term product and domain design remains in
+[`docs/design/`](docs/design/README.md); each implementation increment lives under `specs/` with its
+own specification, plan, contracts, and dependency-ordered task list.
+
+The project is initialized for Codex skills and PowerShell. Start a new feature with
+`$speckit-specify`, then use `$speckit-plan`, `$speckit-tasks`, and `$speckit-analyze` before
+implementation. Project governance is defined in
+[`.specify/memory/constitution.md`](.specify/memory/constitution.md).
+
+Spec Kit's Git extension is intentionally not installed. Work stays on the branch already selected by
+the user; project automation must not create or switch branches.

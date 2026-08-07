@@ -1,0 +1,717 @@
+openapi: 3.1.0
+info:
+  title: SelfHandler Core Daily Loop API
+  version: 1.0.0
+  description: REST contract for feature 001-core-daily-loop.
+servers:
+  - url: /api
+paths:
+  /today:
+    get:
+      operationId: getToday
+      summary: Get the current user's checklist and progress for one date
+      parameters:
+        - $ref: '#/components/parameters/DateQuery'
+      responses:
+        '200':
+          description: Today aggregate
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodayResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /routines:
+    get:
+      operationId: listRoutines
+      summary: List either current or archived routines for the current user
+      parameters:
+        - name: archived
+          in: query
+          description: False returns non-archived routines; true returns archived routines only.
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Routine list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Routine'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+    post:
+      operationId: createRoutine
+      summary: Create a routine for the current user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoutineCreateInput'
+      responses:
+        '201':
+          description: Routine created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoutineItemResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /routines/{routine}:
+    patch:
+      operationId: updateRoutine
+      summary: Update, pause, archive, or restore a current user's routine
+      description: Schedule-defining fields are rejected after the routine has its first daily log.
+      parameters:
+        - $ref: '#/components/parameters/RoutineId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoutineUpdateInput'
+      responses:
+        '200':
+          description: Routine updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoutineItemResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /routines/{routine}/logs/{date}:
+    put:
+      operationId: setRoutineLog
+      summary: Set a routine to done or skipped for one date
+      parameters:
+        - $ref: '#/components/parameters/RoutineId'
+        - $ref: '#/components/parameters/DatePath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [done, skipped]
+                note:
+                  type: [string, 'null']
+                  maxLength: 2000
+      responses:
+        '200':
+          description: Log created or updated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/RoutineLog'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+    delete:
+      operationId: clearRoutineLog
+      summary: Return one routine occurrence to pending
+      parameters:
+        - $ref: '#/components/parameters/RoutineId'
+        - $ref: '#/components/parameters/DatePath'
+      responses:
+        '204':
+          description: Existing log removed or already absent
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /daily-reviews/{date}:
+    get:
+      operationId: getDailyReview
+      summary: Get the current user's review for one date
+      parameters:
+        - $ref: '#/components/parameters/DatePath'
+      responses:
+        '200':
+          description: Review or null when no review exists
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    oneOf:
+                      - $ref: '#/components/schemas/DailyReview'
+                      - type: 'null'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+    put:
+      operationId: saveDailyReview
+      summary: Create or update the current user's review for one date
+      parameters:
+        - $ref: '#/components/parameters/DatePath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DailyReviewInput'
+      responses:
+        '200':
+          description: Review saved
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DailyReview'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /goals:
+    get:
+      operationId: listGoals
+      summary: List either current or archived goals for the current user
+      parameters:
+        - name: archived
+          in: query
+          description: False returns non-archived goals; true returns archived goals only.
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Goal list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Goal'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+    post:
+      operationId: createGoal
+      summary: Create a general goal for the current user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoalCreateInput'
+      responses:
+        '201':
+          description: Goal created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoalItemResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /goals/{goal}:
+    patch:
+      operationId: updateGoal
+      summary: Update lifecycle fields or content for a current user's goal
+      parameters:
+        - $ref: '#/components/parameters/GoalId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoalUpdateInput'
+      responses:
+        '200':
+          description: Goal updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoalItemResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /goals/{goal}/routines/{routine}:
+    post:
+      operationId: linkRoutineToGoal
+      summary: Link two records owned by the current user
+      parameters:
+        - $ref: '#/components/parameters/GoalId'
+        - $ref: '#/components/parameters/RoutineId'
+      responses:
+        '200':
+          description: Link exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoalItemResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: unlinkRoutineFromGoal
+      summary: Remove only the relationship between two current-user records
+      parameters:
+        - $ref: '#/components/parameters/GoalId'
+        - $ref: '#/components/parameters/RoutineId'
+      responses:
+        '204':
+          description: Link removed or already absent
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  parameters:
+    DateQuery:
+      name: date
+      in: query
+      required: false
+      description: Calendar date; defaults to today in the configured timezone
+      schema:
+        type: string
+        format: date
+    DatePath:
+      name: date
+      in: path
+      required: true
+      schema:
+        type: string
+        format: date
+    RoutineId:
+      name: routine
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    GoalId:
+      name: goal
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+
+  responses:
+    Unauthenticated:
+      description: No user can be resolved in this environment
+    NotFound:
+      description: Record is absent or does not belong to the current user
+    ValidationFailed:
+      description: Request input is invalid
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [message, errors]
+            properties:
+              message:
+                type: string
+              errors:
+                type: object
+                additionalProperties:
+                  type: array
+                  items:
+                    type: string
+
+  schemas:
+    Routine:
+      type: object
+      required:
+        - id
+        - name
+        - kind
+        - schedule_type
+        - weekdays
+        - sort_order
+        - is_active
+        - is_archived
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: [string, 'null']
+        kind:
+          type: string
+          enum: [routine, sleep, habit]
+        schedule_type:
+          type: string
+          enum: [daily, weekdays]
+        weekdays:
+          type: array
+          items:
+            $ref: '#/components/schemas/Weekday'
+        preferred_time:
+          type: [string, 'null']
+          format: time
+        sort_order:
+          type: integer
+          minimum: 0
+        is_active:
+          type: boolean
+        is_archived:
+          type: boolean
+        archived_at:
+          type: [string, 'null']
+          format: date-time
+        starts_on:
+          type: [string, 'null']
+          format: date
+        ends_on:
+          type: [string, 'null']
+          format: date
+        goals:
+          type: array
+          items:
+            $ref: '#/components/schemas/GoalSummary'
+
+    RoutineInput:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 160
+        description:
+          type: [string, 'null']
+          maxLength: 2000
+        kind:
+          type: string
+          enum: [routine, sleep, habit]
+        schedule_type:
+          type: string
+          enum: [daily, weekdays]
+        weekdays:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/Weekday'
+        preferred_time:
+          type: [string, 'null']
+          format: time
+        sort_order:
+          type: integer
+          minimum: 0
+        is_active:
+          type: boolean
+        is_archived:
+          type: boolean
+        starts_on:
+          type: [string, 'null']
+          format: date
+        ends_on:
+          type: [string, 'null']
+          format: date
+
+    RoutineCreateInput:
+      allOf:
+        - $ref: '#/components/schemas/RoutineInput'
+        - type: object
+          required: [name, schedule_type]
+
+    RoutineUpdateInput:
+      allOf:
+        - $ref: '#/components/schemas/RoutineInput'
+        - type: object
+          minProperties: 1
+
+    RoutineLog:
+      type: object
+      required: [id, routine_id, log_date, status]
+      properties:
+        id:
+          type: integer
+        routine_id:
+          type: integer
+        log_date:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [done, skipped]
+        note:
+          type: [string, 'null']
+        completed_at:
+          type: [string, 'null']
+          format: date-time
+
+    DailyReview:
+      allOf:
+        - $ref: '#/components/schemas/DailyReviewInput'
+        - type: object
+          required: [id, review_date, completed_at]
+          properties:
+            id:
+              type: integer
+            review_date:
+              type: string
+              format: date
+            completed_at:
+              type: string
+              format: date-time
+
+    DailyReviewInput:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        mood:
+          $ref: '#/components/schemas/Rating'
+        energy:
+          $ref: '#/components/schemas/Rating'
+        stress:
+          $ref: '#/components/schemas/Rating'
+        day_rating:
+          $ref: '#/components/schemas/Rating'
+        went_well:
+          type: [string, 'null']
+          maxLength: 5000
+        improve_tomorrow:
+          type: [string, 'null']
+          maxLength: 5000
+        notes:
+          type: [string, 'null']
+          maxLength: 10000
+
+    Goal:
+      type: object
+      required: [id, name, type, status, is_archived, routines]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: [string, 'null']
+        type:
+          type: string
+          enum: [general]
+        status:
+          type: string
+          enum: [active, completed, abandoned]
+        target_date:
+          type: [string, 'null']
+          format: date
+        completed_at:
+          type: [string, 'null']
+          format: date-time
+        is_archived:
+          type: boolean
+        archived_at:
+          type: [string, 'null']
+          format: date-time
+        routines:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoutineSummary'
+
+    GoalInput:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 160
+        description:
+          type: [string, 'null']
+          maxLength: 5000
+        status:
+          type: string
+          enum: [active, completed, abandoned]
+        target_date:
+          type: [string, 'null']
+          format: date
+        is_archived:
+          type: boolean
+
+    GoalCreateInput:
+      allOf:
+        - $ref: '#/components/schemas/GoalInput'
+        - type: object
+          required: [name]
+
+    GoalUpdateInput:
+      allOf:
+        - $ref: '#/components/schemas/GoalInput'
+        - type: object
+          minProperties: 1
+
+    GoalSummary:
+      type: object
+      required: [id, name, status]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        status:
+          type: string
+          enum: [active, completed, abandoned]
+
+    RoutineSummary:
+      type: object
+      required: [id, name, is_active, is_archived]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        is_active:
+          type: boolean
+        is_archived:
+          type: boolean
+
+    TodayRoutine:
+      allOf:
+        - $ref: '#/components/schemas/RoutineSummary'
+        - type: object
+          required: [kind, sort_order, log, goals, current_streak]
+          properties:
+            kind:
+              type: string
+              enum: [routine, sleep, habit]
+            description:
+              type: [string, 'null']
+            preferred_time:
+              type: [string, 'null']
+              format: time
+            sort_order:
+              type: integer
+            log:
+              oneOf:
+                - $ref: '#/components/schemas/RoutineLog'
+                - type: 'null'
+            goals:
+              type: array
+              items:
+                $ref: '#/components/schemas/GoalSummary'
+            current_streak:
+              type: integer
+              minimum: 0
+
+    CompletionSummary:
+      type: object
+      required: [scheduled, done, skipped, pending, completion_rate]
+      properties:
+        scheduled:
+          type: integer
+          minimum: 0
+        done:
+          type: integer
+          minimum: 0
+        skipped:
+          type: integer
+          minimum: 0
+        pending:
+          type: integer
+          minimum: 0
+        completion_rate:
+          type: number
+          minimum: 0
+          maximum: 100
+
+    TodayResponse:
+      type: object
+      required: [date, summary, routines, goals, review, progress]
+      properties:
+        date:
+          type: string
+          format: date
+        summary:
+          $ref: '#/components/schemas/CompletionSummary'
+        routines:
+          type: array
+          items:
+            $ref: '#/components/schemas/TodayRoutine'
+        goals:
+          type: array
+          items:
+            $ref: '#/components/schemas/GoalSummary'
+        review:
+          oneOf:
+            - $ref: '#/components/schemas/DailyReview'
+            - type: 'null'
+        progress:
+          type: object
+          required: [period_start, period_end, seven_day]
+          properties:
+            period_start:
+              type: string
+              format: date
+            period_end:
+              type: string
+              format: date
+            seven_day:
+              $ref: '#/components/schemas/CompletionSummary'
+
+    RoutineItemResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/Routine'
+
+    GoalItemResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/Goal'
+
+    Weekday:
+      type: string
+      enum: [MO, TU, WE, TH, FR, SA, SU]
+
+    Rating:
+      type: [integer, 'null']
+      minimum: 1
+      maximum: 10
