@@ -1,5 +1,10 @@
 # Implementation Plan: Core Daily Loop
 
+> **Authentication supersession (2026-08-09):** Feature `003-multi-user-auth` supersedes this plan's
+> temporary implicit-user implementation choice. If 003 is implemented first, reuse its authenticated
+> account boundary and MUST NOT recreate `CurrentUser` or any local/testing fallback. Authentication
+> remains outside the product scope of feature 001 itself.
+
 **Feature**: `001-core-daily-loop` | **Date**: 2026-08-07 | **Spec**: [spec.md](spec.md)
 
 **Input**: Feature specification from `specs/001-core-daily-loop/spec.md`

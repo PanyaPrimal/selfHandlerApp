@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { getToday, updateRoutineLog } from '../api/client'
+import { useAuthSession } from '../auth/session'
 import type { RoutineLog, TodayResponse, TodayRoutine } from '../api/types'
 
 const today = new Date().toISOString().slice(0, 10)
@@ -9,6 +10,8 @@ const selectedDate = ref(today)
 const data = ref<TodayResponse | null>(null)
 const isLoading = ref(false)
 const error = ref<string | null>(null)
+const session = useAuthSession()
+const displayName = computed(() => session.user?.name ?? 'there')
 
 const completionLabel = computed(() => {
   if (!data.value) {
@@ -79,7 +82,7 @@ onMounted(loadToday)
     <header class="view-header">
       <div>
         <p class="eyebrow">{{ selectedDate }}</p>
-        <h1>Good evening, Alex</h1>
+        <h1>Good evening, {{ displayName }}</h1>
       </div>
 
       <label class="field compact-field">

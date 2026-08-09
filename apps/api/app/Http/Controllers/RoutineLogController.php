@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Routine;
 use App\Models\RoutineLog;
-use App\Support\CurrentUser;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -12,9 +11,9 @@ use Illuminate\Validation\Rule;
 
 class RoutineLogController extends Controller
 {
-    public function upsert(Request $request, Routine $routine, string $date, CurrentUser $currentUser): JsonResponse
+    public function upsert(Request $request, Routine $routine, string $date): JsonResponse
     {
-        $user = $currentUser->resolve($request);
+        $user = $request->user();
         abort_unless($routine->user_id === $user->id, 404);
 
         $logDate = CarbonImmutable::parse($date)->toDateString();

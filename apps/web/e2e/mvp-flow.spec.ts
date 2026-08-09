@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { registerViaUi, uniqueCredentials } from './support/auth'
 
 function collectRuntimeIssues(page: Page): string[] {
   const issues: string[] = []
@@ -24,6 +25,12 @@ function collectRuntimeIssues(page: Page): string[] {
   })
 
   page.on('response', (response) => {
+    const url = new URL(response.url())
+
+    if (response.status() === 401 && url.pathname === '/api/auth/user') {
+      return
+    }
+
     if (response.url().includes('/api/') && response.status() >= 400) {
       issues.push(`[response] ${response.status()} ${response.request().method()} ${response.url()}`)
     }
@@ -33,10 +40,11 @@ function collectRuntimeIssues(page: Page): string[] {
 }
 
 test('daily MVP loop works end-to-end', async ({ page }, testInfo) => {
-  const issues = collectRuntimeIssues(page)
   const routineName = `${testInfo.project.name} smoke routine ${Date.now()}`
+  const credentials = uniqueCredentials(testInfo, 'MvpLoop')
 
-  await page.goto('/routines')
+  await registerViaUi(page, credentials, { redirectTo: '/routines' })
+  const issues = collectRuntimeIssues(page)
   await page.getByLabel('Name').fill(routineName)
   await page.getByRole('button', { name: 'Create' }).click()
   await expect(page.getByText(routineName)).toBeVisible()

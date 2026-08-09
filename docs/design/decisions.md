@@ -10,6 +10,12 @@
 - **Each module computes its own aggregates** (aggregation lives next to the data). Analytics is a presentation surface that reads ready-made results.
 - **The pattern of almost every smart feature:** manual baseline → ready-made templates/integrations → LLM on top.
 - **Candidates for shared mechanisms** (plan for them, don't duplicate): the recurrence engine for recurring rules (schedules/courses/events); supply forecasting and restocking (consumable resources); milestones ↔ stepped limit for anti-habits. We are NOT over-engineering right now — focus is on the current modules.
+- **Authentication is explicit and multi-user** (2026-08-09): the privately reachable app supports
+  equal, independent name/email/password accounts through stateful first-party cookie sessions. Every
+  domain record and relationship stays scoped to the authenticated `user_id`; no implicit development
+  user is allowed. Roles, invitations, sharing, verification, recovery, 2FA, and external identity
+  providers are deliberately deferred. Delivery contract:
+  [`003-multi-user-auth`](../../specs/003-multi-user-auth/spec.md).
 
 ## AI assistant (Module 11)
 
@@ -166,5 +172,6 @@
 
 - ✅ Designed: 0, 1, 2, 2a, 3, 4, 5, 6, 7, 8, 9, 10, 11 — **all modules designed; contradictions cleaned up (2026-06-13)**
 - ⬜ Remaining per module: —
-- 📌 Deferred (cross-cutting / next phase): the gap backlog above (the review entity, "Today", quick capture, settings, import/export); the shared tags/templates/supply mechanism; investments/portfolio (M10); auth single → multi-user
+- 📌 Deferred (cross-cutting / next phase): the gap backlog above (the review entity, "Today", quick capture, settings, import/export); the shared tags/templates/supply mechanism; investments/portfolio (M10); advanced account management (roles, invitations, sharing, verification, recovery, 2FA, external identity providers)
 - ✅ Designed (separate docs): recurrence engine (RRULE), notifications, attachments, integrations, data conventions (Money/DECIMAL, polymorphism, user_id, aggregates/rollup), Finance ER, **LLM layer** (per-module AI scenarios)
+- ✅ Delivery-specified: explicit multi-user authentication and registration in [`003-multi-user-auth`](../../specs/003-multi-user-auth/spec.md)

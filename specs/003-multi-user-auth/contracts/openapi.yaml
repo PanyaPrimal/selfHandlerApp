@@ -1,0 +1,600 @@
+openapi: 3.1.0
+info:
+  title: SelfHandler Multi-User Authentication Contract
+  version: 0.1.0
+  description: |
+    Cookie-session authentication for the first-party SelfHandler SPA. Call
+    `/sanctum/csrf-cookie` before every initial unsafe browser request. All current
+    domain operations require the authenticated account and scope records to it.
+servers:
+  - url: /
+    description: Same-origin web and API site
+
+tags:
+  - name: Authentication
+  - name: Owned domain
+
+paths:
+  /sanctum/csrf-cookie:
+    get:
+      tags: [Authentication]
+      operationId: initializeCsrf
+      summary: Initialize or refresh the browser CSRF cookie
+      responses:
+        '204':
+          description: CSRF cookie initialized; no response body
+          headers:
+            Set-Cookie:
+              description: Includes a readable XSRF-TOKEN cookie; the session cookie remains HttpOnly.
+              schema:
+                type: string
+
+  /api/auth/register:
+    post:
+      tags: [Authentication]
+      operationId: register
+      summary: Create an independent account and authenticated session
+      parameters:
+        - $ref: '#/components/parameters/XsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Account created and session established
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserEnvelope'
+        '409':
+          $ref: '#/components/responses/AlreadyAuthenticated'
+        '419':
+          $ref: '#/components/responses/CsrfMismatch'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /api/auth/login:
+    post:
+      tags: [Authentication]
+      operationId: login
+      summary: Establish a session with email and password
+      parameters:
+        - $ref: '#/components/parameters/XsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Session established
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserEnvelope'
+        '409':
+          $ref: '#/components/responses/AlreadyAuthenticated'
+        '419':
+          $ref: '#/components/responses/CsrfMismatch'
+        '422':
+          description: Invalid input or generic invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationProblem'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /api/auth/user:
+    get:
+      tags: [Authentication]
+      operationId: currentUser
+      summary: Restore the current safe account identity
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Current account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/auth/logout:
+    post:
+      tags: [Authentication]
+      operationId: logout
+      summary: Invalidate the current authenticated session
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/XsrfToken'
+      responses:
+        '204':
+          description: Current session invalidated; no response body
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '419':
+          $ref: '#/components/responses/CsrfMismatch'
+
+  /api/today:
+    get:
+      tags: [Owned domain]
+      operationId: getToday
+      summary: Return an aggregate derived only from the current account
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: query
+          name: date
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          $ref: '#/components/responses/DomainResult'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /api/routines:
+    get:
+      tags: [Owned domain]
+      operationId: listRoutines
+      summary: List only current-account routines
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          $ref: '#/components/responses/DomainResult'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+    post:
+      tags: [Owned domain]
+      operationId: createRoutine
+      summary: Create a routine owned by the current account
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/XsrfToken'
+      requestBody:
+        $ref: '#/components/requestBodies/DomainWrite'
+      responses:
+        '201':
+          $ref: '#/components/responses/DomainResult'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '419':
+          $ref: '#/components/responses/CsrfMismatch'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/routines/{routine}:
+    parameters:
+      - $ref: '#/components/parameters/RoutineId'
+    put:
+      tags: [Owned domain]
+      operationId: replaceRoutine
+      summary: Change a current-account routine; foreign identifiers are unavailable
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/XsrfToken'
+      requestBody:
+        $ref: '#/components/requestBodies/DomainWrite'
+      responses:
+        '200':
+          $ref: '#/components/responses/DomainResult'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '419':
+          $ref: '#/components/responses/CsrfMismatch'
+    patch:
+      tags: [Owned domain]
+      operationId: updateRoutine
+      summary: Partially change a current-account routine
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/XsrfToken'
+      requestBody:
+        $ref: '#/components/requestBodies/DomainWrite'
+      responses:
+        '200':
+          $ref: '#/components/responses/DomainResult'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '419':
+          $ref: '#/components/responses/CsrfMismatch'
+    delete:
+      tags: [Owned domain]
+      operationId: deleteRoutine
+      summary: Deactivate a current-account routine
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/XsrfToken'
+      responses:
+        '204':
+          description: Routine deactivated
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '419':
+          $ref: '#/components/responses/CsrfMismatch'
+
+  /api/routines/{routine}/logs/{date}:
+    put:
+      tags: [Owned domain]
+      operationId: upsertRoutineLog
+      summary: Upsert a log only when the parent routine belongs to the current account
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/RoutineId'
+        - $ref: '#/components/parameters/Date'
+        - $ref: '#/components/parameters/XsrfToken'
+      requestBody:
+        $ref: '#/components/requestBodies/DomainWrite'
+      responses:
+        '200':
+          $ref: '#/components/responses/DomainResult'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '419':
+          $ref: '#/components/responses/CsrfMismatch'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/daily-reviews/{date}:
+    get:
+      tags: [Owned domain]
+      operationId: getDailyReview
+      summary: Get only the current account's review for a date
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/Date'
+      responses:
+        '200':
+          $ref: '#/components/responses/DomainResult'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+    put:
+      tags: [Owned domain]
+      operationId: upsertDailyReview
+      summary: Upsert only the current account's review
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/Date'
+        - $ref: '#/components/parameters/XsrfToken'
+      requestBody:
+        $ref: '#/components/requestBodies/DomainWrite'
+      responses:
+        '200':
+          $ref: '#/components/responses/DomainResult'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '419':
+          $ref: '#/components/responses/CsrfMismatch'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/goals:
+    get:
+      tags: [Owned domain]
+      operationId: listGoals
+      summary: List only current-account goals
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          $ref: '#/components/responses/DomainResult'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+    post:
+      tags: [Owned domain]
+      operationId: createGoal
+      summary: Create a goal owned by the current account
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/XsrfToken'
+      requestBody:
+        $ref: '#/components/requestBodies/DomainWrite'
+      responses:
+        '201':
+          $ref: '#/components/responses/DomainResult'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '419':
+          $ref: '#/components/responses/CsrfMismatch'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/goals/{goal}:
+    parameters:
+      - $ref: '#/components/parameters/GoalId'
+    put:
+      tags: [Owned domain]
+      operationId: replaceGoal
+      summary: Change a current-account goal; foreign identifiers are unavailable
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/XsrfToken'
+      requestBody:
+        $ref: '#/components/requestBodies/DomainWrite'
+      responses:
+        '200':
+          $ref: '#/components/responses/DomainResult'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '419':
+          $ref: '#/components/responses/CsrfMismatch'
+    patch:
+      tags: [Owned domain]
+      operationId: updateGoal
+      summary: Partially change a current-account goal
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/XsrfToken'
+      requestBody:
+        $ref: '#/components/requestBodies/DomainWrite'
+      responses:
+        '200':
+          $ref: '#/components/responses/DomainResult'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '419':
+          $ref: '#/components/responses/CsrfMismatch'
+
+  /api/goals/{goal}/routines/{routine}:
+    parameters:
+      - $ref: '#/components/parameters/GoalId'
+      - $ref: '#/components/parameters/RoutineId'
+    post:
+      tags: [Owned domain]
+      operationId: linkGoalRoutine
+      summary: Link records only when both belong to the current account
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/XsrfToken'
+      responses:
+        '200':
+          $ref: '#/components/responses/DomainResult'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '419':
+          $ref: '#/components/responses/CsrfMismatch'
+    delete:
+      tags: [Owned domain]
+      operationId: unlinkGoalRoutine
+      summary: Unlink records only when both belong to the current account
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/XsrfToken'
+      responses:
+        '204':
+          description: Relationship removed
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '419':
+          $ref: '#/components/responses/CsrfMismatch'
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: selfhandler_session
+      description: HttpOnly Laravel session cookie; never read by the SPA.
+
+  parameters:
+    XsrfToken:
+      in: header
+      name: X-XSRF-TOKEN
+      required: true
+      description: Decoded value of the XSRF-TOKEN cookie initialized by the CSRF endpoint.
+      schema:
+        type: string
+    RoutineId:
+      in: path
+      name: routine
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    GoalId:
+      in: path
+      name: goal
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    Date:
+      in: path
+      name: date
+      required: true
+      schema:
+        type: string
+        format: date
+
+  requestBodies:
+    DomainWrite:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: true
+            description: Existing domain payload; any user_id value is ignored or rejected.
+
+  responses:
+    Unauthenticated:
+      description: No valid authenticated session
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MessageProblem'
+          examples:
+            default:
+              value:
+                message: Unauthenticated.
+    AlreadyAuthenticated:
+      description: The current browser session is already authenticated and was not changed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MessageProblem'
+          examples:
+            default:
+              value:
+                message: Already authenticated.
+    CsrfMismatch:
+      description: CSRF cookie/header is absent, stale, or mismatched
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MessageProblem'
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationProblem'
+    RateLimited:
+      description: Authentication attempt rate exceeded temporarily
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+            minimum: 1
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MessageProblem'
+    NotFound:
+      description: Record is absent or is not owned by the current account
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MessageProblem'
+    DomainResult:
+      description: Existing domain response scoped to the current account
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: true
+
+  schemas:
+    User:
+      type: object
+      additionalProperties: false
+      required: [id, name, email]
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          maxLength: 255
+      example:
+        id: 42
+        name: Alex Example
+        email: alex@example.test
+    UserEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/User'
+    RegisterRequest:
+      type: object
+      additionalProperties: false
+      required: [name, email, password, password_confirmation]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        password:
+          type: string
+          format: password
+          minLength: 12
+          writeOnly: true
+        password_confirmation:
+          type: string
+          format: password
+          minLength: 12
+          writeOnly: true
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        password:
+          type: string
+          format: password
+          writeOnly: true
+    MessageProblem:
+      type: object
+      additionalProperties: true
+      required: [message]
+      properties:
+        message:
+          type: string
+    ValidationProblem:
+      type: object
+      additionalProperties: false
+      required: [message, errors]
+      properties:
+        message:
+          type: string
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string

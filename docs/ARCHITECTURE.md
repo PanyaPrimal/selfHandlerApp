@@ -51,4 +51,6 @@ Open Server is the primary local backend runtime because the project is also a l
 
 1. Bootstrap API and web.
 2. Define first domain slice: routines + daily review.
-3. Add auth for single-user flow, but keep model boundaries ready for future multi-user support.
+3. Deliver explicit multi-user registration/authentication with user-owned boundaries through
+   [`003-multi-user-auth`](../specs/003-multi-user-auth/spec.md); keep roles and collaboration outside
+   the first account slice.

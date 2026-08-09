@@ -5,16 +5,15 @@ namespace App\Http\Controllers;
 use App\Models\DailyReview;
 use App\Models\Routine;
 use App\Models\RoutineLog;
-use App\Support\CurrentUser;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class TodayController extends Controller
 {
-    public function __invoke(Request $request, CurrentUser $currentUser): JsonResponse
+    public function __invoke(Request $request): JsonResponse
     {
-        $user = $currentUser->resolve($request);
+        $user = $request->user();
         $date = CarbonImmutable::parse($request->query('date', today()->toDateString()))->startOfDay();
 
         $routines = Routine::query()

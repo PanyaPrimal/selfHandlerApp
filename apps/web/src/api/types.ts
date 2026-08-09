@@ -8,6 +8,12 @@ export interface Goal {
   completed_at: string | null
 }
 
+export interface User {
+  id: number
+  name: string
+  email: string
+}
+
 export interface RoutineLog {
   id: number
   routine_id: number
@@ -72,6 +78,18 @@ export interface ListResponse<T> {
 
 export interface ItemResponse<T> {
   data: T
+}
+
+export interface RegisterPayload {
+  name: string
+  email: string
+  password: string
+  password_confirmation: string
+}
+
+export interface LoginPayload {
+  email: string
+  password: string
 }
 
 export interface RoutinePayload {

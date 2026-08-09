@@ -15,6 +15,10 @@ export default defineConfig(({ mode }) => {
           target: apiProxyTarget,
           changeOrigin: true,
         },
+        '/sanctum': {
+          target: apiProxyTarget,
+          changeOrigin: true,
+        },
       },
     },
   }

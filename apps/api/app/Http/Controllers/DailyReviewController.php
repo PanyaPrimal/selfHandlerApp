@@ -3,16 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\DailyReview;
-use App\Support\CurrentUser;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class DailyReviewController extends Controller
 {
-    public function show(Request $request, string $date, CurrentUser $currentUser): JsonResponse
+    public function show(Request $request, string $date): JsonResponse
     {
-        $user = $currentUser->resolve($request);
+        $user = $request->user();
         $reviewDate = CarbonImmutable::parse($date)->toDateString();
 
         $review = DailyReview::query()
@@ -23,9 +22,9 @@ class DailyReviewController extends Controller
         return response()->json(['data' => $review]);
     }
 
-    public function upsert(Request $request, string $date, CurrentUser $currentUser): JsonResponse
+    public function upsert(Request $request, string $date): JsonResponse
     {
-        $user = $currentUser->resolve($request);
+        $user = $request->user();
         $reviewDate = CarbonImmutable::parse($date)->toDateString();
 
         $data = $request->validate([

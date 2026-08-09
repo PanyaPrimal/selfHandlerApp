@@ -4,16 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\Goal;
 use App\Models\Routine;
-use App\Support\CurrentUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class GoalController extends Controller
 {
-    public function index(Request $request, CurrentUser $currentUser): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $user = $currentUser->resolve($request);
+        $user = $request->user();
 
         $goals = Goal::query()
             ->where('user_id', $user->id)
@@ -26,17 +25,17 @@ class GoalController extends Controller
         return response()->json(['data' => $goals]);
     }
 
-    public function store(Request $request, CurrentUser $currentUser): JsonResponse
+    public function store(Request $request): JsonResponse
     {
-        $user = $currentUser->resolve($request);
+        $user = $request->user();
         $goal = Goal::create([...$this->validatedData($request), 'user_id' => $user->id]);
 
         return response()->json(['data' => $goal->load('routines')], 201);
     }
 
-    public function update(Request $request, Goal $goal, CurrentUser $currentUser): JsonResponse
+    public function update(Request $request, Goal $goal): JsonResponse
     {
-        $user = $currentUser->resolve($request);
+        $user = $request->user();
         abort_unless($goal->user_id === $user->id, 404);
 
         $goal->update($this->validatedData($request, partial: true));
@@ -44,9 +43,9 @@ class GoalController extends Controller
         return response()->json(['data' => $goal->fresh('routines')]);
     }
 
-    public function linkRoutine(Request $request, Goal $goal, Routine $routine, CurrentUser $currentUser): JsonResponse
+    public function linkRoutine(Request $request, Goal $goal, Routine $routine): JsonResponse
     {
-        $user = $currentUser->resolve($request);
+        $user = $request->user();
         abort_unless($goal->user_id === $user->id && $routine->user_id === $user->id, 404);
 
         $goal->routines()->syncWithoutDetaching([
@@ -56,9 +55,9 @@ class GoalController extends Controller
         return response()->json(['data' => $goal->fresh('routines')]);
     }
 
-    public function unlinkRoutine(Request $request, Goal $goal, Routine $routine, CurrentUser $currentUser): JsonResponse
+    public function unlinkRoutine(Request $request, Goal $goal, Routine $routine): JsonResponse
     {
-        $user = $currentUser->resolve($request);
+        $user = $request->user();
         abort_unless($goal->user_id === $user->id && $routine->user_id === $user->id, 404);
 
         $goal->routines()->detach($routine->id);

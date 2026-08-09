@@ -5,6 +5,10 @@ description: "Dependency-ordered implementation tasks for the SelfHandler core d
 
 # Tasks: Core Daily Loop
 
+> **Authentication supersession (2026-08-09):** When feature `003-multi-user-auth` is present, execute
+> these domain tasks against its authenticated account boundary. Do not recreate the removed
+> `CurrentUser` local/testing fallback; feature 001 still does not independently implement auth UI.
+
 **Input**: Design documents from `specs/001-core-daily-loop/`
 
 **Prerequisites**: [plan.md](plan.md), [spec.md](spec.md), [research.md](research.md),

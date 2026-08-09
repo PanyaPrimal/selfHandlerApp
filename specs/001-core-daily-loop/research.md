@@ -1,5 +1,10 @@
 # Research: Core Daily Loop
 
+> **Authentication supersession (2026-08-09):** The `CurrentUser` fallback described below is retained
+> only as historical research for the original 001 implementation order. Feature
+> `003-multi-user-auth` replaces that choice; later 001 work MUST use its explicit authenticated user
+> and MUST NOT restore the fallback.
+
 ## Existing Prototype Disposition
 
 **Decision**: Evolve the existing Laravel/Vue vertical slice in place and judge every file against the

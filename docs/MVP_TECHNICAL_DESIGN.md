@@ -306,17 +306,19 @@ Do not create `daily_metrics` yet. Add rollups when analytics starts reading lon
 
 Use Laravel's existing `users` table and keep `user_id` on every domain table.
 
-Open implementation choice before coding:
+Feature [`003-multi-user-auth`](../specs/003-multi-user-auth/spec.md) resolves the earlier temporary
+choice:
 
-- Option A: proper API auth with Laravel Sanctum
-- Option B: temporary local single-user resolver for development
-
-Current implementation decision:
-
-- The first backend slice uses a temporary `CurrentUser` resolver.
-- In `local` and `testing`, it resolves the authenticated user or creates a local development user.
-- Outside `local`/`testing`, missing auth returns `401`.
-- Sanctum is still the preferred SPA-auth target, but it is deferred until the first domain loop is working.
+- Visitors who can reach the private application can register independent name/email/password
+  accounts.
+- The first-party SPA uses Laravel Sanctum's stateful cookie-session and CSRF flow; it does not store
+  bearer tokens in the browser.
+- Every domain route requires an explicit authenticated session and every query/write remains scoped
+  to the authenticated `user_id`.
+- The temporary `CurrentUser` resolver and its local/testing fallback are removed. Tests create or
+  authenticate explicit users just like production.
+- Accounts are equal and private. Roles, invitations, sharing, verification, password recovery, and
+  external identity providers remain separate future features.
 
 ## Implementation Order
 

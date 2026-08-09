@@ -3,16 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\Routine;
-use App\Support\CurrentUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class RoutineController extends Controller
 {
-    public function index(Request $request, CurrentUser $currentUser): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $user = $currentUser->resolve($request);
+        $user = $request->user();
 
         $routines = Routine::query()
             ->where('user_id', $user->id)
@@ -24,9 +23,9 @@ class RoutineController extends Controller
         return response()->json(['data' => $routines]);
     }
 
-    public function store(Request $request, CurrentUser $currentUser): JsonResponse
+    public function store(Request $request): JsonResponse
     {
-        $user = $currentUser->resolve($request);
+        $user = $request->user();
         $data = $this->validatedData($request);
 
         $routine = Routine::create([...$data, 'user_id' => $user->id]);
@@ -34,9 +33,9 @@ class RoutineController extends Controller
         return response()->json(['data' => $routine->load('goals')], 201);
     }
 
-    public function update(Request $request, Routine $routine, CurrentUser $currentUser): JsonResponse
+    public function update(Request $request, Routine $routine): JsonResponse
     {
-        $user = $currentUser->resolve($request);
+        $user = $request->user();
         abort_unless($routine->user_id === $user->id, 404);
 
         $routine->update($this->validatedData($request, partial: true));
@@ -44,9 +43,9 @@ class RoutineController extends Controller
         return response()->json(['data' => $routine->fresh('goals')]);
     }
 
-    public function destroy(Request $request, Routine $routine, CurrentUser $currentUser): JsonResponse
+    public function destroy(Request $request, Routine $routine): JsonResponse
     {
-        $user = $currentUser->resolve($request);
+        $user = $request->user();
         abort_unless($routine->user_id === $user->id, 404);
 
         $routine->update(['is_active' => false]);
