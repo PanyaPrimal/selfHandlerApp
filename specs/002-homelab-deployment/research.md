@@ -98,6 +98,10 @@ failure domain.
 creation on GitHub-hosted runners. A private owner-controlled operations workflow is the only workflow
 eligible for the homelab runner. The no-input local launcher verifies a clean, synchronized public
 `master` and sends its exact 40-character revision through an owner-authenticated repository dispatch.
+Public deployment contracts run on hosted Windows Server 2025 and explicitly prove Windows PowerShell
+5.1. After the private workflow authenticates the request and its homelab resolver reads protected
+state, a no-secret hosted Windows job checks out only the exact dispatched SHA and repeats the full
+contract suite under native Windows PowerShell 5.1. Every fresh qualification depends on that success.
 The private workflow rejects any other actor, repository, event, or revision, rechecks that `master`
 still equals the approved revision before credential use and deployment, and never checks out public
 code on the homelab. It executes only a checksum-verified deployment bundle while pulling exact image
@@ -106,8 +110,10 @@ attestations.
 
 **Rationale**: GitHub warns that self-hosted runners should almost never be attached to public
 repositories because untrusted code can persistently compromise the runner and its network. See
-https://docs.github.com/en/actions/reference/security/secure-use. The boundary directly satisfies
-FR-018.
+https://docs.github.com/en/actions/reference/security/secure-use. Repeating the exact-SHA contracts in
+the private workflow makes native Windows PowerShell evidence mandatory without adding a cross-repo
+PAT or exposing production/registry credentials to public source or the persistent runner. The
+boundary directly satisfies FR-018.
 
 **Alternatives considered**: A self-hosted job in the public repository, private-environment reviewer
 gates unavailable on standard personal plans, resolving a moving branch after authorization, and

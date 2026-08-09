@@ -4,7 +4,6 @@ import hashlib
 import hmac
 import io
 import json
-import subprocess
 import tarfile
 import tempfile
 import unittest
@@ -13,6 +12,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from deployment import recovery
+from powershell_test_support import WINDOWS_POWERSHELL_51_AVAILABLE, run_powershell
 
 
 SHA = "1" * 40
@@ -333,15 +333,6 @@ class RestoreScriptSafetyTests(unittest.TestCase):
         self.assertLess(guard, stop)
         self.assertIn('$RecoveryMode -ne "Drill"', source[:guard])
 
-    @unittest.skipUnless(
-        subprocess.run(
-            ["powershell", "-NoLogo", "-NoProfile", "-Command", "$PSVersionTable.PSVersion.Major"],
-            capture_output=True,
-            text=True,
-        ).returncode
-        == 0,
-        "Windows PowerShell is unavailable",
-    )
     def test_stale_recovery_requires_exact_confirmation_and_never_exceeds_retention(self) -> None:
         root = Path(__file__).resolve().parents[2]
         shared = str(root / "deployment" / "scripts" / "shared.ps1").replace("'", "''")
@@ -356,8 +347,8 @@ $drillStaleRejected = $false
 try {{ Assert-SelfHandlerRecoveryAgePolicy -RecoveryMode Drill -AgeHours 25 -StaleConfirmation $null }} catch {{ $drillStaleRejected = $_.Exception.Message -eq 'recovery_backup_too_old' }}
 if (-not $noConfirmationRejected -or -not $beyondRetentionRejected -or -not $drillStaleRejected) {{ exit 31 }}
 """
-        result = subprocess.run(
-            ["powershell", "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command],
+        result = run_powershell(
+            command,
             cwd=root,
             capture_output=True,
             text=True,

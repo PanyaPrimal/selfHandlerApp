@@ -43,7 +43,9 @@ flows, Python deployment contract tests, Docker Compose configuration checks, an
 production-shaped MySQL/Nginx/PHP-FPM smoke and rollback/restore drill
 
 **Target Platform**: Linux containers on the existing Windows homelab Docker Desktop/WSL2 engine;
-private HTTPS through the existing Windows Tailscale peer; GitHub-hosted Linux runners for public CI
+private HTTPS through the existing Windows Tailscale peer; GitHub-hosted Ubuntu runners for
+application CI and private qualification, plus hosted Windows Server 2025 for the public deployment
+contracts and mandatory Windows PowerShell 5.1 evidence
 
 **Project Type**: Monorepo web application plus fixed-target operational tooling
 
@@ -212,21 +214,28 @@ deploy.ps1
 ```
 
 The public repository owns build inputs and tested operational contracts. Its CI workflow performs
-read-only validation and never receives production or registry credentials. The private operations
-repository owns the owner-authenticated exact-SHA dispatch workflow: hosted jobs qualify the exact
-public revision, publish and attest the paired images, and package the deployment bundle; the
-self-hosted job invokes that attested/checksum-verified bundle. Fixed protected runtime `.env` and
-separate host-only ops secrets remain only on the homelab.
+read-only validation, runs deployment contracts on hosted Windows Server 2025 under Windows
+PowerShell 5.1, and never receives production or registry credentials. The private operations
+repository owns the owner-authenticated exact-SHA dispatch workflow. After its read-only host-state
+resolver, a no-secret hosted Windows job checks out only the authenticated public SHA and repeats the
+full contract suite under native Windows PowerShell 5.1; qualification requires that success. Later
+hosted jobs qualify the revision, publish and attest the paired images, and package the deployment
+bundle; the self-hosted job invokes that attested/checksum-verified bundle. Fixed protected runtime
+`.env` and separate host-only ops secrets remain only on the homelab.
 GHCR uses an ephemeral workflow credential; the backup HMAC key is an ACL-protected host file; the age
 recipient is non-secret ops configuration; and the age identity remains off-host. None is injected
 into the app container or copied into release artifacts.
 
 ## Deployment Sequence
 
-1. The no-input launcher proves local `master` is clean and synchronized, then sends its exact SHA and
-   a fresh correlation identifier to the private operations repository. Its unprivileged hosted job
-   checks out only that canonical public revision and runs backend, frontend, E2E, deployment-contract,
-   image-build, and disposable production-shaped checks.
+1. Public `push` CI proves the exact `master` SHA, including the full deployment contract suite on
+   hosted Windows PowerShell 5.1. The no-input launcher then proves local `master` is clean and
+   synchronized and sends its exact SHA plus a fresh correlation identifier to the private operations
+   repository. After authenticating the request and resolving protected host state, a private
+   no-secret hosted Windows job checks out only that exact revision and repeats every deployment
+   contract under native Windows PowerShell 5.1. Qualification depends on its success, then the
+   unprivileged Ubuntu job repeats backend, frontend, E2E, deployment-contract, image-build, and
+   disposable production-shaped checks.
 2. A separate hosted publish job builds before receiving registry credentials, rechecks that public
    `master` still equals the qualified SHA immediately before registry login, publishes the paired
    images by SHA, produces GitHub build provenance, and logs out. An unprivileged packaging job then

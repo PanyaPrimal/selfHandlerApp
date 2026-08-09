@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-import subprocess
 import unittest
 from pathlib import Path
+
+from powershell_test_support import run_powershell
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -74,8 +75,8 @@ class TailscaleRouteTests(unittest.TestCase):
             f"-AfterServeJson '{after_serve}' -BeforeFunnelJson '{before_serve}' -AfterFunnelJson '{after_serve}'; "
             "'passed'"
         )
-        result = subprocess.run(
-            ["powershell", "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command],
+        result = run_powershell(
+            command,
             cwd=ROOT,
             capture_output=True,
             text=True,
@@ -93,8 +94,8 @@ class TailscaleRouteTests(unittest.TestCase):
             f"-AfterServeJson '{after_serve}' -BeforeFunnelJson '{{\"AllowFunnel\":{{\"homelab.tail31a802.ts.net:443\":true}}}}' "
             "-AfterFunnelJson '{\"AllowFunnel\":{}}';"
         )
-        result = subprocess.run(
-            ["powershell", "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command],
+        result = run_powershell(
+            command,
             cwd=ROOT,
             capture_output=True,
             text=True,
@@ -111,8 +112,8 @@ class TailscaleRouteTests(unittest.TestCase):
             f"Assert-SelfHandlerTailscaleDelta -BeforeServeJson '{before_serve}' "
             f"-AfterServeJson '{after_serve}' -BeforeFunnelJson '{before_serve}' -AfterFunnelJson '{after_serve}';"
         )
-        result = subprocess.run(
-            ["powershell", "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command],
+        result = run_powershell(
+            command,
             cwd=ROOT,
             capture_output=True,
             text=True,

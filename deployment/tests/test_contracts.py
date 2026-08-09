@@ -103,7 +103,34 @@ class WorkflowTrustContractTests(unittest.TestCase):
                 with self.subTest(path=path.name, job=job_name):
                     runs_on = str(job.get("runs-on", ""))
                     self.assertNotIn("self-hosted", runs_on.lower())
-                    self.assertRegex(runs_on, r"^ubuntu-[0-9]{2}\.[0-9]{2}$")
+                    if path.name == "ci.yml" and job_name == "deployment":
+                        self.assertEqual("windows-2025", runs_on)
+                        setup = next(
+                            step
+                            for step in job["steps"]
+                            if step.get("name") == "Set up the hash-locked Windows test runtime"
+                        )
+                        self.assertEqual(
+                            "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+                            setup["uses"],
+                        )
+                        self.assertEqual("3.14.3", setup["with"]["python-version"])
+                        evidence = next(
+                            step
+                            for step in job["steps"]
+                            if step.get("name") == "Prove Windows PowerShell 5.1 is the contract shell"
+                        )
+                        self.assertEqual("powershell", evidence["shell"])
+                        self.assertIn("PSEdition -ne 'Desktop'", evidence["run"])
+                        self.assertIn("PSVersion.Minor -ne 1", evidence["run"])
+                        contracts = next(
+                            step
+                            for step in job["steps"]
+                            if step.get("name") == "Run deployment contract tests"
+                        )
+                        self.assertEqual("powershell", contracts["shell"])
+                    else:
+                        self.assertRegex(runs_on, r"^ubuntu-[0-9]{2}\.[0-9]{2}$")
 
     def test_public_workflows_have_minimal_permissions_and_sha_pinned_actions(self) -> None:
         for path in sorted(PUBLIC_WORKFLOWS.glob("*.yml")):
@@ -152,12 +179,47 @@ class WorkflowTrustContractTests(unittest.TestCase):
                     with self.subTest(path=path.name, job=job_name, use=use):
                         self.assertRegex(use, ACTION_PIN)
 
-    def test_private_deploy_workflow_has_no_operator_inputs(self) -> None:
+    def test_private_deploy_has_no_inputs_and_requires_exact_winps_contracts(self) -> None:
         path = PRIVATE_WORKFLOWS / "deploy-selfhandler.yml"
         text = path.read_text(encoding="utf-8")
         self.assertNotRegex(text, r"(?m)^\s{4,}inputs:\s*$")
         for forbidden in ("target", "host", "port", "mode", "source_ref", "source-revision"):
             self.assertNotRegex(text.lower(), rf"(?m)^\s+{re.escape(forbidden)}:\s*$")
+        workflow = self._workflow(path)
+        request = workflow["jobs"]["request"]
+        windows = workflow["jobs"]["windows-contracts"]
+        qualify = workflow["jobs"]["qualify"]
+        self.assertEqual(
+            ["Bind the owner request to canonical public master"],
+            [step["name"] for step in request["steps"]],
+        )
+        self.assertEqual(["request", "resolve-active"], windows["needs"])
+        self.assertIn("needs.resolve-active.outputs.resume_release != 'true'", windows["if"])
+        self.assertEqual("windows-2025", windows["runs-on"])
+        self.assertEqual({"contents": "read"}, windows["permissions"])
+        checkout = windows["steps"][0]
+        self.assertEqual(
+            "actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
+            checkout["uses"],
+        )
+        self.assertEqual("PanyaPrimal/selfHandlerApp", checkout["with"]["repository"])
+        self.assertEqual("${{ needs.request.outputs.source_revision }}", checkout["with"]["ref"])
+        setup = windows["steps"][1]
+        self.assertEqual(
+            "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+            setup["uses"],
+        )
+        self.assertEqual("3.14.3", setup["with"]["python-version"])
+        evidence = windows["steps"][2]
+        self.assertEqual("powershell", evidence["shell"])
+        self.assertIn("git rev-parse HEAD", evidence["run"])
+        self.assertIn("PSEdition -ne 'Desktop'", evidence["run"])
+        contracts = windows["steps"][-1]
+        self.assertEqual("powershell", contracts["shell"])
+        self.assertIn("python -m unittest discover", contracts["run"])
+        self.assertEqual(["request", "resolve-active", "windows-contracts"], qualify["needs"])
+        self.assertIn("needs.windows-contracts.result == 'success'", qualify["if"])
+        self.assertNotIn("PUBLIC_CI_READ_TOKEN", text)
 
     def test_deployment_validation_dependencies_are_fully_hash_locked(self) -> None:
         requirements = (REPO_ROOT / "deployment" / "tests" / "requirements.txt").read_text(

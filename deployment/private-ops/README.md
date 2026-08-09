@@ -8,7 +8,9 @@ The operator entry point is the input-free developer command `./deploy.ps1`. It 
 public `master` synchronized with `origin/master` and sends that exact 40-character revision through
 an authenticated `repository_dispatch` payload. The private workflow validates the owner sender,
 canonical repository, exact three-field payload (`request_id`, repository, revision), and current
-public `master` before any homelab work. The generated request id only correlates the launcher with
+public `master`. After the protected-state resolver, a no-secret hosted Windows job checks out only
+that authenticated SHA, proves Windows PowerShell 5.1, and runs the complete deployment contract
+suite; qualification requires its success. The generated request id only correlates the launcher with
 its unique workflow run; it is not a deployment choice. Its
 read-only hosted qualification job checks out only that authenticated revision and runs every
 application/deployment gate. A separate privileged hosted job rechecks `master`, then
@@ -45,8 +47,9 @@ current SHA.
   template and re-runs the contract suite; the workflow independently verifies the authenticated
   dispatch and exact public revision before every privileged/host phase.
 - GitHub Environments are not used because deployment protection for a private repository is not
-  available on the selected GitHub Free plan. Repository secrets, if later required, remain scoped to
-  the owner-only private repository; current templates rely on the automatic job token and host files.
+  available on the selected GitHub Free plan. No cross-repository PAT or repository secret is needed;
+  production credentials remain host files and registry operations use the automatic job token only
+  in their dedicated steps.
 - Artifact retention is seven days for release bundles, 30 days for encrypted backups, and seven
   days for non-secret inspection reports.
 - `deploy-selfhandler.yml`, `backup-selfhandler.yml`, and any future restore workflow share the
@@ -126,8 +129,12 @@ exact `homelab.tail31a802.ts.net:8443` Sanctum stateful domain. Production seedi
 
 ## Workflow contract
 
-- All source checkout, dependency installation, tests, image builds, and bundle creation run on
+- Application qualification, image builds, bundle creation, and their source checkouts run on
   `ubuntu-24.04` GitHub-hosted runners.
+- Public deployment contracts run separately on hosted `windows-2025`, pin Python 3.14.3 setup by
+  action SHA, and fail unless their command shell is Windows PowerShell 5.1. Every fresh private
+  qualification also runs a no-secret `windows-2025` job against the authenticated exact SHA and
+  cannot begin until that complete native Windows suite succeeds.
 - The deploy workflow has no host, port, project, ref, target, profile, or mode operator inputs. The
   input-free launcher derives the revision only from its clean, synchronized public `master`; the
   private workflow accepts it only as an authenticated fixed-shape dispatch payload and repeatedly

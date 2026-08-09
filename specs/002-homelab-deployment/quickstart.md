@@ -89,23 +89,28 @@ Measured on 2026-08-10 against the final candidate tree:
 
 ## 5. Release qualification
 
-Start qualification only through the no-input launcher from a clean public-repository `master` that
-exactly matches `origin/master`:
+Wait for the public `CI` workflow triggered by the exact `master` push to finish successfully. Its
+deployment-contract job runs on hosted Windows Server 2025, proves Windows PowerShell 5.1, and uses
+the hash-locked Python 3.14 test environment. Then start qualification only through the no-input
+launcher from a clean public-repository `master` that exactly matches `origin/master`:
 
 ```powershell
 .\deploy.ps1
 ```
 
 The launcher sends that reviewed 40-character revision to the trusted private operations repository
-through an owner-authenticated `repository_dispatch`. The private hosted jobs reject any other event,
-actor, repository, or revision, recheck that public `master` still equals the dispatched revision
-before credential use, run Sections 2–4, publish paired GHCR images, and validate the generated
-release manifest against `contracts/release-manifest.schema.json`. There is no moving-branch manual
-action and the launcher accepts no infrastructure or revision parameters.
+through an owner-authenticated `repository_dispatch`. After its protected-state resolver, a no-secret
+private hosted Windows job checks out only that exact SHA, proves Windows PowerShell 5.1, and repeats
+the full deployment suite; Ubuntu qualification cannot begin unless it succeeds. The private hosted
+jobs reject any other event, actor, repository, or revision, recheck that public `master` still equals
+the dispatched revision before credential use, run Sections 2–4, publish paired GHCR images, and
+validate the generated release manifest against `contracts/release-manifest.schema.json`. There is no
+moving-branch manual action and the launcher accepts no infrastructure or revision parameters.
 
 Expected before the homelab job starts:
 
 - source revision is a full default-branch SHA;
+- the public workflow run is `push`/`master`, completed successfully, and has that exact head SHA;
 - app/web images are referenced by `sha256` digest, never `latest`;
 - deployment bundle checksum matches;
 - all five quality-evidence fields are `passed`;

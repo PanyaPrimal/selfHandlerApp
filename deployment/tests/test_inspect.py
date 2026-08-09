@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 import unittest
 from pathlib import Path
 
 from jsonschema import Draft202012Validator, FormatChecker
+from powershell_test_support import run_powershell
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -35,8 +35,8 @@ $report | ConvertTo-Json -Depth 10 -Compress
 """
         env = os.environ.copy()
         env["SELFHANDLER_TEST_SECRET_CANARY"] = canary
-        result = subprocess.run(
-            ["powershell", "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command],
+        result = run_powershell(
+            command,
             cwd=ROOT,
             capture_output=True,
             text=True,
@@ -92,8 +92,8 @@ $tooSmall = Test-SelfHandlerMemoryCapacity -TotalBytes 3221225472 -UsedBytes 536
 $tooBusy = Test-SelfHandlerMemoryCapacity -TotalBytes 8589934592 -UsedBytes 7516192768
 if (-not $healthy -or $tooSmall -or $tooBusy) {{ exit 19 }}
 """
-        result = subprocess.run(
-            ["powershell", "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command],
+        result = run_powershell(
+            command,
             cwd=ROOT,
             capture_output=True,
             text=True,
@@ -138,8 +138,8 @@ $badSource = New-Inspection 'db'
 $badSource.Mounts[0].Name = 'other_mysql_data'
 if (Test-SelfHandlerMountContract -Service db -Inspection $badSource) {{ exit 55 }}
 """
-        result = subprocess.run(
-            ["powershell", "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command],
+        result = run_powershell(
+            command,
             cwd=ROOT,
             capture_output=True,
             text=True,

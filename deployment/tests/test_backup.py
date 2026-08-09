@@ -1,10 +1,15 @@
 from __future__ import annotations
 
 import re
-import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+
+from powershell_test_support import (
+    WINDOWS_POWERSHELL_51_AVAILABLE,
+    powershell_literal,
+    run_powershell,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -186,15 +191,6 @@ class BackupScriptContractTests(unittest.TestCase):
         self.assertIn("Assert-ProtectedSecretFile -Path $hmacKeyPath", backup)
         self.assertIn("Assert-ProtectedSecretFile -Path $passwordPath", auth)
 
-    @unittest.skipUnless(
-        subprocess.run(
-            ["powershell", "-NoLogo", "-NoProfile", "-Command", "$PSVersionTable.PSVersion.Major"],
-            capture_output=True,
-            text=True,
-        ).returncode
-        == 0,
-        "Windows PowerShell is unavailable",
-    )
     def test_sensitive_directory_cleanup_runs_after_failure(self) -> None:
         shared = SCRIPTS / "shared.ps1"
         with tempfile.TemporaryDirectory() as temporary:
@@ -208,22 +204,14 @@ class BackupScriptContractTests(unittest.TestCase):
                 "catch { }; "
                 f"if (Test-Path -LiteralPath '{escaped_target}') {{ exit 9 }}"
             )
-            result = subprocess.run(
-                ["powershell", "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command],
+            result = run_powershell(
+                command,
                 capture_output=True,
                 text=True,
             )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
-    @unittest.skipUnless(
-        subprocess.run(
-            ["powershell", "-NoLogo", "-NoProfile", "-Command", "$PSVersionTable.PSVersion.Major"],
-            capture_output=True,
-            text=True,
-        ).returncode
-        == 0,
-        "Windows PowerShell is unavailable",
-    )
+    @unittest.skipUnless(WINDOWS_POWERSHELL_51_AVAILABLE, "Windows PowerShell 5.1 is unavailable")
     def test_native_redirect_closes_exact_stdin_before_waiting_for_child_exit(self) -> None:
         shared = str(SCRIPTS / "shared.ps1").replace("'", "''")
         with tempfile.TemporaryDirectory() as temporary:
@@ -235,15 +223,15 @@ class BackupScriptContractTests(unittest.TestCase):
 . '{shared}'
 $child = '$value = [Console]::In.ReadToEnd(); [Console]::Out.Write($value.Length)'
 $exitCode = Invoke-NativeProcessRedirected `
-  -FilePath (Get-Command powershell).Source `
+  -FilePath '{powershell_literal()}' `
   -Arguments @('-NoLogo', '-NoProfile', '-NonInteractive', '-Command', $child) `
   -StandardInputPath '{str(input_path).replace("'", "''")}' `
   -StandardOutputPath '{str(output_path).replace("'", "''")}' `
   -StandardErrorPath '{str(error_path).replace("'", "''")}'
 if ($exitCode -ne 0 -or [IO.File]::ReadAllText('{str(output_path).replace("'", "''")}') -ne '8') {{ exit 31 }}
 """
-            result = subprocess.run(
-                ["powershell", "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command],
+            result = run_powershell(
+                command,
                 cwd=ROOT,
                 capture_output=True,
                 text=True,
@@ -251,15 +239,7 @@ if ($exitCode -ne 0 -or [IO.File]::ReadAllText('{str(output_path).replace("'", "
             )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
-    @unittest.skipUnless(
-        subprocess.run(
-            ["powershell", "-NoLogo", "-NoProfile", "-Command", "$PSVersionTable.PSVersion.Major"],
-            capture_output=True,
-            text=True,
-        ).returncode
-        == 0,
-        "Windows PowerShell is unavailable",
-    )
+    @unittest.skipUnless(WINDOWS_POWERSHELL_51_AVAILABLE, "Windows PowerShell 5.1 is unavailable")
     def test_acl_validator_rejects_untrusted_owner_and_parent_writer(self) -> None:
         shared = str(SCRIPTS / "shared.ps1").replace("'", "''")
         command = f"""
@@ -293,23 +273,14 @@ $writerRejected = $false
 try {{ Assert-TrustedWindowsAcl -Acl (New-TestAcl -Owner $runner -UntrustedWriter) -Context directory }} catch {{ $writerRejected = $true }}
 if (-not $ownerRejected -or -not $writerRejected) {{ exit 17 }}
 """
-        result = subprocess.run(
-            ["powershell", "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command],
+        result = run_powershell(
+            command,
             cwd=ROOT,
             capture_output=True,
             text=True,
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
-    @unittest.skipUnless(
-        subprocess.run(
-            ["powershell", "-NoLogo", "-NoProfile", "-Command", "$PSVersionTable.PSVersion.Major"],
-            capture_output=True,
-            text=True,
-        ).returncode
-        == 0,
-        "Windows PowerShell is unavailable",
-    )
     def test_loopback_probe_rejects_an_existing_listener(self) -> None:
         shared = str(SCRIPTS / "shared.ps1").replace("'", "''")
         command = f"""
@@ -325,23 +296,15 @@ try {{
 }}
 if (-not (Test-LoopbackPortAvailable -Port $port)) {{ exit 22 }}
 """
-        result = subprocess.run(
-            ["powershell", "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command],
+        result = run_powershell(
+            command,
             cwd=ROOT,
             capture_output=True,
             text=True,
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
-    @unittest.skipUnless(
-        subprocess.run(
-            ["powershell", "-NoLogo", "-NoProfile", "-Command", "$PSVersionTable.PSVersion.Major"],
-            capture_output=True,
-            text=True,
-        ).returncode
-        == 0,
-        "Windows PowerShell is unavailable",
-    )
+    @unittest.skipUnless(WINDOWS_POWERSHELL_51_AVAILABLE, "Windows PowerShell 5.1 is unavailable")
     def test_atomic_state_json_protects_child_directory_and_file_acls(self) -> None:
         shared = str(SCRIPTS / "shared.ps1").replace("'", "''")
         with tempfile.TemporaryDirectory() as temporary:
@@ -354,23 +317,15 @@ $directory = Split-Path -Parent '{escaped_state_file}'
 Assert-TrustedIntegrityPath -Path $directory -Type directory -RequireProtectedAcl | Out-Null
 Assert-TrustedIntegrityPath -Path '{escaped_state_file}' -Type file -RequireProtectedAcl | Out-Null
 """
-            result = subprocess.run(
-                ["powershell", "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command],
+            result = run_powershell(
+                command,
                 cwd=ROOT,
                 capture_output=True,
                 text=True,
             )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
-    @unittest.skipUnless(
-        subprocess.run(
-            ["powershell", "-NoLogo", "-NoProfile", "-Command", "$PSVersionTable.PSVersion.Major"],
-            capture_output=True,
-            text=True,
-        ).returncode
-        == 0,
-        "Windows PowerShell is unavailable",
-    )
+    @unittest.skipUnless(WINDOWS_POWERSHELL_51_AVAILABLE, "Windows PowerShell 5.1 is unavailable")
     def test_lock_requires_a_preprotected_parent_and_protects_the_lock_file(self) -> None:
         shared = str(SCRIPTS / "shared.ps1").replace("'", "''")
         with tempfile.TemporaryDirectory() as temporary:
@@ -394,8 +349,8 @@ try {{
   if (-not $unsafeRejected -or -not $secondRejected) {{ exit 41 }}
 }} finally {{ Exit-SelfHandlerProductionLock -Lock $first }}
 """
-            result = subprocess.run(
-                ["powershell", "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command],
+            result = run_powershell(
+                command,
                 cwd=ROOT,
                 capture_output=True,
                 text=True,
