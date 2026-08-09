@@ -15,9 +15,9 @@ cross the ownership boundary.
 
 ## Technical Context
 
-**Language/Version**: PHP `^8.2` (Laravel runtime currently 11.54) and TypeScript `~6.0`
+**Language/Version**: PHP `^8.4` (Laravel runtime currently 12.65) and TypeScript `~6.0`
 
-**Primary Dependencies**: Laravel `^11.31`, Laravel Sanctum 4.x stateful SPA middleware, Eloquent,
+**Primary Dependencies**: Laravel `^12.61.1`, Laravel Sanctum 4.x stateful SPA middleware, Eloquent,
 Vue `^3.5`, Vue Router `^5.1`, Vite `^8`
 
 **Storage**: Existing MySQL 8 `users`, `sessions`, and user-owned domain tables; isolated SQLite for

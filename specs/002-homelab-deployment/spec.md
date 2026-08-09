@@ -20,6 +20,18 @@ project while accounting for SelfHandler's public source repository and personal
   implemented and passes backend plus desktop/mobile browser acceptance. Live rollout must still
   verify the fixed private HTTPS origin, `selfhandler_session` as a Secure and HttpOnly cookie, the
   matching stateful-domain configuration, and that production seeding is not invoked.
+- Q: How can the first deployment satisfy the pre-mutation recovery requirement without an existing
+  release? → A: After proving the new production stores are empty, bootstrap starts only the database
+  and uploads a validated encrypted empty baseline before the first migration. It then creates a
+  second recovery point after the visible probe account and private HTTPS authentication flow pass.
+- Q: What public-repository code may execute on the homelab runner? → A: No pull request, fork,
+  arbitrary ref, or unqualified checkout may execute there. The private trusted workflow may execute
+  only the checksum-verified deployment bundle produced by its hosted qualification job from the
+  exact reviewed default-branch revision, after validating workflow/image provenance.
+- Q: How is live authentication checked without interactive deployment input? → A: A visible probe
+  account is configured only in the private operations secret store. Bootstrap registers it only when
+  the user table is empty; routine releases log it in. The credential is neither seeded nor injected
+  into application containers or artifacts.
 
 ## User Scenarios & Testing *(mandatory)*
 

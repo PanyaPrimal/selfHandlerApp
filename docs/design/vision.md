@@ -114,7 +114,7 @@ Everything about your personal life is scattered across dozens of places: Google
 
 | Layer | Technology | Notes |
 |------|-----------|---------|
-| **Backend** | PHP 8.3 + Laravel 11 | REST API, queues, schedules |
+| **Backend** | PHP 8.4 + Laravel 12 | REST API, queues, schedules |
 | **Database** | MySQL 8 | Primary data store |
 | **Frontend (web)** | Vue.js 3 (no meta-framework) | SPA, Composition API, Vite |
 | **Mobile** | Capacitor (wrapper around the Vue app) | Android APK, potentially iOS |

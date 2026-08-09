@@ -343,8 +343,10 @@ Command:
 
 The E2E runner starts isolated local servers:
 
-- Laravel API: `127.0.0.1:18000`
-- Vite web: `127.0.0.1:15173`
+- Laravel API: `127.0.0.1:18110`
+- Vite web: `127.0.0.1:15183`
+
+These ports intentionally avoid DealFlow's local `18000` listener so both projects can run together.
 
 It uses a dedicated SQLite database at `apps/api/database/e2e.sqlite` and runs `php artisan migrate:fresh --force` before tests. This keeps E2E data separate from the manual local development database.
 

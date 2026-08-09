@@ -6,7 +6,7 @@ not a replacement for the [specification](spec.md), [data model](data-model.md),
 
 ## Prerequisites
 
-- PHP 8.2 or newer and Composer
+- PHP 8.4 or newer and Composer
 - Node.js 22 or newer and npm
 - A local Laravel environment supported by the repository
 - MySQL 8 for normal local use, or the isolated SQLite database created by browser tests

@@ -1,0 +1,1676 @@
+name: Deploy SelfHandler to homelab
+run-name: Deploy SelfHandler ${{ github.event.client_payload.source_revision }} request ${{ github.event.client_payload.request_id }}
+
+on:
+  repository_dispatch:
+    types: [deploy-selfhandler]
+
+permissions: {}
+
+concurrency:
+  group: selfhandler-production-operations
+  cancel-in-progress: false
+
+jobs:
+  request:
+    name: Validate the authenticated immutable release request
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      request_id: ${{ steps.request.outputs.request_id }}
+      source_revision: ${{ steps.request.outputs.source_revision }}
+    steps:
+      - name: Bind the owner request to canonical public master
+        id: request
+        shell: bash
+        env:
+          REQUEST_ID: ${{ github.event.client_payload.request_id }}
+          REQUEST_PAYLOAD_JSON: ${{ toJson(github.event.client_payload) }}
+          REQUESTED_REPOSITORY: ${{ github.event.client_payload.source_repository }}
+          REQUESTED_REVISION: ${{ github.event.client_payload.source_revision }}
+          REQUEST_SENDER: ${{ github.event.sender.login }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = 'PanyaPrimal/selfhandler-ops'
+          test "$GITHUB_EVENT_NAME" = 'repository_dispatch'
+          test "$GITHUB_REF" = 'refs/heads/master'
+          test "$REQUEST_SENDER" = 'PanyaPrimal'
+          test "$(jq -r 'keys | sort | join(",")' <<< "$REQUEST_PAYLOAD_JSON")" = 'request_id,source_repository,source_revision'
+          [[ "$REQUEST_ID" =~ ^[0-9a-f]{32}$ ]]
+          test "$REQUESTED_REPOSITORY" = 'PanyaPrimal/selfHandlerApp'
+          [[ "$REQUESTED_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          canonical_master="$(git ls-remote https://github.com/PanyaPrimal/selfHandlerApp.git refs/heads/master | awk '{print $1}')"
+          test "$canonical_master" = "$REQUESTED_REVISION"
+          echo "request_id=$REQUEST_ID" >> "$GITHUB_OUTPUT"
+          echo "source_revision=$REQUESTED_REVISION" >> "$GITHUB_OUTPUT"
+
+  resolve-active:
+    name: Resolve trusted active or crash-resumable release
+    needs: request
+    runs-on: [self-hosted, Windows, X64, homelab, selfhandler]
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      previous_app_image: ${{ steps.active.outputs.previous_app_image }}
+      resume_release: ${{ steps.active.outputs.resume_release }}
+      resume_complete: ${{ steps.active.outputs.resume_complete }}
+      resume_pending: ${{ steps.active.outputs.resume_pending }}
+      resume_prepared: ${{ steps.active.outputs.resume_prepared }}
+      resume_state: ${{ steps.active.outputs.resume_state }}
+      resume_actor: ${{ steps.active.outputs.resume_actor }}
+      resume_attempt_id: ${{ steps.active.outputs.resume_attempt_id }}
+      resume_backup_reference: ${{ steps.active.outputs.resume_backup_reference }}
+      resume_bootstrap: ${{ steps.active.outputs.resume_bootstrap }}
+      resume_bundle_path: ${{ steps.active.outputs.resume_bundle_path }}
+      resume_bundle_sha256: ${{ steps.active.outputs.resume_bundle_sha256 }}
+      resume_manifest_path: ${{ steps.active.outputs.resume_manifest_path }}
+      resume_manifest_sha256: ${{ steps.active.outputs.resume_manifest_sha256 }}
+      resume_workflow_run_attempt: ${{ steps.active.outputs.resume_workflow_run_attempt }}
+      resume_workflow_run_id: ${{ steps.active.outputs.resume_workflow_run_id }}
+      resume_workflow_sha: ${{ steps.active.outputs.resume_workflow_sha }}
+      resume_completion_reference: ${{ steps.active.outputs.resume_completion_reference }}
+      resume_source_revision: ${{ steps.active.outputs.resume_source_revision }}
+      resume_requested_mismatch: ${{ steps.active.outputs.resume_requested_mismatch }}
+    steps:
+      - name: Read only fixed active and pending release state
+        id: active
+        shell: powershell
+        env:
+          REQUESTED_REVISION: ${{ needs.request.outputs.source_revision }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version 2.0
+          function Assert-ProtectedStatePath {
+              param([Parameter(Mandatory = $true)][string]$Path, [switch]$Directory)
+              $item = Get-Item -LiteralPath $Path -Force
+              if (($Directory -and -not $item.PSIsContainer) -or
+                  (-not $Directory -and $item.PSIsContainer) -or
+                  ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+                  throw "Protected production state has an unsafe path type: $Path"
+              }
+              $acl = Get-Acl -LiteralPath $item.FullName
+              $runnerSid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+              $allowed = @($runnerSid, 'S-1-5-32-544', 'S-1-5-18')
+              try {
+                  $ownerSid = (New-Object Security.Principal.NTAccount([string]$acl.Owner)).Translate([Security.Principal.SecurityIdentifier]).Value
+              }
+              catch {
+                  try { $ownerSid = (New-Object Security.Principal.SecurityIdentifier([string]$acl.Owner)).Value }
+                  catch { throw "Protected production state has an unresolvable owner: $Path" }
+              }
+              if ($ownerSid -notin $allowed -or -not $acl.AreAccessRulesProtected) {
+                  throw "Protected production state has an untrusted owner or inherited ACL: $Path"
+              }
+              $observed = @{}
+              foreach ($rule in @($acl.Access)) {
+                  $sid = $rule.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value
+                  if ($rule.IsInherited) {
+                      throw "Protected production state contains an inherited ACL entry: $Path"
+                  }
+                  if ($rule.AccessControlType -eq [Security.AccessControl.AccessControlType]::Allow) {
+                      if ($sid -notin $allowed) { throw "Protected production state grants an unexpected allow SID: $Path" }
+                      $observed[$sid] = $true
+                  }
+              }
+              foreach ($required in $allowed) {
+                  if (-not $observed.ContainsKey($required)) { throw "Protected production state lacks a required trusted SID: $Path" }
+              }
+          }
+          $productionRoot = 'C:\Homelab\SelfHandlerApp'
+          Assert-ProtectedStatePath -Path $productionRoot -Directory
+          $stateRoot = Join-Path $productionRoot 'state'
+          Assert-ProtectedStatePath -Path $stateRoot -Directory
+          $statePath = Join-Path $stateRoot 'active-release.json'
+          $previous = ''
+          $activeState = $null
+          if (Test-Path -LiteralPath $statePath -PathType Leaf) {
+              Assert-ProtectedStatePath -Path $statePath
+              $activeState = Get-Content -Raw -LiteralPath $statePath | ConvertFrom-Json
+              $revision = [string]$activeState.source_revision
+              $digest = [string]$activeState.app_digest
+              if ($revision -notmatch '^[0-9a-f]{40}$' -or $digest -notmatch '^sha256:[0-9a-f]{64}$') {
+                  throw 'The active release state is not an immutable release identity.'
+              }
+              $previous = "ghcr.io/panyaprimal/selfhandler-app@$digest"
+          }
+          "previous_app_image=$previous" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+          $pendingRoot = 'C:\Homelab\SelfHandlerApp\state\pending-releases'
+          $pendingRecords = @()
+          if (Test-Path -LiteralPath $pendingRoot -PathType Container) {
+              Assert-ProtectedStatePath -Path $pendingRoot -Directory
+              foreach ($file in @(Get-ChildItem -LiteralPath $pendingRoot -File -Filter '*.json' | Sort-Object Name)) {
+                  Assert-ProtectedStatePath -Path $file.FullName
+                  $record = Get-Content -Raw -LiteralPath $file.FullName | ConvertFrom-Json
+                  if ([string]$record.attempt_id -notmatch '^[A-Za-z0-9._-]{8,128}$' -or
+                      $file.Name -ne (([string]$record.attempt_id) + '.json') -or
+                      [string]$record.state -notin @('deploying', 'awaiting_completion', 'completion_validated') -or
+                      [string]$record.deployment_id -ne 'selfhandler-production') {
+                      throw 'Stored pending release state is invalid.'
+                  }
+                  $pendingRecords += $record
+              }
+          }
+          if ($pendingRecords.Count -gt 1) {
+              throw 'Exactly one unfinished production release must be completed before another deployment.'
+          }
+          $pending = if ($pendingRecords.Count -eq 1) { $pendingRecords[0] } else { $null }
+          $preparedMode = $null -eq $pending
+          $effectiveRevision = if ($preparedMode) { $env:REQUESTED_REVISION } else { [string]$pending.source_revision }
+          if ($effectiveRevision -notmatch '^[0-9a-f]{40}$') {
+              throw 'Resumable release has no immutable source revision.'
+          }
+          $requestedMismatch = $effectiveRevision -ne $env:REQUESTED_REVISION
+          $completionReference = ''
+          if (-not $preparedMode -and [string]$pending.state -eq 'completion_validated') {
+              if ([string]$pending.completion_backup_bundle_id -notmatch '^selfhandler-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8,64}$' -or
+                  [string]$pending.completion_backup_reference -notmatch [regex]::Escape([string]$pending.completion_backup_bundle_id) -or
+                  [string]$pending.completion_backup_reference -match '[\r\n]' -or
+                  [string]$pending.completion_validated_at -notmatch '^\d{4}-\d{2}-\d{2}T') {
+                  throw 'The validated completion evidence is incomplete.'
+              }
+              $completionReference = [string]$pending.completion_backup_reference
+          }
+
+          $qualifiedRoot = [IO.Path]::GetFullPath((Join-Path 'C:\Homelab\SelfHandlerApp\state\qualified-bundles' $effectiveRevision))
+          $bundlePath = [IO.Path]::GetFullPath((Join-Path $qualifiedRoot 'deployment-bundle.zip'))
+          $manifestPath = [IO.Path]::GetFullPath((Join-Path $qualifiedRoot 'release-manifest.json'))
+          $trustPath = [IO.Path]::GetFullPath((Join-Path $qualifiedRoot 'trust-metadata.json'))
+          $preparedPath = [IO.Path]::GetFullPath((Join-Path $qualifiedRoot 'prepared-release.json'))
+          $requiredPaths = @($bundlePath, $manifestPath, $trustPath)
+          if ($preparedMode) { $requiredPaths += $preparedPath }
+          foreach ($path in $requiredPaths) {
+              if (-not $path.StartsWith(($qualifiedRoot.TrimEnd('\') + '\'), [StringComparison]::OrdinalIgnoreCase) -or
+                  -not (Test-Path -LiteralPath $path -PathType Leaf) -or
+                  ((Get-Item -LiteralPath $path -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+                  if ($preparedMode -and -not (Test-Path -LiteralPath $preparedPath -PathType Leaf)) {
+                      'resume_release=false' | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+                      'resume_complete=false' | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+                      'resume_pending=false' | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+                      'resume_prepared=false' | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+                      'resume_requested_mismatch=false' | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+                      return
+                  }
+                  throw 'The resumable release has no safe staged operations bundle.'
+              }
+          }
+          Assert-ProtectedStatePath -Path (Split-Path -Parent $qualifiedRoot) -Directory
+          Assert-ProtectedStatePath -Path $qualifiedRoot -Directory
+          foreach ($path in $requiredPaths) { Assert-ProtectedStatePath -Path $path }
+          $manifest = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json
+          $trust = Get-Content -Raw -LiteralPath $trustPath | ConvertFrom-Json
+          $manifestSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $manifestPath).Hash.ToLowerInvariant()
+          $bundleSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $bundlePath).Hash.ToLowerInvariant()
+          $expectedAttempt = "gh-$([string]$trust.workflow_run_id)-$([string]$trust.workflow_run_attempt)"
+          $pendingMismatch = -not $preparedMode -and (
+              [string]$pending.web_digest -notmatch '^sha256:[0-9a-f]{64}$' -or
+              [string]$pending.app_digest -notmatch '^sha256:[0-9a-f]{64}$' -or
+              [string]$pending.bundle_sha256 -ne $bundleSha -or
+              [string]$pending.manifest_sha256 -ne $manifestSha -or
+              [string]$pending.predeploy_backup_bundle_id -notmatch '^selfhandler-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8,64}$' -or
+              [string]$pending.predeploy_backup_reference -notmatch [regex]::Escape([string]$pending.predeploy_backup_bundle_id) -or
+              [string]$pending.predeploy_backup_reference -match '[\r\n]' -or
+              [string]$pending.actor -ne 'PanyaPrimal' -or
+              [string]$pending.attempt_id -ne $expectedAttempt -or
+              [string]$trust.actor -ne [string]$pending.actor -or
+              [string]$manifest.web_image.digest -ne [string]$pending.web_digest -or
+              [string]$manifest.app_image.digest -ne [string]$pending.app_digest -or
+              -not ($pending.bootstrap -is [bool])
+          )
+          if ([int]$trust.schema_version -ne 1 -or
+              [string]$trust.deployment_id -ne 'selfhandler-production' -or
+              [string]$trust.source_revision -ne $effectiveRevision -or
+              [string]$trust.workflow_repository -ne 'PanyaPrimal/selfhandler-ops' -or
+              [string]$trust.workflow_ref -ne 'PanyaPrimal/selfhandler-ops/.github/workflows/deploy-selfhandler.yml@refs/heads/master' -or
+              [string]$trust.workflow_sha -notmatch '^[0-9a-f]{40}$' -or
+              [string]$trust.workflow_run_id -notmatch '^[0-9]+$' -or
+              [string]$trust.workflow_run_attempt -notmatch '^[1-9][0-9]*$' -or
+              [string]$trust.attempt_id -ne $expectedAttempt -or
+              [string]$trust.actor -ne 'PanyaPrimal' -or
+              [string]$trust.bundle_sha256 -ne $bundleSha -or
+              [string]$trust.manifest_sha256 -ne $manifestSha -or
+              [int64](Get-Item -LiteralPath $bundlePath).Length -ne [int64]$manifest.deployment_bundle.bytes -or
+              [string]$manifest.deployment_bundle.sha256 -ne $bundleSha -or
+              [string]$manifest.source_revision -ne $effectiveRevision -or
+              [string]$manifest.workflow_run_id -ne [string]$trust.workflow_run_id -or
+              [string]$manifest.workflow_identity.run_id -ne [string]$trust.workflow_run_id -or
+              [string]$manifest.workflow_identity.run_attempt -ne [string]$trust.workflow_run_attempt -or
+              $pendingMismatch) {
+              throw 'The staged release trust record does not match resumable production state.'
+          }
+          if ($preparedMode) {
+              $prepared = Get-Content -Raw -LiteralPath $preparedPath | ConvertFrom-Json
+              $preparedProperties = @($prepared.PSObject.Properties.Name | Sort-Object)
+              $expectedPreparedProperties = @(
+                  'actor', 'attempt_id', 'bundle_sha256', 'deployment_id', 'manifest_sha256',
+                  'prepared_at', 'schema_version', 'source_revision', 'state', 'trust_metadata_sha256',
+                  'workflow_ref', 'workflow_repository', 'workflow_run_attempt', 'workflow_run_id', 'workflow_sha'
+              ) | Sort-Object
+              if (($preparedProperties -join ',') -ne ($expectedPreparedProperties -join ',') -or
+                  [int]$prepared.schema_version -ne 1 -or
+                  [string]$prepared.state -ne 'qualified' -or
+                  [string]$prepared.deployment_id -ne 'selfhandler-production' -or
+                  [string]$prepared.source_revision -ne $effectiveRevision -or
+                  [string]$prepared.attempt_id -ne $expectedAttempt -or
+                  [string]$prepared.actor -ne [string]$trust.actor -or
+                  [string]$prepared.bundle_sha256 -ne $bundleSha -or
+                  [string]$prepared.manifest_sha256 -ne $manifestSha -or
+                  [string]$prepared.trust_metadata_sha256 -ne (Get-FileHash -Algorithm SHA256 -LiteralPath $trustPath).Hash.ToLowerInvariant() -or
+                  [string]$prepared.workflow_repository -ne [string]$trust.workflow_repository -or
+                  [string]$prepared.workflow_ref -ne [string]$trust.workflow_ref -or
+                  [string]$prepared.workflow_sha -ne [string]$trust.workflow_sha -or
+                  [string]$prepared.workflow_run_id -ne [string]$trust.workflow_run_id -or
+                  [string]$prepared.workflow_run_attempt -ne [string]$trust.workflow_run_attempt) {
+                  throw 'Prepared release journal does not match the staged trust identity.'
+              }
+          }
+
+          $terminal = $null
+          $terminalPath = Join-Path (Join-Path $stateRoot 'releases') "$expectedAttempt.json"
+          if (Test-Path -LiteralPath $terminalPath -PathType Leaf) {
+              Assert-ProtectedStatePath -Path (Split-Path -Parent $terminalPath) -Directory
+              Assert-ProtectedStatePath -Path $terminalPath
+              $terminal = Get-Content -Raw -LiteralPath $terminalPath | ConvertFrom-Json
+              if ([string]$terminal.outcome -ne 'succeeded' -or
+                  [string]$terminal.attempt_id -ne $expectedAttempt -or
+                  [string]$terminal.actor -ne [string]$trust.actor -or
+                  [string]$terminal.source_revision -ne $effectiveRevision -or
+                  [string]$terminal.web_digest -ne [string]$manifest.web_image.digest -or
+                  [string]$terminal.app_digest -ne [string]$manifest.app_image.digest -or
+                  [string]$terminal.backup_reference -match '[\r\n]' -or
+                  [string]::IsNullOrWhiteSpace([string]$terminal.backup_reference) -or
+                  $null -eq $activeState -or
+                  [string]$activeState.source_revision -ne $effectiveRevision -or
+                  [string]$activeState.web_digest -ne [string]$manifest.web_image.digest -or
+                  [string]$activeState.app_digest -ne [string]$manifest.app_image.digest) {
+                  throw 'Canonical terminal release evidence conflicts with staged or active identity.'
+              }
+              $completionReference = [string]$terminal.backup_reference
+          }
+
+          'resume_release=true' | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "resume_complete=$(($null -ne $terminal).ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "resume_pending=$((-not $preparedMode).ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "resume_prepared=$($preparedMode.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "resume_state=$(if ($null -ne $terminal) { 'terminal' } elseif ($preparedMode) { 'prepared' } else { [string]$pending.state })" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "resume_actor=$([string]$trust.actor)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "resume_attempt_id=$expectedAttempt" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "resume_backup_reference=$(if ($preparedMode) { '' } else { [string]$pending.predeploy_backup_reference })" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "resume_bootstrap=$(if ($preparedMode) { ([string]::IsNullOrWhiteSpace($previous)).ToString().ToLowerInvariant() } else { ([bool]$pending.bootstrap).ToString().ToLowerInvariant() })" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "resume_bundle_path=$bundlePath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "resume_bundle_sha256=$bundleSha" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "resume_manifest_path=$manifestPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "resume_manifest_sha256=$manifestSha" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "resume_workflow_run_attempt=$([string]$trust.workflow_run_attempt)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "resume_workflow_run_id=$([string]$trust.workflow_run_id)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "resume_workflow_sha=$([string]$trust.workflow_sha)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "resume_completion_reference=$completionReference" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "resume_source_revision=$effectiveRevision" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "resume_requested_mismatch=$($requestedMismatch.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+  qualify:
+    name: Qualify the exact authenticated public revision
+    needs: [request, resolve-active]
+    if: needs.resolve-active.outputs.resume_release != 'true' && github.repository == 'PanyaPrimal/selfhandler-ops' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: read
+    outputs:
+      artifact_name: ${{ steps.identity.outputs.artifact_name }}
+      bundle_sha256: ${{ steps.evidence.outputs.bundle_sha256 }}
+      schema_fingerprint: ${{ steps.evidence.outputs.schema_fingerprint }}
+      source_revision: ${{ steps.identity.outputs.source_revision }}
+    steps:
+      - name: Bind qualification to the authenticated request
+        id: identity
+        shell: bash
+        env:
+          REQUESTED_REVISION: ${{ needs.request.outputs.source_revision }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = 'PanyaPrimal/selfhandler-ops'
+          test "$GITHUB_EVENT_NAME" = 'repository_dispatch'
+          test "$GITHUB_REF" = 'refs/heads/master'
+          [[ "$REQUESTED_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          echo "source_revision=$REQUESTED_REVISION" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=selfhandler-deployment-$REQUESTED_REVISION" >> "$GITHUB_OUTPUT"
+
+      - name: Preload the exact previous image and clear the registry credential
+        if: needs.resolve-active.outputs.previous_app_image != ''
+        shell: bash
+        env:
+          GHCR_READ_TOKEN: ${{ github.token }}
+          PREVIOUS_APP_IMAGE: ${{ needs.resolve-active.outputs.previous_app_image }}
+        run: |
+          set -euo pipefail
+          [[ "$PREVIOUS_APP_IMAGE" =~ ^ghcr\.io/panyaprimal/selfhandler-app@sha256:[0-9a-f]{64}$ ]]
+          export DOCKER_CONFIG="$RUNNER_TEMP/selfhandler-previous-auth-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          mkdir -p "$DOCKER_CONFIG"
+          cleanup() {
+            docker logout ghcr.io >/dev/null 2>&1 || true
+            rm -rf -- "$DOCKER_CONFIG"
+            unset GHCR_READ_TOKEN
+          }
+          trap cleanup EXIT
+          printf '%s' "$GHCR_READ_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin >/dev/null
+          docker pull "$PREVIOUS_APP_IMAGE"
+          docker image inspect "$PREVIOUS_APP_IMAGE" >/dev/null
+          cleanup
+          trap - EXIT
+
+      - name: Check out only the exact canonical public revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: PanyaPrimal/selfHandlerApp
+          ref: ${{ steps.identity.outputs.source_revision }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Verify the immutable source identity
+        shell: bash
+        env:
+          SOURCE_REVISION: ${{ steps.identity.outputs.source_revision }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_REVISION"
+          remote="$(git remote get-url origin)"
+          test "$remote" = 'https://github.com/PanyaPrimal/selfHandlerApp' || test "$remote" = 'https://github.com/PanyaPrimal/selfHandlerApp.git'
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.18.0
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Set up PHP 8.4
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_mysql, pdo_sqlite, sqlite3
+          tools: composer:v2
+          coverage: none
+
+      - name: Install locked qualification dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          composer --working-dir=apps/api validate --strict --no-interaction
+          composer --working-dir=apps/api install --no-interaction --no-progress --prefer-dist
+          npm --prefix apps/web ci
+          python -m pip install --disable-pip-version-check --require-hashes -r deployment/tests/requirements.txt
+
+      - name: Run backend frontend and deployment gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          composer --working-dir=apps/api audit --locked --no-interaction
+          apps/api/vendor/bin/pint --test
+          npm --prefix apps/web audit --audit-level=high
+          (cd apps/api && php artisan test)
+          npm --prefix apps/web run build
+          python -m unittest discover -s deployment/tests -p 'test_*.py' -v
+
+      - name: Run desktop and mobile browser acceptance
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd apps/web && npx playwright install --with-deps chromium)
+          npm --prefix apps/web run test:e2e
+
+      - name: Run disposable production-shaped smoke
+        shell: bash
+        env:
+          SOURCE_REVISION: ${{ steps.identity.outputs.source_revision }}
+        run: python deployment/tests/production_smoke.py
+
+      - name: Provision checksum-verified age for the disposable recovery gate
+        id: age
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/age-v1.3.1-linux-amd64.tar.gz"
+          root="$RUNNER_TEMP/selfhandler-age-v1.3.1"
+          curl --fail --location --proto '=https' --tlsv1.2 \
+            'https://github.com/FiloSottile/age/releases/download/v1.3.1/age-v1.3.1-linux-amd64.tar.gz' \
+            --output "$archive"
+          echo 'bdc69c09cbdd6cf8b1f333d372a1f58247b3a33146406333e30c0f26e8f51377  '"$archive" | sha256sum --check --strict
+          mkdir -p "$root"
+          tar --extract --gzip --file "$archive" --directory "$root"
+          test -x "$root/age/age"
+          test -x "$root/age/age-keygen"
+          echo "age=$root/age/age" >> "$GITHUB_OUTPUT"
+          echo "age_keygen=$root/age/age-keygen" >> "$GITHUB_OUTPUT"
+
+      - name: Run encrypted disposable recovery round trip
+        shell: bash
+        env:
+          AGE: ${{ steps.age.outputs.age }}
+          AGE_KEYGEN: ${{ steps.age.outputs.age_keygen }}
+        run: python deployment/tests/recovery_smoke.py --age "$AGE" --age-keygen "$AGE_KEYGEN"
+
+      - name: Prove previous application compatibility with the forward schema
+        if: needs.resolve-active.outputs.previous_app_image != ''
+        shell: bash
+        env:
+          PREVIOUS_APP_IMAGE: ${{ needs.resolve-active.outputs.previous_app_image }}
+        run: >-
+          python deployment/tests/production_smoke.py
+          --previous-app-image "$PREVIOUS_APP_IMAGE"
+          --forward-schema-only
+          --previous-app-preloaded
+
+      - name: Record bootstrap compatibility evidence
+        if: needs.resolve-active.outputs.previous_app_image == ''
+        shell: bash
+        run: echo 'No previous release exists; forward-schema compatibility is not applicable to bootstrap.'
+
+      - name: Capture deterministic qualified bundle evidence
+        id: evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .qualification
+          python deployment/release_manifest.py create-bundle \
+            --repo-root . \
+            --output .qualification/deployment-bundle.zip
+          bundle_sha256="$(sha256sum .qualification/deployment-bundle.zip | awk '{print $1}')"
+          schema_fingerprint="$(python deployment/release_manifest.py schema-fingerprint --migrations-root apps/api/database/migrations)"
+          [[ "$bundle_sha256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$schema_fingerprint" =~ ^[0-9a-f]{64}$ ]]
+          echo "bundle_sha256=$bundle_sha256" >> "$GITHUB_OUTPUT"
+          echo "schema_fingerprint=$schema_fingerprint" >> "$GITHUB_OUTPUT"
+
+  publish:
+    name: Publish and attest the qualified image pair
+    needs: qualify
+    if: github.repository == 'PanyaPrimal/selfhandler-ops' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    outputs:
+      app_digest: ${{ steps.push.outputs.app_digest }}
+      app_revision: ${{ steps.image-evidence.outputs.app_revision }}
+      web_digest: ${{ steps.push.outputs.web_digest }}
+      web_revision: ${{ steps.image-evidence.outputs.web_revision }}
+    env:
+      APP_IMAGE: ghcr.io/panyaprimal/selfhandler-app
+      QUALIFICATION_TAG: ${{ needs.qualify.outputs.source_revision }}-${{ github.run_id }}-${{ github.run_attempt }}
+      SOURCE_REVISION: ${{ needs.qualify.outputs.source_revision }}
+      WEB_IMAGE: ghcr.io/panyaprimal/selfhandler-web
+    steps:
+      - name: Check out the exact qualified source revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: PanyaPrimal/selfHandlerApp
+          ref: ${{ needs.qualify.outputs.source_revision }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Verify source identity before registry authentication
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$SOURCE_REVISION"
+          current_master="$(git ls-remote https://github.com/PanyaPrimal/selfHandlerApp.git refs/heads/master | awk '{print $1}')"
+          test "$current_master" = "$SOURCE_REVISION"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+
+      - name: Build the qualified web image before registry authentication
+        id: web
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: .
+          file: deployment/docker/Dockerfile
+          target: web-runtime
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: ${{ env.WEB_IMAGE }}:${{ env.QUALIFICATION_TAG }}
+          build-args: SOURCE_REVISION=${{ env.SOURCE_REVISION }}
+          github-token: ''
+          labels: org.opencontainers.image.revision=${{ env.SOURCE_REVISION }}
+          provenance: false
+          sbom: false
+
+      - name: Build the qualified application image before registry authentication
+        id: app
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: .
+          file: deployment/docker/Dockerfile
+          target: app-runtime
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: ${{ env.APP_IMAGE }}:${{ env.QUALIFICATION_TAG }}
+          build-args: SOURCE_REVISION=${{ env.SOURCE_REVISION }}
+          github-token: ''
+          labels: org.opencontainers.image.revision=${{ env.SOURCE_REVISION }}
+          provenance: false
+          sbom: false
+
+      - name: Reconfirm canonical master immediately before registry authentication
+        shell: bash
+        run: |
+          set -euo pipefail
+          current_master="$(git ls-remote https://github.com/PanyaPrimal/selfHandlerApp.git refs/heads/master | awk '{print $1}')"
+          test "$current_master" = "$SOURCE_REVISION"
+
+      - name: Log in to GHCR only after every public build has completed
+        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Refuse overwrite of the unique qualification image pair
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$QUALIFICATION_TAG" =~ ^[0-9a-f]{40}-[0-9]+-[1-9][0-9]*$ ]]
+          assert_absent() {
+            local reference="$1" output status
+            set +e
+            output="$(docker buildx imagetools inspect "$reference" 2>&1)"
+            status=$?
+            set -e
+            if [[ $status -eq 0 ]]; then
+              echo "The unique qualification tag already exists and cannot be overwritten: $reference" >&2
+              exit 1
+            fi
+            if ! grep -Eiq '(not found|manifest unknown|name unknown)' <<< "$output"; then
+              echo 'Registry absence could not be established safely.' >&2
+              exit 1
+            fi
+          }
+          assert_absent "$WEB_IMAGE:$QUALIFICATION_TAG"
+          assert_absent "$APP_IMAGE:$QUALIFICATION_TAG"
+
+      - name: Push only the already-built unique qualification image pair
+        id: push
+        shell: bash
+        run: |
+          set -euo pipefail
+          publish_qualified() {
+            local image="$1"
+            local output digest
+            output="$(docker push "$image:$QUALIFICATION_TAG")"
+            printf '%s\n' "$output" >&2
+            digest="$(printf '%s\n' "$output" | awk '/digest: sha256:[0-9a-f]{64}/ {print $2}' | tail -n 1)"
+            [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+            printf '%s' "$digest"
+          }
+          web_digest="$(publish_qualified "$WEB_IMAGE")"
+          app_digest="$(publish_qualified "$APP_IMAGE")"
+          [[ "$web_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$app_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          echo "web_digest=$web_digest" >> "$GITHUB_OUTPUT"
+          echo "app_digest=$app_digest" >> "$GITHUB_OUTPUT"
+
+      - name: Attest web image build provenance
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+        with:
+          subject-name: ${{ env.WEB_IMAGE }}
+          subject-digest: ${{ steps.push.outputs.web_digest }}
+          push-to-registry: true
+
+      - name: Attest application image build provenance
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+        with:
+          subject-name: ${{ env.APP_IMAGE }}
+          subject-digest: ${{ steps.push.outputs.app_digest }}
+          push-to-registry: true
+
+      - name: Read back immutable digests and OCI revisions
+        id: image-evidence
+        shell: bash
+        env:
+          APP_DIGEST: ${{ steps.push.outputs.app_digest }}
+          WEB_DIGEST: ${{ steps.push.outputs.web_digest }}
+        run: |
+          set -euo pipefail
+          cleanup() { docker logout ghcr.io >/dev/null 2>&1 || true; }
+          trap cleanup EXIT
+          [[ "$WEB_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$APP_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          docker pull "$WEB_IMAGE@$WEB_DIGEST"
+          docker pull "$APP_IMAGE@$APP_DIGEST"
+          web_revision="$(docker image inspect "$WEB_IMAGE@$WEB_DIGEST" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')"
+          app_revision="$(docker image inspect "$APP_IMAGE@$APP_DIGEST" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')"
+          test "$web_revision" = "$SOURCE_REVISION"
+          test "$app_revision" = "$SOURCE_REVISION"
+          echo "web_revision=$web_revision" >> "$GITHUB_OUTPUT"
+          echo "app_revision=$app_revision" >> "$GITHUB_OUTPUT"
+
+      - name: Clear every persisted registry credential
+        if: always()
+        shell: bash
+        run: |
+          docker logout ghcr.io >/dev/null 2>&1 || true
+          rm -f "${DOCKER_CONFIG:-$HOME/.docker}/config.json"
+
+  package:
+    name: Package the qualified same-run release
+    needs: [qualify, publish]
+    if: github.repository == 'PanyaPrimal/selfhandler-ops' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      artifact_id: ${{ steps.artifact.outputs.artifact-id }}
+      artifact_name: ${{ needs.qualify.outputs.artifact_name }}
+      source_revision: ${{ needs.qualify.outputs.source_revision }}
+    steps:
+      - name: Check out the exact qualified source revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: PanyaPrimal/selfHandlerApp
+          ref: ${{ needs.qualify.outputs.source_revision }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Install hash-locked manifest dependencies
+        shell: bash
+        run: python -m pip install --disable-pip-version-check --require-hashes -r deployment/tests/requirements.txt
+
+      - name: Reproduce the qualified bundle and create the release manifest
+        shell: bash
+        env:
+          APP_DIGEST: ${{ needs.publish.outputs.app_digest }}
+          APP_REVISION: ${{ needs.publish.outputs.app_revision }}
+          EXPECTED_BUNDLE_SHA256: ${{ needs.qualify.outputs.bundle_sha256 }}
+          EXPECTED_SCHEMA_FINGERPRINT: ${{ needs.qualify.outputs.schema_fingerprint }}
+          SOURCE_REVISION: ${{ needs.qualify.outputs.source_revision }}
+          WEB_DIGEST: ${{ needs.publish.outputs.web_digest }}
+          WEB_REVISION: ${{ needs.publish.outputs.web_revision }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_REVISION"
+          mkdir -p .release
+          bundle_path='.release/deployment-bundle.zip'
+          python deployment/release_manifest.py create-bundle --repo-root . --output "$bundle_path"
+          bundle_sha256="$(sha256sum "$bundle_path" | awk '{print $1}')"
+          schema_fingerprint="$(python deployment/release_manifest.py schema-fingerprint --migrations-root apps/api/database/migrations)"
+          test "$bundle_sha256" = "$EXPECTED_BUNDLE_SHA256"
+          test "$schema_fingerprint" = "$EXPECTED_SCHEMA_FINGERPRINT"
+          python deployment/release_manifest.py create-release \
+            --source-revision "$SOURCE_REVISION" \
+            --workflow-run-id "$GITHUB_RUN_ID" \
+            --workflow-run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --bundle-path "$bundle_path" \
+            --schema-fingerprint "$schema_fingerprint" \
+            --web-digest "$WEB_DIGEST" \
+            --app-digest "$APP_DIGEST" \
+            --web-revision "$WEB_REVISION" \
+            --app-revision "$APP_REVISION" \
+            --created-at "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+            --output .release/release-manifest.json
+          python deployment/release_manifest.py validate \
+            --schema release-manifest \
+            --document .release/release-manifest.json
+
+      - name: Publish the same-run qualified deployment artifact
+        id: artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ needs.qualify.outputs.artifact_name }}
+          path: |
+            .release/deployment-bundle.zip
+            .release/release-manifest.json
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+
+  deploy:
+    name: Verify and deploy the qualified bundle
+    needs: [request, resolve-active, qualify, publish, package]
+    if: >-
+      always() &&
+      needs.request.result == 'success' &&
+      needs.resolve-active.result == 'success' &&
+      (
+        (
+          needs.resolve-active.outputs.resume_release == 'true' &&
+          needs.qualify.result == 'skipped' &&
+          needs.publish.result == 'skipped' &&
+          needs.package.result == 'skipped'
+        ) ||
+        (
+          needs.resolve-active.outputs.resume_release != 'true' &&
+          needs.qualify.result == 'success' &&
+          needs.publish.result == 'success' &&
+          needs.package.result == 'success'
+        )
+      )
+    runs-on: [self-hosted, Windows, X64, homelab, selfhandler]
+    timeout-minutes: 45
+    permissions:
+      actions: read
+      contents: read
+      packages: read
+      attestations: read
+    env:
+      QUALIFIED_ARTIFACT_ID: ${{ needs.package.outputs.artifact_id }}
+      QUALIFIED_ARTIFACT_NAME: selfhandler-deployment-${{ needs.resolve-active.outputs.resume_source_revision || needs.request.outputs.source_revision }}
+      ALREADY_COMPLETE: ${{ needs.resolve-active.outputs.resume_complete }}
+      RESUME_RELEASE: ${{ needs.resolve-active.outputs.resume_release }}
+      RESUME_PENDING: ${{ needs.resolve-active.outputs.resume_pending }}
+      RESUME_STATE: ${{ needs.resolve-active.outputs.resume_state }}
+      REQUEST_ID: ${{ github.event.client_payload.request_id }}
+      REQUESTED_SOURCE_REPOSITORY: ${{ github.event.client_payload.source_repository }}
+      REQUESTED_SOURCE_REVISION: ${{ github.event.client_payload.source_revision }}
+      REQUEST_SENDER: ${{ github.event.sender.login }}
+      RESUMED_DIFFERENT_REVISION: ${{ needs.resolve-active.outputs.resume_requested_mismatch }}
+      SOURCE_REVISION: ${{ needs.resolve-active.outputs.resume_source_revision || needs.request.outputs.source_revision }}
+      TRUSTED_ACTOR: ${{ needs.resolve-active.outputs.resume_actor || github.actor }}
+      TRUSTED_ATTEMPT_ID: ${{ needs.resolve-active.outputs.resume_attempt_id }}
+      TRUSTED_WORKFLOW_RUN_ATTEMPT: ${{ needs.resolve-active.outputs.resume_workflow_run_attempt }}
+      TRUSTED_WORKFLOW_RUN_ID: ${{ needs.resolve-active.outputs.resume_workflow_run_id || github.run_id }}
+      WORKFLOW_REVISION: ${{ needs.resolve-active.outputs.resume_workflow_sha || github.workflow_sha }}
+    steps:
+      - name: Reconfirm the authenticated canonical revision before homelab execution
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version 2.0
+          if ($env:GITHUB_REPOSITORY -ne 'PanyaPrimal/selfhandler-ops' -or
+              $env:GITHUB_EVENT_NAME -ne 'repository_dispatch' -or
+              $env:GITHUB_REF -ne 'refs/heads/master' -or
+              $env:REQUEST_ID -notmatch '^[0-9a-f]{32}$' -or
+              $env:REQUEST_SENDER -ne 'PanyaPrimal' -or
+              $env:REQUESTED_SOURCE_REPOSITORY -ne 'PanyaPrimal/selfHandlerApp' -or
+              $env:REQUESTED_SOURCE_REVISION -notmatch '^[0-9a-f]{40}$' -or
+              $env:ALREADY_COMPLETE -notin @('true', 'false') -or
+              $env:RESUME_RELEASE -notin @('true', 'false') -or
+              $env:RESUME_PENDING -notin @('true', 'false') -or
+              $env:RESUMED_DIFFERENT_REVISION -notin @('true', 'false') -or
+              $env:SOURCE_REVISION -notmatch '^[0-9a-f]{40}$' -or
+              ($env:RESUMED_DIFFERENT_REVISION -eq 'false' -and $env:SOURCE_REVISION -ne $env:REQUESTED_SOURCE_REVISION) -or
+              ($env:RESUMED_DIFFERENT_REVISION -eq 'true' -and
+               ($env:RESUME_RELEASE -ne 'true' -or $env:SOURCE_REVISION -eq $env:REQUESTED_SOURCE_REVISION))) {
+              throw 'The authenticated immutable deployment request is invalid.'
+          }
+          $remote = @(& git ls-remote https://github.com/PanyaPrimal/selfHandlerApp.git refs/heads/master)
+          if ($LASTEXITCODE -ne 0 -or $remote.Count -ne 1) {
+              throw 'Canonical public master could not be resolved before homelab execution.'
+          }
+          $canonicalMaster = ([string]$remote[0] -split '\s+')[0]
+          if ($canonicalMaster -ne $env:REQUESTED_SOURCE_REVISION) {
+              throw 'Canonical public master moved after the authenticated deployment request.'
+          }
+
+      - name: Download the same-run artifact without a source checkout
+        if: env.RESUME_RELEASE != 'true'
+        id: download
+        shell: powershell
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version 2.0
+          if ($env:QUALIFIED_ARTIFACT_ID -notmatch '^[0-9]+$') {
+              throw 'The hosted qualification did not return an artifact id.'
+          }
+          if ($env:SOURCE_REVISION -notmatch '^[0-9a-f]{40}$') {
+              throw 'The hosted qualification did not return an exact revision.'
+          }
+          $expectedName = "selfhandler-deployment-$($env:SOURCE_REVISION)"
+          if ($env:QUALIFIED_ARTIFACT_NAME -ne $expectedName) {
+              throw 'The hosted qualification returned an unexpected artifact name.'
+          }
+          $headers = @{
+              Authorization = "Bearer $($env:GITHUB_TOKEN)"
+              Accept = 'application/vnd.github+json'
+              'X-GitHub-Api-Version' = '2022-11-28'
+              'User-Agent' = 'selfhandler-homelab-runner'
+          }
+          $metadataUrl = "https://api.github.com/repos/$($env:GITHUB_REPOSITORY)/actions/artifacts/$($env:QUALIFIED_ARTIFACT_ID)"
+          $metadata = Invoke-RestMethod -Headers $headers -Uri $metadataUrl -Method Get
+          if ([string]$metadata.name -ne $expectedName -or [bool]$metadata.expired) {
+              throw 'The same-run deployment artifact is missing, expired, or has the wrong name.'
+          }
+          if ([string]$metadata.workflow_run.id -ne [string]$env:GITHUB_RUN_ID) {
+              throw 'Refusing an artifact that was not produced by this private workflow run.'
+          }
+          $root = Join-Path $env:RUNNER_TEMP ("selfhandler-qualified-" + [guid]::NewGuid().ToString('N'))
+          New-Item -ItemType Directory -Path $root | Out-Null
+          $archive = Join-Path $root 'qualified-artifact.zip'
+          Invoke-WebRequest -UseBasicParsing -Headers $headers -Uri ([string]$metadata.archive_download_url) -OutFile $archive
+          $artifactRoot = Join-Path $root 'artifact'
+          Expand-Archive -LiteralPath $archive -DestinationPath $artifactRoot
+          $manifest = Join-Path $artifactRoot 'release-manifest.json'
+          $bundle = Join-Path $artifactRoot 'deployment-bundle.zip'
+          if (-not (Test-Path -LiteralPath $manifest -PathType Leaf) -or -not (Test-Path -LiteralPath $bundle -PathType Leaf)) {
+              throw 'The qualified artifact does not contain exactly the expected release inputs.'
+          }
+          "manifest_path=$manifest" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "bundle_path=$bundle" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "work_root=$root" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Verify manifest, bundle checksum, and safe member allowlist
+        id: verify
+        shell: powershell
+        env:
+          MANIFEST_PATH: ${{ steps.download.outputs.manifest_path || needs.resolve-active.outputs.resume_manifest_path }}
+          BUNDLE_PATH: ${{ steps.download.outputs.bundle_path || needs.resolve-active.outputs.resume_bundle_path }}
+          WORK_ROOT: ${{ steps.download.outputs.work_root }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version 2.0
+          if ([string]::IsNullOrWhiteSpace($env:WORK_ROOT)) {
+              $env:WORK_ROOT = Join-Path $env:RUNNER_TEMP ("selfhandler-resume-" + [guid]::NewGuid().ToString('N'))
+              New-Item -ItemType Directory -Path $env:WORK_ROOT | Out-Null
+          }
+          $manifest = Get-Content -Raw -LiteralPath $env:MANIFEST_PATH | ConvertFrom-Json
+          if ([int]$manifest.schema_version -ne 1 -or [string]$manifest.deployment_id -ne 'selfhandler-production') {
+              throw 'Unsupported manifest or target identity.'
+          }
+          if ([string]$manifest.source_repository -ne 'PanyaPrimal/selfHandlerApp' -or [string]$manifest.source_revision -ne $env:SOURCE_REVISION) {
+              throw 'Manifest source identity does not match hosted qualification.'
+          }
+          if ([string]$manifest.workflow_run_id -ne [string]$env:TRUSTED_WORKFLOW_RUN_ID) {
+              throw 'Manifest belongs to a different trusted qualification run.'
+          }
+          $workflow = $manifest.workflow_identity
+          $manifestRunAttempt = [string]$workflow.run_attempt
+          if ($manifestRunAttempt -notmatch '^[1-9][0-9]*$') {
+              throw 'Manifest qualification attempt is invalid.'
+          }
+          if ($env:RESUME_RELEASE -eq 'true') {
+              if ($manifestRunAttempt -ne [string]$env:TRUSTED_WORKFLOW_RUN_ATTEMPT -or
+                  $env:TRUSTED_ATTEMPT_ID -ne "gh-$($env:TRUSTED_WORKFLOW_RUN_ID)-$manifestRunAttempt") {
+                  throw 'Pending release qualification attempt does not match staged trust evidence.'
+              }
+          }
+          elseif ([int64]$manifestRunAttempt -gt [int64]$env:GITHUB_RUN_ATTEMPT) {
+              throw 'Manifest qualification attempt is newer than the executing workflow attempt.'
+          }
+          if ([string]$workflow.repository -ne 'PanyaPrimal/selfhandler-ops' -or
+              [string]$workflow.workflow_ref -ne 'PanyaPrimal/selfhandler-ops/.github/workflows/deploy-selfhandler.yml@refs/heads/master' -or
+              [string]$workflow.event -ne 'repository_dispatch' -or
+              [string]$workflow.run_id -ne [string]$env:TRUSTED_WORKFLOW_RUN_ID -or
+              [string]$workflow.qualification_status -ne 'passed') {
+              throw 'Canonical private workflow metadata is invalid.'
+          }
+          $requiredChecks = @('backend', 'frontend', 'e2e', 'deployment', 'production_smoke')
+          foreach ($name in $requiredChecks) {
+              $check = $manifest.quality_evidence.$name
+              if ([string]$check.status -ne 'passed' -or [string]$check.run_id -ne [string]$env:TRUSTED_WORKFLOW_RUN_ID) {
+                  throw "Mandatory hosted quality evidence is absent: $name"
+              }
+          }
+          $webRepository = [string]$manifest.web_image.repository
+          $appRepository = [string]$manifest.app_image.repository
+          $webDigest = [string]$manifest.web_image.digest
+          $appDigest = [string]$manifest.app_image.digest
+          if ($webRepository -ne 'ghcr.io/panyaprimal/selfhandler-web' -or $appRepository -ne 'ghcr.io/panyaprimal/selfhandler-app') {
+              throw 'Manifest image repositories are not the fixed role-specific repositories.'
+          }
+          if ($webDigest -notmatch '^sha256:[0-9a-f]{64}$' -or $appDigest -notmatch '^sha256:[0-9a-f]{64}$') {
+              throw 'Manifest image identity is not immutable.'
+          }
+          if ([string]$manifest.web_image.revision -ne $env:SOURCE_REVISION -or [string]$manifest.app_image.revision -ne $env:SOURCE_REVISION) {
+              throw 'Manifest OCI revision evidence is inconsistent.'
+          }
+          if ([string]$manifest.attestations.web.subject_digest -ne $webDigest -or
+              [string]$manifest.attestations.app.subject_digest -ne $appDigest -or
+              [string]$manifest.attestations.web.verification_repository -ne 'PanyaPrimal/selfhandler-ops' -or
+              [string]$manifest.attestations.app.verification_repository -ne 'PanyaPrimal/selfhandler-ops') {
+              throw 'Manifest attestation subjects are inconsistent.'
+          }
+          $bundleInfo = Get-Item -LiteralPath $env:BUNDLE_PATH
+          $actualHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $bundleInfo.FullName).Hash.ToLowerInvariant()
+          if ([long]$bundleInfo.Length -ne [long]$manifest.deployment_bundle.bytes -or
+              $actualHash -ne [string]$manifest.deployment_bundle.sha256 -or
+              [string]$manifest.deployment_bundle.name -ne $env:QUALIFIED_ARTIFACT_NAME) {
+              throw 'Deployment bundle size, checksum, or immutable name is invalid.'
+          }
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = [IO.Compression.ZipFile]::OpenRead($bundleInfo.FullName)
+          try {
+              $names = @()
+              foreach ($entry in $zip.Entries) {
+                  $name = $entry.FullName.Replace('\', '/')
+                  if ([string]::IsNullOrWhiteSpace($name) -or [IO.Path]::IsPathRooted($name) -or
+                      $name -match '(^|/)\.\.(/|$)' -or $name.StartsWith('.') -or $name.Contains('/.')) {
+                      throw 'The deployment bundle contains an unsafe member.'
+                  }
+                  if (-not ($name.StartsWith('deployment/') -or $name.StartsWith('specs/002-homelab-deployment/contracts/'))) {
+                      throw "The deployment bundle contains a member outside the operational allowlist: $name"
+                  }
+                  if ($name.StartsWith('deployment/private-ops/') -or $name.Contains('/tests/')) {
+                      throw "The deployment bundle contains forbidden source or test code: $name"
+                  }
+                  $names += $name
+              }
+              foreach ($required in @(
+                  'deployment/compose.production.yaml',
+                  'deployment/release_manifest.py',
+                  'deployment/scripts/deploy-production.ps1',
+                  'deployment/scripts/finalize-release.ps1',
+                  'deployment/scripts/backup-production.ps1',
+                  'specs/002-homelab-deployment/contracts/release-manifest.schema.json'
+              )) {
+                  if ($names -notcontains $required) {
+                      throw "The deployment bundle is missing required member: $required"
+                  }
+              }
+          }
+          finally {
+              $zip.Dispose()
+          }
+          $verifiedRoot = Join-Path $env:WORK_ROOT 'verified-bundle'
+          Expand-Archive -LiteralPath $bundleInfo.FullName -DestinationPath $verifiedRoot
+          "verified_root=$verifiedRoot" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "bundle_sha256=$actualHash" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "web_image=$webRepository@$webDigest" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "app_image=$appRepository@$appDigest" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "attempt_id=gh-$($env:TRUSTED_WORKFLOW_RUN_ID)-$manifestRunAttempt" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "workflow_run_attempt=$manifestRunAttempt" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Provision checksum-pinned portable gh and verify provenance plus OCI labels
+        shell: powershell
+        env:
+          DOCKER_CONFIG: ${{ runner.temp }}\selfhandler-docker-auth-${{ github.run_id }}-${{ github.run_attempt }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
+          WEB_IMAGE_REF: ${{ steps.verify.outputs.web_image }}
+          APP_IMAGE_REF: ${{ steps.verify.outputs.app_image }}
+          MYSQL_IMAGE_REF: mysql:8.4.11@sha256:b3b90af2a6552ae30c266fdb7d5dd55f3afb72404bb78d37fe8a23eb857fd3fb
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version 2.0
+          $dockerConfig = [IO.Path]::GetFullPath($env:DOCKER_CONFIG)
+          $runnerTempPrefix = [IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd('\') + '\'
+          if (-not $dockerConfig.StartsWith($runnerTempPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+              throw 'The ephemeral Docker credential directory escaped runner temporary storage.'
+          }
+          New-Item -ItemType Directory -Force -Path $dockerConfig | Out-Null
+          $toolsRoot = Join-Path $env:RUNNER_TEMP ("selfhandler-trusted-tools-" + [guid]::NewGuid().ToString('N'))
+          New-Item -ItemType Directory -Path $toolsRoot | Out-Null
+          $ghArchive = Join-Path $toolsRoot 'gh_2.97.0_windows_amd64.zip'
+          Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/cli/cli/releases/download/v2.97.0/gh_2.97.0_windows_amd64.zip' -OutFile $ghArchive
+          $expectedGhArchiveSha = '35d7fe05c4dd1411ffda1e73dfc7c6f44b75c936ca51fa6595c657fdc0350cec'
+          $actualGhArchiveSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $ghArchive).Hash.ToLowerInvariant()
+          if ($actualGhArchiveSha -ne $expectedGhArchiveSha) {
+              throw 'Portable GitHub CLI archive checksum verification failed.'
+          }
+          Expand-Archive -LiteralPath $ghArchive -DestinationPath $toolsRoot
+          $gh = Join-Path $toolsRoot 'gh_2.97.0_windows_amd64\bin\gh.exe'
+          if (-not (Test-Path -LiteralPath $gh -PathType Leaf)) {
+              throw 'Verified portable GitHub CLI executable is missing.'
+          }
+          $attestationPolicy = @(
+              '--repo', 'PanyaPrimal/selfhandler-ops',
+              '--predicate-type', 'https://slsa.dev/provenance/v1',
+              '--signer-repo', 'PanyaPrimal/selfhandler-ops',
+              '--signer-workflow', 'PanyaPrimal/selfhandler-ops/.github/workflows/deploy-selfhandler.yml',
+              '--signer-digest', $env:WORKFLOW_REVISION,
+              '--deny-self-hosted-runners'
+          )
+          if ($env:WORKFLOW_REVISION -notmatch '^[0-9a-f]{40}$') {
+              throw 'The private signer workflow revision is not immutable.'
+          }
+          & $gh attestation verify "oci://$($env:WEB_IMAGE_REF)" @attestationPolicy
+          if ($LASTEXITCODE -ne 0) { throw 'Web image build-provenance verification failed.' }
+          & $gh attestation verify "oci://$($env:APP_IMAGE_REF)" @attestationPolicy
+          if ($LASTEXITCODE -ne 0) { throw 'Application image build-provenance verification failed.' }
+          $loggedIn = $false
+          try {
+              $env:GITHUB_TOKEN | docker login ghcr.io --username $env:GITHUB_ACTOR --password-stdin | Out-Null
+              if ($LASTEXITCODE -ne 0) { throw 'Ephemeral GHCR login failed.' }
+              $loggedIn = $true
+              docker pull $env:WEB_IMAGE_REF | Out-Null
+              if ($LASTEXITCODE -ne 0) { throw 'Exact web image pull failed.' }
+              docker pull $env:APP_IMAGE_REF | Out-Null
+              if ($LASTEXITCODE -ne 0) { throw 'Exact application image pull failed.' }
+              $webRevision = (docker image inspect $env:WEB_IMAGE_REF --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}').Trim()
+              $appRevision = (docker image inspect $env:APP_IMAGE_REF --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}').Trim()
+              if ($webRevision -ne $env:SOURCE_REVISION -or $appRevision -ne $env:SOURCE_REVISION) {
+                  throw 'Pulled image OCI revisions do not match the reviewed source revision.'
+              }
+          }
+          finally {
+              if ($loggedIn) {
+                  docker logout ghcr.io 2>$null | Out-Null
+              }
+              if (Test-Path -LiteralPath $dockerConfig) {
+                  Remove-Item -LiteralPath $dockerConfig -Recurse -Force
+              }
+          }
+          docker pull $env:MYSQL_IMAGE_REF | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Exact pinned MySQL image pull failed.' }
+          $mysqlDigests = @(& docker image inspect $env:MYSQL_IMAGE_REF --format '{{json .RepoDigests}}' | ConvertFrom-Json)
+          if ($LASTEXITCODE -ne 0 -or $mysqlDigests -notcontains 'mysql@sha256:b3b90af2a6552ae30c266fdb7d5dd55f3afb72404bb78d37fe8a23eb857fd3fb') {
+              throw 'The local MySQL image does not match the pinned production digest.'
+          }
+
+      - name: Provision checksum-verified portable Python and age
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pythonVersion = '3.12.10'
+          $pythonSha = '4acbed6dd1c744b0376e3b1cf57ce906f9dc9e95e68824584c8099a63025a3c3'
+          $pythonRoot = Join-Path $env:RUNNER_TEMP "python-$pythonVersion-embed-amd64"
+          $pythonArchive = "$pythonRoot.zip"
+          Invoke-WebRequest -UseBasicParsing -Uri "https://www.python.org/ftp/python/$pythonVersion/python-$pythonVersion-embed-amd64.zip" -OutFile $pythonArchive
+          if ((Get-FileHash -Algorithm SHA256 -LiteralPath $pythonArchive).Hash.ToLowerInvariant() -ne $pythonSha) {
+              throw 'Portable Python checksum verification failed.'
+          }
+          Expand-Archive -LiteralPath $pythonArchive -DestinationPath $pythonRoot
+          $pythonRoot | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          & (Join-Path $pythonRoot 'python.exe') --version
+
+          $ageVersion = '1.3.1'
+          $ageSha = 'c56e8ce22f7e80cb85ad946cc82d198767b056366201d3e1a2b93d865be38154'
+          $ageRoot = Join-Path $env:RUNNER_TEMP "age-$ageVersion-windows-amd64"
+          $ageArchive = "$ageRoot.zip"
+          Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/FiloSottile/age/releases/download/v$ageVersion/age-v$ageVersion-windows-amd64.zip" -OutFile $ageArchive
+          if ((Get-FileHash -Algorithm SHA256 -LiteralPath $ageArchive).Hash.ToLowerInvariant() -ne $ageSha) {
+              throw 'age checksum verification failed.'
+          }
+          Expand-Archive -LiteralPath $ageArchive -DestinationPath $ageRoot
+          $age = Get-ChildItem -LiteralPath $ageRoot -Recurse -File -Filter 'age.exe' | Select-Object -First 1
+          if (-not $age) { throw 'Verified age archive contains no age.exe.' }
+          $age.DirectoryName | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          & $age.FullName --version
+
+      - name: Stage the immutable qualified operations bundle and original signer identity
+        if: env.RESUME_RELEASE != 'true'
+        id: stage
+        shell: powershell
+        env:
+          MANIFEST_PATH: ${{ steps.download.outputs.manifest_path }}
+          BUNDLE_PATH: ${{ steps.download.outputs.bundle_path }}
+          BUNDLE_SHA256: ${{ steps.verify.outputs.bundle_sha256 }}
+          TRUSTED_ATTEMPT_ID: ${{ steps.verify.outputs.attempt_id }}
+          TRUSTED_WORKFLOW_RUN_ATTEMPT: ${{ steps.verify.outputs.workflow_run_attempt }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version 2.0
+          function Assert-ProtectedOperationsPath {
+              param([Parameter(Mandatory = $true)][string]$Path, [switch]$Directory)
+              $item = Get-Item -LiteralPath $Path -Force
+              if (($Directory -and -not $item.PSIsContainer) -or
+                  (-not $Directory -and $item.PSIsContainer) -or
+                  ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+                  throw "Protected operations path has an unsafe type: $Path"
+              }
+              $acl = Get-Acl -LiteralPath $item.FullName
+              if (-not $acl.AreAccessRulesProtected) {
+                  throw "Protected operations path still inherits ACL entries: $Path"
+              }
+              $runnerSid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+              $allowed = @($runnerSid, 'S-1-5-32-544', 'S-1-5-18')
+              try {
+                  $ownerSid = (New-Object Security.Principal.NTAccount([string]$acl.Owner)).Translate([Security.Principal.SecurityIdentifier]).Value
+              }
+              catch {
+                  try { $ownerSid = (New-Object Security.Principal.SecurityIdentifier([string]$acl.Owner)).Value }
+                  catch { throw "Protected operations path has an unresolvable owner: $Path" }
+              }
+              if ($ownerSid -notin $allowed) {
+                  throw "Protected operations path has an untrusted owner: $Path"
+              }
+              $allowSids = @()
+              foreach ($rule in @($acl.Access)) {
+                  $sid = $rule.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value
+                  if ($rule.AccessControlType -eq [Security.AccessControl.AccessControlType]::Allow) {
+                      if ($sid -notin $allowed -or $rule.IsInherited) {
+                          throw "Protected operations path grants an unexpected allow ACL: $Path"
+                      }
+                      $allowSids += $sid
+                  }
+              }
+              foreach ($required in $allowed) {
+                  if ($allowSids -notcontains $required) {
+                      throw "Protected operations path lacks a required runner/Admin/SYSTEM ACL: $Path"
+                  }
+              }
+          }
+
+          $productionRoot = 'C:\Homelab\SelfHandlerApp'
+          Assert-ProtectedOperationsPath -Path $productionRoot -Directory
+          $stateRoot = Join-Path $productionRoot 'state'
+          Assert-ProtectedOperationsPath -Path $stateRoot -Directory
+          $qualifiedRoot = Join-Path $stateRoot 'qualified-bundles'
+          if (-not (Test-Path -LiteralPath $qualifiedRoot -PathType Container)) {
+              New-Item -ItemType Directory -Path $qualifiedRoot | Out-Null
+              $runnerSid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+              & icacls.exe $qualifiedRoot /inheritance:r /grant:r "*$runnerSid`:(OI)(CI)(F)" '*S-1-5-32-544:(OI)(CI)(F)' '*S-1-5-18:(OI)(CI)(F)' | Out-Null
+              if ($LASTEXITCODE -ne 0) { throw 'Qualified operations root ACL creation failed.' }
+          }
+          Assert-ProtectedOperationsPath -Path $qualifiedRoot -Directory
+          $target = Join-Path $qualifiedRoot $env:SOURCE_REVISION
+          $manifestSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $env:MANIFEST_PATH).Hash.ToLowerInvariant()
+          if ($env:BUNDLE_SHA256 -notmatch '^[0-9a-f]{64}$' -or
+              (Get-FileHash -Algorithm SHA256 -LiteralPath $env:BUNDLE_PATH).Hash.ToLowerInvariant() -ne $env:BUNDLE_SHA256 -or
+              $env:WORKFLOW_REVISION -notmatch '^[0-9a-f]{40}$' -or
+              $env:TRUSTED_ATTEMPT_ID -ne "gh-$($env:TRUSTED_WORKFLOW_RUN_ID)-$($env:TRUSTED_WORKFLOW_RUN_ATTEMPT)" -or
+              $env:TRUSTED_ACTOR -ne $env:GITHUB_ACTOR) {
+              throw 'Qualified operations staging identity is invalid.'
+          }
+          $manifest = Get-Content -Raw -LiteralPath $env:MANIFEST_PATH | ConvertFrom-Json
+          $trust = [ordered]@{
+              schema_version = 1
+              deployment_id = 'selfhandler-production'
+              source_revision = $env:SOURCE_REVISION
+              attempt_id = $env:TRUSTED_ATTEMPT_ID
+              actor = $env:TRUSTED_ACTOR
+              manifest_sha256 = $manifestSha
+              bundle_sha256 = $env:BUNDLE_SHA256
+              workflow_repository = 'PanyaPrimal/selfhandler-ops'
+              workflow_ref = 'PanyaPrimal/selfhandler-ops/.github/workflows/deploy-selfhandler.yml@refs/heads/master'
+              workflow_sha = $env:WORKFLOW_REVISION
+              workflow_run_id = [string]$env:TRUSTED_WORKFLOW_RUN_ID
+              workflow_run_attempt = [string]$env:TRUSTED_WORKFLOW_RUN_ATTEMPT
+          }
+          if (Test-Path -LiteralPath $target) {
+              Assert-ProtectedOperationsPath -Path $target -Directory
+              $existingBundle = Join-Path $target 'deployment-bundle.zip'
+              $existingManifest = Join-Path $target 'release-manifest.json'
+              $existingTrust = Join-Path $target 'trust-metadata.json'
+              $existingPrepared = Join-Path $target 'prepared-release.json'
+              foreach ($path in @($existingBundle, $existingManifest, $existingTrust, $existingPrepared)) {
+                  Assert-ProtectedOperationsPath -Path $path
+              }
+              $trustSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $existingTrust).Hash.ToLowerInvariant()
+              $expectedPrepared = [ordered]@{
+                  schema_version = 1
+                  state = 'qualified'
+                  deployment_id = 'selfhandler-production'
+                  source_revision = $env:SOURCE_REVISION
+                  attempt_id = $env:TRUSTED_ATTEMPT_ID
+                  actor = $env:TRUSTED_ACTOR
+                  manifest_sha256 = $manifestSha
+                  bundle_sha256 = $env:BUNDLE_SHA256
+                  trust_metadata_sha256 = $trustSha
+                  workflow_repository = 'PanyaPrimal/selfhandler-ops'
+                  workflow_ref = 'PanyaPrimal/selfhandler-ops/.github/workflows/deploy-selfhandler.yml@refs/heads/master'
+                  workflow_sha = $env:WORKFLOW_REVISION
+                  workflow_run_id = [string]$env:TRUSTED_WORKFLOW_RUN_ID
+                  workflow_run_attempt = [string]$env:TRUSTED_WORKFLOW_RUN_ATTEMPT
+                  prepared_at = [string]$manifest.created_at
+              }
+              if ((Get-FileHash -Algorithm SHA256 -LiteralPath $existingBundle).Hash.ToLowerInvariant() -ne $env:BUNDLE_SHA256 -or
+                  (Get-FileHash -Algorithm SHA256 -LiteralPath $existingManifest).Hash.ToLowerInvariant() -ne $manifestSha -or
+                  (Get-Content -Raw -LiteralPath $existingTrust | ConvertFrom-Json | ConvertTo-Json -Depth 8 -Compress) -ne
+                      ([pscustomobject]$trust | ConvertTo-Json -Depth 8 -Compress) -or
+                  (Get-Content -Raw -LiteralPath $existingPrepared | ConvertFrom-Json | ConvertTo-Json -Depth 8 -Compress) -ne
+                      ([pscustomobject]$expectedPrepared | ConvertTo-Json -Depth 8 -Compress)) {
+                  throw 'An immutable qualified operations identity already exists with different evidence.'
+              }
+          }
+          else {
+              $temporary = Join-Path $qualifiedRoot (".$($env:SOURCE_REVISION)-" + [guid]::NewGuid().ToString('N'))
+              New-Item -ItemType Directory -Path $temporary | Out-Null
+              Copy-Item -LiteralPath $env:BUNDLE_PATH -Destination (Join-Path $temporary 'deployment-bundle.zip')
+              Copy-Item -LiteralPath $env:MANIFEST_PATH -Destination (Join-Path $temporary 'release-manifest.json')
+              $temporaryTrust = Join-Path $temporary 'trust-metadata.json'
+              [pscustomobject]$trust | ConvertTo-Json -Depth 8 | Out-File -LiteralPath $temporaryTrust -Encoding utf8
+              $prepared = [ordered]@{
+                  schema_version = 1
+                  state = 'qualified'
+                  deployment_id = 'selfhandler-production'
+                  source_revision = $env:SOURCE_REVISION
+                  attempt_id = $env:TRUSTED_ATTEMPT_ID
+                  actor = $env:TRUSTED_ACTOR
+                  manifest_sha256 = $manifestSha
+                  bundle_sha256 = $env:BUNDLE_SHA256
+                  trust_metadata_sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $temporaryTrust).Hash.ToLowerInvariant()
+                  workflow_repository = 'PanyaPrimal/selfhandler-ops'
+                  workflow_ref = 'PanyaPrimal/selfhandler-ops/.github/workflows/deploy-selfhandler.yml@refs/heads/master'
+                  workflow_sha = $env:WORKFLOW_REVISION
+                  workflow_run_id = [string]$env:TRUSTED_WORKFLOW_RUN_ID
+                  workflow_run_attempt = [string]$env:TRUSTED_WORKFLOW_RUN_ATTEMPT
+                  prepared_at = [string]$manifest.created_at
+              }
+              [pscustomobject]$prepared | ConvertTo-Json -Depth 8 | Out-File -LiteralPath (Join-Path $temporary 'prepared-release.json') -Encoding utf8
+              $runnerSid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+              & icacls.exe $temporary /inheritance:r /grant:r "*$runnerSid`:(OI)(CI)(F)" '*S-1-5-32-544:(OI)(CI)(F)' '*S-1-5-18:(OI)(CI)(F)' | Out-Null
+              if ($LASTEXITCODE -ne 0) { throw 'Qualified operations ACL creation failed.' }
+              foreach ($path in @(
+                  (Join-Path $temporary 'deployment-bundle.zip'),
+                  (Join-Path $temporary 'release-manifest.json'),
+                  (Join-Path $temporary 'trust-metadata.json'),
+                  (Join-Path $temporary 'prepared-release.json')
+              )) {
+                  & icacls.exe $path /inheritance:r /grant:r "*$runnerSid`:(F)" '*S-1-5-32-544:(F)' '*S-1-5-18:(F)' | Out-Null
+                  if ($LASTEXITCODE -ne 0) { throw 'Qualified operations file ACL creation failed.' }
+              }
+              [IO.Directory]::Move($temporary, $target)
+              Assert-ProtectedOperationsPath -Path $target -Directory
+              foreach ($path in @(
+                  (Join-Path $target 'deployment-bundle.zip'),
+                  (Join-Path $target 'release-manifest.json'),
+                  (Join-Path $target 'trust-metadata.json'),
+                  (Join-Path $target 'prepared-release.json')
+              )) {
+                  Assert-ProtectedOperationsPath -Path $path
+              }
+          }
+          "bundle_path=$(Join-Path $target 'deployment-bundle.zip')" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "manifest_path=$(Join-Path $target 'release-manifest.json')" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Reconcile a same-run crash journal before any repeated mutation
+        id: journal
+        shell: powershell
+        env:
+          MANIFEST_PATH: ${{ steps.stage.outputs.manifest_path || needs.resolve-active.outputs.resume_manifest_path }}
+          BUNDLE_SHA256: ${{ steps.verify.outputs.bundle_sha256 }}
+          MANIFEST_SHA256: ${{ needs.resolve-active.outputs.resume_manifest_sha256 }}
+          TRUSTED_ATTEMPT_ID: ${{ steps.verify.outputs.attempt_id }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version 2.0
+          $pendingPath = Join-Path 'C:\Homelab\SelfHandlerApp\state\pending-releases' "$($env:TRUSTED_ATTEMPT_ID).json"
+          if (-not (Test-Path -LiteralPath $pendingPath -PathType Leaf)) {
+              $terminalPath = Join-Path 'C:\Homelab\SelfHandlerApp\state\releases' "$($env:TRUSTED_ATTEMPT_ID).json"
+              if (Test-Path -LiteralPath $terminalPath -PathType Leaf) {
+                  $terminalItem = Get-Item -LiteralPath $terminalPath -Force
+                  if (($terminalItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or
+                      -not (Get-Acl -LiteralPath $terminalPath).AreAccessRulesProtected) {
+                      throw 'The terminal release acknowledgement has an unsafe path or ACL.'
+                  }
+                  $terminal = Get-Content -Raw -LiteralPath $terminalPath | ConvertFrom-Json
+                  if ([string]$terminal.outcome -ne 'succeeded' -or
+                      [string]$terminal.attempt_id -ne $env:TRUSTED_ATTEMPT_ID -or
+                      [string]$terminal.actor -ne $env:TRUSTED_ACTOR -or
+                      [string]$terminal.source_revision -ne $env:SOURCE_REVISION -or
+                      [string]::IsNullOrWhiteSpace([string]$terminal.backup_reference) -or
+                      [string]$terminal.backup_reference -match '[\r\n]') {
+                      throw 'The terminal release acknowledgement conflicts with this immutable operation.'
+                  }
+                  'pending=false' | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+                  'complete=true' | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+                  'state=terminal' | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+                  "completion_reference=$([string]$terminal.backup_reference)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+                  return
+              }
+              'pending=false' | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+              'complete=false' | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+              return
+          }
+          $item = Get-Item -LiteralPath $pendingPath -Force
+          if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+              throw 'The production crash journal cannot be a reparse point.'
+          }
+          $pending = Get-Content -Raw -LiteralPath $pendingPath | ConvertFrom-Json
+          $manifestSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $env:MANIFEST_PATH).Hash.ToLowerInvariant()
+          if ([int]$pending.schema_version -ne 1 -or
+              [string]$pending.state -notin @('deploying', 'awaiting_completion', 'completion_validated') -or
+              [string]$pending.attempt_id -ne $env:TRUSTED_ATTEMPT_ID -or
+              [string]$pending.deployment_id -ne 'selfhandler-production' -or
+              [string]$pending.actor -ne $env:TRUSTED_ACTOR -or
+              [string]$pending.source_revision -ne $env:SOURCE_REVISION -or
+              [string]$pending.bundle_sha256 -ne $env:BUNDLE_SHA256 -or
+              [string]$pending.manifest_sha256 -ne $manifestSha -or
+              [string]$pending.predeploy_backup_bundle_id -notmatch '^selfhandler-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8,64}$' -or
+              [string]$pending.predeploy_backup_reference -notmatch [regex]::Escape([string]$pending.predeploy_backup_bundle_id) -or
+              [string]$pending.predeploy_backup_reference -match '[\r\n]' -or
+              -not ($pending.bootstrap -is [bool])) {
+              throw 'The production crash journal does not match this immutable qualified operation.'
+          }
+          $completionReference = ''
+          if ([string]$pending.state -eq 'completion_validated') {
+              if ([string]$pending.completion_backup_bundle_id -notmatch '^selfhandler-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8,64}$' -or
+                  [string]$pending.completion_backup_reference -notmatch [regex]::Escape([string]$pending.completion_backup_bundle_id) -or
+                  [string]$pending.completion_backup_reference -match '[\r\n]') {
+                  throw 'The validated completion journal is incomplete.'
+              }
+              $completionReference = [string]$pending.completion_backup_reference
+          }
+          'pending=true' | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          'complete=false' | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "state=$([string]$pending.state)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "backup_reference=$([string]$pending.predeploy_backup_reference)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "bootstrap=$(([bool]$pending.bootstrap).ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "completion_reference=$completionReference" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Reconfirm canonical master immediately before first public bundle execution
+        if: steps.journal.outputs.pending != 'true' && steps.journal.outputs.complete != 'true' && env.ALREADY_COMPLETE != 'true'
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $remote = @(& git ls-remote https://github.com/PanyaPrimal/selfHandlerApp.git refs/heads/master)
+          if ($LASTEXITCODE -ne 0 -or $remote.Count -ne 1 -or ([string]$remote[0] -split '\s+')[0] -ne $env:REQUESTED_SOURCE_REVISION) {
+              throw 'Canonical public master moved before pre-mutation bundle execution.'
+          }
+
+      - name: Create and validate the required pre-mutation recovery point
+        if: steps.journal.outputs.pending != 'true' && steps.journal.outputs.complete != 'true' && env.ALREADY_COMPLETE != 'true'
+        id: backup
+        shell: powershell
+        env:
+          APP_RELEASE_SHA: ${{ env.SOURCE_REVISION }}
+          VERIFIED_ROOT: ${{ steps.verify.outputs.verified_root }}
+          HAS_PREVIOUS_RELEASE: ${{ needs.resolve-active.outputs.previous_app_image }}
+          SELFHANDLER_APP_IMAGE: ${{ steps.verify.outputs.app_image }}
+          SELFHANDLER_WEB_IMAGE: ${{ steps.verify.outputs.web_image }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $reason = if ([string]::IsNullOrWhiteSpace($env:HAS_PREVIOUS_RELEASE)) { 'bootstrap-baseline' } else { 'predeploy' }
+          $staging = Join-Path $env:RUNNER_TEMP ("selfhandler-backup-" + [guid]::NewGuid().ToString('N'))
+          New-Item -ItemType Directory -Path $staging | Out-Null
+          $script = Join-Path $env:VERIFIED_ROOT 'deployment\scripts\backup-production.ps1'
+          $resultLines = @(& $script -Reason $reason -OutputDirectory $staging)
+          if (-not $?) { throw 'Recovery bundle creation failed.' }
+          $result = $resultLines[-1] | ConvertFrom-Json
+          $fields = @($result.PSObject.Properties.Name | Sort-Object)
+          if (($fields -join ',') -ne 'BundleId,CiphertextPath,Sha256') {
+              throw 'Backup script returned unexpected output fields.'
+          }
+          $ciphertext = [IO.Path]::GetFullPath([string]$result.CiphertextPath)
+          $stagingPrefix = [IO.Path]::GetFullPath($staging).TrimEnd('\') + '\'
+          if (-not $ciphertext.StartsWith($stagingPrefix, [StringComparison]::OrdinalIgnoreCase) -or
+              -not (Test-Path -LiteralPath $ciphertext -PathType Leaf) -or
+              [IO.Path]::GetExtension($ciphertext) -ne '.age') {
+              throw 'Encrypted backup output escaped protected staging or is missing.'
+          }
+          $sha = [string]$result.Sha256
+          if ($sha -notmatch '^[0-9a-f]{64}$' -or (Get-FileHash -Algorithm SHA256 -LiteralPath $ciphertext).Hash.ToLowerInvariant() -ne $sha) {
+              throw 'Encrypted backup checksum validation failed.'
+          }
+          $bundleId = [string]$result.BundleId
+          if ($bundleId -notmatch '^selfhandler-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8,64}$') {
+              throw 'Backup bundle identity is invalid.'
+          }
+          "ciphertext_path=$ciphertext" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "sha256=$sha" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "bundle_id=$bundleId" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "reason=$reason" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Upload encrypted recovery point outside the homelab failure domain
+        if: steps.journal.outputs.pending != 'true' && steps.journal.outputs.complete != 'true' && env.ALREADY_COMPLETE != 'true'
+        id: backup-upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ steps.backup.outputs.bundle_id }}
+          path: ${{ steps.backup.outputs.ciphertext_path }}
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+      - name: Reconfirm canonical master immediately before deployment or resume
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $remote = @(& git ls-remote https://github.com/PanyaPrimal/selfHandlerApp.git refs/heads/master)
+          if ($LASTEXITCODE -ne 0 -or $remote.Count -ne 1 -or ([string]$remote[0] -split '\s+')[0] -ne $env:REQUESTED_SOURCE_REVISION) {
+              throw 'Canonical public master moved before production deployment execution.'
+          }
+
+      - name: Deploy or resume only from immutable off-host recovery evidence
+        shell: powershell
+        env:
+          VERIFIED_ROOT: ${{ steps.verify.outputs.verified_root }}
+          MANIFEST_PATH: ${{ steps.stage.outputs.manifest_path || needs.resolve-active.outputs.resume_manifest_path }}
+          BACKUP_REFERENCE: ${{ steps.backup-upload.outputs.artifact-url }}
+          BACKUP_ARTIFACT_ID: ${{ steps.backup-upload.outputs.artifact-id }}
+          BACKUP_BUNDLE_ID: ${{ steps.backup.outputs.bundle_id }}
+          BACKUP_SHA256: ${{ steps.backup.outputs.sha256 }}
+          RESUME_BACKUP_REFERENCE: ${{ needs.resolve-active.outputs.resume_backup_reference }}
+          JOURNAL_BACKUP_REFERENCE: ${{ steps.journal.outputs.backup_reference }}
+          JOURNAL_COMPLETE: ${{ steps.journal.outputs.complete }}
+          JOURNAL_COMPLETION_REFERENCE: ${{ steps.journal.outputs.completion_reference }}
+          JOURNAL_PENDING: ${{ steps.journal.outputs.pending }}
+          TERMINAL_BACKUP_REFERENCE: ${{ needs.resolve-active.outputs.resume_completion_reference }}
+          TRUSTED_ATTEMPT_ID: ${{ steps.verify.outputs.attempt_id }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:ALREADY_COMPLETE -eq 'true') {
+              $reference = $env:TERMINAL_BACKUP_REFERENCE
+              if ([string]::IsNullOrWhiteSpace($reference) -or $reference -match '[\r\n]') {
+                  throw 'Terminal deployment has no immutable completion recovery reference.'
+              }
+          }
+          elseif ($env:JOURNAL_COMPLETE -eq 'true') {
+              $reference = $env:JOURNAL_COMPLETION_REFERENCE
+              if ([string]::IsNullOrWhiteSpace($reference) -or $reference -match '[\r\n]') {
+                  throw 'Recovered terminal deployment has no immutable completion recovery reference.'
+              }
+          }
+          elseif ($env:JOURNAL_PENDING -eq 'true') {
+              $reference = $env:JOURNAL_BACKUP_REFERENCE
+              if ([string]::IsNullOrWhiteSpace($reference) -or $reference -match '[\r\n]') {
+                  throw 'Pending deployment has no immutable original recovery reference.'
+              }
+          }
+          else {
+              if ($env:BACKUP_ARTIFACT_ID -notmatch '^[0-9]+$' -or
+                  [string]::IsNullOrWhiteSpace($env:BACKUP_REFERENCE) -or
+                  $env:BACKUP_BUNDLE_ID -notmatch '^selfhandler-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8,64}$' -or
+                  $env:BACKUP_SHA256 -notmatch '^[0-9a-f]{64}$') {
+                  throw 'Off-host backup upload did not return an immutable reference.'
+              }
+              $reference = "$($env:BACKUP_REFERENCE)#artifact-id=$($env:BACKUP_ARTIFACT_ID);bundle-id=$($env:BACKUP_BUNDLE_ID);sha256=$($env:BACKUP_SHA256)"
+          }
+          $script = Join-Path $env:VERIFIED_ROOT 'deployment\scripts\deploy-production.ps1'
+          & $script `
+              -ReleaseManifestPath $env:MANIFEST_PATH `
+              -BackupReference $reference `
+              -Actor $env:TRUSTED_ACTOR `
+              -AttemptId $env:TRUSTED_ATTEMPT_ID
+
+      - name: Create the first normal post-auth recovery point
+        if: env.ALREADY_COMPLETE != 'true' && steps.journal.outputs.complete != 'true' && (steps.backup.outputs.reason == 'bootstrap-baseline' || steps.journal.outputs.bootstrap == 'true') && steps.journal.outputs.state != 'completion_validated'
+        id: bootstrap-backup
+        shell: powershell
+        env:
+          APP_RELEASE_SHA: ${{ env.SOURCE_REVISION }}
+          VERIFIED_ROOT: ${{ steps.verify.outputs.verified_root }}
+          SELFHANDLER_APP_IMAGE: ${{ steps.verify.outputs.app_image }}
+          SELFHANDLER_WEB_IMAGE: ${{ steps.verify.outputs.web_image }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $staging = Join-Path $env:RUNNER_TEMP ("selfhandler-bootstrap-backup-" + [guid]::NewGuid().ToString('N'))
+          New-Item -ItemType Directory -Path $staging | Out-Null
+          $script = Join-Path $env:VERIFIED_ROOT 'deployment\scripts\backup-production.ps1'
+          $resultLines = @(& $script -Reason bootstrap -OutputDirectory $staging)
+          if (-not $?) { throw 'Post-auth bootstrap recovery point failed.' }
+          $result = $resultLines[-1] | ConvertFrom-Json
+          $ciphertext = [IO.Path]::GetFullPath([string]$result.CiphertextPath)
+          $sha = [string]$result.Sha256
+          if (-not (Test-Path -LiteralPath $ciphertext -PathType Leaf) -or
+              $sha -notmatch '^[0-9a-f]{64}$' -or
+              (Get-FileHash -Algorithm SHA256 -LiteralPath $ciphertext).Hash.ToLowerInvariant() -ne $sha) {
+              throw 'Post-auth bootstrap recovery point validation failed.'
+          }
+          "ciphertext_path=$ciphertext" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "bundle_id=$([string]$result.BundleId)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "sha256=$sha" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Upload the first normal post-auth recovery point
+        if: env.ALREADY_COMPLETE != 'true' && steps.journal.outputs.complete != 'true' && (steps.backup.outputs.reason == 'bootstrap-baseline' || steps.journal.outputs.bootstrap == 'true') && steps.journal.outputs.state != 'completion_validated'
+        id: bootstrap-upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ steps.bootstrap-backup.outputs.bundle_id }}
+          path: ${{ steps.bootstrap-backup.outputs.ciphertext_path }}
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+      - name: Activate the original checksum-qualified operations identity for finalization
+        if: env.ALREADY_COMPLETE != 'true' && steps.journal.outputs.complete != 'true'
+        shell: powershell
+        env:
+          MANIFEST_PATH: ${{ steps.stage.outputs.manifest_path || needs.resolve-active.outputs.resume_manifest_path }}
+          BUNDLE_PATH: ${{ steps.stage.outputs.bundle_path || needs.resolve-active.outputs.resume_bundle_path }}
+          BUNDLE_SHA256: ${{ steps.verify.outputs.bundle_sha256 }}
+          TRUSTED_ATTEMPT_ID: ${{ steps.verify.outputs.attempt_id }}
+          TRUSTED_WORKFLOW_RUN_ATTEMPT: ${{ steps.verify.outputs.workflow_run_attempt }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version 2.0
+          $stateRoot = 'C:\Homelab\SelfHandlerApp\state'
+          $target = [IO.Path]::GetFullPath((Join-Path (Join-Path $stateRoot 'qualified-bundles') $env:SOURCE_REVISION))
+          $bundlePath = [IO.Path]::GetFullPath($env:BUNDLE_PATH)
+          $manifestPath = [IO.Path]::GetFullPath($env:MANIFEST_PATH)
+          $trustPath = [IO.Path]::GetFullPath((Join-Path $target 'trust-metadata.json'))
+          foreach ($path in @($target, $bundlePath, $manifestPath, $trustPath)) {
+              $item = Get-Item -LiteralPath $path -Force
+              if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or -not (Get-Acl -LiteralPath $path).AreAccessRulesProtected) {
+                  throw 'The qualified operations identity lost its protected ACL or safe path type.'
+              }
+          }
+          if ($bundlePath -ne (Join-Path $target 'deployment-bundle.zip') -or
+              $manifestPath -ne (Join-Path $target 'release-manifest.json') -or
+              (Get-FileHash -Algorithm SHA256 -LiteralPath $bundlePath).Hash.ToLowerInvariant() -ne $env:BUNDLE_SHA256) {
+              throw 'The activated operations files do not match their fixed qualified identity.'
+          }
+          $manifestSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $manifestPath).Hash.ToLowerInvariant()
+          $trustSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $trustPath).Hash.ToLowerInvariant()
+          $trust = Get-Content -Raw -LiteralPath $trustPath | ConvertFrom-Json
+          $trustProperties = @($trust.PSObject.Properties.Name | Sort-Object)
+          $requiredTrustProperties = @(
+              'actor', 'attempt_id', 'bundle_sha256', 'deployment_id', 'manifest_sha256',
+              'schema_version', 'source_revision', 'workflow_ref', 'workflow_repository',
+              'workflow_run_attempt', 'workflow_run_id', 'workflow_sha'
+          ) | Sort-Object
+          if (($trustProperties -join ',') -ne ($requiredTrustProperties -join ',') -or
+              [int]$trust.schema_version -ne 1 -or
+              [string]$trust.deployment_id -ne 'selfhandler-production' -or
+              [string]$trust.source_revision -ne $env:SOURCE_REVISION -or
+              [string]$trust.attempt_id -ne $env:TRUSTED_ATTEMPT_ID -or
+              [string]$trust.actor -ne $env:TRUSTED_ACTOR -or
+              [string]$trust.manifest_sha256 -ne $manifestSha -or
+              [string]$trust.bundle_sha256 -ne $env:BUNDLE_SHA256 -or
+              [string]$trust.workflow_repository -ne 'PanyaPrimal/selfhandler-ops' -or
+              [string]$trust.workflow_ref -ne 'PanyaPrimal/selfhandler-ops/.github/workflows/deploy-selfhandler.yml@refs/heads/master' -or
+              [string]$trust.workflow_sha -ne $env:WORKFLOW_REVISION -or
+              [string]$trust.workflow_run_id -ne $env:TRUSTED_WORKFLOW_RUN_ID -or
+              [string]$trust.workflow_run_attempt -ne $env:TRUSTED_WORKFLOW_RUN_ATTEMPT) {
+              throw 'The original private workflow signer identity is inconsistent.'
+          }
+          $pointer = [ordered]@{
+              schema_version = 2
+              source_revision = $env:SOURCE_REVISION
+              bundle_path = $bundlePath
+              manifest_path = $manifestPath
+              bundle_sha256 = $env:BUNDLE_SHA256
+              manifest_sha256 = $manifestSha
+              trust_metadata_path = $trustPath
+              trust_metadata_sha256 = $trustSha
+              attempt_id = $env:TRUSTED_ATTEMPT_ID
+              actor = $env:TRUSTED_ACTOR
+              workflow_repository = 'PanyaPrimal/selfhandler-ops'
+              workflow_ref = 'PanyaPrimal/selfhandler-ops/.github/workflows/deploy-selfhandler.yml@refs/heads/master'
+              workflow_sha = $env:WORKFLOW_REVISION
+              workflow_run_id = $env:TRUSTED_WORKFLOW_RUN_ID
+              workflow_run_attempt = $env:TRUSTED_WORKFLOW_RUN_ATTEMPT
+              installed_at = [DateTime]::UtcNow.ToString('o')
+          }
+          $pointerPath = Join-Path $stateRoot 'active-operations.json'
+          $pointerTemporary = "$pointerPath.$([guid]::NewGuid().ToString('N')).tmp"
+          $pointer | ConvertTo-Json -Depth 4 -Compress | Out-File -LiteralPath $pointerTemporary -Encoding utf8
+          $runnerSid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+          & icacls.exe $pointerTemporary /inheritance:r /grant:r "*$runnerSid`:(F)" '*S-1-5-32-544:(F)' '*S-1-5-18:(F)' | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Active operations pointer ACL creation failed.' }
+          if (Test-Path -LiteralPath $pointerPath -PathType Leaf) {
+              [IO.File]::Replace($pointerTemporary, $pointerPath, $null)
+          }
+          else {
+              [IO.File]::Move($pointerTemporary, $pointerPath)
+          }
+
+      - name: Select the immutable completion recovery reference
+        id: completion
+        shell: powershell
+        env:
+          PREDEPLOY_ARTIFACT_ID: ${{ steps.backup-upload.outputs.artifact-id }}
+          PREDEPLOY_ARTIFACT_URL: ${{ steps.backup-upload.outputs.artifact-url }}
+          PREDEPLOY_BUNDLE_ID: ${{ steps.backup.outputs.bundle_id }}
+          PREDEPLOY_SHA256: ${{ steps.backup.outputs.sha256 }}
+          BOOTSTRAP_ARTIFACT_ID: ${{ steps.bootstrap-upload.outputs.artifact-id }}
+          BOOTSTRAP_ARTIFACT_URL: ${{ steps.bootstrap-upload.outputs.artifact-url }}
+          BOOTSTRAP_BUNDLE_ID: ${{ steps.bootstrap-backup.outputs.bundle_id }}
+          BOOTSTRAP_SHA256: ${{ steps.bootstrap-backup.outputs.sha256 }}
+          JOURNAL_BACKUP_REFERENCE: ${{ steps.journal.outputs.backup_reference }}
+          JOURNAL_BOOTSTRAP: ${{ steps.journal.outputs.bootstrap }}
+          JOURNAL_COMPLETION_REFERENCE: ${{ steps.journal.outputs.completion_reference }}
+          JOURNAL_PENDING: ${{ steps.journal.outputs.pending }}
+          JOURNAL_STATE: ${{ steps.journal.outputs.state }}
+          JOURNAL_TERMINAL: ${{ steps.journal.outputs.complete }}
+          TERMINAL_COMPLETION_REFERENCE: ${{ needs.resolve-active.outputs.resume_completion_reference }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:ALREADY_COMPLETE -eq 'true') {
+              $reference = $env:TERMINAL_COMPLETION_REFERENCE
+          }
+          elseif ($env:JOURNAL_TERMINAL -eq 'true') {
+              $reference = $env:JOURNAL_COMPLETION_REFERENCE
+          }
+          elseif ($env:JOURNAL_STATE -eq 'completion_validated') {
+              $reference = $env:JOURNAL_COMPLETION_REFERENCE
+          }
+          elseif ($env:JOURNAL_BOOTSTRAP -eq 'true' -or '${{ steps.backup.outputs.reason }}' -eq 'bootstrap-baseline') {
+              if ($env:BOOTSTRAP_ARTIFACT_ID -notmatch '^[0-9]+$' -or
+                  [string]::IsNullOrWhiteSpace($env:BOOTSTRAP_ARTIFACT_URL) -or
+                  $env:BOOTSTRAP_BUNDLE_ID -notmatch '^selfhandler-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8,64}$' -or
+                  $env:BOOTSTRAP_SHA256 -notmatch '^[0-9a-f]{64}$') {
+                  throw 'The post-auth bootstrap recovery reference is incomplete.'
+              }
+              $reference = "$($env:BOOTSTRAP_ARTIFACT_URL)#artifact-id=$($env:BOOTSTRAP_ARTIFACT_ID);bundle-id=$($env:BOOTSTRAP_BUNDLE_ID);sha256=$($env:BOOTSTRAP_SHA256)"
+          }
+          elseif ($env:JOURNAL_PENDING -eq 'true') {
+              $reference = $env:JOURNAL_BACKUP_REFERENCE
+          }
+          else {
+              if ($env:PREDEPLOY_ARTIFACT_ID -notmatch '^[0-9]+$' -or
+                  [string]::IsNullOrWhiteSpace($env:PREDEPLOY_ARTIFACT_URL) -or
+                  $env:PREDEPLOY_BUNDLE_ID -notmatch '^selfhandler-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8,64}$' -or
+                  $env:PREDEPLOY_SHA256 -notmatch '^[0-9a-f]{64}$') {
+                  throw 'The routine completion recovery reference is incomplete.'
+              }
+              $reference = "$($env:PREDEPLOY_ARTIFACT_URL)#artifact-id=$($env:PREDEPLOY_ARTIFACT_ID);bundle-id=$($env:PREDEPLOY_BUNDLE_ID);sha256=$($env:PREDEPLOY_SHA256)"
+          }
+          if ([string]::IsNullOrWhiteSpace($reference) -or $reference -match '[\r\n]') {
+              throw 'Completion recovery reference is invalid.'
+          }
+          "reference=$reference" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Reconfirm canonical master immediately before release finalization
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $remote = @(& git ls-remote https://github.com/PanyaPrimal/selfHandlerApp.git refs/heads/master)
+          if ($LASTEXITCODE -ne 0 -or $remote.Count -ne 1 -or ([string]$remote[0] -split '\s+')[0] -ne $env:REQUESTED_SOURCE_REVISION) {
+              throw 'Canonical public master moved before release finalization.'
+          }
+
+      - name: Finalize active release only after operations and recovery evidence are durable
+        shell: powershell
+        env:
+          VERIFIED_ROOT: ${{ steps.verify.outputs.verified_root }}
+          MANIFEST_PATH: ${{ steps.stage.outputs.manifest_path || needs.resolve-active.outputs.resume_manifest_path }}
+          COMPLETION_BACKUP_REFERENCE: ${{ steps.completion.outputs.reference }}
+          TRUSTED_ATTEMPT_ID: ${{ steps.verify.outputs.attempt_id }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $script = Join-Path $env:VERIFIED_ROOT 'deployment\scripts\finalize-release.ps1'
+          & $script `
+              -ReleaseManifestPath $env:MANIFEST_PATH `
+              -CompletionBackupReference $env:COMPLETION_BACKUP_REFERENCE `
+              -Actor $env:TRUSTED_ACTOR `
+              -AttemptId $env:TRUSTED_ATTEMPT_ID
+
+      - name: Require a fresh dispatch after completing an older pending release
+        if: env.RESUMED_DIFFERENT_REVISION == 'true'
+        shell: powershell
+        run: |
+          throw 'pending_release_completed_retry_current'

@@ -19,9 +19,9 @@ the future recurrence, notification, analytics-rollup, authentication-UI, or AI 
 
 ## Technical Context
 
-**Language/Version**: PHP `^8.2` (local CLI 8.4) and TypeScript `~6.0`
+**Language/Version**: PHP `^8.4` and TypeScript `~6.0`
 
-**Primary Dependencies**: Laravel `^11.31`, Eloquent/Carbon, Vue `^3.5`, Vue Router `^5.1`, Vite `^8`
+**Primary Dependencies**: Laravel `^12.61.1`, Eloquent/Carbon, Vue `^3.5`, Vue Router `^5.1`, Vite `^8`
 
 **Storage**: MySQL 8 for normal use; isolated SQLite database for automated browser tests
 

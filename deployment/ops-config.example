@@ -1,0 +1,17 @@
+# Copy to C:\Homelab\SelfHandlerApp\ops\config.env. This host-only file is
+# read by trusted operations scripts and must never be passed to Compose.
+DEPLOYMENT_ID=selfhandler-production
+COMPOSE_PROJECT=selfhandler
+PRODUCTION_ROOT=C:\Homelab\SelfHandlerApp
+LOCAL_ORIGIN=http://127.0.0.1:18080
+PRIVATE_ORIGIN=https://homelab.tail31a802.ts.net:8443
+
+# Public encryption recipient only. The age private identity stays off-host.
+AGE_RECIPIENT=age1SET_ME_OPERATOR_CONTROLLED_RECIPIENT
+AGE_RECIPIENT_FINGERPRINT=SET_ME_PUBLIC_RECIPIENT_FINGERPRINT
+BACKUP_HMAC_KEY_ID=selfhandler-production-v1
+BACKUP_HMAC_KEY_PATH=C:\Homelab\SelfHandlerApp\ops\secrets\backup-hmac.key
+
+# The visible probe email is non-secret. Its password is an ACL-protected file.
+PROBE_ACCOUNT_EMAIL=SET_ME_VISIBLE_PROBE_EMAIL
+PROBE_ACCOUNT_PASSWORD_PATH=C:\Homelab\SelfHandlerApp\ops\secrets\probe-account-password.txt

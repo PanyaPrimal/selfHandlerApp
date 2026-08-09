@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://selfhandler.test/contracts/recovery-manifest.schema.json",
+  "title": "SelfHandler Recovery Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "bundle_id",
+    "deployment_id",
+    "created_at",
+    "source_release",
+    "schema_fingerprint",
+    "database",
+    "private_files",
+    "members",
+    "encryption_recipient_fingerprint",
+    "manifest_authentication",
+    "backup_reason"
+  ],
+  "allOf": [
+    {
+      "if": { "properties": { "backup_reason": { "const": "bootstrap-baseline" } }, "required": ["backup_reason"] },
+      "then": { "properties": { "source_release": { "type": "null" } } },
+      "else": { "properties": { "source_release": { "$ref": "#/$defs/sourceRelease" } } }
+    }
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "bundle_id": { "type": "string", "pattern": "^selfhandler-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8,64}$" },
+    "deployment_id": { "const": "selfhandler-production" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "source_release": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/sourceRelease" }] },
+    "schema_fingerprint": { "$ref": "#/$defs/sha256" },
+    "database": { "$ref": "#/$defs/databaseSummary" },
+    "private_files": { "$ref": "#/$defs/privateFilesSummary" },
+    "members": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/member" },
+      "allOf": [
+        { "contains": { "properties": { "path": { "const": "database.sql" } }, "required": ["path"] }, "minContains": 1, "maxContains": 1 },
+        { "contains": { "properties": { "path": { "const": "private-files.tar" } }, "required": ["path"] }, "minContains": 1, "maxContains": 1 }
+      ]
+    },
+    "encryption_recipient_fingerprint": { "type": "string", "minLength": 8, "maxLength": 128 },
+    "manifest_authentication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "key_id", "sidecar"],
+      "properties": {
+        "algorithm": { "const": "HMAC-SHA256" },
+        "key_id": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,64}$" },
+        "sidecar": { "const": "manifest.hmac" }
+      }
+    },
+    "backup_reason": {
+      "type": "string",
+      "enum": ["predeploy", "scheduled", "manual", "pre-restore", "bootstrap-baseline", "bootstrap"]
+    }
+  },
+  "$defs": {
+    "sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "imageDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "sourceRelease": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_revision", "web_digest", "app_digest"],
+      "properties": {
+        "source_revision": { "$ref": "#/$defs/sha" },
+        "web_digest": { "$ref": "#/$defs/imageDigest" },
+        "app_digest": { "$ref": "#/$defs/imageDigest" }
+      }
+    },
+    "safePath": { "type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[A-Za-z0-9._/-]+$" },
+    "memberSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "bytes", "sha256", "controlled_count"],
+      "properties": {
+        "path": { "$ref": "#/$defs/safePath" },
+        "logical_name": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
+        "bytes": { "type": "integer", "minimum": 0 },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "controlled_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "databaseSummary": {
+      "allOf": [
+        { "$ref": "#/$defs/memberSummary" },
+        {
+          "type": "object",
+          "required": ["logical_name"],
+          "properties": {
+            "path": { "const": "database.sql" },
+            "logical_name": { "const": "selfhandler" }
+          }
+        }
+      ]
+    },
+    "privateFilesSummary": {
+      "allOf": [
+        { "$ref": "#/$defs/memberSummary" },
+        { "type": "object", "properties": { "path": { "const": "private-files.tar" } } }
+      ]
+    },
+    "member": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "type", "bytes", "sha256"],
+      "properties": {
+        "path": { "type": "string", "enum": ["database.sql", "private-files.tar"] },
+        "type": { "const": "file" },
+        "bytes": { "type": "integer", "minimum": 0 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}

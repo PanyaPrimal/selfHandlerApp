@@ -6,7 +6,7 @@ verification guide, not a replacement for the [feature specification](spec.md),
 
 ## Prerequisites
 
-- PHP 8.2 or newer and Composer
+- PHP 8.4 or newer and Composer
 - Node.js 22 or newer and npm
 - A local Laravel environment supported by the repository (Open Server is the primary path)
 - MySQL 8 for manual validation, or the isolated SQLite configuration used by automated tests

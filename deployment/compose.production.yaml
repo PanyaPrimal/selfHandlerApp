@@ -1,0 +1,152 @@
+name: selfhandler
+
+x-runtime-defaults: &runtime-defaults
+  restart: unless-stopped
+  init: true
+  read_only: true
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  logging:
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: "5"
+
+services:
+  db:
+    <<: *runtime-defaults
+    image: mysql:8.4.11@sha256:b3b90af2a6552ae30c266fdb7d5dd55f3afb72404bb78d37fe8a23eb857fd3fb
+    user: "999:999"
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:?DB_DATABASE is required}
+      MYSQL_USER: ${DB_USERNAME:?DB_USERNAME is required}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD is required}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --skip-name-resolve
+    volumes:
+      - mysql_data:/var/lib/mysql
+    tmpfs:
+      - /run/mysqld:size=16m,uid=999,gid=999,mode=0750
+      - /tmp:size=64m,uid=999,gid=999,mode=1770
+    networks:
+      - data
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_ROOT_PASSWORD\" mysqladmin ping --host=127.0.0.1 --user=root --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    cpus: 0.75
+    mem_limit: 768m
+    pids_limit: 256
+    stop_grace_period: 45s
+    labels:
+      selfhandler.deployment-id: selfhandler-production
+      selfhandler.role: database
+
+  app:
+    <<: *runtime-defaults
+    image: ${SELFHANDLER_APP_IMAGE:?SELFHANDLER_APP_IMAGE must be an immutable digest reference}
+    user: "82:82"
+    environment:
+      APP_NAME: ${APP_NAME:-SelfHandler}
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_URL: https://homelab.tail31a802.ts.net:8443
+      APP_KEY: ${APP_KEY:?APP_KEY is required}
+      APP_RELEASE_SHA: ${APP_RELEASE_SHA:?APP_RELEASE_SHA is required}
+      APP_LOCALE: ${APP_LOCALE:-en}
+      APP_FALLBACK_LOCALE: ${APP_FALLBACK_LOCALE:-en}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Europe/Kyiv}
+      LOG_CHANNEL: stderr
+      LOG_LEVEL: ${LOG_LEVEL:-warning}
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_DATABASE: ${DB_DATABASE:?DB_DATABASE is required}
+      DB_USERNAME: ${DB_USERNAME:?DB_USERNAME is required}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      CACHE_STORE: database
+      SESSION_DRIVER: database
+      SESSION_CONNECTION: mysql
+      SESSION_LIFETIME: ${SESSION_LIFETIME:-120}
+      SESSION_ENCRYPT: "true"
+      SESSION_COOKIE: selfhandler_session
+      SESSION_PATH: /
+      SESSION_SECURE_COOKIE: "true"
+      SESSION_HTTP_ONLY: "true"
+      SESSION_SAME_SITE: lax
+      QUEUE_CONNECTION: database
+      SANCTUM_STATEFUL_DOMAINS: homelab.tail31a802.ts.net:8443
+      FILESYSTEM_DISK: local
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - private_files:/app/storage/app/private
+    tmpfs:
+      - /tmp:size=64m,uid=82,gid=82,mode=1770
+      - /app/bootstrap/cache:size=16m,uid=82,gid=82,mode=0750
+      - /app/storage/framework:size=64m,uid=82,gid=82,mode=0750
+      - /app/storage/logs:size=16m,uid=82,gid=82,mode=0750
+    networks:
+      - app
+      - data
+    healthcheck:
+      test: ["CMD-SHELL", "php-fpm -t >/dev/null 2>&1 && php -r '$$socket = @fsockopen(\"127.0.0.1\", 9000, $$errno, $$error, 2); exit($$socket ? 0 : 1);'"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    cpus: 0.75
+    mem_limit: 512m
+    pids_limit: 128
+    stop_grace_period: 30s
+    labels:
+      selfhandler.deployment-id: selfhandler-production
+      selfhandler.role: application
+
+  web:
+    <<: *runtime-defaults
+    image: ${SELFHANDLER_WEB_IMAGE:?SELFHANDLER_WEB_IMAGE must be an immutable digest reference}
+    user: "101:101"
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:18080:8080"
+    tmpfs:
+      - /tmp:size=32m,uid=101,gid=101,mode=0750
+    networks:
+      - app
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -T 5 -O - http://127.0.0.1:8080/api/health | grep -q '\"status\":\"ok\"'"]
+      interval: 10s
+      timeout: 6s
+      retries: 6
+      start_period: 15s
+    cpus: 0.25
+    mem_limit: 128m
+    pids_limit: 64
+    stop_grace_period: 15s
+    labels:
+      selfhandler.deployment-id: selfhandler-production
+      selfhandler.role: entrypoint
+
+networks:
+  app:
+    name: selfhandler_app
+  data:
+    name: selfhandler_data
+    internal: true
+
+volumes:
+  mysql_data:
+    name: selfhandler_mysql_data
+  private_files:
+    name: selfhandler_private_files

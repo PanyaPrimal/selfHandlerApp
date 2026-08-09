@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://selfhandler.test/contracts/health-report.schema.json",
+  "title": "SelfHandler Production Health Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "deployment_id",
+    "observed_at",
+    "active_release",
+    "local_readiness",
+    "private_route",
+    "database",
+    "persistent_stores",
+    "latest_backup",
+    "runtime_isolation",
+    "capacity",
+    "alerts"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "deployment_id": { "const": "selfhandler-production" },
+    "observed_at": { "type": "string", "format": "date-time" },
+    "active_release": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/releasePair" }] },
+    "local_readiness": { "$ref": "#/$defs/probe" },
+    "private_route": { "$ref": "#/$defs/probe" },
+    "database": { "type": "string", "enum": ["healthy", "unhealthy", "absent"] },
+    "persistent_stores": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["database_volume", "private_files_volume"],
+      "properties": {
+        "database_volume": { "$ref": "#/$defs/store" },
+        "private_files_volume": { "$ref": "#/$defs/store" }
+      }
+    },
+    "latest_backup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "age_hours", "reference"],
+      "properties": {
+        "status": { "type": "string", "enum": ["valid", "overdue", "missing", "invalid"] },
+        "age_hours": { "oneOf": [{ "type": "null" }, { "type": "number", "minimum": 0 }] },
+        "reference": { "oneOf": [{ "type": "null" }, { "type": "string", "minLength": 1, "maxLength": 512 }] }
+      }
+    },
+    "runtime_isolation": {
+      "type": "object",
+      "additionalProperties": { "type": "string", "enum": ["passed", "failed", "not_applicable"] }
+    },
+    "capacity": { "type": "string", "enum": ["sufficient", "insufficient", "unknown"] },
+    "alerts": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[a-z][a-z0-9_-]{0,63}$" }
+    }
+  },
+  "$defs": {
+    "sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "releasePair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_revision", "web_digest", "app_digest"],
+      "properties": {
+        "source_revision": { "$ref": "#/$defs/sha" },
+        "web_digest": { "$ref": "#/$defs/digest" },
+        "app_digest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "probe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "latency_ms"],
+      "properties": {
+        "status": { "type": "string", "enum": ["healthy", "unhealthy", "unreachable", "not_configured"] },
+        "latency_ms": { "oneOf": [{ "type": "null" }, { "type": "integer", "minimum": 0, "maximum": 30000 }] }
+      }
+    },
+    "store": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "status"],
+      "properties": {
+        "name": { "type": "string", "enum": ["selfhandler_mysql_data", "selfhandler_private_files"] },
+        "status": { "type": "string", "enum": ["present", "missing", "unexpected"] }
+      }
+    }
+  }
+}

@@ -56,6 +56,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Immutable Release Identity
+    |--------------------------------------------------------------------------
+    |
+    | Production supplies the exact reviewed 40-character source revision at
+    | runtime. Readiness reports this non-secret value so release verification
+    | can prove which image pair is serving traffic.
+    |
+    */
+
+    'release' => env('APP_RELEASE_SHA', str_repeat('0', 40)),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |
@@ -65,7 +78,7 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    'timezone' => env('APP_TIMEZONE', 'UTC'),
 
     /*
     |--------------------------------------------------------------------------

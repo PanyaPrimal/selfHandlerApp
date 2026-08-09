@@ -4,8 +4,10 @@ import { fileURLToPath } from 'node:url'
 
 const webDir = path.dirname(fileURLToPath(import.meta.url))
 const apiDir = path.resolve(webDir, '../api')
-const apiPort = 18000
-const webPort = 15173
+// Keep the browser harness clear of DealFlow's local 18000 port and the
+// standard Vite development port so both projects can run side by side.
+const apiPort = 18110
+const webPort = 15183
 const apiUrl = `http://127.0.0.1:${apiPort}`
 const webUrl = `http://127.0.0.1:${webPort}`
 const e2eDatabase = path.join(apiDir, 'database', 'e2e.sqlite')

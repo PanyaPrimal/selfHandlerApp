@@ -1,17 +1,15 @@
 <!--
 Sync Impact Report
-- Version change: template -> 1.0.0
-- Added principles:
-  - I. Specifications Before Implementation
-  - II. Vision and Delivery Have Distinct Sources of Truth
-  - III. Thin Vertical Slices and Deliberate Simplicity
-  - IV. Deterministic Core, Optional AI
-  - V. User-Owned Data and Privacy by Design
-  - VI. Contracts and Tests Move Together
-- Added sections:
-  - Product and Technology Constraints
-  - Development Workflow and Quality Gates
-- Removed sections: none (initial ratification)
+- Version change: 1.0.0 -> 1.1.0
+- Amended constraints:
+  - Application runtime baseline: Laravel 11 -> Laravel 12 and PHP 8.4
+- Rationale:
+  - The supported Laravel 12 line removes known dependency advisories and matches the immutable
+    production runtime required by feature 002.
+- Reviewed artifacts:
+  - specs/002-homelab-deployment/plan.md: compatible
+  - specs/002-homelab-deployment/research.md: compatible
+  - specs/002-homelab-deployment/tasks.md: compatible
 - Follow-up TODOs: none
 -->
 # SelfHandler Constitution
@@ -72,8 +70,8 @@ path implementation details.
 
 - Product and repository documentation MUST be written in English. Personal learning notes outside
   the repository may remain in another language.
-- The delivery architecture is a monorepo with Laravel 11 in `apps/api`, Vue 3 and Vite in
-  `apps/web`, and a Capacitor shell in `apps/mobile`.
+- The delivery architecture is a monorepo with Laravel 12 on PHP 8.4 in `apps/api`, Vue 3 and Vite
+  in `apps/web`, and a Capacitor shell in `apps/mobile`.
 - Web and API communicate through explicit REST contracts. Mobile reuses the web client unless an
   approved feature plan demonstrates a platform-specific need.
 - MySQL 8 is the intended primary database. SQLite MAY be used for isolated automated tests when the
@@ -113,4 +111,4 @@ materially expand governance, and PATCH versions clarify wording without changin
 feature plan and pre-implementation analysis MUST check constitution compliance. Exceptions require
 explicit user approval and MUST be recorded in the affected plan under Complexity Tracking.
 
-**Version**: 1.0.0 | **Ratified**: 2026-08-07 | **Last Amended**: 2026-08-07
+**Version**: 1.1.0 | **Ratified**: 2026-08-07 | **Last Amended**: 2026-08-10

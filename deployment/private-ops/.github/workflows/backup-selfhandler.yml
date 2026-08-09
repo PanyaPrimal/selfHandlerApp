@@ -1,0 +1,245 @@
+name: Back up SelfHandler production
+
+on:
+  schedule:
+    - cron: '17 2 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: selfhandler-production-operations
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Encrypted off-host backup
+    runs-on: [self-hosted, Windows, X64, homelab, selfhandler]
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Verify and expand the installed qualified operations bundle
+        id: bundle
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version 2.0
+          function Assert-ProtectedOperationsPath {
+              param([Parameter(Mandatory = $true)][string]$Path, [switch]$Directory)
+              $item = Get-Item -LiteralPath $Path -Force
+              if (($Directory -and -not $item.PSIsContainer) -or
+                  (-not $Directory -and $item.PSIsContainer) -or
+                  ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+                  throw "Installed operations path has an unsafe type: $Path"
+              }
+              $acl = Get-Acl -LiteralPath $item.FullName
+              $runnerSid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+              $allowed = @($runnerSid, 'S-1-5-32-544', 'S-1-5-18')
+              try { $ownerSid = (New-Object Security.Principal.NTAccount([string]$acl.Owner)).Translate([Security.Principal.SecurityIdentifier]).Value }
+              catch {
+                  try { $ownerSid = (New-Object Security.Principal.SecurityIdentifier([string]$acl.Owner)).Value }
+                  catch { throw "Installed operations path has an unresolvable owner: $Path" }
+              }
+              if ($ownerSid -notin $allowed -or -not $acl.AreAccessRulesProtected) {
+                  throw "Installed operations path has an untrusted owner or inherited ACL: $Path"
+              }
+              $observed = @{}
+              foreach ($rule in @($acl.Access)) {
+                  $sid = $rule.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value
+                  if ($rule.IsInherited) { throw "Installed operations path contains an inherited ACL: $Path" }
+                  if ($rule.AccessControlType -eq [Security.AccessControl.AccessControlType]::Allow) {
+                      if ($sid -notin $allowed) { throw "Installed operations path grants an unexpected allow SID: $Path" }
+                      $observed[$sid] = $true
+                  }
+              }
+              foreach ($required in $allowed) {
+                  if (-not $observed.ContainsKey($required)) { throw "Installed operations path lacks a required trusted SID: $Path" }
+              }
+          }
+          $productionRoot = 'C:\Homelab\SelfHandlerApp'
+          Assert-ProtectedOperationsPath -Path $productionRoot -Directory
+          $stateRoot = Join-Path $productionRoot 'state'
+          $pointerPath = Join-Path $stateRoot 'active-operations.json'
+          if (-not (Test-Path -LiteralPath $pointerPath -PathType Leaf)) {
+              throw 'No successful checksum-qualified operations bundle is installed.'
+          }
+          Assert-ProtectedOperationsPath -Path $stateRoot -Directory
+          Assert-ProtectedOperationsPath -Path $pointerPath
+          $pointer = Get-Content -Raw -LiteralPath $pointerPath | ConvertFrom-Json
+          $pointerProperties = @($pointer.PSObject.Properties.Name | Sort-Object)
+          $expectedPointerProperties = @(
+              'actor', 'attempt_id', 'bundle_path', 'bundle_sha256', 'installed_at', 'manifest_path',
+              'manifest_sha256', 'schema_version', 'source_revision', 'trust_metadata_path',
+              'trust_metadata_sha256', 'workflow_ref', 'workflow_repository', 'workflow_run_attempt',
+              'workflow_run_id', 'workflow_sha'
+          ) | Sort-Object
+          $revision = [string]$pointer.source_revision
+          $sha = [string]$pointer.bundle_sha256
+          if (($pointerProperties -join ',') -ne ($expectedPointerProperties -join ',') -or
+              [int]$pointer.schema_version -ne 2 -or
+              $revision -notmatch '^[0-9a-f]{40}$' -or $sha -notmatch '^[0-9a-f]{64}$' -or
+              [string]$pointer.manifest_sha256 -notmatch '^[0-9a-f]{64}$' -or
+              [string]$pointer.trust_metadata_sha256 -notmatch '^[0-9a-f]{64}$') {
+              throw 'The active operations pointer is invalid.'
+          }
+          $qualifiedRoot = Join-Path $stateRoot 'qualified-bundles'
+          $expectedRoot = Join-Path $qualifiedRoot $revision
+          $expectedBundle = [IO.Path]::GetFullPath((Join-Path $expectedRoot 'deployment-bundle.zip'))
+          $expectedManifest = [IO.Path]::GetFullPath((Join-Path $expectedRoot 'release-manifest.json'))
+          $expectedTrust = [IO.Path]::GetFullPath((Join-Path $expectedRoot 'trust-metadata.json'))
+          if ([IO.Path]::GetFullPath([string]$pointer.bundle_path) -ne $expectedBundle -or
+              [IO.Path]::GetFullPath([string]$pointer.manifest_path) -ne $expectedManifest -or
+              [IO.Path]::GetFullPath([string]$pointer.trust_metadata_path) -ne $expectedTrust) {
+              throw 'The active operations pointer escaped the fixed state root.'
+          }
+          Assert-ProtectedOperationsPath -Path $qualifiedRoot -Directory
+          Assert-ProtectedOperationsPath -Path $expectedRoot -Directory
+          foreach ($path in @($expectedBundle, $expectedManifest, $expectedTrust)) {
+              Assert-ProtectedOperationsPath -Path $path
+          }
+          $manifest = Get-Content -Raw -LiteralPath $expectedManifest | ConvertFrom-Json
+          $trust = Get-Content -Raw -LiteralPath $expectedTrust | ConvertFrom-Json
+          $trustProperties = @($trust.PSObject.Properties.Name | Sort-Object)
+          $expectedTrustProperties = @(
+              'actor', 'attempt_id', 'bundle_sha256', 'deployment_id', 'manifest_sha256',
+              'schema_version', 'source_revision', 'workflow_ref', 'workflow_repository',
+              'workflow_run_attempt', 'workflow_run_id', 'workflow_sha'
+          ) | Sort-Object
+          if (($trustProperties -join ',') -ne ($expectedTrustProperties -join ',') -or
+              [int]$trust.schema_version -ne 1 -or
+              [string]$trust.deployment_id -ne 'selfhandler-production' -or
+              [string]$pointer.workflow_repository -ne 'PanyaPrimal/selfhandler-ops' -or
+              [string]$pointer.workflow_ref -ne 'PanyaPrimal/selfhandler-ops/.github/workflows/deploy-selfhandler.yml@refs/heads/master' -or
+              [string]$pointer.workflow_sha -notmatch '^[0-9a-f]{40}$' -or
+              [string]$manifest.deployment_id -ne 'selfhandler-production' -or
+              [string]$manifest.source_revision -ne $revision -or
+              [string]$manifest.deployment_bundle.sha256 -ne $sha -or
+              [string]$manifest.workflow_identity.repository -ne 'PanyaPrimal/selfhandler-ops' -or
+              [string]$manifest.workflow_identity.workflow_ref -ne 'PanyaPrimal/selfhandler-ops/.github/workflows/deploy-selfhandler.yml@refs/heads/master' -or
+              [string]$manifest.workflow_identity.run_id -ne [string]$pointer.workflow_run_id -or
+              [string]$manifest.workflow_identity.run_attempt -ne [string]$pointer.workflow_run_attempt -or
+              [string]$trust.source_revision -ne $revision -or
+              [string]$trust.attempt_id -ne [string]$pointer.attempt_id -or
+              [string]$trust.actor -ne [string]$pointer.actor -or
+              [string]$trust.workflow_repository -ne [string]$pointer.workflow_repository -or
+              [string]$trust.workflow_ref -ne [string]$pointer.workflow_ref -or
+              [string]$trust.workflow_sha -ne [string]$pointer.workflow_sha -or
+              [string]$trust.workflow_run_id -ne [string]$pointer.workflow_run_id -or
+              [string]$trust.workflow_run_attempt -ne [string]$pointer.workflow_run_attempt) {
+              throw 'The installed release manifest is not canonical.'
+          }
+          $actualSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $expectedBundle).Hash.ToLowerInvariant()
+          if ($actualSha -ne $sha -or
+              (Get-FileHash -Algorithm SHA256 -LiteralPath $expectedManifest).Hash.ToLowerInvariant() -ne [string]$pointer.manifest_sha256 -or
+              (Get-FileHash -Algorithm SHA256 -LiteralPath $expectedTrust).Hash.ToLowerInvariant() -ne [string]$pointer.trust_metadata_sha256) {
+              throw 'The installed operations bundle checksum changed.'
+          }
+          $expanded = Join-Path $env:RUNNER_TEMP ("selfhandler-active-ops-" + [guid]::NewGuid().ToString('N'))
+          Expand-Archive -LiteralPath $expectedBundle -DestinationPath $expanded
+          $script = Join-Path $expanded 'deployment\scripts\backup-production.ps1'
+          if (-not (Test-Path -LiteralPath $script -PathType Leaf)) {
+              throw 'The verified operations bundle has no backup entry point.'
+          }
+          "expanded_root=$expanded" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Provision checksum-verified portable Python and age
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pythonVersion = '3.12.10'
+          $pythonSha = '4acbed6dd1c744b0376e3b1cf57ce906f9dc9e95e68824584c8099a63025a3c3'
+          $pythonRoot = Join-Path $env:RUNNER_TEMP "python-$pythonVersion-embed-amd64"
+          $pythonArchive = "$pythonRoot.zip"
+          Invoke-WebRequest -UseBasicParsing -Uri "https://www.python.org/ftp/python/$pythonVersion/python-$pythonVersion-embed-amd64.zip" -OutFile $pythonArchive
+          if ((Get-FileHash -Algorithm SHA256 -LiteralPath $pythonArchive).Hash.ToLowerInvariant() -ne $pythonSha) {
+              throw 'Portable Python checksum verification failed.'
+          }
+          Expand-Archive -LiteralPath $pythonArchive -DestinationPath $pythonRoot
+          $pythonRoot | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          & (Join-Path $pythonRoot 'python.exe') --version
+
+          $ageVersion = '1.3.1'
+          $ageSha = 'c56e8ce22f7e80cb85ad946cc82d198767b056366201d3e1a2b93d865be38154'
+          $ageRoot = Join-Path $env:RUNNER_TEMP "age-$ageVersion-windows-amd64"
+          $ageArchive = "$ageRoot.zip"
+          Invoke-WebRequest -UseBasicParsing -Uri "https://github.com/FiloSottile/age/releases/download/v$ageVersion/age-v$ageVersion-windows-amd64.zip" -OutFile $ageArchive
+          if ((Get-FileHash -Algorithm SHA256 -LiteralPath $ageArchive).Hash.ToLowerInvariant() -ne $ageSha) {
+              throw 'age checksum verification failed.'
+          }
+          Expand-Archive -LiteralPath $ageArchive -DestinationPath $ageRoot
+          $age = Get-ChildItem -LiteralPath $ageRoot -Recurse -File -Filter 'age.exe' | Select-Object -First 1
+          if (-not $age) { throw 'Verified age archive contains no age.exe.' }
+          $age.DirectoryName | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          & $age.FullName --version
+
+      - name: Create and validate the scheduled encrypted backup
+        id: backup
+        shell: powershell
+        env:
+          EXPANDED_ROOT: ${{ steps.bundle.outputs.expanded_root }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $staging = Join-Path $env:RUNNER_TEMP ("selfhandler-scheduled-backup-" + [guid]::NewGuid().ToString('N'))
+          New-Item -ItemType Directory -Path $staging | Out-Null
+          $script = Join-Path $env:EXPANDED_ROOT 'deployment\scripts\backup-production.ps1'
+          $resultLines = @(& $script -Reason scheduled -OutputDirectory $staging)
+          if (-not $?) { throw 'Scheduled encrypted backup failed.' }
+          $result = $resultLines[-1] | ConvertFrom-Json
+          $fields = @($result.PSObject.Properties.Name | Sort-Object)
+          if (($fields -join ',') -ne 'BundleId,CiphertextPath,Sha256') {
+              throw 'Backup script returned unexpected output fields.'
+          }
+          $ciphertext = [IO.Path]::GetFullPath([string]$result.CiphertextPath)
+          $stagingPrefix = [IO.Path]::GetFullPath($staging).TrimEnd('\') + '\'
+          $sha = [string]$result.Sha256
+          $bundleId = [string]$result.BundleId
+          if (-not $ciphertext.StartsWith($stagingPrefix, [StringComparison]::OrdinalIgnoreCase) -or
+              -not (Test-Path -LiteralPath $ciphertext -PathType Leaf) -or
+              [IO.Path]::GetExtension($ciphertext) -ne '.age' -or
+              $sha -notmatch '^[0-9a-f]{64}$' -or
+              (Get-FileHash -Algorithm SHA256 -LiteralPath $ciphertext).Hash.ToLowerInvariant() -ne $sha -or
+              $bundleId -notmatch '^selfhandler-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8,64}$') {
+              throw 'Scheduled backup output validation failed.'
+          }
+          "ciphertext_path=$ciphertext" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "sha256=$sha" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "bundle_id=$bundleId" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Retain the encrypted backup off-host for 30 days
+        id: upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ steps.backup.outputs.bundle_id }}
+          path: ${{ steps.backup.outputs.ciphertext_path }}
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+      - name: Persist non-secret backup freshness evidence
+        shell: powershell
+        env:
+          EXPANDED_ROOT: ${{ steps.bundle.outputs.expanded_root }}
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+          ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
+          BUNDLE_ID: ${{ steps.backup.outputs.bundle_id }}
+          BACKUP_SHA256: ${{ steps.backup.outputs.sha256 }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          . (Join-Path $env:EXPANDED_ROOT 'deployment\scripts\shared.ps1')
+          if ($env:ARTIFACT_ID -notmatch '^[0-9]+$' -or
+              [string]::IsNullOrWhiteSpace($env:ARTIFACT_URL) -or
+              $env:BUNDLE_ID -notmatch '^selfhandler-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{8,64}$' -or
+              $env:BACKUP_SHA256 -notmatch '^[0-9a-f]{64}$') {
+              throw 'Off-host backup upload returned no immutable reference.'
+          }
+          $pendingPath = Join-Path (Join-Path $script:SelfHandlerStateRoot 'pending-backups') "$($env:BUNDLE_ID).json"
+          $evidence = Read-JsonFile -Path $pendingPath
+          if ([string]$evidence.reason -ne 'scheduled' -or
+              [string]$evidence.bundle_id -ne $env:BUNDLE_ID -or
+              [string]$evidence.ciphertext_sha256 -ne $env:BACKUP_SHA256) {
+              throw 'The pending scheduled evidence does not match the uploaded ciphertext.'
+          }
+          $reference = "$($env:ARTIFACT_URL)#artifact-id=$($env:ARTIFACT_ID);bundle-id=$($env:BUNDLE_ID);sha256=$($env:BACKUP_SHA256)"
+          Bind-OffHostBackupReference -Evidence $evidence -Reference $reference | Out-Null

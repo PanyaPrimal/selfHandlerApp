@@ -6,8 +6,8 @@ import { fileURLToPath } from 'node:url'
 const webDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const apiDir = path.resolve(webDir, '../api')
 const e2eDatabase = path.join(apiDir, 'database', 'e2e.sqlite')
-const apiUrl = 'http://127.0.0.1:18000'
-const webOrigin = '127.0.0.1:15173'
+const apiUrl = 'http://127.0.0.1:18110'
+const webOrigin = '127.0.0.1:15183'
 
 export default function globalSetup(): void {
   fs.mkdirSync(path.dirname(e2eDatabase), { recursive: true })

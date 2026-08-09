@@ -1,0 +1,236 @@
+name: Inspect SelfHandler production
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  inspect:
+    name: Non-secret production inspection
+    runs-on: [self-hosted, Windows, X64, homelab, selfhandler]
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Verify and expand the installed qualified operations bundle
+        id: bundle
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version 2.0
+          function Assert-ProtectedOperationsPath {
+              param([Parameter(Mandatory = $true)][string]$Path, [switch]$Directory)
+              $item = Get-Item -LiteralPath $Path -Force
+              if (($Directory -and -not $item.PSIsContainer) -or
+                  (-not $Directory -and $item.PSIsContainer) -or
+                  ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+                  throw "Installed operations path has an unsafe type: $Path"
+              }
+              $acl = Get-Acl -LiteralPath $item.FullName
+              $runnerSid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+              $allowed = @($runnerSid, 'S-1-5-32-544', 'S-1-5-18')
+              try { $ownerSid = (New-Object Security.Principal.NTAccount([string]$acl.Owner)).Translate([Security.Principal.SecurityIdentifier]).Value }
+              catch {
+                  try { $ownerSid = (New-Object Security.Principal.SecurityIdentifier([string]$acl.Owner)).Value }
+                  catch { throw "Installed operations path has an unresolvable owner: $Path" }
+              }
+              if ($ownerSid -notin $allowed -or -not $acl.AreAccessRulesProtected) {
+                  throw "Installed operations path has an untrusted owner or inherited ACL: $Path"
+              }
+              $observed = @{}
+              foreach ($rule in @($acl.Access)) {
+                  $sid = $rule.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value
+                  if ($rule.IsInherited) { throw "Installed operations path contains an inherited ACL: $Path" }
+                  if ($rule.AccessControlType -eq [Security.AccessControl.AccessControlType]::Allow) {
+                      if ($sid -notin $allowed) { throw "Installed operations path grants an unexpected allow SID: $Path" }
+                      $observed[$sid] = $true
+                  }
+              }
+              foreach ($required in $allowed) {
+                  if (-not $observed.ContainsKey($required)) { throw "Installed operations path lacks a required trusted SID: $Path" }
+              }
+          }
+          $productionRoot = 'C:\Homelab\SelfHandlerApp'
+          Assert-ProtectedOperationsPath -Path $productionRoot -Directory
+          $stateRoot = Join-Path $productionRoot 'state'
+          $pointerPath = Join-Path $stateRoot 'active-operations.json'
+          if (-not (Test-Path -LiteralPath $pointerPath -PathType Leaf)) {
+              throw 'No successful checksum-qualified operations bundle is installed.'
+          }
+          Assert-ProtectedOperationsPath -Path $stateRoot -Directory
+          Assert-ProtectedOperationsPath -Path $pointerPath
+          $pointer = Get-Content -Raw -LiteralPath $pointerPath | ConvertFrom-Json
+          $pointerProperties = @($pointer.PSObject.Properties.Name | Sort-Object)
+          $expectedPointerProperties = @(
+              'actor', 'attempt_id', 'bundle_path', 'bundle_sha256', 'installed_at', 'manifest_path',
+              'manifest_sha256', 'schema_version', 'source_revision', 'trust_metadata_path',
+              'trust_metadata_sha256', 'workflow_ref', 'workflow_repository', 'workflow_run_attempt',
+              'workflow_run_id', 'workflow_sha'
+          ) | Sort-Object
+          $revision = [string]$pointer.source_revision
+          $sha = [string]$pointer.bundle_sha256
+          if (($pointerProperties -join ',') -ne ($expectedPointerProperties -join ',') -or
+              [int]$pointer.schema_version -ne 2 -or
+              $revision -notmatch '^[0-9a-f]{40}$' -or $sha -notmatch '^[0-9a-f]{64}$' -or
+              [string]$pointer.manifest_sha256 -notmatch '^[0-9a-f]{64}$' -or
+              [string]$pointer.trust_metadata_sha256 -notmatch '^[0-9a-f]{64}$') {
+              throw 'The active operations pointer is invalid.'
+          }
+          $qualifiedRoot = Join-Path $stateRoot 'qualified-bundles'
+          $expectedRoot = Join-Path $qualifiedRoot $revision
+          $bundle = [IO.Path]::GetFullPath((Join-Path $expectedRoot 'deployment-bundle.zip'))
+          $manifestPath = [IO.Path]::GetFullPath((Join-Path $expectedRoot 'release-manifest.json'))
+          $trustPath = [IO.Path]::GetFullPath((Join-Path $expectedRoot 'trust-metadata.json'))
+          if ([IO.Path]::GetFullPath([string]$pointer.bundle_path) -ne $bundle -or
+              [IO.Path]::GetFullPath([string]$pointer.manifest_path) -ne $manifestPath -or
+              [IO.Path]::GetFullPath([string]$pointer.trust_metadata_path) -ne $trustPath) {
+              throw 'The active operations pointer escaped the fixed state root.'
+          }
+          Assert-ProtectedOperationsPath -Path $qualifiedRoot -Directory
+          Assert-ProtectedOperationsPath -Path $expectedRoot -Directory
+          foreach ($path in @($bundle, $manifestPath, $trustPath)) {
+              Assert-ProtectedOperationsPath -Path $path
+          }
+          $manifest = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json
+          $trust = Get-Content -Raw -LiteralPath $trustPath | ConvertFrom-Json
+          $trustProperties = @($trust.PSObject.Properties.Name | Sort-Object)
+          $expectedTrustProperties = @(
+              'actor', 'attempt_id', 'bundle_sha256', 'deployment_id', 'manifest_sha256',
+              'schema_version', 'source_revision', 'workflow_ref', 'workflow_repository',
+              'workflow_run_attempt', 'workflow_run_id', 'workflow_sha'
+          ) | Sort-Object
+          if (($trustProperties -join ',') -ne ($expectedTrustProperties -join ',') -or
+              [int]$trust.schema_version -ne 1 -or
+              [string]$trust.deployment_id -ne 'selfhandler-production' -or
+              [string]$pointer.workflow_repository -ne 'PanyaPrimal/selfhandler-ops' -or
+              [string]$pointer.workflow_ref -ne 'PanyaPrimal/selfhandler-ops/.github/workflows/deploy-selfhandler.yml@refs/heads/master' -or
+              [string]$pointer.workflow_sha -notmatch '^[0-9a-f]{40}$' -or
+              [string]$manifest.deployment_id -ne 'selfhandler-production' -or
+              [string]$manifest.source_revision -ne $revision -or
+              [string]$manifest.deployment_bundle.sha256 -ne $sha -or
+              [string]$manifest.workflow_identity.repository -ne 'PanyaPrimal/selfhandler-ops' -or
+              [string]$manifest.workflow_identity.workflow_ref -ne 'PanyaPrimal/selfhandler-ops/.github/workflows/deploy-selfhandler.yml@refs/heads/master' -or
+              [string]$manifest.workflow_identity.run_id -ne [string]$pointer.workflow_run_id -or
+              [string]$manifest.workflow_identity.run_attempt -ne [string]$pointer.workflow_run_attempt -or
+              [string]$trust.source_revision -ne $revision -or
+              [string]$trust.attempt_id -ne [string]$pointer.attempt_id -or
+              [string]$trust.actor -ne [string]$pointer.actor -or
+              [string]$trust.workflow_repository -ne [string]$pointer.workflow_repository -or
+              [string]$trust.workflow_ref -ne [string]$pointer.workflow_ref -or
+              [string]$trust.workflow_sha -ne [string]$pointer.workflow_sha -or
+              [string]$trust.workflow_run_id -ne [string]$pointer.workflow_run_id -or
+              [string]$trust.workflow_run_attempt -ne [string]$pointer.workflow_run_attempt -or
+              (Get-FileHash -Algorithm SHA256 -LiteralPath $bundle).Hash.ToLowerInvariant() -ne $sha -or
+              (Get-FileHash -Algorithm SHA256 -LiteralPath $manifestPath).Hash.ToLowerInvariant() -ne [string]$pointer.manifest_sha256 -or
+              (Get-FileHash -Algorithm SHA256 -LiteralPath $trustPath).Hash.ToLowerInvariant() -ne [string]$pointer.trust_metadata_sha256) {
+              throw 'The installed qualified bundle no longer matches its canonical manifest.'
+          }
+          $expanded = Join-Path $env:RUNNER_TEMP ("selfhandler-inspection-" + [guid]::NewGuid().ToString('N'))
+          Expand-Archive -LiteralPath $bundle -DestinationPath $expanded
+          $script = Join-Path $expanded 'deployment\scripts\inspect-production.ps1'
+          if (-not (Test-Path -LiteralPath $script -PathType Leaf)) {
+              throw 'The verified operations bundle has no inspection entry point.'
+          }
+          "expanded_root=$expanded" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Generate the secret-safe inspection report
+        id: report
+        shell: powershell
+        env:
+          EXPANDED_ROOT: ${{ steps.bundle.outputs.expanded_root }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $reportPath = Join-Path $env:RUNNER_TEMP ("selfhandler-health-$($env:GITHUB_RUN_ID).json")
+          $script = Join-Path $env:EXPANDED_ROOT 'deployment\scripts\inspect-production.ps1'
+          $resultLines = @(& $script)
+          if (-not $?) { throw 'Production inspection failed.' }
+          $json = [string]$resultLines[-1]
+          $report = $json | ConvertFrom-Json
+          $schemaPath = Join-Path $env:EXPANDED_ROOT 'specs\002-homelab-deployment\contracts\health-report.schema.json'
+          $schema = Get-Content -Raw -LiteralPath $schemaPath | ConvertFrom-Json
+          if ([string]$schema.'$id' -ne 'https://selfhandler.test/contracts/health-report.schema.json' -or
+              [string]$schema.'$schema' -ne 'https://json-schema.org/draft/2020-12/schema') {
+              throw 'The qualified health-report contract is missing or unexpected.'
+          }
+
+          function Assert-ExactProperties {
+              param([Parameter(Mandatory = $true)][psobject]$Value, [Parameter(Mandatory = $true)][string[]]$Required, [Parameter(Mandatory = $true)][string]$Path)
+              $actual = @($Value.PSObject.Properties.Name | Sort-Object)
+              $expected = @($Required | Sort-Object)
+              if (($actual -join ',') -ne ($expected -join ',')) { throw "$Path violates required/additionalProperties." }
+          }
+          function Assert-Probe {
+              param([Parameter(Mandatory = $true)][psobject]$Value, [Parameter(Mandatory = $true)][string]$Path)
+              $contract = $schema.'$defs'.probe
+              Assert-ExactProperties -Value $Value -Required @($contract.required) -Path $Path
+              if ([string]$Value.status -notin @($contract.properties.status.enum)) { throw "$Path.status is invalid." }
+              if ($null -ne $Value.latency_ms -and
+                  (-not ($Value.latency_ms -is [int] -or $Value.latency_ms -is [long]) -or
+                   [long]$Value.latency_ms -lt 0 -or [long]$Value.latency_ms -gt 30000)) {
+                  throw "$Path.latency_ms is invalid."
+              }
+          }
+          function Assert-Store {
+              param([Parameter(Mandatory = $true)][psobject]$Value, [Parameter(Mandatory = $true)][string]$Path)
+              $contract = $schema.'$defs'.store
+              Assert-ExactProperties -Value $Value -Required @($contract.required) -Path $Path
+              if ([string]$Value.name -notin @($contract.properties.name.enum) -or
+                  [string]$Value.status -notin @($contract.properties.status.enum)) {
+                  throw "$Path is invalid."
+              }
+          }
+
+          Assert-ExactProperties -Value $report -Required @($schema.required) -Path '$'
+          if ([int]$report.schema_version -ne 1 -or [string]$report.deployment_id -ne 'selfhandler-production') {
+              throw 'Inspection returned an unexpected target or schema version.'
+          }
+          try { [void][DateTimeOffset]::Parse([string]$report.observed_at) } catch { throw 'observed_at is not a date-time.' }
+          if ($null -ne $report.active_release) {
+              $pair = $schema.'$defs'.releasePair
+              Assert-ExactProperties -Value $report.active_release -Required @($pair.required) -Path '$.active_release'
+              if ([string]$report.active_release.source_revision -notmatch '^[0-9a-f]{40}$' -or
+                  [string]$report.active_release.web_digest -notmatch '^sha256:[0-9a-f]{64}$' -or
+                  [string]$report.active_release.app_digest -notmatch '^sha256:[0-9a-f]{64}$') {
+                  throw '$.active_release is not immutable.'
+              }
+          }
+          Assert-Probe -Value $report.local_readiness -Path '$.local_readiness'
+          Assert-Probe -Value $report.private_route -Path '$.private_route'
+          if ([string]$report.database -notin @($schema.properties.database.enum)) { throw '$.database is invalid.' }
+          Assert-ExactProperties -Value $report.persistent_stores -Required @($schema.properties.persistent_stores.required) -Path '$.persistent_stores'
+          Assert-Store -Value $report.persistent_stores.database_volume -Path '$.persistent_stores.database_volume'
+          Assert-Store -Value $report.persistent_stores.private_files_volume -Path '$.persistent_stores.private_files_volume'
+          Assert-ExactProperties -Value $report.latest_backup -Required @($schema.properties.latest_backup.required) -Path '$.latest_backup'
+          if ([string]$report.latest_backup.status -notin @($schema.properties.latest_backup.properties.status.enum) -or
+              ($null -ne $report.latest_backup.age_hours -and
+               (-not ($report.latest_backup.age_hours -is [ValueType]) -or [double]$report.latest_backup.age_hours -lt 0)) -or
+              ($null -ne $report.latest_backup.reference -and
+               (-not ($report.latest_backup.reference -is [string]) -or
+                [string]::IsNullOrWhiteSpace([string]$report.latest_backup.reference) -or
+                [string]$report.latest_backup.reference.Length -gt 512))) {
+              throw '$.latest_backup is invalid.'
+          }
+          if (-not ($report.runtime_isolation -is [pscustomobject])) { throw '$.runtime_isolation must be an object.' }
+          foreach ($property in @($report.runtime_isolation.PSObject.Properties)) {
+              if ([string]$property.Value -notin @('passed', 'failed', 'not_applicable')) { throw '$.runtime_isolation is invalid.' }
+          }
+          if ([string]$report.capacity -notin @($schema.properties.capacity.enum)) { throw '$.capacity is invalid.' }
+          if (-not ($report.alerts -is [System.Array])) { throw '$.alerts must be an array.' }
+          $alerts = @($report.alerts)
+          if (@($alerts | Sort-Object -Unique).Count -ne $alerts.Count -or
+              @($alerts | Where-Object { [string]$_ -notmatch '^[a-z][a-z0-9_-]{0,63}$' }).Count -ne 0) {
+              throw '$.alerts is invalid.'
+          }
+          [IO.File]::WriteAllText($reportPath, $json, (New-Object Text.UTF8Encoding($false)))
+          Write-Host "Inspection status: local=$([string]$report.local_readiness.status), private=$([string]$report.private_route.status), backup=$([string]$report.latest_backup.status)"
+          "report_path=$reportPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Publish the non-secret inspection report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: selfhandler-health-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ steps.report.outputs.report_path }}
+          if-no-files-found: error
+          retention-days: 7

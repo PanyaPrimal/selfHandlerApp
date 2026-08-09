@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+concurrency:
+  group: selfhandler-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out reviewed source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Set up PHP 8.4
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_sqlite, sqlite3
+          tools: composer:v2
+          coverage: none
+      - name: Validate Composer metadata
+        run: composer --working-dir=apps/api validate --strict --no-interaction
+      - name: Install locked backend dependencies
+        run: composer --working-dir=apps/api install --no-interaction --no-progress --prefer-dist
+      - name: Audit locked backend dependencies and formatting
+        run: |
+          composer --working-dir=apps/api audit --locked --no-interaction
+          apps/api/vendor/bin/pint --test
+      - name: Run backend tests
+        working-directory: apps/api
+        run: php artisan test
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out reviewed source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Set up Node.js 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.18.0
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Install locked frontend dependencies
+        working-directory: apps/web
+        run: npm ci
+      - name: Reject high-severity frontend advisories
+        run: npm --prefix apps/web audit --audit-level=high
+      - name: Type-check and build frontend
+        working-directory: apps/web
+        run: npm run build
+
+  e2e:
+    name: Browser acceptance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out reviewed source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Set up Node.js 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.18.0
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Set up PHP 8.4
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_sqlite, sqlite3
+          tools: composer:v2
+          coverage: none
+      - name: Install locked application dependencies
+        run: |
+          composer --working-dir=apps/api install --no-interaction --no-progress --prefer-dist
+          npm --prefix apps/web ci
+      - name: Install the reviewed browser family
+        working-directory: apps/web
+        run: npx playwright install --with-deps chromium
+      - name: Run desktop and mobile browser acceptance
+        working-directory: apps/web
+        run: npm run test:e2e
+
+  deployment:
+    name: Deployment contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out reviewed source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Install validation-only dependencies
+        run: python -m pip install --disable-pip-version-check --require-hashes -r deployment/tests/requirements.txt
+      - name: Run deployment contract tests
+        run: python -m unittest discover -s deployment/tests -p 'test_*.py' -v

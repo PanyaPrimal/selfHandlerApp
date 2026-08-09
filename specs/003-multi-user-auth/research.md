@@ -13,7 +13,7 @@ local Vite server proxies the same paths. Cookie sessions keep the authenticatio
 give Laravel's normal CSRF protection, reuse the existing `sessions` table, and avoid introducing token
 issuance/revocation for a consumer that does not need it. Laravel explicitly recommends stateful
 cookie authentication rather than API tokens for first-party SPAs:
-https://laravel.com/docs/11.x/sanctum#spa-authentication.
+https://laravel.com/docs/12.x/sanctum#spa-authentication.
 
 **Alternatives considered**: Browser-stored personal access token; custom JWT; HTTP Basic; applying
 the complete `web` middleware group directly without Sanctum. Tokens create client-side credential
@@ -58,7 +58,7 @@ Never log, serialize, repopulate, or persist plaintext passwords in the Vue clie
 **Rationale**: Length permits memorable passphrases and is testable without rejecting otherwise strong
 passwords for missing symbol categories. Laravel's password rule supports one centralized minimum,
 and the existing model already prevents plaintext persistence. Validation options are documented at
-https://laravel.com/docs/11.x/validation#validating-passwords.
+https://laravel.com/docs/12.x/validation#validating-passwords.
 
 **Alternatives considered**: Mixed-case/symbol rules; a breached-password network lookup; accepting
 short passwords. Composition rules reduce passphrase usability, an external lookup would put network
@@ -71,7 +71,7 @@ out the web guard, invalidate the current session, and regenerate the CSRF token
 with `GET /api/auth/user`; an absent/expired session returns `401` and never a redirect or HTML page.
 
 **Rationale**: Rotation prevents session fixation; invalidation and token regeneration are Laravel's
-recommended manual logout sequence: https://laravel.com/docs/11.x/authentication#logging-out. A current-
+recommended manual logout sequence: https://laravel.com/docs/12.x/authentication#logging-out. A current-
 account endpoint lets the SPA gate routes without exposing session internals.
 
 **Alternatives considered**: Persist account JSON in local storage; clear only the client state on
@@ -87,7 +87,7 @@ key where manual failure counting is used.
 
 **Rationale**: Combined identity/network signals slow targeted guessing without letting a single
 email value block every user behind one address. Laravel provides atomic counters and remaining-window
-information through its rate limiter: https://laravel.com/docs/11.x/rate-limiting.
+information through its rate limiter: https://laravel.com/docs/12.x/rate-limiting.
 
 **Alternatives considered**: IP-only login throttling; account-only throttling; permanent lockout;
 CAPTCHA. Each is either too broad, creates an account-existence/denial risk, or adds an external
@@ -135,7 +135,7 @@ client session; the expected bootstrap `401` is handled locally as guest.
 **Rationale**: Native fetch does not automatically copy the XSRF cookie into Laravel's header. A
 single bounded retry recovers from token rotation without risking unbounded duplicate writes. The
 Sanctum CSRF sequence is documented at
-https://laravel.com/docs/11.x/sanctum#csrf-protection.
+https://laravel.com/docs/12.x/sanctum#csrf-protection.
 
 **Alternatives considered**: Disable CSRF for API routes; rely on SameSite alone; retry every error.
 All weaken state-changing request protection or can duplicate operations.

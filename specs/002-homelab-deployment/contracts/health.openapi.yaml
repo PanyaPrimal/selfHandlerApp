@@ -1,0 +1,55 @@
+openapi: 3.1.0
+info:
+  title: SelfHandler Deployment Health Contract
+  version: 1.0.0
+  description: Non-secret readiness contract used by Docker, release verification, and inspection.
+servers:
+  - url: https://homelab.tail31a802.ts.net:8443
+    description: Fixed private production origin; reachable only inside the owner's tailnet.
+paths:
+  /api/health:
+    get:
+      operationId: deploymentReadiness
+      summary: Verify Laravel boot, release identity, and database connectivity
+      security: []
+      responses:
+        '200':
+          description: The request path and database are ready.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              examples:
+                ready:
+                  value:
+                    status: ok
+                    release: 0123456789abcdef0123456789abcdef01234567
+        '503':
+          description: The application booted but a readiness dependency is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              examples:
+                unavailable:
+                  value:
+                    status: unavailable
+                    release: 0123456789abcdef0123456789abcdef01234567
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - release
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+            - unavailable
+        release:
+          type: string
+          pattern: '^[0-9a-f]{40}$'
+          description: Exact reviewed source revision supplied as non-secret runtime configuration.

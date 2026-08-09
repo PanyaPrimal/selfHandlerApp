@@ -33,7 +33,7 @@ Capacitor wrapper around the web client for Android first, with room for iOS lat
 Local backend development is based on Open Server:
 
 - Open Server as the Windows local environment manager
-- PHP 8.3 for Laravel
+- PHP 8.4 for Laravel
 - MySQL 8 for the primary database
 - Redis as an optional local cache/queue backend
 - Vue web app running separately through Vite during frontend development

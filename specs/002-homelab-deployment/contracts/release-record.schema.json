@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://selfhandler.test/contracts/release-record.schema.json",
+  "title": "SelfHandler Release Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "attempt_id",
+    "deployment_id",
+    "source_revision",
+    "web_digest",
+    "app_digest",
+    "previous_release",
+    "schema_before",
+    "schema_after",
+    "backup_reference",
+    "actor",
+    "started_at",
+    "completed_at",
+    "checks",
+    "outcome",
+    "restored_release",
+    "failure_code"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "attempt_id": { "type": "string", "pattern": "^[A-Za-z0-9._-]{8,128}$" },
+    "deployment_id": { "const": "selfhandler-production" },
+    "source_revision": { "$ref": "#/$defs/sha" },
+    "web_digest": { "$ref": "#/$defs/digest" },
+    "app_digest": { "$ref": "#/$defs/digest" },
+    "previous_release": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/releasePair" }] },
+    "schema_before": { "$ref": "#/$defs/sha256" },
+    "schema_after": { "$ref": "#/$defs/sha256" },
+    "backup_reference": { "oneOf": [{ "type": "null" }, { "type": "string", "minLength": 1, "maxLength": 512 }] },
+    "actor": { "type": "string", "pattern": "^[A-Za-z0-9_.-]{1,100}$" },
+    "started_at": { "type": "string", "format": "date-time" },
+    "completed_at": { "type": "string", "format": "date-time" },
+    "checks": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z][a-z0-9_-]{0,63}$" },
+      "additionalProperties": { "type": "string", "enum": ["passed", "failed", "not_run"] }
+    },
+    "outcome": {
+      "type": "string",
+      "enum": ["succeeded", "rejected", "failed_before_replace", "rolled_back", "recovery_required"]
+    },
+    "restored_release": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/releasePair" }] },
+    "failure_code": { "oneOf": [{ "type": "null" }, { "type": "string", "pattern": "^[a-z][a-z0-9_-]{0,63}$" }] }
+  },
+  "$defs": {
+    "sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "releasePair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_revision", "web_digest", "app_digest"],
+      "properties": {
+        "source_revision": { "$ref": "#/$defs/sha" },
+        "web_digest": { "$ref": "#/$defs/digest" },
+        "app_digest": { "$ref": "#/$defs/digest" }
+      }
+    }
+  }
+}

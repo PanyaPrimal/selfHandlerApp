@@ -23,20 +23,21 @@ The backend is intentionally developed through Open Server so the project double
 Install dependencies:
 
 ```bat
-C:\OSPanel\modules\PHP-8.3\php.exe C:\OSPanel\data\PHP-8.3\default\composer\composer.phar install
+php --version
+composer install
 ```
 
 Initial Laravel setup:
 
 ```bat
 copy .env.example .env
-C:\OSPanel\modules\PHP-8.3\php.exe artisan key:generate
-C:\OSPanel\modules\PHP-8.3\php.exe artisan migrate
+php artisan key:generate
+php artisan migrate
 ```
 
 ## Notes
 
-- Open Server already contains PHP 8.3 on this machine.
-- The Open Server `composer.bat` expects PHP to be available in its environment, so the most reliable path is invoking `php.exe` with `composer.phar` directly.
+- PHP 8.4 is available on this machine and matches the production runtime.
+- Select PHP 8.4 in Open Server and run Composer from a shell whose `php` command resolves that runtime.
 - Redis can stay optional for the first MVP.
 - Docker is not the default local backend path for this project right now.

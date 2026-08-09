@@ -36,6 +36,8 @@ _tmp/
 test-results/
 playwright-report/
 apps/api/database/e2e.sqlite
+__pycache__/
+*.py[cod]
 
 # Mobile
 android/.gradle/

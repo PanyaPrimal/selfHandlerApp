@@ -13,6 +13,15 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // PHP-FPM is reachable only from the isolated Nginx network. Nginx
+        // overwrites these headers, so Laravel can safely recover the fixed
+        // private HTTPS origin instead of trusting client-supplied values.
+        $middleware->trustProxies(
+            at: '*',
+            headers: Request::HEADER_X_FORWARDED_FOR
+                | Request::HEADER_X_FORWARDED_HOST
+                | Request::HEADER_X_FORWARDED_PROTO,
+        );
         $middleware->statefulApi();
         $middleware->redirectGuestsTo(
             static fn (Request $request): ?string => $request->is('api/*') ? null : '/login',

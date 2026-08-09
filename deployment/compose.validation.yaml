@@ -1,0 +1,51 @@
+# Combine with compose.production.yaml only from the disposable smoke launcher.
+# Every project/resource identifier is generated; production names are absent.
+name: ${SELFHANDLER_VALIDATION_PROJECT:?SELFHANDLER_VALIDATION_PROJECT is required}
+
+services:
+  db:
+    restart: "no"
+    labels:
+      selfhandler.validation-project: ${SELFHANDLER_VALIDATION_PROJECT:?SELFHANDLER_VALIDATION_PROJECT is required}
+
+  app:
+    image: ${SELFHANDLER_VALIDATION_PROJECT:?SELFHANDLER_VALIDATION_PROJECT is required}-app:${SELFHANDLER_VALIDATION_TAG:-local}
+    build:
+      context: ..
+      dockerfile: deployment/docker/Dockerfile
+      target: app-runtime
+      args:
+        SOURCE_REVISION: ${APP_RELEASE_SHA:?APP_RELEASE_SHA is required}
+    environment:
+      APP_URL: http://127.0.0.1:${SELFHANDLER_VALIDATION_PORT:?SELFHANDLER_VALIDATION_PORT is required}
+      SESSION_SECURE_COOKIE: "false"
+      SANCTUM_STATEFUL_DOMAINS: 127.0.0.1:${SELFHANDLER_VALIDATION_PORT:?SELFHANDLER_VALIDATION_PORT is required}
+    restart: "no"
+    labels:
+      selfhandler.validation-project: ${SELFHANDLER_VALIDATION_PROJECT:?SELFHANDLER_VALIDATION_PROJECT is required}
+
+  web:
+    image: ${SELFHANDLER_VALIDATION_PROJECT:?SELFHANDLER_VALIDATION_PROJECT is required}-web:${SELFHANDLER_VALIDATION_TAG:-local}
+    build:
+      context: ..
+      dockerfile: deployment/docker/Dockerfile
+      target: web-runtime
+      args:
+        SOURCE_REVISION: ${APP_RELEASE_SHA:?APP_RELEASE_SHA is required}
+    restart: "no"
+    ports: !override
+      - "127.0.0.1:${SELFHANDLER_VALIDATION_PORT:?SELFHANDLER_VALIDATION_PORT is required}:8080"
+    labels:
+      selfhandler.validation-project: ${SELFHANDLER_VALIDATION_PROJECT:?SELFHANDLER_VALIDATION_PROJECT is required}
+
+networks:
+  app:
+    name: ${SELFHANDLER_VALIDATION_PROJECT:?SELFHANDLER_VALIDATION_PROJECT is required}_app
+  data:
+    name: ${SELFHANDLER_VALIDATION_PROJECT:?SELFHANDLER_VALIDATION_PROJECT is required}_data
+
+volumes:
+  mysql_data:
+    name: ${SELFHANDLER_VALIDATION_PROJECT:?SELFHANDLER_VALIDATION_PROJECT is required}_mysql_data
+  private_files:
+    name: ${SELFHANDLER_VALIDATION_PROJECT:?SELFHANDLER_VALIDATION_PROJECT is required}_private_files

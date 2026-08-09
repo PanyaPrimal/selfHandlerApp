@@ -8,9 +8,9 @@ SelfHandler is a personal system for managing routines, health, goals, tasks, id
 
 ## Stack
 
-- Backend: Laravel 11
+- Backend: Laravel 12
 - Database: MySQL 8
-- Cache/queues: Redis
+- Current cache, sessions, and queues: database-backed; Redis is deferred until a feature needs it
 - Web: Vue 3 + Vite
 - Mobile: Capacitor
 - Local backend runtime: Open Server
@@ -43,3 +43,22 @@ implementation. Project governance is defined in
 
 Spec Kit's Git extension is intentionally not installed. Work stays on the branch already selected by
 the user; project automation must not create or switch branches.
+
+## Homelab Deployment
+
+Feature [`002-homelab-deployment`](specs/002-homelab-deployment/spec.md) defines the fixed private
+production target. SelfHandler runs beside DealFlow as the isolated Docker Compose project
+`selfhandler`: Nginx/Vue on loopback port 18080, internal PHP-FPM, internal MySQL 8.4, and separate
+database/private-file volumes. Private HTTPS is provided by tailnet-only Tailscale Serve on port 8443;
+the existing DealFlow Funnel on 443 is not shared or reset.
+
+Public-repository code is qualified only on GitHub-hosted runners. The homelab runner belongs to a
+separate private operations repository and accepts only the exact reviewed image digests plus its
+checksum-verified deployment bundle. Runtime and recovery details are documented in
+[`deployment/README.md`](deployment/README.md).
+
+Local deployment validation commands:
+
+```powershell
+npm run validate:deployment
+```

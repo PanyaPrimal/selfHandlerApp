@@ -1,0 +1,45 @@
+# Deny the whole repository by default; the release images need only the two
+# application trees and their reviewed runtime configuration.
+*
+!apps/
+!apps/api/
+!apps/api/**
+!apps/web/
+!apps/web/**
+!deployment/
+!deployment/docker/
+!deployment/docker/**
+
+# Secrets and machine-local configuration must never enter a build context.
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
+**/*secret*
+**/*credential*
+
+# Dependency trees and generated output are rebuilt from lock files.
+**/node_modules/
+**/vendor/
+**/dist/
+**/.vite/
+**/coverage/
+**/test-results/
+**/playwright-report/
+**/.phpunit.cache/
+**/.phpunit.result.cache
+
+# Tests, local databases, logs, caches, and editor/VCS metadata are not
+# runtime image inputs.
+apps/api/tests/
+apps/web/tests/
+apps/web/e2e/
+**/*.sqlite
+**/*.sqlite-*
+**/*.log
+**/.git/
+**/.github/
+**/.idea/
+**/.vscode/
+**/.DS_Store
+**/Thumbs.db

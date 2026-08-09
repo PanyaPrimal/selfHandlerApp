@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://selfhandler.test/contracts/release-manifest.schema.json",
+  "title": "SelfHandler Release Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "deployment_id",
+    "source_repository",
+    "source_revision",
+    "workflow_run_id",
+    "created_at",
+    "web_image",
+    "app_image",
+    "deployment_bundle",
+    "schema_fingerprint",
+    "quality_evidence",
+    "workflow_identity",
+    "attestations"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "deployment_id": { "const": "selfhandler-production" },
+    "source_repository": { "const": "PanyaPrimal/selfHandlerApp" },
+    "source_revision": { "$ref": "#/$defs/sha" },
+    "workflow_run_id": { "type": "integer", "minimum": 1 },
+    "created_at": { "type": "string", "format": "date-time" },
+    "web_image": { "$ref": "#/$defs/image" },
+    "app_image": { "$ref": "#/$defs/image" },
+    "deployment_bundle": { "$ref": "#/$defs/artifact" },
+    "schema_fingerprint": { "$ref": "#/$defs/sha256" },
+    "quality_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["backend", "frontend", "e2e", "deployment", "production_smoke"],
+      "properties": {
+        "backend": { "$ref": "#/$defs/check" },
+        "frontend": { "$ref": "#/$defs/check" },
+        "e2e": { "$ref": "#/$defs/check" },
+        "deployment": { "$ref": "#/$defs/check" },
+        "production_smoke": { "$ref": "#/$defs/check" }
+      }
+    },
+    "workflow_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "workflow_ref", "event", "run_id", "run_attempt", "qualification_status"],
+      "properties": {
+        "repository": { "const": "PanyaPrimal/selfhandler-ops" },
+        "workflow_ref": { "type": "string", "pattern": "^PanyaPrimal/selfhandler-ops/\\.github/workflows/deploy-selfhandler\\.yml@refs/heads/master$" },
+        "event": { "const": "repository_dispatch" },
+        "run_id": { "type": "integer", "minimum": 1 },
+        "run_attempt": { "type": "integer", "minimum": 1 },
+        "qualification_status": { "const": "passed" }
+      }
+    },
+    "attestations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["web", "app"],
+      "properties": {
+        "web": { "$ref": "#/$defs/attestation" },
+        "app": { "$ref": "#/$defs/attestation" }
+      }
+    }
+  },
+  "$defs": {
+    "sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "digest", "revision"],
+      "properties": {
+        "repository": { "type": "string", "pattern": "^ghcr\\.io/panyaprimal/selfhandler-(web|app)$" },
+        "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "revision": { "$ref": "#/$defs/sha" }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "bytes", "sha256"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^selfhandler-deployment-[0-9a-f]{40}$" },
+        "bytes": { "type": "integer", "minimum": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "run_id"],
+      "properties": {
+        "status": { "const": "passed" },
+        "run_id": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "attestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject_digest", "predicate_type", "verification_repository"],
+      "properties": {
+        "subject_digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "predicate_type": { "const": "https://slsa.dev/provenance/v1" },
+        "verification_repository": { "const": "PanyaPrimal/selfhandler-ops" }
+      }
+    }
+  }
+}
