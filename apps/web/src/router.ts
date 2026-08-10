@@ -73,10 +73,21 @@ export const router = createRouter({
 
 router.beforeEach(async (to) => {
   await restoreSession()
-  const session = useAuthSession()
+  let session = useAuthSession()
 
+  // A single failed/timed-out session probe leaves the status 'unavailable'.
+  // Before routing on that, retry once so a transient network blip over the
+  // Funnel does not strand an authenticated user on the login screen.
   if (session.status === 'unavailable') {
-    return true
+    await restoreSession(true)
+    session = useAuthSession()
+  }
+
+  // Still unavailable: the backend is genuinely unreachable. Send the visitor
+  // to the login screen (which surfaces the connection error) rather than
+  // silently rendering a protected page that cannot load its data.
+  if (session.status === 'unavailable') {
+    return to.name === 'login' ? true : { name: 'login' }
   }
 
   if (to.meta.requiresAuth && session.status !== 'authenticated') {

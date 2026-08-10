@@ -4,7 +4,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { ApiError, validationErrors, type ValidationErrors } from '../api/http'
 import type { LoginPayload } from '../api/types'
 import { safeRedirect } from '../auth/redirect'
-import { login } from '../auth/session'
+import { login, restoreSession, useAuthSession } from '../auth/session'
 
 const route = useRoute()
 const router = useRouter()
@@ -73,6 +73,17 @@ async function submitLogin(): Promise<void> {
     form.password = ''
     await router.replace(safeRedirect(route.query.redirect))
   } catch (currentError) {
+    // 409 = this browser already has a live session. Instead of asking the user
+    // to reload manually, restore the session and continue to the workspace.
+    if (currentError instanceof ApiError && currentError.status === 409) {
+      form.password = ''
+      await restoreSession(true)
+      if (useAuthSession().status === 'authenticated') {
+        await router.replace(safeRedirect(route.query.redirect))
+        return
+      }
+    }
+
     fieldErrors.value = validationErrors(currentError)
     error.value = failureMessage(currentError)
     form.password = ''
