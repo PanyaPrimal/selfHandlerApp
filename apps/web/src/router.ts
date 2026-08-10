@@ -73,21 +73,13 @@ export const router = createRouter({
 
 router.beforeEach(async (to) => {
   await restoreSession()
-  let session = useAuthSession()
+  const session = useAuthSession()
 
-  // A single failed/timed-out session probe leaves the status 'unavailable'.
-  // Before routing on that, retry once so a transient network blip over the
-  // Funnel does not strand an authenticated user on the login screen.
+  // The backend could not be reached to confirm the session. App.vue renders a
+  // dedicated "unavailable" screen with a Retry button in this state, so let the
+  // navigation proceed and be handled there rather than routing on stale status.
   if (session.status === 'unavailable') {
-    await restoreSession(true)
-    session = useAuthSession()
-  }
-
-  // Still unavailable: the backend is genuinely unreachable. Send the visitor
-  // to the login screen (which surfaces the connection error) rather than
-  // silently rendering a protected page that cannot load its data.
-  if (session.status === 'unavailable') {
-    return to.name === 'login' ? true : { name: 'login' }
+    return true
   }
 
   if (to.meta.requiresAuth && session.status !== 'authenticated') {

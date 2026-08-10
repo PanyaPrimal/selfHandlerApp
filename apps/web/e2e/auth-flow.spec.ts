@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import {
+  createInviteCode,
   loginViaUi,
   logoutViaUi,
   registerViaUi,
@@ -28,6 +29,7 @@ test('registration normalizes identity, restores the session, and rejects a dupl
   await logoutViaUi(page)
 
   await page.goto('/register')
+  await page.getByLabel('Invite code').fill(createInviteCode())
   await page.getByLabel('Display name').fill('Duplicate account')
   await page.getByLabel('Email').fill(mixedEmail)
   await page.getByLabel('Password', { exact: true }).fill(credentials.password)
@@ -46,6 +48,7 @@ test('protected deep links support generic login, reload restoration, and invali
   await expectRedirect(page, '/login', '/goals')
   await page.getByRole('link', { name: 'Create account' }).click()
   await expectRedirect(page, '/register', '/goals')
+  await page.getByLabel('Invite code').fill(createInviteCode())
   await page.getByLabel('Display name').fill(credentials.name)
   await page.getByLabel('Email').fill(credentials.email)
   await page.getByLabel('Password', { exact: true }).fill(credentials.password)

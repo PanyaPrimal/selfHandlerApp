@@ -1,10 +1,42 @@
 import { expect, type Page, type TestInfo } from '@playwright/test'
+import { execFileSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const apiDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../api')
+const e2eDatabase = path.join(apiDir, 'database', 'e2e.sqlite')
 
 export interface TestCredentials {
   name: string
   email: string
   password: string
+}
+
+/**
+ * Create a single-use invite code directly in the e2e database so a UI
+ * registration can consume it. Registration is invite-only.
+ */
+export function createInviteCode(): string {
+  const code = `E2E-${randomUUID().slice(0, 4).toUpperCase()}-${randomUUID().slice(0, 4).toUpperCase()}`
+
+  execFileSync(
+    'php',
+    ['artisan', 'tinker', '--execute', `\\App\\Models\\Invitation::create(['code' => '${code}']);`],
+    {
+      cwd: apiDir,
+      stdio: 'ignore',
+      env: {
+        ...process.env,
+        APP_ENV: 'testing',
+        APP_KEY: 'base64:8mx6/PHn6hHX2o4bOMOlPxpdrJeWHdxklSX7Z92ro8Q=',
+        DB_CONNECTION: 'sqlite',
+        DB_DATABASE: e2eDatabase,
+      },
+    },
+  )
+
+  return code
 }
 
 export function uniqueCredentials(testInfo: TestInfo, label: string): TestCredentials {
@@ -27,8 +59,11 @@ export async function registerViaUi(
     ? `/register?redirect=${encodeURIComponent(options.redirectTo)}`
     : '/register'
 
+  const inviteCode = createInviteCode()
+
   await page.goto(registerUrl)
   await expect(page.getByRole('heading', { name: 'Create your account' })).toBeVisible()
+  await page.getByLabel('Invite code').fill(inviteCode)
   await page.getByLabel('Display name').fill(credentials.name)
   await page.getByLabel('Email').fill(options.emailInput ?? credentials.email)
   await page.getByLabel('Password', { exact: true }).fill(credentials.password)
