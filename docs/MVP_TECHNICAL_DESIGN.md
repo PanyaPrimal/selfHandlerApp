@@ -1,7 +1,8 @@
 # MVP Technical Design
 
-> Implementation contract for the first product slice described in [MVP.md](MVP.md).
-> This document narrows the full design into the smallest useful backend + web loop.
+> Implemented contract for the first product slice described in [MVP.md](MVP.md).
+> Core Daily Loop tasks T001-T040 were complete and green on 2026-08-11, including the final
+> cross-cutting contract, accessibility, responsive-layout, and documentation pass.
 
 ## Scope
 
@@ -16,15 +17,16 @@ This is intentionally smaller than the full module design. The goal is to build 
 
 ## Product Flow
 
-The user opens the app and lands on **Today**:
+An authenticated user opens the private application and lands on **Today**:
 
-- sees today's routine items
-- marks each routine as done or skipped
-- sees today's completion rate
-- fills in an evening review
-- sees simple streak and recent completion data
+- sees routine items scheduled for the selected calendar date
+- marks each occurrence done or skipped, or clears it back to pending
+- sees selected-day counts plus a seven-day completion summary
+- fills in or edits one evening review for the date
+- sees scheduled-occurrence streaks and active goal context
 
-The MVP is online-only and single-user in product behavior, but all domain tables still have `user_id` from day one.
+The MVP is online-only. Every domain route requires a Sanctum-authenticated session, and every query,
+write, relationship lookup, and uniqueness boundary is scoped to that account's `user_id`.
 
 ## Backend Domain Model
 
@@ -40,6 +42,8 @@ Fields:
 - `description` nullable
 - `type` string, default `general`
 - `status` enum/string: `active`, `completed`, `abandoned`
+- `is_archived` boolean, default false
+- `archived_at` nullable UTC datetime
 - `target_date` nullable date
 - `completed_at` nullable datetime
 - timestamps
@@ -63,10 +67,11 @@ Fields:
 - `description` nullable
 - `kind` enum/string: `routine`, `sleep`, `habit`
 - `schedule_type` enum/string: `daily`, `weekdays`
-- `weekdays` JSON nullable, e.g. `["MO", "WE", "FR"]`
 - `preferred_time` nullable time
 - `sort_order` unsigned integer
 - `is_active` boolean
+- `is_archived` boolean
+- `archived_at` nullable UTC datetime
 - `starts_on` nullable date
 - `ends_on` nullable date
 - timestamps
@@ -75,8 +80,30 @@ Fields:
 Notes:
 
 - This is not the full recurrence engine yet.
-- The fields cover the MVP need: daily routines and weekday-based routines.
-- When the shared `RecurringRule` engine is implemented, a routine can become an owner of a recurring rule. Until then, the routine itself carries the simple schedule.
+- Daily routines have no weekday rows. Weekday schedules require one or more normalized
+  `routine_weekdays` rows using `MO` through `SU`.
+- Pause (`is_active=false`) and archive are separate lifecycle states; restore preserves the prior
+  paused/active value. Archive is not soft deletion.
+- After the first log exists, schedule type, weekdays, and start date are locked to preserve history.
+- When the shared `RecurringRule` engine is implemented, a routine can become an owner of a recurring
+  rule. Until then, the routine itself carries the simple schedule.
+
+### `routine_weekdays`
+
+Normalized weekday membership for a weekday-scheduled routine.
+
+Fields:
+
+- `id`
+- `user_id`
+- `routine_id`
+- `weekday`: `MO`, `TU`, `WE`, `TH`, `FR`, `SA`, or `SU`
+- timestamps
+
+Constraints:
+
+- unique `(user_id, routine_id, weekday)`
+- the row owner must match the routine owner
 
 ### `goal_routine`
 
@@ -123,6 +150,7 @@ Notes:
 
 - Absence of a log means "not handled yet", not "failed".
 - `skipped` is explicit: the user chose to skip it.
+- deleting the dated log is the explicit and idempotent transition back to pending
 - This table is the source for streaks and completion rate.
 
 ### `daily_reviews`
@@ -180,18 +208,18 @@ All endpoints are under `/api`.
 
 Returns:
 
-- target date
-- routines scheduled for the date
-- each routine's log status for that date
-- completion summary
-- today's daily review if it exists
-- active goals related to today's routines
+- selected calendar date
+- routines scheduled for the date, including each log and current streak
+- selected-day scheduled/done/skipped/pending counts and completion rate
+- the date's daily review when present
+- active, non-archived goal context related to displayed routines
+- the inclusive seven-day progress period and summary
 
 ### Routines
 
-`GET /api/routines`
+`GET /api/routines?archived=false|true`
 
-List routines.
+List current or archived routines owned by the authenticated user.
 
 `POST /api/routines`
 
@@ -199,11 +227,8 @@ Create routine.
 
 `PATCH /api/routines/{routine}`
 
-Update routine.
-
-`DELETE /api/routines/{routine}`
-
-Soft-delete or deactivate routine. For the MVP, prefer `is_active=false` for normal user hiding; reserve `deleted_at` for real deletion/trash behavior.
+Update routine fields or perform pause/resume and archive/restore transitions. There is no routine
+resource `PUT` or `DELETE`; soft-deleted trash remains a future concern.
 
 ### Routine Logs
 
@@ -215,6 +240,10 @@ Request:
 
 - `status`: `done` or `skipped`
 - `note` optional
+
+`DELETE /api/routines/{routine}/logs/{date}`
+
+Idempotently clear the dated outcome back to pending.
 
 ### Daily Reviews
 
@@ -228,9 +257,9 @@ Upsert review for a date.
 
 ### Goals
 
-`GET /api/goals`
+`GET /api/goals?archived=false|true`
 
-List goals.
+List current or archived goals owned by the authenticated user.
 
 `POST /api/goals`
 
@@ -238,7 +267,8 @@ Create goal.
 
 `PATCH /api/goals/{goal}`
 
-Update goal.
+Update editable fields or perform complete/abandon/reactivate and archive/restore transitions. Goal
+`type`, `completed_at`, and `archived_at` are server-derived rather than writable client fields.
 
 `POST /api/goals/{goal}/routines/{routine}`
 
@@ -257,10 +287,11 @@ Route: `/`
 Shows:
 
 - date selector or today's date
-- routine checklist
-- completion percentage
+- durable done/skipped/pending routine actions
+- selected-day counts and completion percentage
+- inclusive seven-day counts, completion percentage, and current streaks
 - evening review entry point
-- small goal context section
+- active goal context beside the routines it supports
 
 ### Routines
 
@@ -268,9 +299,10 @@ Route: `/routines`
 
 Shows:
 
-- routine list
+- current and archived routine lists
 - create/edit routine form
 - simple schedule controls: daily or weekdays
+- pause/resume and archive/restore actions
 
 ### Goals
 
@@ -278,9 +310,10 @@ Route: `/goals`
 
 Shows:
 
-- active goals
+- current and archived goals
 - create/edit goal form
-- linked routines
+- complete/abandon/reactivate and archive/restore actions
+- active routine link management
 
 ### Review
 
@@ -294,20 +327,22 @@ Shows:
 
 ## Dashboard Metrics
 
-For the MVP, compute these from `routine_logs` directly:
+For the MVP, compute these from routines, normalized weekday rows, and `routine_logs` directly:
 
-- today's completion rate
-- current streak per routine
-- overall completion rate for the last 7 or 30 days
+- selected-day scheduled/done/skipped/pending counts and completion rate
+- current scheduled-occurrence streak per displayed routine
+- inclusive seven-day scheduled/done/skipped/pending counts and completion rate
 
-Do not create `daily_metrics` yet. Add rollups when analytics starts reading longer periods or the dashboard becomes slow.
+`RoutineProgressService` eager-loads schedule metadata, streams logs in routine/date order, and keeps
+the 500-routine by one-year regression within five queries. No `daily_metrics` rollup, cache table, or
+per-routine query loop is introduced.
 
 ## Auth Decision For MVP
 
 Use Laravel's existing `users` table and keep `user_id` on every domain table.
 
-Feature [`003-multi-user-auth`](../specs/003-multi-user-auth/spec.md) resolves the earlier temporary
-choice:
+Feature [`003-multi-user-auth`](../specs/003-multi-user-auth/spec.md) supplies the account boundary
+used by this slice:
 
 - Visitors who can reach the private application can register independent name/email/password
   accounts.
@@ -315,22 +350,31 @@ choice:
   bearer tokens in the browser.
 - Every domain route requires an explicit authenticated session and every query/write remains scoped
   to the authenticated `user_id`.
-- The temporary `CurrentUser` resolver and its local/testing fallback are removed. Tests create or
-  authenticate explicit users just like production.
-- Accounts are equal and private. Roles, invitations, sharing, verification, password recovery, and
-  external identity providers remain separate future features.
+- Tests create and authenticate explicit users just like application requests, and cross-owner
+  identifiers return `404`. Feature 001 makes no changes to the established authentication flow.
 
-## Implementation Order
+## Time and Calendar Boundary
 
-1. Backend migrations
-2. Eloquent models and relationships
-3. API routes/controllers
-4. Feature tests for create/list/upsert flows
-5. Vue API client
-6. Today screen
-7. Routines screen
-8. Review screen
-9. Goals linking
+Application and storage timestamps remain UTC. Strict `Y-m-d` fields are interpreted in
+`SELFHANDLER_TIMEZONE`, which is also used for the default Today/Review date and for deciding whether
+a pending occurrence has ended. Calendar dates are serialized as dates, never shifted through UTC as
+instants.
+
+## Implemented Delivery Status
+
+- T001-T008: configured timezone boundary, additive schema alignment, ownership concern, API errors,
+  explicit fixtures, and browser support
+- T009-T017: routine schedule/lifecycle/log/Today vertical slice
+- T018-T022: daily review vertical slice
+- T023-T029: goal lifecycle, links, and Today context
+- T030-T035: seven-day progress and streak vertical slice
+- T036-T040: shared async presentation, accessibility/responsiveness, final contract and documentation
+  reconciliation, validated by 105 Laravel tests/847 assertions and 24 desktop/mobile browser journeys
+
+The schema alignment is a new additive migration that backfills normalized weekday rows and safely
+replaces indexes after creating their MySQL-compatible replacements. Existing migrations were not
+rewritten. This design update records application behavior only; it does not imply that a migration
+was run or that any environment was deployed during this continuation.
 
 ## E2E Tests
 
@@ -348,15 +392,25 @@ The E2E runner starts isolated local servers:
 
 These ports intentionally avoid DealFlow's local `18000` listener so both projects can run together.
 
-It uses a dedicated SQLite database at `apps/api/database/e2e.sqlite` and runs `php artisan migrate:fresh --force` before tests. This keeps E2E data separate from the manual local development database.
+It uses a dedicated SQLite database at `apps/api/database/e2e.sqlite` and runs
+`php artisan migrate:fresh --force` before tests. This keeps E2E data separate from the manual local
+development database.
 
-Current coverage:
+Current core-loop coverage runs on desktop and an exact 390-by-844 phone viewport:
 
-- create a routine
-- see it on Today
-- mark it done
-- fill and save the evening review
-- run the same flow on desktop and mobile viewports
+- daily and weekday create/edit, ordering, schedule lock, pause/resume, archive/restore
+- Today filtering plus done/skipped/pending transitions, idempotency, persistence, and summaries
+- review create/update/reload, 422 preservation, service retry, and Today completion context
+- goal create/edit/lifecycle/archive/restore, idempotent link/unlink, and active Today context
+- known seven-day history, streaks, zero-occurrence state, and no horizontal overflow
+- runtime console/page errors, explicit loading/error/retry states, typecheck, and production build
+
+## Accepted Limitation
+
+Routines store only the current `is_active` value and no pause/resume interval history. Historical
+scheduled denominators therefore cannot be reproduced across pause cycles; doing so requires schedule
+versions or materialized occurrences from the deferred recurrence design. Archive history is retained
+through `archived_at` and historical logs.
 
 ## Learning Notes
 

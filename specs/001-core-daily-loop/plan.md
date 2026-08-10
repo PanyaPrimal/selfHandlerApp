@@ -1,9 +1,8 @@
 # Implementation Plan: Core Daily Loop
 
-> **Authentication supersession (2026-08-09):** Feature `003-multi-user-auth` supersedes this plan's
-> temporary implicit-user implementation choice. If 003 is implemented first, reuse its authenticated
-> account boundary and MUST NOT recreate `CurrentUser` or any local/testing fallback. Authentication
-> remains outside the product scope of feature 001 itself.
+> **Implementation status (2026-08-11):** T001-T040 are implemented and green on top of the
+> authenticated account boundary delivered by `003-multi-user-auth`. Feature 001 does not recreate
+> authentication, an implicit user, or a local/testing identity fallback.
 
 **Feature**: `001-core-daily-loop` | **Date**: 2026-08-07 | **Spec**: [spec.md](spec.md)
 
@@ -15,7 +14,7 @@ Deliver the first usable SelfHandler slice: users manage simple daily or weekday
 today's checklist, complete one evening review per day, connect routines to goals, and see accurate
 today/streak/seven-day progress. Reuse the existing Laravel/Vue prototype where it matches the spec,
 close its lifecycle, ownership, timezone, progress, error-state, and testing gaps, and avoid bringing
-the future recurrence, notification, analytics-rollup, authentication-UI, or AI systems into scope.
+recurrence, notification, analytics-rollup, authentication changes, or AI systems into scope.
 
 ## Technical Context
 
@@ -36,12 +35,13 @@ Windows/Open Server is the primary local backend environment
 seven-day progress operate on bounded date windows and remain interactive with 500 routines and one
 year of routine-log history for one user
 
-**Constraints**: Online-only; user-owned records from day one; Laravel remains on UTC while one
-configured SelfHandler calendar timezone is used until Profile exists; no full recurrence engine, notification delivery, daily
-rollups, production sign-in UI, or feature-branch automation
+**Constraints**: Online-only; every domain request requires an authenticated Sanctum session and
+every record is user-owned; Laravel remains on UTC while one configured SelfHandler calendar timezone
+is used until Profile exists; no full recurrence engine, notification delivery, daily rollups,
+authentication expansion, or feature-branch automation
 
-**Scale/Scope**: One personal user in the first delivery, a small user-owned domain model, four route-level web
-screens, one Today aggregate, and a seven-calendar-day progress window
+**Scale/Scope**: A private personal workspace per authenticated account, a small user-owned domain
+model, four route-level web screens, one Today aggregate, and a seven-calendar-day progress window
 
 ## Constitution Check
 
@@ -107,7 +107,6 @@ apps/api/
 │   │   ├── RoutineProgressService.php
 │   │   └── RoutineScheduleService.php
 │   ├── Support/
-│   │   ├── CurrentUser.php
 │   │   └── UserOwned.php
 │   └── ValueObjects/
 │       └── WeekdayCode.php
@@ -158,12 +157,12 @@ Do not create a shared package, repository layer, mobile implementation, or sepa
 ### Foundation
 
 1. Treat the existing migration and models as a prototype baseline rather than replace the monorepo.
-2. Add domain archive flags separately from soft deletion and make uniqueness/ownership constraints
-   explicit for every relationship.
-3. Centralize current-user query scoping in a reusable model concern, while retaining the temporary
-   local/testing resolver and production `401` behavior.
+2. Upgrade that baseline through an additive migration: normalize routine weekdays, preserve existing
+   data, add domain archive state separately from soft deletion, and replace MySQL indexes in safe order.
+3. Require `auth:sanctum` for every domain route, derive the owner from the authenticated request, and
+   use `ownedBy()` for reads and relationship lookups. Cross-owner identifiers resolve as `404`.
 4. Keep Laravel/storage timestamps on UTC, add a separate configurable SelfHandler calendar timezone,
-   and use it consistently at date-input boundaries.
+   and use it consistently at strict `Y-m-d` input and selected-day boundaries.
 
 ### User Story Delivery
 
@@ -178,10 +177,43 @@ Do not create a shared package, repository layer, mobile implementation, or sepa
 
 ### Contract Evolution
 
-The existing REST paths remain stable where possible. Add archive/restore behavior through normal
-resource updates, add deletion of a daily log to return it to pending, and extend Today with a
-`progress` object. Update `apps/web/src/api/types.ts`, client functions, and backend feature tests in
-the same tasks as each contract change. See [contracts/openapi.yaml](contracts/openapi.yaml).
+The implemented contract exposes list/create/`PATCH` for routines and goals; pause/resume,
+archive/restore, and goal lifecycle transitions are explicit update fields rather than overloaded
+resource deletion. Routine outcomes use idempotent `PUT`, with `DELETE` limited to one dated log to
+return that occurrence to pending. Today combines the selected-date checklist, review state, active
+goal context, selected-day summary, per-routine streaks, and a seven-day progress summary. The OpenAPI
+contract, backend feature tests, client operations, and TypeScript declarations evolve together. See
+[contracts/openapi.yaml](contracts/openapi.yaml).
+
+## Implemented Architecture and Status
+
+T001-T008 established the UTC/calendar-timezone split, additive schema alignment, normalized
+`routine_weekdays`, reusable `ownedBy()` boundary, explicit authenticated fixtures, typed API errors,
+and isolated browser-test support.
+
+T009-T017 delivered the independently usable routine loop: validated daily/weekday schedules,
+post-history schedule locking, pause/archive/restore behavior, idempotent done/skipped/pending state,
+historical occurrence preservation, and selected-day summaries.
+
+T018-T022 delivered one review per strict calendar date with bounded fields, first-completion
+preservation, recoverable validation/service states, and Today completion context. T023-T029 delivered
+server-derived goal lifecycle, owner-matched idempotent routine links, archive/restore behavior, and
+active/non-archived Today context. T030-T035 delivered streamed on-demand seven-day progress and
+scheduled-occurrence streaks without a rollup table or N+1 query pattern.
+
+Each completed story passed the Laravel suite and formatter, Vue typecheck and production build, and
+desktop plus exact 390-pixel Playwright journeys. T036-T040 reconciled shared async presentation,
+keyboard/focus/overflow behavior, OpenAPI/types, full-suite evidence, and these design documents. The
+final gate passed 105 Laravel tests with 847 assertions and all 24 browser journeys. No deployment,
+production migration, or push was part of this feature continuation.
+
+### Accepted Limitation
+
+`is_active` stores only the routine's current paused state; it does not record pause/resume intervals.
+Consequently, historical scheduled denominators are evaluated using the current active state and
+cannot be reproduced across repeated pause cycles. Correctly versioning those occurrences belongs to
+the deferred recurrence/materialized-occurrence design. Archive history remains reproducible through
+`archived_at` and retained logs.
 
 ## Complexity Tracking
 

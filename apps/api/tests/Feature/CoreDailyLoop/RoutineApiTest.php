@@ -86,6 +86,20 @@ class RoutineApiTest extends CoreDailyLoopTestCase
             ->assertJsonValidationErrors('request');
     }
 
+    public function test_routine_update_with_only_an_unknown_field_is_rejected(): void
+    {
+        $owner = $this->createUser();
+        $routine = $this->createRoutine($owner);
+        $this->actingAs($owner);
+
+        $this->patchJson("/api/routines/{$routine->id}", [
+            'future_field' => 'ignored',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('request');
+
+        $this->assertSame('Morning walk', $routine->fresh()->name);
+    }
+
     public function test_partial_updates_validate_against_the_stored_validity_window(): void
     {
         $owner = $this->createUser();

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { clearRoutineLog, getToday, updateRoutineLog } from '../api/client'
+import AsyncState from '../components/AsyncState.vue'
 import ProgressSummary from '../components/ProgressSummary.vue'
 import { formatCalendarDate } from '../lib/format'
 import { useAuthSession } from '../auth/session'
@@ -11,18 +12,19 @@ type RoutineState = RoutineLog['status'] | 'pending'
 
 const selectedDate = ref('')
 const data = ref<TodayResponse | null>(null)
-const isLoading = ref(false)
+const isLoading = ref(true)
 const actionRoutineId = ref<number | null>(null)
 const error = ref<string | null>(null)
 const statusMessage = ref<string | null>(null)
 const retryAction = ref<(() => Promise<void>) | null>(null)
+const dateInput = ref<HTMLInputElement | null>(null)
 const session = useAuthSession()
 const displayName = computed(() => session.user?.name ?? 'there')
 
 const completionLabel = computed(() => `${Math.round(data.value?.summary.completion_rate ?? 0)}%`)
 const progressWidth = computed(() => `${data.value?.summary.completion_rate ?? 0}%`)
 
-async function loadToday(date?: string): Promise<void> {
+async function loadToday(date?: string, focusTarget?: HTMLElement | null): Promise<void> {
   isLoading.value = true
   error.value = null
   statusMessage.value = null
@@ -38,9 +40,14 @@ async function loadToday(date?: string): Promise<void> {
     selectedDate.value = response.date
   } catch (currentError) {
     error.value = currentError instanceof Error ? currentError.message : 'Failed to load Today.'
-    retryAction.value = () => loadToday(date)
+    retryAction.value = () => loadToday(date, focusTarget ?? dateInput.value)
   } finally {
     isLoading.value = false
+    await nextTick()
+
+    if (focusTarget?.isConnected) {
+      focusTarget.focus()
+    }
   }
 }
 
@@ -96,7 +103,11 @@ function setLocalState(routine: TodayRoutine, state: RoutineState, savedLog?: Ro
   recalculateSummary()
 }
 
-async function setRoutineState(routine: TodayRoutine, state: RoutineState): Promise<void> {
+async function setRoutineState(
+  routine: TodayRoutine,
+  state: RoutineState,
+  focusTarget?: HTMLElement | null,
+): Promise<void> {
   if (!data.value || actionRoutineId.value !== null) {
     return
   }
@@ -122,14 +133,19 @@ async function setRoutineState(routine: TodayRoutine, state: RoutineState): Prom
   } catch (currentError) {
     data.value = previousData
     error.value = currentError instanceof Error ? currentError.message : 'Failed to update the routine.'
-    retryAction.value = () => setRoutineState(routine, state)
+    retryAction.value = () => setRoutineState(routine, state, focusTarget)
   } finally {
     actionRoutineId.value = null
+    await nextTick()
+
+    if (focusTarget?.isConnected) {
+      focusTarget.focus()
+    }
   }
 }
 
 function loadSelectedDate(): void {
-  void loadToday(selectedDate.value)
+  void loadToday(selectedDate.value, dateInput.value)
 }
 
 function retry(): void {
@@ -149,24 +165,32 @@ onMounted(() => loadToday())
 
       <label class="field compact-field">
         <span>Date</span>
-        <input v-model="selectedDate" type="date" :disabled="isLoading" @change="loadSelectedDate" />
+        <input ref="dateInput" v-model="selectedDate" type="date" :disabled="isLoading" @change="loadSelectedDate" />
       </label>
     </header>
 
-    <div v-if="error" class="notice error action-notice" role="alert">
+    <div v-if="error && data" class="notice error action-notice" role="alert">
       <span>{{ error }}</span>
       <button v-if="retryAction" type="button" class="secondary" @click="retry">Retry</button>
     </div>
     <div v-if="statusMessage" class="notice success" role="status">{{ statusMessage }}</div>
 
-    <section v-if="isLoading && !data" class="panel" aria-label="Loading Today" role="status">
-      <p class="muted">Loading Today…</p>
-      <div class="skeleton-line" style="width: 44%"></div>
-      <div class="skeleton-line" style="width: 90%"></div>
-      <div class="skeleton-line" style="width: 75%"></div>
-    </section>
+    <AsyncState
+      :loading="isLoading && !data"
+      :error="data ? null : error"
+      loading-title="Loading Today…"
+      loading-aria-label="Loading Today"
+      panel
+      @retry="retry"
+    >
+      <template #loading>
+        <p class="muted">Loading Today…</p>
+        <div class="skeleton-line" style="width: 44%"></div>
+        <div class="skeleton-line" style="width: 90%"></div>
+        <div class="skeleton-line" style="width: 75%"></div>
+      </template>
 
-    <template v-if="data">
+      <template v-if="data">
       <p v-if="isLoading" class="muted" role="status">Loading selected date…</p>
 
       <section class="summary-grid daily-summary" aria-label="Daily completion summary">
@@ -199,14 +223,20 @@ onMounted(() => loadToday())
           <RouterLink to="/routines">Manage</RouterLink>
         </div>
 
-        <div v-if="data.routines.length === 0" class="state-block">
-          <div class="state-icon" aria-hidden="true"></div>
-          <h3>No routines scheduled</h3>
-          <p class="muted">There is nothing planned for this date.</p>
-          <RouterLink to="/routines">Manage routines</RouterLink>
-        </div>
+        <AsyncState
+          :empty="data.routines.length === 0"
+          empty-title="No routines scheduled"
+          empty-description="There is nothing planned for this date."
+          show-empty-icon
+        >
+          <template #empty>
+            <div class="state-icon" aria-hidden="true"></div>
+            <h3>No routines scheduled</h3>
+            <p class="muted">There is nothing planned for this date.</p>
+            <RouterLink to="/routines">Manage routines</RouterLink>
+          </template>
 
-        <ul v-else class="item-list">
+          <ul class="item-list">
           <li
             v-for="routine in data.routines"
             :key="routine.id"
@@ -238,7 +268,7 @@ onMounted(() => loadToday())
               </span>
             </div>
 
-            <div class="button-row state-actions" :aria-label="`Set ${routine.name} state`">
+            <div class="button-row state-actions" role="group" :aria-label="`Set ${routine.name} state`">
               <button
                 type="button"
                 class="secondary"
@@ -246,7 +276,7 @@ onMounted(() => loadToday())
                 :class="{ selected: routine.log?.status === 'done' }"
                 :aria-pressed="routine.log?.status === 'done'"
                 :disabled="actionRoutineId !== null"
-                @click="setRoutineState(routine, 'done')"
+                @click="setRoutineState(routine, 'done', $event.currentTarget as HTMLElement)"
               >Done</button>
               <button
                 type="button"
@@ -255,7 +285,7 @@ onMounted(() => loadToday())
                 :class="{ selected: routine.log?.status === 'skipped' }"
                 :aria-pressed="routine.log?.status === 'skipped'"
                 :disabled="actionRoutineId !== null"
-                @click="setRoutineState(routine, 'skipped')"
+                @click="setRoutineState(routine, 'skipped', $event.currentTarget as HTMLElement)"
               >Skip</button>
               <button
                 type="button"
@@ -264,11 +294,12 @@ onMounted(() => loadToday())
                 :class="{ selected: !routine.log }"
                 :aria-pressed="!routine.log"
                 :disabled="actionRoutineId !== null"
-                @click="setRoutineState(routine, 'pending')"
+                @click="setRoutineState(routine, 'pending', $event.currentTarget as HTMLElement)"
               >Pending</button>
             </div>
-          </li>
-        </ul>
+            </li>
+          </ul>
+        </AsyncState>
       </section>
 
       <section class="panel">
@@ -280,6 +311,7 @@ onMounted(() => loadToday())
           {{ data.review ? 'Review saved for this date.' : 'No review yet.' }}
         </p>
       </section>
-    </template>
+      </template>
+    </AsyncState>
   </section>
 </template>

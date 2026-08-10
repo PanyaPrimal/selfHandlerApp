@@ -2,6 +2,10 @@ export type Weekday = 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU'
 
 export type Rating = number | null
 
+type AtLeastOne<T> = {
+  [Field in keyof T]-?: Required<Pick<T, Field>> & Partial<Omit<T, Field>>
+}[keyof T]
+
 export interface Goal {
   id: number
   name: string
@@ -16,6 +20,8 @@ export interface Goal {
 }
 
 export interface GoalSummary extends Pick<Goal, 'id' | 'name' | 'status'> {}
+
+export interface TodayGoalSummary extends GoalSummary, Pick<Goal, 'target_date'> {}
 
 export interface User {
   id: number
@@ -46,7 +52,7 @@ export interface Routine {
   archived_at: string | null
   starts_on: string | null
   ends_on: string | null
-  goals?: GoalSummary[]
+  goals: GoalSummary[]
 }
 
 export interface RoutineSummary extends Pick<Routine, 'id' | 'name' | 'is_active' | 'is_archived'> {}
@@ -92,7 +98,7 @@ export interface TodayResponse {
   date: string
   summary: CompletionSummary
   routines: TodayRoutine[]
-  goals: (GoalSummary & Pick<Goal, 'target_date'>)[]
+  goals: TodayGoalSummary[]
   review: DailyReview | null
   progress: {
     period_start: string
@@ -136,12 +142,16 @@ export interface RoutineInput {
   ends_on?: string | null
 }
 
-export interface RoutineCreatePayload extends RoutineInput {
+type RoutineCreateFields = Omit<RoutineInput, 'name' | 'schedule_type' | 'weekdays'> & {
   name: string
-  schedule_type: Routine['schedule_type']
 }
 
-export type RoutineUpdatePayload = RoutineInput
+export type RoutineCreatePayload = RoutineCreateFields & (
+  | { schedule_type: 'daily', weekdays?: never }
+  | { schedule_type: 'weekdays', weekdays: Weekday[] }
+)
+
+export type RoutineUpdatePayload = AtLeastOne<RoutineInput>
 
 export interface GoalInput {
   name?: string
@@ -155,9 +165,6 @@ export interface GoalCreatePayload extends GoalInput {
   name: string
 }
 
-export type GoalUpdatePayload = GoalInput
+export type GoalUpdatePayload = AtLeastOne<GoalInput>
 
-export type DailyReviewPayload = {
-  [Field in keyof DailyReviewFields]-?: Required<Pick<DailyReviewFields, Field>>
-    & Partial<Omit<DailyReviewFields, Field>>
-}[keyof DailyReviewFields]
+export type DailyReviewPayload = AtLeastOne<DailyReviewFields>

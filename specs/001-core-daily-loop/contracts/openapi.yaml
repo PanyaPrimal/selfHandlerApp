@@ -5,6 +5,8 @@ info:
   description: REST contract for feature 001-core-daily-loop.
 servers:
   - url: /api
+security:
+  - sessionCookie: []
 paths:
   /today:
     get:
@@ -111,7 +113,10 @@ paths:
           application/json:
             schema:
               type: object
-              additionalProperties: false
+              description: >-
+                Unrecognized properties are accepted for forward compatibility and ignored. In
+                particular, a client-supplied user_id never changes the authenticated owner.
+              additionalProperties: true
               required: [status]
               properties:
                 status:
@@ -150,6 +155,8 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
 
   /daily-reviews/{date}:
     get:
@@ -172,6 +179,8 @@ paths:
                       - type: 'null'
         '401':
           $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
     put:
       operationId: saveDailyReview
       summary: Create or update the current user's review for one date
@@ -276,9 +285,19 @@ paths:
     post:
       operationId: linkRoutineToGoal
       summary: Link two records owned by the current user
+      description: >-
+        The request body is optional and ignored. Both identifiers must belong to the authenticated
+        user; a forged user_id or any other request property cannot change link ownership.
       parameters:
         - $ref: '#/components/parameters/GoalId'
         - $ref: '#/components/parameters/RoutineId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
       responses:
         '200':
           description: Link exists
@@ -305,6 +324,16 @@ paths:
           $ref: '#/components/responses/NotFound'
 
 components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: selfhandler_session
+      description: >-
+        First-party browser session established by the authentication API and evaluated by
+        Laravel Sanctum. Unsafe requests also send X-XSRF-TOKEN after first fetching
+        /sanctum/csrf-cookie. Bearer tokens are not a supported credential for this API.
+
   parameters:
     DateQuery:
       name: date
@@ -314,6 +343,7 @@ components:
       schema:
         type: string
         format: date
+        pattern: '^\d{4}-\d{2}-\d{2}$'
     DatePath:
       name: date
       in: path
@@ -321,6 +351,7 @@ components:
       schema:
         type: string
         format: date
+        pattern: '^\d{4}-\d{2}-\d{2}$'
     RoutineId:
       name: routine
       in: path
@@ -338,7 +369,13 @@ components:
 
   responses:
     Unauthenticated:
-      description: No user can be resolved in this environment
+      description: The session cookie is missing, expired, or does not resolve an authenticated user
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            message: Unauthenticated.
     NotFound:
       description: Record is absent or does not belong to the current user
     ValidationFailed:
@@ -359,62 +396,34 @@ components:
                     type: string
 
   schemas:
+    ErrorResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+
     Routine:
       type: object
       required:
         - id
         - name
+        - description
         - kind
         - schedule_type
         - weekdays
+        - preferred_time
         - sort_order
         - is_active
         - is_archived
+        - archived_at
+        - starts_on
+        - ends_on
+        - goals
       properties:
         id:
           type: integer
-        name:
-          type: string
-        description:
-          type: [string, 'null']
-        kind:
-          type: string
-          enum: [routine, sleep, habit]
-        schedule_type:
-          type: string
-          enum: [daily, weekdays]
-        weekdays:
-          type: array
-          items:
-            $ref: '#/components/schemas/Weekday'
-        preferred_time:
-          type: [string, 'null']
-          format: time
-        sort_order:
-          type: integer
-          minimum: 0
-        is_active:
-          type: boolean
-        is_archived:
-          type: boolean
-        archived_at:
-          type: [string, 'null']
-          format: date-time
-        starts_on:
-          type: [string, 'null']
-          format: date
-        ends_on:
-          type: [string, 'null']
-          format: date
-        goals:
-          type: array
-          items:
-            $ref: '#/components/schemas/GoalSummary'
-
-    RoutineInput:
-      type: object
-      additionalProperties: false
-      properties:
+          minimum: 1
         name:
           type: string
           minLength: 1
@@ -430,13 +439,68 @@ components:
           enum: [daily, weekdays]
         weekdays:
           type: array
+          items:
+            $ref: '#/components/schemas/Weekday'
+        preferred_time:
+          type: [string, 'null']
+          description: Local wall-clock time as HH:mm or HH:mm:ss, depending on the database driver.
+          pattern: '^\d{2}:\d{2}(?::\d{2})?$'
+        sort_order:
+          type: integer
+          minimum: 0
+        is_active:
+          type: boolean
+        is_archived:
+          type: boolean
+        archived_at:
+          type: [string, 'null']
+          format: date-time
+        starts_on:
+          type: [string, 'null']
+          format: date
+          pattern: '^\d{4}-\d{2}-\d{2}$'
+        ends_on:
+          type: [string, 'null']
+          format: date
+          pattern: '^\d{4}-\d{2}-\d{2}$'
+        goals:
+          type: array
+          items:
+            $ref: '#/components/schemas/GoalSummary'
+
+    RoutineInput:
+      type: object
+      description: >-
+        Leading and trailing string whitespace is trimmed. Unrecognized properties are accepted
+        and ignored; in particular, a client-supplied user_id never changes the authenticated
+        owner. starts_on and ends_on must form a non-decreasing date window.
+      additionalProperties: true
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 160
+          pattern: '\S'
+        description:
+          type: [string, 'null']
+          maxLength: 2000
+        kind:
+          type: string
+          enum: [routine, sleep, habit]
+        schedule_type:
+          type: string
+          enum: [daily, weekdays]
+        weekdays:
+          type: array
           minItems: 1
+          maxItems: 7
           uniqueItems: true
           items:
             $ref: '#/components/schemas/Weekday'
         preferred_time:
           type: [string, 'null']
-          format: time
+          description: Local wall-clock time in exactly HH:mm form.
+          pattern: '^\d{2}:\d{2}$'
         sort_order:
           type: integer
           minimum: 0
@@ -447,25 +511,52 @@ components:
         starts_on:
           type: [string, 'null']
           format: date
+          pattern: '^\d{4}-\d{2}-\d{2}$'
         ends_on:
           type: [string, 'null']
           format: date
+          pattern: '^\d{4}-\d{2}-\d{2}$'
 
     RoutineCreateInput:
       allOf:
         - $ref: '#/components/schemas/RoutineInput'
         - type: object
           required: [name, schedule_type]
+          if:
+            properties:
+              schedule_type:
+                const: weekdays
+          then:
+            required: [weekdays]
+          else:
+            not:
+              required: [weekdays]
 
     RoutineUpdateInput:
       allOf:
         - $ref: '#/components/schemas/RoutineInput'
         - type: object
+          description: >-
+            At least one recognized mutable field is required. Weekday requirements can also
+            depend on the routine's stored schedule_type. Schedule-defining fields are immutable
+            after the first log, as described by the operation.
           minProperties: 1
+          anyOf:
+            - required: [name]
+            - required: [description]
+            - required: [kind]
+            - required: [schedule_type]
+            - required: [weekdays]
+            - required: [preferred_time]
+            - required: [sort_order]
+            - required: [is_active]
+            - required: [is_archived]
+            - required: [starts_on]
+            - required: [ends_on]
 
     RoutineLog:
       type: object
-      required: [id, routine_id, log_date, status]
+      required: [id, routine_id, log_date, status, note, completed_at]
       properties:
         id:
           type: integer
@@ -474,34 +565,74 @@ components:
         log_date:
           type: string
           format: date
+          pattern: '^\d{4}-\d{2}-\d{2}$'
         status:
           type: string
           enum: [done, skipped]
         note:
           type: [string, 'null']
+          maxLength: 2000
         completed_at:
           type: [string, 'null']
           format: date-time
 
     DailyReview:
-      allOf:
-        - $ref: '#/components/schemas/DailyReviewInput'
-        - type: object
-          required: [id, review_date, completed_at]
-          properties:
-            id:
-              type: integer
-            review_date:
-              type: string
-              format: date
-            completed_at:
-              type: string
-              format: date-time
+      type: object
+      required:
+        - id
+        - review_date
+        - mood
+        - energy
+        - stress
+        - day_rating
+        - went_well
+        - improve_tomorrow
+        - notes
+        - completed_at
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        review_date:
+          type: string
+          format: date
+          pattern: '^\d{4}-\d{2}-\d{2}$'
+        mood:
+          $ref: '#/components/schemas/Rating'
+        energy:
+          $ref: '#/components/schemas/Rating'
+        stress:
+          $ref: '#/components/schemas/Rating'
+        day_rating:
+          $ref: '#/components/schemas/Rating'
+        went_well:
+          type: [string, 'null']
+          maxLength: 5000
+        improve_tomorrow:
+          type: [string, 'null']
+          maxLength: 5000
+        notes:
+          type: [string, 'null']
+          maxLength: 10000
+        completed_at:
+          type: string
+          format: date-time
 
     DailyReviewInput:
       type: object
-      additionalProperties: false
+      description: >-
+        At least one recognized review field is required. Unrecognized properties are accepted and
+        ignored; in particular, a client-supplied user_id never changes the authenticated owner.
+      additionalProperties: true
       minProperties: 1
+      anyOf:
+        - required: [mood]
+        - required: [energy]
+        - required: [stress]
+        - required: [day_rating]
+        - required: [went_well]
+        - required: [improve_tomorrow]
+        - required: [notes]
       properties:
         mood:
           $ref: '#/components/schemas/Rating'
@@ -523,14 +654,28 @@ components:
 
     Goal:
       type: object
-      required: [id, name, type, status, is_archived, routines]
+      required:
+        - id
+        - name
+        - description
+        - type
+        - status
+        - target_date
+        - completed_at
+        - is_archived
+        - archived_at
+        - routines
       properties:
         id:
           type: integer
+          minimum: 1
         name:
           type: string
+          minLength: 1
+          maxLength: 160
         description:
           type: [string, 'null']
+          maxLength: 5000
         type:
           type: string
           enum: [general]
@@ -540,6 +685,7 @@ components:
         target_date:
           type: [string, 'null']
           format: date
+          pattern: '^\d{4}-\d{2}-\d{2}$'
         completed_at:
           type: [string, 'null']
           format: date-time
@@ -555,12 +701,20 @@ components:
 
     GoalInput:
       type: object
-      additionalProperties: false
+      description: >-
+        Leading and trailing string whitespace is trimmed. Goal type and lifecycle timestamps are
+        server-managed and rejected when supplied. Other unrecognized properties are accepted and
+        ignored; in particular, a client-supplied user_id never changes the authenticated owner.
+      additionalProperties: true
+      propertyNames:
+        not:
+          enum: [type, completed_at, archived_at]
       properties:
         name:
           type: string
           minLength: 1
           maxLength: 160
+          pattern: '\S'
         description:
           type: [string, 'null']
           maxLength: 5000
@@ -570,6 +724,7 @@ components:
         target_date:
           type: [string, 'null']
           format: date
+          pattern: '^\d{4}-\d{2}-\d{2}$'
         is_archived:
           type: boolean
 
@@ -583,7 +738,14 @@ components:
       allOf:
         - $ref: '#/components/schemas/GoalInput'
         - type: object
+          description: At least one recognized mutable goal field is required.
           minProperties: 1
+          anyOf:
+            - required: [name]
+            - required: [description]
+            - required: [status]
+            - required: [target_date]
+            - required: [is_archived]
 
     GoalSummary:
       type: object
@@ -591,11 +753,25 @@ components:
       properties:
         id:
           type: integer
+          minimum: 1
         name:
           type: string
+          minLength: 1
+          maxLength: 160
         status:
           type: string
           enum: [active, completed, abandoned]
+
+    TodayGoalSummary:
+      allOf:
+        - $ref: '#/components/schemas/GoalSummary'
+        - type: object
+          required: [target_date]
+          properties:
+            target_date:
+              type: [string, 'null']
+              format: date
+              pattern: '^\d{4}-\d{2}-\d{2}$'
 
     RoutineSummary:
       type: object
@@ -603,8 +779,11 @@ components:
       properties:
         id:
           type: integer
+          minimum: 1
         name:
           type: string
+          minLength: 1
+          maxLength: 160
         is_active:
           type: boolean
         is_archived:
@@ -614,7 +793,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/RoutineSummary'
         - type: object
-          required: [kind, sort_order, log, goals, current_streak]
+          required: [description, kind, preferred_time, sort_order, log, goals, current_streak]
           properties:
             kind:
               type: string
@@ -623,7 +802,8 @@ components:
               type: [string, 'null']
             preferred_time:
               type: [string, 'null']
-              format: time
+              description: Local wall-clock time as HH:mm or HH:mm:ss, depending on the database driver.
+              pattern: '^\d{2}:\d{2}(?::\d{2})?$'
             sort_order:
               type: integer
             log:
@@ -666,6 +846,7 @@ components:
         date:
           type: string
           format: date
+          pattern: '^\d{4}-\d{2}-\d{2}$'
         summary:
           $ref: '#/components/schemas/CompletionSummary'
         routines:
@@ -675,7 +856,7 @@ components:
         goals:
           type: array
           items:
-            $ref: '#/components/schemas/GoalSummary'
+            $ref: '#/components/schemas/TodayGoalSummary'
         review:
           oneOf:
             - $ref: '#/components/schemas/DailyReview'
@@ -687,9 +868,11 @@ components:
             period_start:
               type: string
               format: date
+              pattern: '^\d{4}-\d{2}-\d{2}$'
             period_end:
               type: string
               format: date
+              pattern: '^\d{4}-\d{2}-\d{2}$'
             seven_day:
               $ref: '#/components/schemas/CompletionSummary'
 

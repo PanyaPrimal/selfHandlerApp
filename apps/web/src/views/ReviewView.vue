@@ -10,6 +10,7 @@ import {
   type ValidationErrors,
 } from '../api/client'
 import type { DailyReview, DailyReviewPayload } from '../api/types'
+import AsyncState from '../components/AsyncState.vue'
 import { formatCalendarDate } from '../lib/format'
 
 interface ReviewForm {
@@ -30,6 +31,7 @@ const isLoading = ref(true)
 const isReady = ref(false)
 const isSaving = ref(false)
 const isSaved = ref(false)
+const hasSavedReview = ref(false)
 const loadError = ref<string | null>(null)
 const saveError = ref<string | null>(null)
 const canRetrySave = ref(false)
@@ -43,6 +45,8 @@ const dayRatingInput = ref<HTMLInputElement | null>(null)
 const wentWellInput = ref<HTMLTextAreaElement | null>(null)
 const improveTomorrowInput = ref<HTMLTextAreaElement | null>(null)
 const notesInput = ref<HTMLTextAreaElement | null>(null)
+const retrySaveButton = ref<HTMLButtonElement | null>(null)
+const saveButton = ref<HTMLButtonElement | null>(null)
 const isDirty = computed(() => isReady.value && snapshot() !== savedSnapshot.value)
 let loadSequence = 0
 
@@ -74,6 +78,7 @@ function restoreForm(review: DailyReview | null): void {
         notes: review.notes ?? '',
       }
     : emptyForm())
+  hasSavedReview.value = review !== null
   savedSnapshot.value = snapshot()
 }
 
@@ -141,6 +146,15 @@ async function loadReview(): Promise<void> {
   }
 }
 
+async function retryLoadReview(): Promise<void> {
+  await loadReview()
+
+  if (isReady.value) {
+    await nextTick()
+    moodInput.value?.focus()
+  }
+}
+
 function reviewPayload(): DailyReviewPayload {
   return {
     mood: form.mood,
@@ -188,9 +202,21 @@ async function submitReview(): Promise<void> {
     fieldErrors.value = validationErrors(currentError)
     saveError.value = saveFailureMessage(currentError)
     canRetrySave.value = !(currentError instanceof ApiError && currentError.status === 422)
-    await focusFirstError()
+    isSaving.value = false
+
+    if (Object.keys(fieldErrors.value).length > 0) {
+      await focusFirstError()
+    } else if (canRetrySave.value) {
+      await nextTick()
+      retrySaveButton.value?.focus()
+    }
   } finally {
     isSaving.value = false
+
+    if (isSaved.value) {
+      await nextTick()
+      saveButton.value?.focus()
+    }
   }
 }
 
@@ -225,24 +251,27 @@ watch(
     </header>
 
     <section class="panel" aria-label="Daily review workspace">
-      <div v-if="isLoading" class="state-block" role="status" aria-live="polite">
-        <strong>Loading review…</strong>
-        <span class="muted">Restoring the reflection saved for this date.</span>
-      </div>
+      <AsyncState
+        :loading="isLoading"
+        :error="loadError"
+        loading-title="Loading review…"
+        loading-description="Restoring the reflection saved for this date."
+        @retry="retryLoadReview"
+      >
+        <AsyncState
+          :empty="isReady && !hasSavedReview"
+          empty-title="No review saved yet"
+          empty-description="Use the form below to reflect on this date."
+        />
 
-      <div v-else-if="loadError" class="state-block" role="alert">
-        <strong>{{ loadError }}</strong>
-        <button type="button" class="secondary" @click="loadReview">Retry</button>
-      </div>
-
-      <form
-        v-else-if="isReady"
+        <form
+        v-if="isReady"
         class="form-grid review-form"
         aria-label="Daily review"
         novalidate
         :aria-busy="isSaving"
         @submit.prevent="submitReview"
-      >
+        >
         <div class="rating-grid wide-field">
           <label class="field rating-field">
             <span>Mood</span>
@@ -385,7 +414,7 @@ watch(
 
         <div v-if="saveError" class="notice error wide-field" role="alert" aria-live="assertive">
           <span>{{ saveError }}</span>
-          <button v-if="canRetrySave" type="button" class="secondary" :disabled="isSaving" @click="submitReview">
+          <button v-if="canRetrySave" ref="retrySaveButton" type="button" class="secondary" :disabled="isSaving" @click="submitReview">
             Retry
           </button>
         </div>
@@ -395,11 +424,12 @@ watch(
           <p v-else-if="isSaved" class="notice success" role="status">Review saved.</p>
           <p v-else-if="isDirty" class="muted">Unsaved changes.</p>
           <span v-else></span>
-          <button type="submit" :disabled="isSaving">
+          <button ref="saveButton" type="submit" :disabled="isSaving">
             {{ isSaving ? 'Saving review…' : 'Save review' }}
           </button>
         </div>
-      </form>
+        </form>
+      </AsyncState>
     </section>
   </section>
 </template>

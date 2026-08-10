@@ -105,12 +105,6 @@ class RoutineController extends Controller
         bool $partial = false,
         ?Routine $routine = null,
     ): array {
-        if ($partial && $request->all() === []) {
-            throw ValidationException::withMessages([
-                'request' => 'Provide at least one routine field to update.',
-            ]);
-        }
-
         $required = $partial ? 'sometimes' : 'required';
         $effectiveScheduleType = $request->input('schedule_type', $routine?->schedule_type);
         $requiresWeekdays = ! $partial
@@ -189,7 +183,15 @@ class RoutineController extends Controller
             }
         });
 
-        return $validator->validate();
+        $data = $validator->validate();
+
+        if ($partial && $data === []) {
+            throw ValidationException::withMessages([
+                'request' => 'Provide at least one routine field to update.',
+            ]);
+        }
+
+        return $data;
     }
 
     private function addScheduleLockedError(LaravelValidator $validator, string $field): void

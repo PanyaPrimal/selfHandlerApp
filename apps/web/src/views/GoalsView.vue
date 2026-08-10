@@ -17,6 +17,7 @@ import {
   type ValidationErrors,
 } from '../api/client'
 import type { Goal, GoalCreatePayload, Routine } from '../api/types'
+import AsyncState from '../components/AsyncState.vue'
 import { formatCalendarDate } from '../lib/format'
 
 interface GoalForm {
@@ -26,6 +27,7 @@ interface GoalForm {
 }
 
 type GoalAction = 'complete' | 'abandon' | 'reactivate' | 'archive' | 'restore'
+type WorkspaceFocus = 'none' | 'form' | 'list'
 
 const goals = ref<Goal[]>([])
 const routines = ref<Routine[]>([])
@@ -45,6 +47,8 @@ const form = reactive<GoalForm>(emptyForm())
 const nameInput = ref<HTMLInputElement | null>(null)
 const descriptionInput = ref<HTMLTextAreaElement | null>(null)
 const targetDateInput = ref<HTMLInputElement | null>(null)
+const goalListHeading = ref<HTMLHeadingElement | null>(null)
+const feedbackRetryButton = ref<HTMLButtonElement | null>(null)
 const activeRoutines = computed(() => routines.value.filter((routine) => routine.is_active && !routine.is_archived))
 const mutationBusy = computed(() => (
   isSubmitting.value || actionGoalId.value !== null || linkSavingGoalId.value !== null
@@ -94,7 +98,7 @@ function clearFeedback(): void {
   retryAction.value = null
 }
 
-async function loadWorkspace(): Promise<void> {
+async function loadWorkspace(focusAfter: WorkspaceFocus = 'none'): Promise<void> {
   isLoading.value = true
   loadFailed.value = false
   error.value = null
@@ -116,6 +120,16 @@ async function loadWorkspace(): Promise<void> {
     error.value = failureMessage(currentError, 'load')
   } finally {
     isLoading.value = false
+
+    if (!loadFailed.value && focusAfter !== 'none') {
+      await nextTick()
+
+      if (focusAfter === 'form') {
+        nameInput.value?.focus()
+      } else {
+        goalListHeading.value?.focus()
+      }
+    }
   }
 }
 
@@ -132,11 +146,16 @@ async function focusFirstError(): Promise<void> {
 
   const inputs: Array<[keyof GoalForm, HTMLElement | null]> = [
     ['name', nameInput.value],
-    ['description', descriptionInput.value],
     ['target_date', targetDateInput.value],
+    ['description', descriptionInput.value],
   ]
 
   inputs.find(([field]) => fieldErrors.value[field]?.length)?.[1]?.focus()
+}
+
+async function focusFeedbackRetry(): Promise<void> {
+  await nextTick()
+  feedbackRetryButton.value?.focus()
 }
 
 async function submitGoal(): Promise<void> {
@@ -160,7 +179,7 @@ async function submitGoal(): Promise<void> {
     }
 
     resetForm()
-    await loadWorkspace()
+    await loadWorkspace('list')
   } catch (currentError) {
     fieldErrors.value = validationErrors(currentError)
     error.value = failureMessage(currentError, 'save')
@@ -171,13 +190,19 @@ async function submitGoal(): Promise<void> {
       })
     }
 
-    await focusFirstError()
+    isSubmitting.value = false
+
+    if (Object.keys(fieldErrors.value).length > 0) {
+      await focusFirstError()
+    } else {
+      await focusFeedbackRetry()
+    }
   } finally {
     isSubmitting.value = false
   }
 }
 
-function editGoal(goal: Goal): void {
+async function editGoal(goal: Goal): Promise<void> {
   editingId.value = goal.id
   Object.assign(form, {
     name: goal.name,
@@ -187,12 +212,20 @@ function editGoal(goal: Goal): void {
   fieldErrors.value = {}
   clearFeedback()
   window.scrollTo({ top: 0, behavior: 'smooth' })
+  await nextTick()
+  nameInput.value?.focus()
 }
 
 function resetForm(): void {
   editingId.value = null
   Object.assign(form, emptyForm())
   fieldErrors.value = {}
+}
+
+async function cancelEdit(): Promise<void> {
+  resetForm()
+  await nextTick()
+  nameInput.value?.focus()
 }
 
 async function switchArchiveView(archived: boolean): Promise<void> {
@@ -204,7 +237,7 @@ async function switchArchiveView(archived: boolean): Promise<void> {
   goals.value = []
   resetForm()
   success.value = null
-  await loadWorkspace()
+  await loadWorkspace('list')
 }
 
 async function changeGoalLifecycle(goal: Goal, action: GoalAction): Promise<void> {
@@ -238,12 +271,13 @@ async function changeGoalLifecycle(goal: Goal, action: GoalAction): Promise<void
       resetForm()
     }
 
-    await loadWorkspace()
+    await loadWorkspace('list')
   } catch (currentError) {
     error.value = failureMessage(currentError, 'action')
     setRetry(() => {
       void changeGoalLifecycle(goal, action)
     })
+    await focusFeedbackRetry()
   } finally {
     actionGoalId.value = null
   }
@@ -279,12 +313,13 @@ async function saveRoutineLinks(goal: Goal): Promise<void> {
     }
 
     success.value = 'Routine links saved.'
-    await loadWorkspace()
+    await loadWorkspace('list')
   } catch (currentError) {
     error.value = failureMessage(currentError, 'links')
     setRetry(() => {
       void saveRoutineLinks(goal)
     })
+    await focusFeedbackRetry()
   } finally {
     linkSavingGoalId.value = null
   }
@@ -314,21 +349,18 @@ onMounted(loadWorkspace)
 
     <div v-if="!isLoading && !loadFailed && error" class="notice error action-notice" role="alert">
       <span>{{ error }}</span>
-      <button v-if="retryAction" type="button" class="secondary" @click="retryAction">Retry</button>
+      <button v-if="retryAction" ref="feedbackRetryButton" type="button" class="secondary" @click="retryAction">Retry</button>
     </div>
     <div v-if="success" class="notice success" role="status">{{ success }}</div>
 
-    <section v-if="isLoading" class="panel state-block" role="status" aria-live="polite">
-      <strong>Loading goals…</strong>
-      <span class="muted">Restoring goals and their routine links.</span>
-    </section>
-
-    <section v-else-if="loadFailed" class="panel state-block" role="alert">
-      <strong>{{ error }}</strong>
-      <button type="button" class="secondary" @click="loadWorkspace">Retry</button>
-    </section>
-
-    <template v-else>
+    <AsyncState
+      :loading="isLoading"
+      :error="loadFailed ? error : null"
+      loading-title="Loading goals…"
+      loading-description="Restoring goals and their routine links."
+      panel
+      @retry="loadWorkspace('form')"
+    >
       <section class="panel">
         <h2>{{ editingId === null ? 'Create goal' : 'Edit goal' }}</h2>
         <form
@@ -392,7 +424,7 @@ onMounted(loadWorkspace)
           </label>
 
           <div class="form-actions wide-field button-row">
-            <button v-if="editingId !== null" type="button" class="secondary" :disabled="mutationBusy" @click="resetForm">
+            <button v-if="editingId !== null" type="button" class="secondary" :disabled="mutationBusy" @click="cancelEdit">
               Cancel
             </button>
             <button type="submit" :disabled="mutationBusy">
@@ -406,9 +438,9 @@ onMounted(loadWorkspace)
         <div class="section-heading archive-heading">
           <div>
             <p class="eyebrow">Goal library</p>
-            <h2>{{ archivedView ? 'Archived goals' : 'Current goals' }}</h2>
+            <h2 ref="goalListHeading" class="focus-target" tabindex="-1">{{ archivedView ? 'Archived goals' : 'Current goals' }}</h2>
           </div>
-          <div class="segmented-list" aria-label="Goal archive filter">
+          <div class="segmented-list" role="group" aria-label="Goal archive filter">
             <button
               type="button"
               class="secondary"
@@ -428,14 +460,12 @@ onMounted(loadWorkspace)
           </div>
         </div>
 
-        <div v-if="goals.length === 0" class="state-block">
-          <h3>{{ archivedView ? 'No archived goals yet' : 'No goals yet' }}</h3>
-          <p class="muted">
-            {{ archivedView ? 'Archived goals will remain available here.' : 'Create a goal to add purpose to daily routines.' }}
-          </p>
-        </div>
-
-        <ul v-else class="item-list" :aria-label="archivedView ? 'Archived goals' : 'Current goals'">
+        <AsyncState
+          :empty="goals.length === 0"
+          :empty-title="archivedView ? 'No archived goals yet' : 'No goals yet'"
+          :empty-description="archivedView ? 'Archived goals will remain available here.' : 'Create a goal to add purpose to daily routines.'"
+        >
+          <ul class="item-list" :aria-label="archivedView ? 'Archived goals' : 'Current goals'">
           <li v-for="goal in goals" :key="goal.id" class="goal-card" :aria-label="goal.name">
             <div class="management-row">
               <div class="management-copy">
@@ -534,8 +564,9 @@ onMounted(loadWorkspace)
               </div>
             </form>
           </li>
-        </ul>
+          </ul>
+        </AsyncState>
       </section>
-    </template>
+    </AsyncState>
   </section>
 </template>

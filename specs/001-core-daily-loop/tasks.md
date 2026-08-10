@@ -298,11 +298,39 @@ manual calculation, including a period with no scheduled occurrences.
 **Purpose**: Verify the complete contract, accessibility, responsiveness, and documentation without
 expanding product scope.
 
-- [ ] T036 [P] Add shared explicit loading/empty/error/retry rendering in `apps/web/src/components/AsyncState.vue` and adopt it across `apps/web/src/views/` (FR-019, SC-008)
-- [ ] T037 Review phone/desktop keyboard, label, focus, and overflow behavior in `apps/web/src/style.css` and all files under `apps/web/src/views/` (FR-018, SC-005)
-- [ ] T038 Reconcile implemented request/response shapes with `specs/001-core-daily-loop/contracts/openapi.yaml` and frontend declarations in `apps/web/src/api/types.ts` (Constitution VI)
-- [ ] T039 Run backend tests, frontend typecheck/build, and Playwright suites from `specs/001-core-daily-loop/quickstart.md`, resolving all failures before completion
-- [ ] T040 Update implementation status and any accepted contract deviations in `specs/001-core-daily-loop/plan.md` and `docs/MVP_TECHNICAL_DESIGN.md`
+- [X] T036 [P] Add shared explicit loading/empty/error/retry rendering in `apps/web/src/components/AsyncState.vue` and adopt it across `apps/web/src/views/` (FR-019, SC-008)
+- [X] T037 Review phone/desktop keyboard, label, focus, and overflow behavior in `apps/web/src/style.css` and all files under `apps/web/src/views/` (FR-018, SC-005)
+- [X] T038 Reconcile implemented request/response shapes with `specs/001-core-daily-loop/contracts/openapi.yaml` and frontend declarations in `apps/web/src/api/types.ts` (Constitution VI)
+- [X] T039 Run backend tests, frontend typecheck/build, and Playwright suites from `specs/001-core-daily-loop/quickstart.md`, resolving all failures before completion
+- [X] T040 Update implementation status and any accepted contract deviations in `specs/001-core-daily-loop/plan.md` and `docs/MVP_TECHNICAL_DESIGN.md`
+
+### Phase 7 implementation notes (2026-08-11)
+
+- **Shared explicit async states.** `AsyncState.vue` now owns consistent loading, load-error/retry, and
+  empty presentation. Today, Routines, Goals, and Review retain their workflow-specific mutation and
+  saved feedback while using that shared boundary for initial and collection state.
+- **Keyboard and responsive hardening.** Validation messages are associated with their controls and
+  first errors receive focus after controls are enabled. Focus is deliberately restored after retries,
+  filters, saves, archive/lifecycle actions, and Today date/state changes. Semantic button groups,
+  a high-contrast three-pixel focus ring, AA small-text contrast, and defensive wrapping keep keyboard
+  and unbroken dynamic content usable at desktop and exactly 390 pixels.
+- **Contract reconciliation.** OpenAPI now documents the Sanctum session cookie, strict calendar
+  dates, required nullable response keys, bounded fields, server-managed goal lifecycle, Today goal
+  dates, progress/streaks, and compatibility behavior for ignored forged ownership fields. The client
+  uses non-empty update payloads and a schedule-discriminated routine create payload. An unknown-only
+  routine `PATCH` is rejected rather than succeeding as a no-op. Duplicate-key-aware YAML validation
+  found 13 operations, 22 schemas, and no unresolved local references.
+- **Final documentation.** The plan and MVP technical design describe the additive normalized schema,
+  authenticated `ownedBy()` boundary, archive lifecycle, contract-only routes, timezone split,
+  review/goal/progress implementation, query strategy, exact phone coverage, and accepted pause-history
+  limitation. This continuation performed no deployment, production migration, or push.
+
+### Phase 7 validation evidence (2026-08-11)
+
+- `php artisan test`: 105 passed (847 assertions)
+- `./vendor/bin/pint --test`: clean
+- `npm run typecheck` and `npm run build`: pass
+- `npm run test:e2e`: 24 passed (desktop + exact 390 px mobile)
 
 ---
 
@@ -375,5 +403,5 @@ Task: T024-T025 [US3] Implement Goal lifecycle and link behavior
 - Existing prototype code is reusable evidence, not a completed task.
 - `[P]` never means two tasks may edit the same file without coordination.
 - Do not install the Spec Kit Git extension or create/switch branches while executing this list.
-- Do not introduce production authentication, recurrence, notifications, analytics rollups, or AI
-  while implementing this feature.
+- Do not change the established authentication flow or introduce recurrence, notifications, analytics
+  rollups, or AI while implementing this feature.
