@@ -642,6 +642,17 @@ h3 {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.review-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.review-actions .notice {
+  margin: 0;
+}
+
 .field {
   display: grid;
   gap: 6px;

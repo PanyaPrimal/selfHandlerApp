@@ -51,7 +51,17 @@ export interface Routine {
 
 export interface RoutineSummary extends Pick<Routine, 'id' | 'name' | 'is_active' | 'is_archived'> {}
 
-export interface DailyReview {
+export interface DailyReviewFields {
+  mood?: Rating
+  energy?: Rating
+  stress?: Rating
+  day_rating?: Rating
+  went_well?: string | null
+  improve_tomorrow?: string | null
+  notes?: string | null
+}
+
+export interface DailyReview extends DailyReviewFields {
   id: number
   review_date: string
   mood: Rating
@@ -135,12 +145,7 @@ export interface GoalPayload {
   target_date?: string | null
 }
 
-export interface DailyReviewPayload {
-  mood?: Rating
-  energy?: Rating
-  stress?: Rating
-  day_rating?: Rating
-  went_well?: string | null
-  improve_tomorrow?: string | null
-  notes?: string | null
-}
+export type DailyReviewPayload = {
+  [Field in keyof DailyReviewFields]-?: Required<Pick<DailyReviewFields, Field>>
+    & Partial<Omit<DailyReviewFields, Field>>
+}[keyof DailyReviewFields]

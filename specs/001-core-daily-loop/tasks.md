@@ -161,16 +161,37 @@ review, and verify Today reports completion.
 
 ### Tests for User Story 2
 
-- [ ] T018 [P] [US2] Add one-per-date, validation, upsert, ownership, and Today-integration tests in `apps/api/tests/Feature/CoreDailyLoop/DailyReviewApiTest.php` (FR-011-FR-013, FR-016, SC-003)
+- [X] T018 [P] [US2] Add one-per-date, validation, upsert, ownership, and Today-integration tests in `apps/api/tests/Feature/CoreDailyLoop/DailyReviewApiTest.php` (FR-011-FR-013, FR-016, SC-003)
 
 ### Implementation for User Story 2
 
-- [ ] T019 [US2] Complete bounded rating/text validation and completion-preserving upsert behavior in `apps/api/app/Http/Controllers/DailyReviewController.php` and `apps/api/app/Models/DailyReview.php` (FR-011-FR-013, FR-017)
-- [ ] T020 [P] [US2] Complete typed review loading/saving/error contracts in `apps/web/src/api/client.ts` and `apps/web/src/api/types.ts` (FR-011-FR-013, FR-019)
-- [ ] T021 [US2] Implement loading, unsaved, saving, saved, validation, retry, and restored-value states in `apps/web/src/views/ReviewView.vue` and review completion context in `apps/web/src/views/TodayView.vue` (FR-013, FR-018-FR-019)
-- [ ] T022 [US2] Add desktop and phone P2 journeys in `apps/web/e2e/core-daily-loop/review-flow.spec.ts` (SC-003, SC-005, SC-008)
+- [X] T019 [US2] Complete bounded rating/text validation and completion-preserving upsert behavior in `apps/api/app/Http/Controllers/DailyReviewController.php` and `apps/api/app/Models/DailyReview.php` (FR-011-FR-013, FR-017)
+- [X] T020 [P] [US2] Complete typed review loading/saving/error contracts in `apps/web/src/api/client.ts` and `apps/web/src/api/types.ts` (FR-011-FR-013, FR-019)
+- [X] T021 [US2] Implement loading, unsaved, saving, saved, validation, retry, and restored-value states in `apps/web/src/views/ReviewView.vue` and review completion context in `apps/web/src/views/TodayView.vue` (FR-013, FR-018-FR-019)
+- [X] T022 [US2] Add desktop and phone P2 journeys in `apps/web/e2e/core-daily-loop/review-flow.spec.ts` (SC-003, SC-005, SC-008)
 
 **Checkpoint**: Review works independently and integrates with, but does not own, Today.
+
+### Phase 4 implementation notes (2026-08-10)
+
+- **Completion-preserving upsert.** The user/date unique key remains the concurrency backstop and
+  `firstOrCreate()` supplies a complete first response; later saves update only submitted review
+  fields, so the original `completed_at` remains the first successful completion instant.
+- **Strict bounded contract.** Review paths accept only real `Y-m-d` calendar dates, reject empty
+  payloads, validate ratings from 1 through 10, and enforce the 5,000/5,000/10,000 reflection limits.
+- **Calendar-timezone default.** An undated Review screen resolves its date and any saved review from
+  the no-date Today endpoint instead of deriving a day from the browser's UTC clock.
+- **Recoverable review states.** The form now keeps entered values through 422 and service failures,
+  focuses the first field error, offers service retry, clears stale saved state after edits, and hides
+  editable fields when loading fails. The browser journey verifies restoration, same-ID updates,
+  Today completion context, and no horizontal overflow on desktop and exact 390-pixel mobile.
+
+### Phase 4 validation evidence (2026-08-10)
+
+- `php artisan test`: 73 passed (604 assertions)
+- `./vendor/bin/pint --test`: clean
+- `npm run typecheck` and `npm run build`: pass
+- `npm run test:e2e`: 16 passed (desktop + 390 px mobile)
 
 ---
 

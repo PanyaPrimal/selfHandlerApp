@@ -74,11 +74,15 @@ export async function createGoal(payload: GoalPayload): Promise<Goal> {
 }
 
 export async function getDailyReview(date: string): Promise<DailyReview | null> {
-  const response = await request<ItemResponse<DailyReview | null>>(`/daily-reviews/${date}`)
+  const response = await request<ItemResponse<DailyReview | null>>(`/daily-reviews/${encodeURIComponent(date)}`)
   return response.data
 }
 
 export async function saveDailyReview(date: string, payload: DailyReviewPayload): Promise<DailyReview> {
-  const response = await jsonRequest<ItemResponse<DailyReview>>(`/daily-reviews/${date}`, 'PUT', payload)
+  const response = await jsonRequest<ItemResponse<DailyReview>>(
+    `/daily-reviews/${encodeURIComponent(date)}`,
+    'PUT',
+    payload,
+  )
   return response.data
 }

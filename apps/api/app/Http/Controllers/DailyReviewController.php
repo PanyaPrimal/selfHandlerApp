@@ -3,20 +3,21 @@
 namespace App\Http\Controllers;
 
 use App\Models\DailyReview;
-use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 class DailyReviewController extends Controller
 {
     public function show(Request $request, string $date): JsonResponse
     {
         $user = $request->user();
-        $reviewDate = CarbonImmutable::parse($date)->toDateString();
+        $reviewDate = $this->validatedDate($date);
 
         $review = DailyReview::query()
             ->ownedBy($user)
-            ->whereDate('review_date', $reviewDate)
+            ->where('review_date', $reviewDate)
             ->first();
 
         return response()->json(['data' => $review]);
@@ -25,34 +26,47 @@ class DailyReviewController extends Controller
     public function upsert(Request $request, string $date): JsonResponse
     {
         $user = $request->user();
-        $reviewDate = CarbonImmutable::parse($date)->toDateString();
+        $reviewDate = $this->validatedDate($date);
 
         $data = $request->validate([
-            'mood' => ['nullable', 'integer', 'between:1,10'],
-            'energy' => ['nullable', 'integer', 'between:1,10'],
-            'stress' => ['nullable', 'integer', 'between:1,10'],
-            'day_rating' => ['nullable', 'integer', 'between:1,10'],
-            'went_well' => ['nullable', 'string'],
-            'improve_tomorrow' => ['nullable', 'string'],
-            'notes' => ['nullable', 'string'],
+            'mood' => ['sometimes', 'nullable', 'integer', 'between:1,10'],
+            'energy' => ['sometimes', 'nullable', 'integer', 'between:1,10'],
+            'stress' => ['sometimes', 'nullable', 'integer', 'between:1,10'],
+            'day_rating' => ['sometimes', 'nullable', 'integer', 'between:1,10'],
+            'went_well' => ['sometimes', 'nullable', 'string', 'max:5000'],
+            'improve_tomorrow' => ['sometimes', 'nullable', 'string', 'max:5000'],
+            'notes' => ['sometimes', 'nullable', 'string', 'max:10000'],
         ]);
 
-        $review = DailyReview::query()
-            ->ownedBy($user)
-            ->whereDate('review_date', $reviewDate)
-            ->first();
-
-        if ($review) {
-            $review->update([...$data, 'completed_at' => now()]);
-        } else {
-            $review = DailyReview::create([
-                'user_id' => $user->id,
-                'review_date' => $reviewDate,
-                ...$data,
-                'completed_at' => now(),
+        if ($data === []) {
+            throw ValidationException::withMessages([
+                'request' => 'Provide at least one review field to save.',
             ]);
         }
 
-        return response()->json(['data' => $review]);
+        $review = DailyReview::query()->firstOrCreate(
+            [
+                'user_id' => $user->id,
+                'review_date' => $reviewDate,
+            ],
+            [
+                ...$data,
+                'completed_at' => now(),
+            ],
+        );
+
+        if (! $review->wasRecentlyCreated) {
+            $review->update($data);
+        }
+
+        return response()->json(['data' => $review->fresh()]);
+    }
+
+    private function validatedDate(string $date): string
+    {
+        return Validator::make(
+            ['date' => $date],
+            ['date' => ['required', 'date_format:Y-m-d']],
+        )->validate()['date'];
     }
 }
