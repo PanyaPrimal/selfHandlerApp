@@ -77,9 +77,10 @@ export interface DailyReview extends DailyReviewFields {
 export interface TodayRoutine extends Pick<Routine, 'id' | 'name' | 'description' | 'kind' | 'preferred_time' | 'sort_order' | 'is_active' | 'is_archived'> {
   log: RoutineLog | null
   goals: GoalSummary[]
+  current_streak: number
 }
 
-export interface TodaySummary {
+export interface CompletionSummary {
   scheduled: number
   done: number
   skipped: number
@@ -89,10 +90,15 @@ export interface TodaySummary {
 
 export interface TodayResponse {
   date: string
-  summary: TodaySummary
+  summary: CompletionSummary
   routines: TodayRoutine[]
   goals: (GoalSummary & Pick<Goal, 'target_date'>)[]
   review: DailyReview | null
+  progress: {
+    period_start: string
+    period_end: string
+    seven_day: CompletionSummary
+  }
 }
 
 export interface ListResponse<T> {

@@ -394,6 +394,19 @@ h3 {
   grid-template-columns: 1.3fr repeat(3, minmax(0, 0.72fr));
 }
 
+.progress-summary-grid {
+  grid-template-columns: 1.3fr repeat(4, minmax(0, 0.72fr));
+}
+
+.progress-empty {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 12px;
+  background: var(--paper-soft);
+}
+
 .metric {
   display: grid;
   gap: 8px;

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\DailyReview;
 use App\Models\Routine;
 use App\Models\RoutineLog;
+use App\Services\RoutineProgressService;
 use App\Services\RoutineScheduleService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
@@ -12,7 +13,10 @@ use Illuminate\Http\Request;
 
 class TodayController extends Controller
 {
-    public function __construct(private readonly RoutineScheduleService $scheduleService) {}
+    public function __construct(
+        private readonly RoutineScheduleService $scheduleService,
+        private readonly RoutineProgressService $progressService,
+    ) {}
 
     public function __invoke(Request $request): JsonResponse
     {
@@ -64,6 +68,7 @@ class TodayController extends Controller
             ->ownedBy($user)
             ->whereDate('review_date', $date)
             ->first();
+        $progress = $this->progressService->calculate($user, $date);
 
         return response()->json([
             'date' => $date->toDateString(),
@@ -84,6 +89,7 @@ class TodayController extends Controller
                 'is_active' => $routine->is_active,
                 'is_archived' => $routine->is_archived,
                 'log' => $logs->get($routine->id),
+                'current_streak' => $progress['routine_streaks'][$routine->id] ?? 0,
                 'goals' => $routine->goals->map(fn ($goal): array => [
                     'id' => $goal->id,
                     'name' => $goal->name,
@@ -101,6 +107,11 @@ class TodayController extends Controller
                     'target_date' => $goal->target_date?->toDateString(),
                 ]),
             'review' => $review,
+            'progress' => [
+                'period_start' => $progress['period_start'],
+                'period_end' => $progress['period_end'],
+                'seven_day' => $progress['seven_day'],
+            ],
         ]);
     }
 }

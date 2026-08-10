@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { clearRoutineLog, getToday, updateRoutineLog } from '../api/client'
+import ProgressSummary from '../components/ProgressSummary.vue'
 import { formatCalendarDate } from '../lib/format'
 import { useAuthSession } from '../auth/session'
 import type { RoutineLog, TodayResponse, TodayRoutine } from '../api/types'
@@ -116,6 +117,7 @@ async function setRoutineState(routine: TodayRoutine, state: RoutineState): Prom
       setLocalState(routine, state, savedLog)
     }
 
+    data.value = await getToday(selectedDate.value)
     statusMessage.value = `${routine.name} is ${state}.`
   } catch (currentError) {
     data.value = previousData
@@ -189,6 +191,8 @@ onMounted(() => loadToday())
         </div>
       </section>
 
+      <ProgressSummary :progress="data.progress" />
+
       <section class="panel">
         <div class="section-heading">
           <h2>Routines</h2>
@@ -223,6 +227,10 @@ onMounted(() => loadToday())
                   <span v-if="routine.preferred_time" class="mono">{{ routine.preferred_time.slice(0, 5) }}</span>
                   <span>{{ routine.kind }}</span>
                   <span>{{ routine.log?.status ?? 'pending' }}</span>
+                  <span
+                    class="streak-badge"
+                    :aria-label="`Current streak: ${routine.current_streak} days`"
+                  >{{ routine.current_streak }}-day streak</span>
                 </span>
                 <span v-if="routine.goals.length > 0" class="goal-chip-list">
                   <span v-for="goal in routine.goals" :key="goal.id" class="goal-chip">{{ goal.name }}</span>

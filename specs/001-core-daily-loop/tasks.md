@@ -252,17 +252,44 @@ manual calculation, including a period with no scheduled occurrences.
 
 ### Tests for User Story 4
 
-- [ ] T030 [P] [US4] Add streak, current-day pending, skipped, bounded-window, empty-period, and 500-routine/one-year-history regression tests in `apps/api/tests/Unit/CoreDailyLoop/RoutineProgressServiceTest.php` (FR-014-FR-015, SC-004)
-- [ ] T031 [P] [US4] Add Today progress response and ownership tests in `apps/api/tests/Feature/CoreDailyLoop/ProgressApiTest.php` (FR-014-FR-017, SC-004, SC-006)
+- [X] T030 [P] [US4] Add streak, current-day pending, skipped, bounded-window, empty-period, and 500-routine/one-year-history regression tests in `apps/api/tests/Unit/CoreDailyLoop/RoutineProgressServiceTest.php` (FR-014-FR-015, SC-004)
+- [X] T031 [P] [US4] Add Today progress response and ownership tests in `apps/api/tests/Feature/CoreDailyLoop/ProgressApiTest.php` (FR-014-FR-017, SC-004, SC-006)
 
 ### Implementation for User Story 4
 
-- [ ] T032 [US4] Implement bounded on-demand summary and scheduled-occurrence streak calculations in `apps/api/app/Services/RoutineProgressService.php` (FR-014-FR-015, FR-017)
-- [ ] T033 [US4] Extend the Today contract with streak and seven-day progress data in `apps/api/app/Http/Controllers/TodayController.php` and `apps/web/src/api/types.ts` (FR-014-FR-015)
-- [ ] T034 [US4] Add accessible progress and empty-state presentation in `apps/web/src/components/ProgressSummary.vue` and `apps/web/src/views/TodayView.vue` (FR-015, FR-018-FR-019)
-- [ ] T035 [US4] Add known-history and empty-period browser journeys in `apps/web/e2e/core-daily-loop/progress-flow.spec.ts` (SC-004, SC-005, SC-008)
+- [X] T032 [US4] Implement bounded on-demand summary and scheduled-occurrence streak calculations in `apps/api/app/Services/RoutineProgressService.php` (FR-014-FR-015, FR-017)
+- [X] T033 [US4] Extend the Today contract with streak and seven-day progress data in `apps/api/app/Http/Controllers/TodayController.php` and `apps/web/src/api/types.ts` (FR-014-FR-015)
+- [X] T034 [US4] Add accessible progress and empty-state presentation in `apps/web/src/components/ProgressSummary.vue` and `apps/web/src/views/TodayView.vue` (FR-015, FR-018-FR-019)
+- [X] T035 [US4] Add known-history and empty-period browser journeys in `apps/web/e2e/core-daily-loop/progress-flow.spec.ts` (SC-004, SC-005, SC-008)
 
 **Checkpoint**: All four stories are independently verifiable and compose into the full daily loop.
+
+### Phase 6 implementation notes (2026-08-11)
+
+- **Bounded, on-demand source-of-truth calculation.** Seven-day completion evaluates exactly the
+  inclusive selected-date window and counts only scheduled occurrences. Logs are streamed in
+  routine/date order, while routines and normalized weekdays are eager-loaded; the 500-routine ×
+  365-day regression stays within five queries and introduces no rollup/cache table.
+- **Scheduled-occurrence streaks.** Done scheduled occurrences count backward across weekday gaps,
+  skipped or ended missing occurrences break the streak, and missing current/future occurrences are
+  neutral. Validity dates, archive boundaries, unscheduled logs, timezone conversion, and foreign data
+  are covered independently.
+- **Accessible recent progress.** Today now returns a streak for every displayed routine plus an exact
+  progress period/summary. The responsive progress region exposes labelled counts and a progressbar;
+  a zero-denominator period shows deliberate explanatory copy with no misleading percentage. Routine
+  mutations refresh the aggregate so streak and seven-day feedback agree with the saved state.
+- **Accepted pause-history limitation.** The schema records only current `is_active`, not pause/resume
+  intervals. Progress therefore uses the routine's current active state for historical schedule
+  evaluation; while paused, past unlogged scheduled denominators cannot be reconstructed. Accurately
+  representing repeated pause cycles requires schedule versions/materialized occurrences and remains
+  deferred with the recurrence-engine work. Archive history remains reproducible through `archived_at`.
+
+### Phase 6 validation evidence (2026-08-11)
+
+- `php artisan test`: 104 passed (843 assertions)
+- `./vendor/bin/pint --test`: clean
+- `npm run typecheck` and `npm run build`: pass
+- `npm run test:e2e`: 24 passed (desktop + 390 px mobile)
 
 ---
 
