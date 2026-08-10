@@ -2,7 +2,8 @@ import type {
   DailyReview,
   DailyReviewPayload,
   Goal,
-  GoalPayload,
+  GoalCreatePayload,
+  GoalUpdatePayload,
   ItemResponse,
   ListResponse,
   Routine,
@@ -63,14 +64,50 @@ export function clearRoutineLog(routineId: number, date: string): Promise<void> 
   return request<void>(`/routines/${routineId}/logs/${date}`, { method: 'DELETE' })
 }
 
-export async function getGoals(): Promise<Goal[]> {
-  const response = await request<ListResponse<Goal>>('/goals')
+export async function getGoals(archived = false): Promise<Goal[]> {
+  const response = await request<ListResponse<Goal>>(`/goals?archived=${archived}`)
   return response.data
 }
 
-export async function createGoal(payload: GoalPayload): Promise<Goal> {
+export async function createGoal(payload: GoalCreatePayload): Promise<Goal> {
   const response = await jsonRequest<ItemResponse<Goal>>('/goals', 'POST', payload)
   return response.data
+}
+
+export async function updateGoal(goalId: number, payload: GoalUpdatePayload): Promise<Goal> {
+  const response = await jsonRequest<ItemResponse<Goal>>(`/goals/${goalId}`, 'PATCH', payload)
+  return response.data
+}
+
+export function completeGoal(goalId: number): Promise<Goal> {
+  return updateGoal(goalId, { status: 'completed' })
+}
+
+export function abandonGoal(goalId: number): Promise<Goal> {
+  return updateGoal(goalId, { status: 'abandoned' })
+}
+
+export function reactivateGoal(goalId: number): Promise<Goal> {
+  return updateGoal(goalId, { status: 'active' })
+}
+
+export function archiveGoal(goalId: number): Promise<Goal> {
+  return updateGoal(goalId, { is_archived: true })
+}
+
+export function restoreGoal(goalId: number): Promise<Goal> {
+  return updateGoal(goalId, { is_archived: false })
+}
+
+export async function linkRoutineToGoal(goalId: number, routineId: number): Promise<Goal> {
+  const response = await request<ItemResponse<Goal>>(`/goals/${goalId}/routines/${routineId}`, {
+    method: 'POST',
+  })
+  return response.data
+}
+
+export function unlinkRoutineFromGoal(goalId: number, routineId: number): Promise<void> {
+  return request<void>(`/goals/${goalId}/routines/${routineId}`, { method: 'DELETE' })
 }
 
 export async function getDailyReview(date: string): Promise<DailyReview | null> {

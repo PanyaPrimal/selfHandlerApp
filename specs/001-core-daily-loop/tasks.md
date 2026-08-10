@@ -204,18 +204,42 @@ context, and confirm inactive or archived goals disappear without losing history
 
 ### Tests for User Story 3
 
-- [ ] T023 [P] [US3] Add goal lifecycle, archive, link/unlink, cross-owner, and active-context tests in `apps/api/tests/Feature/CoreDailyLoop/GoalApiTest.php` (FR-008-FR-010, FR-016, FR-020, SC-007)
+- [X] T023 [P] [US3] Add goal lifecycle, archive, link/unlink, cross-owner, and active-context tests in `apps/api/tests/Feature/CoreDailyLoop/GoalApiTest.php` (FR-008-FR-010, FR-016, FR-020, SC-007)
 
 ### Implementation for User Story 3
 
-- [ ] T024 [US3] Complete goal lifecycle and archive/restore behavior in `apps/api/app/Models/Goal.php` and `apps/api/app/Http/Controllers/GoalController.php` (FR-008, FR-020)
-- [ ] T025 [US3] Enforce owner-matched idempotent link/unlink behavior in `apps/api/app/Http/Controllers/GoalController.php` and `apps/api/routes/api.php` (FR-009, FR-016, SC-007)
-- [ ] T026 [US3] Filter Today goal context to active current-user relationships in `apps/api/app/Http/Controllers/TodayController.php` (FR-010, FR-016)
-- [ ] T027 [P] [US3] Add typed goal lifecycle and link/unlink operations in `apps/web/src/api/client.ts` and `apps/web/src/api/types.ts` (FR-008-FR-010)
-- [ ] T028 [US3] Implement goal edit/archive/restore and routine-link management in `apps/web/src/views/GoalsView.vue`, plus active context in `apps/web/src/views/TodayView.vue` (FR-008-FR-010, FR-018-FR-019)
-- [ ] T029 [US3] Add desktop and phone P3 journeys in `apps/web/e2e/core-daily-loop/goal-flow.spec.ts` (SC-005, SC-007, SC-008)
+- [X] T024 [US3] Complete goal lifecycle and archive/restore behavior in `apps/api/app/Models/Goal.php` and `apps/api/app/Http/Controllers/GoalController.php` (FR-008, FR-020)
+- [X] T025 [US3] Enforce owner-matched idempotent link/unlink behavior in `apps/api/app/Http/Controllers/GoalController.php` and `apps/api/routes/api.php` (FR-009, FR-016, SC-007)
+- [X] T026 [US3] Filter Today goal context to active current-user relationships in `apps/api/app/Http/Controllers/TodayController.php` (FR-010, FR-016)
+- [X] T027 [P] [US3] Add typed goal lifecycle and link/unlink operations in `apps/web/src/api/client.ts` and `apps/web/src/api/types.ts` (FR-008-FR-010)
+- [X] T028 [US3] Implement goal edit/archive/restore and routine-link management in `apps/web/src/views/GoalsView.vue`, plus active context in `apps/web/src/views/TodayView.vue` (FR-008-FR-010, FR-018-FR-019)
+- [X] T029 [US3] Add desktop and phone P3 journeys in `apps/web/e2e/core-daily-loop/goal-flow.spec.ts` (SC-005, SC-007, SC-008)
 
 **Checkpoint**: Goals add optional context without becoming a dependency of the routine loop.
+
+### Phase 5 implementation notes (2026-08-11)
+
+- **Server-derived lifecycle.** Goal `type` remains fixed to `general`; completing sets and preserves
+  the first `completed_at`, while reactivation or abandonment clears it. Archive/restore similarly
+  derives `archived_at` without changing status or removing historical routine links.
+- **Contract-only, owner-safe relationships.** Goal routes now expose only the specified list, create,
+  `PATCH`, link, and unlink operations. Both relationship identifiers must belong to the authenticated
+  user, repeated link/unlink calls remain idempotent, and relationship responses load only owner rows.
+- **Active Today context.** Today eager-loads only current-user goals that are active, non-archived,
+  and not soft-deleted; completed, abandoned, archived, unrelated, and foreign goals are excluded from
+  both per-routine chips and the top-level context.
+- **Complete goal workspace.** The responsive UI supports create/edit, complete/abandon/reactivate,
+  archive/restore, current/archived lists, and active-routine link management with explicit loading,
+  empty, validation, saved, service-error, and retry states. Browser coverage proves link removal keeps
+  both records, lifecycle changes update Today, drafts survive 422 responses, and 390-pixel layouts do
+  not overflow.
+
+### Phase 5 validation evidence (2026-08-11)
+
+- `php artisan test`: 91 passed (735 assertions)
+- `./vendor/bin/pint --test`: clean
+- `npm run typecheck` and `npm run build`: pass
+- `npm run test:e2e`: 20 passed (desktop + 390 px mobile)
 
 ---
 

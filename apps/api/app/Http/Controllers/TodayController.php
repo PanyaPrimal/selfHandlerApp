@@ -34,7 +34,15 @@ class TodayController extends Controller
 
         $routines = Routine::query()
             ->ownedBy($user)
-            ->with(['goals', 'scheduleWeekdays'])
+            ->with([
+                'goals' => fn ($query) => $query
+                    ->ownedBy($user)
+                    ->where('goals.status', 'active')
+                    ->where('goals.is_archived', false)
+                    ->orderBy('goals.name')
+                    ->orderBy('goals.id'),
+                'scheduleWeekdays',
+            ])
             ->orderBy('sort_order')
             ->orderBy('name')
             ->orderBy('id')

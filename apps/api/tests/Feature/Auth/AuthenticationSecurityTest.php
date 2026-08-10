@@ -31,7 +31,6 @@ class AuthenticationSecurityTest extends AuthTestCase
             ['PUT', '/api/daily-reviews/2026-08-09', ['mood' => 7]],
             ['GET', '/api/goals', []],
             ['POST', '/api/goals', ['name' => 'Anonymous goal']],
-            ['PUT', '/api/goals/999999', ['name' => 'Anonymous update']],
             ['PATCH', '/api/goals/999999', ['name' => 'Anonymous patch']],
             ['POST', '/api/goals/999999/routines/999999', []],
             ['DELETE', '/api/goals/999999/routines/999999', []],

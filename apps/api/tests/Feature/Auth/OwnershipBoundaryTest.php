@@ -85,7 +85,6 @@ class OwnershipBoundaryTest extends AuthTestCase
         $this->putJson("/api/routines/{$routineB->id}/logs/".self::DATE, ['status' => 'done'])->assertNotFound();
         $this->deleteJson("/api/routines/{$routineB->id}/logs/".self::DATE)->assertNotFound();
 
-        $this->putJson("/api/goals/{$goalB->id}", ['name' => 'Stolen goal'])->assertNotFound();
         $this->patchJson("/api/goals/{$goalB->id}", ['name' => 'Stolen goal'])->assertNotFound();
         $this->postJson("/api/goals/{$goalA->id}/routines/{$routineB->id}")->assertNotFound();
         $this->postJson("/api/goals/{$goalB->id}/routines/{$routineA->id}")->assertNotFound();

@@ -638,6 +638,28 @@ h3 {
   justify-content: flex-end;
 }
 
+.goal-card {
+  display: grid;
+  gap: 16px;
+}
+
+.routine-link-form {
+  display: grid;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.routine-link-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+}
+
+.routine-link-options .checkbox-field {
+  min-width: min(220px, 100%);
+}
+
 .review-form {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }

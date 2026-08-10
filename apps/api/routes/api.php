@@ -22,7 +22,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/daily-reviews/{date}', [DailyReviewController::class, 'show']);
     Route::put('/daily-reviews/{date}', [DailyReviewController::class, 'upsert']);
 
-    Route::apiResource('goals', GoalController::class)->except(['show', 'destroy']);
+    Route::get('/goals', [GoalController::class, 'index']);
+    Route::post('/goals', [GoalController::class, 'store']);
+    Route::patch('/goals/{goal}', [GoalController::class, 'update']);
     Route::post('/goals/{goal}/routines/{routine}', [GoalController::class, 'linkRoutine']);
     Route::delete('/goals/{goal}/routines/{routine}', [GoalController::class, 'unlinkRoutine']);
 });

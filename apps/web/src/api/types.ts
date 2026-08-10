@@ -6,13 +6,13 @@ export interface Goal {
   id: number
   name: string
   description: string | null
-  type: string
+  type: 'general'
   status: 'active' | 'completed' | 'abandoned'
   target_date: string | null
   completed_at: string | null
   is_archived: boolean
   archived_at: string | null
-  routines?: RoutineSummary[]
+  routines: RoutineSummary[]
 }
 
 export interface GoalSummary extends Pick<Goal, 'id' | 'name' | 'status'> {}
@@ -137,13 +137,19 @@ export interface RoutineCreatePayload extends RoutineInput {
 
 export type RoutineUpdatePayload = RoutineInput
 
-export interface GoalPayload {
-  name: string
+export interface GoalInput {
+  name?: string
   description?: string | null
-  type?: string
   status?: Goal['status']
   target_date?: string | null
+  is_archived?: boolean
 }
+
+export interface GoalCreatePayload extends GoalInput {
+  name: string
+}
+
+export type GoalUpdatePayload = GoalInput
 
 export type DailyReviewPayload = {
   [Field in keyof DailyReviewFields]-?: Required<Pick<DailyReviewFields, Field>>

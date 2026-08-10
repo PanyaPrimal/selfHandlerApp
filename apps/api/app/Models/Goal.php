@@ -12,6 +12,12 @@ class Goal extends Model
 {
     use HasFactory, SoftDeletes, UserOwned;
 
+    protected $attributes = [
+        'type' => 'general',
+        'status' => 'active',
+        'is_archived' => false,
+    ];
+
     protected $fillable = [
         'user_id',
         'name',
@@ -39,5 +45,34 @@ class Goal extends Model
         return $this->belongsToMany(Routine::class)
             ->withPivot('user_id')
             ->withTimestamps();
+    }
+
+    /**
+     * Apply editable fields and derive their lifecycle timestamps together.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    public function applyLifecycle(array $attributes): void
+    {
+        $wasCompleted = $this->status === 'completed';
+        $wasArchived = $this->is_archived;
+
+        $this->fill($attributes);
+
+        if ($this->status === 'completed') {
+            if (! $wasCompleted || $this->completed_at === null) {
+                $this->completed_at = now();
+            }
+        } else {
+            $this->completed_at = null;
+        }
+
+        if ($this->is_archived) {
+            if (! $wasArchived || $this->archived_at === null) {
+                $this->archived_at = now();
+            }
+        } else {
+            $this->archived_at = null;
+        }
     }
 }

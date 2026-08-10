@@ -1,40 +1,306 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
-import { createGoal, getGoals } from '../api/client'
+import { computed, nextTick, onMounted, reactive, ref, shallowRef } from 'vue'
+import {
+  abandonGoal,
+  archiveGoal,
+  completeGoal,
+  createGoal,
+  getGoals,
+  getRoutines,
+  linkRoutineToGoal,
+  reactivateGoal,
+  restoreGoal,
+  unlinkRoutineFromGoal,
+  updateGoal,
+  validationErrors,
+  ApiError,
+  type ValidationErrors,
+} from '../api/client'
+import type { Goal, GoalCreatePayload, Routine } from '../api/types'
 import { formatCalendarDate } from '../lib/format'
-import type { Goal, GoalPayload } from '../api/types'
+
+interface GoalForm {
+  name: string
+  description: string
+  target_date: string
+}
+
+type GoalAction = 'complete' | 'abandon' | 'reactivate' | 'archive' | 'restore'
 
 const goals = ref<Goal[]>([])
-const isLoading = ref(false)
+const routines = ref<Routine[]>([])
+const archivedView = ref(false)
+const editingId = ref<number | null>(null)
+const isLoading = ref(true)
+const loadFailed = ref(false)
+const isSubmitting = ref(false)
+const actionGoalId = ref<number | null>(null)
+const linkSavingGoalId = ref<number | null>(null)
 const error = ref<string | null>(null)
-const form = reactive<GoalPayload>({
-  name: '',
-  type: 'general',
-  status: 'active',
-  target_date: null,
-})
+const success = ref<string | null>(null)
+const fieldErrors = ref<ValidationErrors>({})
+const retryAction = shallowRef<(() => void) | null>(null)
+const linkSelections = reactive<Record<number, number[]>>({})
+const form = reactive<GoalForm>(emptyForm())
+const nameInput = ref<HTMLInputElement | null>(null)
+const descriptionInput = ref<HTMLTextAreaElement | null>(null)
+const targetDateInput = ref<HTMLInputElement | null>(null)
+const activeRoutines = computed(() => routines.value.filter((routine) => routine.is_active && !routine.is_archived))
+const mutationBusy = computed(() => (
+  isSubmitting.value || actionGoalId.value !== null || linkSavingGoalId.value !== null
+))
 
-async function loadGoals(): Promise<void> {
-  isLoading.value = true
+function emptyForm(): GoalForm {
+  return {
+    name: '',
+    description: '',
+    target_date: '',
+  }
+}
+
+function resetLinkSelections(): void {
+  for (const goalId of Object.keys(linkSelections)) {
+    delete linkSelections[Number(goalId)]
+  }
+
+  for (const goal of goals.value) {
+    linkSelections[goal.id] = goal.routines.map((routine) => routine.id)
+  }
+}
+
+function failureMessage(currentError: unknown, operation: 'load' | 'save' | 'action' | 'links'): string {
+  if (currentError instanceof ApiError && currentError.status === 422) {
+    return 'Please correct the highlighted fields and try again.'
+  }
+
+  const subject = operation === 'load'
+    ? 'loaded'
+    : operation === 'save'
+      ? 'saved'
+      : operation === 'links'
+        ? 'linked'
+        : 'updated'
+
+  return `Goals could not be ${subject}. Check the service and try again.`
+}
+
+function setRetry(action: () => void): void {
+  retryAction.value = action
+}
+
+function clearFeedback(): void {
   error.value = null
+  success.value = null
+  retryAction.value = null
+}
+
+async function loadWorkspace(): Promise<void> {
+  isLoading.value = true
+  loadFailed.value = false
+  error.value = null
+  retryAction.value = null
 
   try {
-    goals.value = await getGoals()
+    const [loadedGoals, loadedRoutines] = await Promise.all([
+      getGoals(archivedView.value),
+      getRoutines(false),
+    ])
+
+    goals.value = loadedGoals
+    routines.value = loadedRoutines
+    resetLinkSelections()
   } catch (currentError) {
-    error.value = currentError instanceof Error ? currentError.message : 'Failed to load goals'
+    goals.value = []
+    routines.value = []
+    loadFailed.value = true
+    error.value = failureMessage(currentError, 'load')
   } finally {
     isLoading.value = false
   }
 }
 
-async function submitGoal(): Promise<void> {
-  await createGoal(form)
-  form.name = ''
-  form.target_date = null
-  await loadGoals()
+function goalPayload(): GoalCreatePayload {
+  return {
+    name: form.name,
+    description: form.description || null,
+    target_date: form.target_date || null,
+  }
 }
 
-onMounted(loadGoals)
+async function focusFirstError(): Promise<void> {
+  await nextTick()
+
+  const inputs: Array<[keyof GoalForm, HTMLElement | null]> = [
+    ['name', nameInput.value],
+    ['description', descriptionInput.value],
+    ['target_date', targetDateInput.value],
+  ]
+
+  inputs.find(([field]) => fieldErrors.value[field]?.length)?.[1]?.focus()
+}
+
+async function submitGoal(): Promise<void> {
+  if (isSubmitting.value) {
+    return
+  }
+
+  isSubmitting.value = true
+  clearFeedback()
+  fieldErrors.value = {}
+
+  try {
+    const payload = goalPayload()
+
+    if (editingId.value === null) {
+      await createGoal(payload)
+      success.value = 'Goal created.'
+    } else {
+      await updateGoal(editingId.value, payload)
+      success.value = 'Goal updated.'
+    }
+
+    resetForm()
+    await loadWorkspace()
+  } catch (currentError) {
+    fieldErrors.value = validationErrors(currentError)
+    error.value = failureMessage(currentError, 'save')
+
+    if (!(currentError instanceof ApiError && currentError.status === 422)) {
+      setRetry(() => {
+        void submitGoal()
+      })
+    }
+
+    await focusFirstError()
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+function editGoal(goal: Goal): void {
+  editingId.value = goal.id
+  Object.assign(form, {
+    name: goal.name,
+    description: goal.description ?? '',
+    target_date: goal.target_date ?? '',
+  })
+  fieldErrors.value = {}
+  clearFeedback()
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+function resetForm(): void {
+  editingId.value = null
+  Object.assign(form, emptyForm())
+  fieldErrors.value = {}
+}
+
+async function switchArchiveView(archived: boolean): Promise<void> {
+  if (archivedView.value === archived) {
+    return
+  }
+
+  archivedView.value = archived
+  goals.value = []
+  resetForm()
+  success.value = null
+  await loadWorkspace()
+}
+
+async function changeGoalLifecycle(goal: Goal, action: GoalAction): Promise<void> {
+  if (mutationBusy.value) {
+    return
+  }
+
+  actionGoalId.value = goal.id
+  clearFeedback()
+
+  const operations: Record<GoalAction, (goalId: number) => Promise<Goal>> = {
+    complete: completeGoal,
+    abandon: abandonGoal,
+    reactivate: reactivateGoal,
+    archive: archiveGoal,
+    restore: restoreGoal,
+  }
+  const messages: Record<GoalAction, string> = {
+    complete: 'Goal completed.',
+    abandon: 'Goal abandoned.',
+    reactivate: 'Goal reactivated.',
+    archive: 'Goal archived.',
+    restore: 'Goal restored.',
+  }
+
+  try {
+    await operations[action](goal.id)
+    success.value = messages[action]
+
+    if (editingId.value === goal.id && (action === 'archive' || action === 'restore')) {
+      resetForm()
+    }
+
+    await loadWorkspace()
+  } catch (currentError) {
+    error.value = failureMessage(currentError, 'action')
+    setRetry(() => {
+      void changeGoalLifecycle(goal, action)
+    })
+  } finally {
+    actionGoalId.value = null
+  }
+}
+
+async function saveRoutineLinks(goal: Goal): Promise<void> {
+  if (mutationBusy.value) {
+    return
+  }
+
+  linkSavingGoalId.value = goal.id
+  clearFeedback()
+
+  const editableRoutineIds = new Set(activeRoutines.value.map((routine) => routine.id))
+  const existingRoutineIds = new Set(
+    goal.routines
+      .map((routine) => routine.id)
+      .filter((routineId) => editableRoutineIds.has(routineId)),
+  )
+  const selectedRoutineIds = new Set(
+    (linkSelections[goal.id] ?? []).filter((routineId) => editableRoutineIds.has(routineId)),
+  )
+  const toLink = [...selectedRoutineIds].filter((routineId) => !existingRoutineIds.has(routineId))
+  const toUnlink = [...existingRoutineIds].filter((routineId) => !selectedRoutineIds.has(routineId))
+
+  try {
+    for (const routineId of toLink) {
+      await linkRoutineToGoal(goal.id, routineId)
+    }
+
+    for (const routineId of toUnlink) {
+      await unlinkRoutineFromGoal(goal.id, routineId)
+    }
+
+    success.value = 'Routine links saved.'
+    await loadWorkspace()
+  } catch (currentError) {
+    error.value = failureMessage(currentError, 'links')
+    setRetry(() => {
+      void saveRoutineLinks(goal)
+    })
+  } finally {
+    linkSavingGoalId.value = null
+  }
+}
+
+function clearFieldError(field: keyof GoalForm): void {
+  if (!fieldErrors.value[field]) {
+    return
+  }
+
+  const remainingErrors = { ...fieldErrors.value }
+  delete remainingErrors[field]
+  fieldErrors.value = remainingErrors
+}
+
+onMounted(loadWorkspace)
 </script>
 
 <template>
@@ -46,39 +312,230 @@ onMounted(loadGoals)
       </div>
     </header>
 
-    <div v-if="error" class="notice error">{{ error }}</div>
+    <div v-if="!isLoading && !loadFailed && error" class="notice error action-notice" role="alert">
+      <span>{{ error }}</span>
+      <button v-if="retryAction" type="button" class="secondary" @click="retryAction">Retry</button>
+    </div>
+    <div v-if="success" class="notice success" role="status">{{ success }}</div>
 
-    <section class="panel">
-      <h2>Create goal</h2>
-      <form class="form-grid" @submit.prevent="submitGoal">
-        <label class="field">
-          <span>Name</span>
-          <input v-model="form.name" required placeholder="Improve discipline" />
-        </label>
-
-        <label class="field">
-          <span>Target date</span>
-          <input v-model="form.target_date" type="date" />
-        </label>
-
-        <button type="submit">Create</button>
-      </form>
+    <section v-if="isLoading" class="panel state-block" role="status" aria-live="polite">
+      <strong>Loading goals…</strong>
+      <span class="muted">Restoring goals and their routine links.</span>
     </section>
 
-    <section class="panel">
-      <h2>Goals</h2>
-      <p v-if="isLoading" class="muted">Loading goals...</p>
-      <p v-else-if="goals.length === 0" class="muted">No goals yet.</p>
+    <section v-else-if="loadFailed" class="panel state-block" role="alert">
+      <strong>{{ error }}</strong>
+      <button type="button" class="secondary" @click="loadWorkspace">Retry</button>
+    </section>
 
-      <ul v-else class="item-list">
-        <li v-for="goal in goals" :key="goal.id">
-          <strong>{{ goal.name }}</strong>
+    <template v-else>
+      <section class="panel">
+        <h2>{{ editingId === null ? 'Create goal' : 'Edit goal' }}</h2>
+        <form
+          class="form-grid"
+          :aria-label="editingId === null ? 'Create goal' : 'Edit goal'"
+          novalidate
+          :aria-busy="isSubmitting"
+          @submit.prevent="submitGoal"
+        >
+          <label class="field">
+            <span>Name</span>
+            <input
+              ref="nameInput"
+              v-model="form.name"
+              name="name"
+              maxlength="160"
+              required
+              :disabled="mutationBusy"
+              :aria-invalid="Boolean(fieldErrors.name?.length)"
+              :aria-describedby="fieldErrors.name?.length ? 'goal-name-error' : undefined"
+              @input="clearFieldError('name')"
+            />
+            <small v-if="fieldErrors.name?.length" id="goal-name-error" class="field-error">
+              {{ fieldErrors.name[0] }}
+            </small>
+          </label>
+
+          <label class="field">
+            <span>Target date</span>
+            <input
+              ref="targetDateInput"
+              v-model="form.target_date"
+              name="target_date"
+              type="date"
+              :disabled="mutationBusy"
+              :aria-invalid="Boolean(fieldErrors.target_date?.length)"
+              :aria-describedby="fieldErrors.target_date?.length ? 'goal-target-date-error' : undefined"
+              @input="clearFieldError('target_date')"
+            />
+            <small v-if="fieldErrors.target_date?.length" id="goal-target-date-error" class="field-error">
+              {{ fieldErrors.target_date[0] }}
+            </small>
+          </label>
+
+          <label class="field wide-field">
+            <span>Description</span>
+            <textarea
+              ref="descriptionInput"
+              v-model="form.description"
+              name="description"
+              rows="3"
+              maxlength="5000"
+              :disabled="mutationBusy"
+              :aria-invalid="Boolean(fieldErrors.description?.length)"
+              :aria-describedby="fieldErrors.description?.length ? 'goal-description-error' : undefined"
+              @input="clearFieldError('description')"
+            />
+            <small v-if="fieldErrors.description?.length" id="goal-description-error" class="field-error">
+              {{ fieldErrors.description[0] }}
+            </small>
+          </label>
+
+          <div class="form-actions wide-field button-row">
+            <button v-if="editingId !== null" type="button" class="secondary" :disabled="mutationBusy" @click="resetForm">
+              Cancel
+            </button>
+            <button type="submit" :disabled="mutationBusy">
+              {{ isSubmitting ? 'Saving goal…' : editingId === null ? 'Create goal' : 'Save changes' }}
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel" aria-label="Goal lists">
+        <div class="section-heading archive-heading">
+          <div>
+            <p class="eyebrow">Goal library</p>
+            <h2>{{ archivedView ? 'Archived goals' : 'Current goals' }}</h2>
+          </div>
+          <div class="segmented-list" aria-label="Goal archive filter">
+            <button
+              type="button"
+              class="secondary"
+              :class="{ selected: !archivedView }"
+              :aria-pressed="!archivedView"
+              :disabled="mutationBusy"
+              @click="switchArchiveView(false)"
+            >Current goals</button>
+            <button
+              type="button"
+              class="secondary"
+              :class="{ selected: archivedView }"
+              :aria-pressed="archivedView"
+              :disabled="mutationBusy"
+              @click="switchArchiveView(true)"
+            >Archived goals</button>
+          </div>
+        </div>
+
+        <div v-if="goals.length === 0" class="state-block">
+          <h3>{{ archivedView ? 'No archived goals yet' : 'No goals yet' }}</h3>
           <p class="muted">
-            {{ goal.status }}
-            <span v-if="goal.target_date"> · by {{ formatCalendarDate(goal.target_date) }}</span>
+            {{ archivedView ? 'Archived goals will remain available here.' : 'Create a goal to add purpose to daily routines.' }}
           </p>
-        </li>
-      </ul>
-    </section>
+        </div>
+
+        <ul v-else class="item-list" :aria-label="archivedView ? 'Archived goals' : 'Current goals'">
+          <li v-for="goal in goals" :key="goal.id" class="goal-card" :aria-label="goal.name">
+            <div class="management-row">
+              <div class="management-copy">
+                <strong>{{ goal.name }}</strong>
+                <p v-if="goal.description" class="muted">{{ goal.description }}</p>
+                <p class="routine-meta">
+                  <span>{{ goal.status }}</span>
+                  <span v-if="goal.target_date">by {{ formatCalendarDate(goal.target_date) }}</span>
+                  <span v-if="goal.routines.length > 0">
+                    Linked: {{ goal.routines.map((routine) => routine.name).join(', ') }}
+                  </span>
+                  <span v-else>No routines linked</span>
+                </p>
+              </div>
+
+              <div class="button-row management-actions">
+                <button
+                  type="button"
+                  class="secondary"
+                  :aria-label="`Edit ${goal.name}`"
+                  :disabled="mutationBusy"
+                  @click="editGoal(goal)"
+                >Edit</button>
+                <button
+                  v-if="goal.status === 'active' && !goal.is_archived"
+                  type="button"
+                  class="secondary"
+                  :aria-label="`Complete ${goal.name}`"
+                  :disabled="mutationBusy"
+                  @click="changeGoalLifecycle(goal, 'complete')"
+                >Complete</button>
+                <button
+                  v-if="goal.status === 'active' && !goal.is_archived"
+                  type="button"
+                  class="secondary"
+                  :aria-label="`Abandon ${goal.name}`"
+                  :disabled="mutationBusy"
+                  @click="changeGoalLifecycle(goal, 'abandon')"
+                >Abandon</button>
+                <button
+                  v-if="goal.status !== 'active' && !goal.is_archived"
+                  type="button"
+                  class="secondary"
+                  :aria-label="`Reactivate ${goal.name}`"
+                  :disabled="mutationBusy"
+                  @click="changeGoalLifecycle(goal, 'reactivate')"
+                >Reactivate</button>
+                <button
+                  v-if="!goal.is_archived"
+                  type="button"
+                  class="secondary"
+                  :aria-label="`Archive ${goal.name}`"
+                  :disabled="mutationBusy"
+                  @click="changeGoalLifecycle(goal, 'archive')"
+                >Archive</button>
+                <button
+                  v-else
+                  type="button"
+                  class="secondary"
+                  :aria-label="`Restore ${goal.name}`"
+                  :disabled="mutationBusy"
+                  @click="changeGoalLifecycle(goal, 'restore')"
+                >Restore</button>
+              </div>
+            </div>
+
+            <form
+              v-if="!goal.is_archived"
+              class="routine-link-form"
+              :aria-label="`Routine links for ${goal.name}`"
+              @submit.prevent="saveRoutineLinks(goal)"
+            >
+              <div>
+                <strong>Routine links</strong>
+                <p class="muted">Choose active routines that support this goal.</p>
+              </div>
+              <div v-if="activeRoutines.length > 0" class="routine-link-options">
+                <label v-for="routine in activeRoutines" :key="routine.id" class="checkbox-field">
+                  <input
+                    v-model="linkSelections[goal.id]"
+                    type="checkbox"
+                    :value="routine.id"
+                    :disabled="mutationBusy"
+                  />
+                  <span>{{ routine.name }}</span>
+                </label>
+              </div>
+              <p v-else class="muted">No active routines are available to link.</p>
+              <div class="form-actions">
+                <button
+                  type="submit"
+                  class="secondary"
+                  :aria-label="`Save routine links for ${goal.name}`"
+                  :disabled="mutationBusy"
+                >{{ linkSavingGoalId === goal.id ? 'Saving links…' : 'Save routine links' }}</button>
+              </div>
+            </form>
+          </li>
+        </ul>
+      </section>
+    </template>
   </section>
 </template>
