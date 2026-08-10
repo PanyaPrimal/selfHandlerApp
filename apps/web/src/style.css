@@ -206,21 +206,27 @@ button.ghost {
 }
 
 .auth-shell {
-  display: grid;
+  display: flex;
   min-height: 100vh;
-  padding: 32px 18px;
-  place-items: center;
+  min-height: 100dvh;
+  padding: clamp(12px, 4vh, 28px) clamp(12px, 4vw, 20px);
+  align-items: center;
+  justify-content: center;
+  /* Allow the card to scroll into view on short viewports instead of clipping. */
+  overflow-y: auto;
 }
 
 .auth-card {
   display: grid;
-  width: min(100%, 460px);
-  gap: 22px;
-  padding: clamp(24px, 5vw, 38px);
+  width: min(100%, 420px);
+  gap: clamp(12px, 2.4vh, 18px);
+  padding: clamp(20px, 4vw, 32px);
   border: 1px solid var(--border);
   border-radius: calc(var(--radius) + 4px);
   background: rgba(255, 255, 255, 0.96);
   box-shadow: var(--shadow);
+  /* Keep my own margin so the card never touches the viewport edges. */
+  margin: auto;
 }
 
 .auth-brand {
@@ -230,17 +236,22 @@ button.ghost {
 
 .auth-heading {
   display: grid;
-  gap: 10px;
+  gap: 4px;
 }
 
 .auth-heading h1,
 .startup-card h1 {
-  font-size: clamp(2rem, 8vw, 3rem);
+  font-size: clamp(1.6rem, 4.5vw, 2rem);
+  line-height: 1.15;
+}
+
+.auth-heading .muted {
+  font-size: 0.9rem;
 }
 
 .auth-form {
   display: grid;
-  gap: 16px;
+  gap: clamp(10px, 1.8vh, 14px);
 }
 
 .auth-form button {
@@ -248,8 +259,26 @@ button.ghost {
   margin-top: 2px;
 }
 
+/* Compact the auth form so register (5 fields) fits without page scroll on
+   normal viewports; the shell still scrolls on very short screens. */
+.auth-card .field {
+  gap: 3px;
+}
+
+.auth-card .field span {
+  font-size: 0.88rem;
+}
+
+.auth-card input {
+  padding: 8px 11px;
+}
+
+.auth-card .helper-text {
+  font-size: 0.78rem;
+}
+
 .auth-switch {
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   text-align: center;
 }
 
@@ -724,11 +753,13 @@ input[type="range"] {
   }
 
   .auth-shell {
-    padding: 18px 12px;
+    padding: 16px 12px;
+    /* Top-align on phones so a tall form scrolls naturally from the top. */
+    align-items: flex-start;
   }
 
   .auth-card {
-    padding: 24px 18px;
+    padding: 20px 16px;
   }
 
   .view-header,
@@ -750,5 +781,61 @@ input[type="range"] {
 
   .button-row button {
     flex: 1;
+  }
+}
+
+/* Short viewports (e.g. 1280x720 desktop windows, landscape phones): tighten
+   the auth card so the full form fits without page scroll. */
+@media (max-height: 760px) {
+  .auth-shell {
+    padding: 10px 16px;
+  }
+
+  .auth-card {
+    gap: 8px;
+    padding: 16px 24px;
+  }
+
+  .auth-form {
+    gap: 8px;
+  }
+
+  .auth-heading {
+    gap: 2px;
+  }
+
+  .auth-heading h1,
+  .startup-card h1 {
+    font-size: 1.45rem;
+  }
+
+  .auth-heading .muted {
+    font-size: 0.84rem;
+  }
+
+  .auth-card .helper-text {
+    font-size: 0.74rem;
+  }
+}
+
+/* Narrow phones down to 320px: tighten spacing further. Scrolling is expected. */
+@media (max-width: 360px) {
+  .auth-shell {
+    padding: 12px 10px;
+  }
+
+  .auth-card {
+    padding: 18px 14px;
+    gap: 12px;
+    border-radius: var(--radius);
+  }
+
+  .auth-heading h1,
+  .startup-card h1 {
+    font-size: 1.5rem;
+  }
+
+  .auth-heading .muted {
+    font-size: 0.85rem;
   }
 }
