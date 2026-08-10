@@ -1,0 +1,39 @@
+# Standalone MySQL for LOCAL DEVELOPMENT only.
+#
+# Separate from the production stack (compose.local.yaml): its own container,
+# its own volume, and a host port so `artisan serve` / `npm run dev` can reach
+# it directly. Never point production at this database.
+#
+#   docker compose --env-file _local-deploy/.env.devdb -f _local-deploy/compose.devdb.yaml up -d
+#
+# Then set apps/api/.env to use it (host 127.0.0.1, port 13306).
+# Credentials come from the git-ignored .env.devdb file.
+
+name: selfhandler-devdb
+
+services:
+  devdb:
+    image: mysql:8.4.11
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-selfhandler}
+      MYSQL_USER: ${MYSQL_USER:-selfhandler}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set in .env.devdb}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set in .env.devdb}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+    ports:
+      - "127.0.0.1:13306:3306"
+    volumes:
+      - devdb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_ROOT_PASSWORD\" mysqladmin ping --host=127.0.0.1 --user=root --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+volumes:
+  devdb_data:
+    name: selfhandler_devdb_data
