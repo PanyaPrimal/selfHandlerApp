@@ -14,7 +14,7 @@ class RoutineLogController extends Controller
     public function upsert(Request $request, Routine $routine, string $date): JsonResponse
     {
         $user = $request->user();
-        abort_unless($routine->user_id === $user->id, 404);
+        abort_unless($routine->isOwnedBy($user), 404);
 
         $logDate = CarbonImmutable::parse($date)->toDateString();
         $data = $request->validate([
@@ -23,7 +23,7 @@ class RoutineLogController extends Controller
         ]);
 
         $log = RoutineLog::query()
-            ->where('user_id', $user->id)
+            ->ownedBy($user)
             ->where('routine_id', $routine->id)
             ->whereDate('log_date', $logDate)
             ->first();

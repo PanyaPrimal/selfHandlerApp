@@ -17,8 +17,8 @@ class TodayController extends Controller
         $date = CarbonImmutable::parse($request->query('date', today()->toDateString()))->startOfDay();
 
         $routines = Routine::query()
-            ->where('user_id', $user->id)
-            ->with('goals')
+            ->ownedBy($user)
+            ->with(['goals', 'scheduleWeekdays'])
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get()
@@ -26,7 +26,7 @@ class TodayController extends Controller
             ->values();
 
         $logs = RoutineLog::query()
-            ->where('user_id', $user->id)
+            ->ownedBy($user)
             ->whereDate('log_date', $date)
             ->whereIn('routine_id', $routines->pluck('id'))
             ->get()
@@ -37,7 +37,7 @@ class TodayController extends Controller
         $scheduled = $routines->count();
 
         $review = DailyReview::query()
-            ->where('user_id', $user->id)
+            ->ownedBy($user)
             ->whereDate('review_date', $date)
             ->first();
 

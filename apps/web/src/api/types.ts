@@ -1,3 +1,7 @@
+export type Weekday = 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU'
+
+export type Rating = number | null
+
 export interface Goal {
   id: number
   name: string
@@ -6,7 +10,12 @@ export interface Goal {
   status: 'active' | 'completed' | 'abandoned'
   target_date: string | null
   completed_at: string | null
+  is_archived: boolean
+  archived_at: string | null
+  routines?: RoutineSummary[]
 }
+
+export interface GoalSummary extends Pick<Goal, 'id' | 'name' | 'status'> {}
 
 export interface User {
   id: number
@@ -29,31 +38,35 @@ export interface Routine {
   description: string | null
   kind: 'routine' | 'sleep' | 'habit'
   schedule_type: 'daily' | 'weekdays'
-  weekdays: string[] | null
+  weekdays: Weekday[]
   preferred_time: string | null
   sort_order: number
   is_active: boolean
+  is_archived: boolean
+  archived_at: string | null
   starts_on: string | null
   ends_on: string | null
-  goals?: Goal[]
+  goals?: GoalSummary[]
 }
+
+export interface RoutineSummary extends Pick<Routine, 'id' | 'name' | 'is_active' | 'is_archived'> {}
 
 export interface DailyReview {
   id: number
   review_date: string
-  mood: number | null
-  energy: number | null
-  stress: number | null
-  day_rating: number | null
+  mood: Rating
+  energy: Rating
+  stress: Rating
+  day_rating: Rating
   went_well: string | null
   improve_tomorrow: string | null
   notes: string | null
-  completed_at: string | null
+  completed_at: string
 }
 
 export interface TodayRoutine extends Pick<Routine, 'id' | 'name' | 'description' | 'kind' | 'preferred_time' | 'sort_order'> {
   log: RoutineLog | null
-  goals: Pick<Goal, 'id' | 'name' | 'status'>[]
+  goals: GoalSummary[]
 }
 
 export interface TodaySummary {
@@ -68,7 +81,7 @@ export interface TodayResponse {
   date: string
   summary: TodaySummary
   routines: TodayRoutine[]
-  goals: Pick<Goal, 'id' | 'name' | 'status' | 'target_date'>[]
+  goals: (GoalSummary & Pick<Goal, 'target_date'>)[]
   review: DailyReview | null
 }
 
@@ -98,7 +111,7 @@ export interface RoutinePayload {
   description?: string | null
   kind?: Routine['kind']
   schedule_type?: Routine['schedule_type']
-  weekdays?: string[] | null
+  weekdays?: Weekday[] | null
   preferred_time?: string | null
   sort_order?: number
   is_active?: boolean
@@ -115,10 +128,10 @@ export interface GoalPayload {
 }
 
 export interface DailyReviewPayload {
-  mood?: number | null
-  energy?: number | null
-  stress?: number | null
-  day_rating?: number | null
+  mood?: Rating
+  energy?: Rating
+  stress?: Rating
+  day_rating?: Rating
   went_well?: string | null
   improve_tomorrow?: string | null
   notes?: string | null

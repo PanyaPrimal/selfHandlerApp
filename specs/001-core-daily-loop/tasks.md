@@ -31,9 +31,9 @@ distinct increment after the shared foundation is complete.
 
 **Purpose**: Align the existing prototype configuration and test layout with this feature.
 
-- [ ] T001 Keep `APP_TIMEZONE=UTC` and expose `SELFHANDLER_TIMEZONE` through `apps/api/.env.example` and `apps/api/config/selfhandler.php` (FR-017)
-- [ ] T002 [P] Add shared user/domain fixture helpers in `apps/api/tests/Feature/CoreDailyLoop/CoreDailyLoopTestCase.php` and remove the placeholder example tests under `apps/api/tests/`
-- [ ] T003 [P] Extract reusable console/page-error collection from `apps/web/e2e/mvp-flow.spec.ts` into `apps/web/e2e/core-daily-loop/support.ts` before splitting story specs
+- [X] T001 Keep `APP_TIMEZONE=UTC` and expose `SELFHANDLER_TIMEZONE` through `apps/api/.env.example` and `apps/api/config/selfhandler.php` (FR-017)
+- [X] T002 [P] Add shared user/domain fixture helpers in `apps/api/tests/Feature/CoreDailyLoop/CoreDailyLoopTestCase.php` and remove the placeholder example tests under `apps/api/tests/`
+- [X] T003 [P] Extract reusable console/page-error collection from `apps/web/e2e/mvp-flow.spec.ts` into `apps/web/e2e/core-daily-loop/support.ts` before splitting story specs
 
 ---
 
@@ -43,13 +43,60 @@ distinct increment after the shared foundation is complete.
 
 **Critical**: No user-story implementation starts until this phase is complete.
 
-- [ ] T004 Rewrite the prototype domain migration in `apps/api/database/migrations/2026_06_21_000000_create_mvp_domain_tables.php` to add `is_archived`/`archived_at`, normalize `routine_weekdays`, and retain user-scoped unique keys (FR-002, FR-016, FR-020)
-- [ ] T005 [P] Add normalized weekday persistence in `apps/api/app/Models/RoutineWeekday.php` and `apps/api/app/ValueObjects/WeekdayCode.php` (FR-002, FR-004)
-- [ ] T006 [P] Add the reusable ownership boundary in `apps/api/app/Support/UserOwned.php` and apply it to domain models in `apps/api/app/Models/` (FR-016)
-- [ ] T007 Add cross-user read/write/link rejection tests in `apps/api/tests/Feature/CoreDailyLoop/OwnershipBoundaryTest.php` before controller changes (FR-016, SC-006)
-- [ ] T008 Update shared JSON types and error payload handling in `apps/web/src/api/types.ts` and `apps/web/src/api/client.ts` to match `specs/001-core-daily-loop/contracts/openapi.yaml` (FR-019)
+- [X] T004 Align the prototype domain schema (delivered additively in `apps/api/database/migrations/2026_08_10_120000_align_core_daily_loop_domain.php`; see the Phase 2 notes) to add `is_archived`/`archived_at`, normalize `routine_weekdays`, and retain user-scoped unique keys (FR-002, FR-016, FR-020)
+- [X] T005 [P] Add normalized weekday persistence in `apps/api/app/Models/RoutineWeekday.php` and `apps/api/app/ValueObjects/WeekdayCode.php` (FR-002, FR-004)
+- [X] T006 [P] Add the reusable ownership boundary in `apps/api/app/Support/UserOwned.php` and apply it to domain models in `apps/api/app/Models/` (FR-016)
+- [X] T007 Add cross-user read/write/link rejection tests in `apps/api/tests/Feature/CoreDailyLoop/OwnershipBoundaryTest.php` before controller changes (FR-016, SC-006)
+- [X] T008 Update shared JSON types and error payload handling in `apps/web/src/api/types.ts` and `apps/web/src/api/client.ts` to match `specs/001-core-daily-loop/contracts/openapi.yaml` (FR-019)
 
 **Checkpoint**: Schema, ownership, configured date boundary, and typed error handling are ready.
+
+### Phase 1-2 implementation notes (2026-08-10)
+
+- **T004 delivered as an additive migration.** The installation already holds real accounts, routines,
+  logs, goals, and reviews, so rewriting `2026_06_21_000000_create_mvp_domain_tables.php` would have
+  required rebuilding the database. `2026_08_10_120000_align_core_daily_loop_domain.php` instead adds
+  `is_archived`/`archived_at` to `routines` and `goals`, creates `routine_weekdays`, copies the
+  prototype JSON weekday lists into rows, drops `routines.weekdays`, and replaces the planning indexes.
+  The resulting schema, uniqueness, and ownership constraints match [data-model.md](data-model.md), and
+  `down()` restores the prototype shape including the JSON lists. Both directions were exercised on a
+  scratch database with mixed-case and invalid weekday values.
+- **Index replacement order.** The new index is created before the old one is dropped: MySQL refuses to
+  drop the last index that covers the `user_id` foreign key.
+- **Schema choices that keep later migrations additive.** Statuses, kinds, and schedule types stay as
+  strings rather than database enums so the recurrence engine can introduce new values without an
+  `ALTER`; weekday codes match the engine's `by_weekday` vocabulary; archiving stays separate from
+  `deleted_at`; and every table keeps `user_id` inside its unique keys per
+  [data-conventions.md](../../docs/design/data-conventions.md).
+- **Minimum weekday wiring in Phase 2.** Dropping `routines.weekdays` required `Routine::syncWeekdays()`,
+  the appended `weekdays` accessor, and weekday storage in `RoutineController` so the slice keeps
+  working. Schedule evaluation, post-history immutability, and the full lifecycle remain T011-T012.
+- **T008 scope split.** Shared domain types and the error payload contract are aligned now. The Today
+  payload keeps its current shape because `current_streak`, `progress`, and the routine summary flags
+  are added by T014 and T033; the frontend must not declare fields the API does not return yet.
+- **Ownership guard.** `App\Support\UserOwned` refuses to store a record without an owner and refuses to
+  move one between accounts, and `Model::preventSilentlyDiscardingAttributes()` is enabled outside
+  production so a write naming an unknown attribute fails instead of being dropped silently.
+- **Timezone split.** `APP_TIMEZONE` is UTC everywhere (`.env.example`, `phpunit.xml`, Playwright,
+  `deployment/env.production.example`, both Compose files) and `SELFHANDLER_TIMEZONE` carries the
+  calendar timezone. Timestamps stored while production ran on `Europe/Kyiv` keep their stored value.
+- **Calendar dates are day precise (fix, 2026-08-10).** `target_date`, `starts_on`, `ends_on`, `log_date`,
+  and `review_date` cast as `date:Y-m-d`, so the API sends the `format: date` values the contract
+  declares instead of instants, which under the previous `Europe/Kyiv` runtime rendered a goal due on
+  16 August as `2026-08-15T21:00:00.000000Z`. `apps/web/src/lib/format.ts` renders them for reading on
+  Goals, Today, and Review. Guarded by `tests/Feature/CoreDailyLoop/CalendarDateContractTest.php`, which
+  runs the framework on `Europe/Kyiv` and fails when a cast regresses.
+- **`apps/api/tests/Unit/.gitkeep`** keeps the configured PHPUnit Unit suite directory present in a
+  fresh clone after the placeholder tests were removed.
+
+### Phase 1-2 validation evidence (2026-08-10)
+
+- `php artisan test`: 44 passed (363 assertions)
+- `./vendor/bin/pint`: clean
+- `npm run typecheck` and `npm run build`: pass
+- `npm run test:e2e`: 10 passed (desktop + mobile)
+- `php artisan migrate`: applied to development and, after a full database dump, to production;
+  production kept every record and the weekday backfill produced the expected rows
 
 ---
 

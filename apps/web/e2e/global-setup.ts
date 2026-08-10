@@ -21,6 +21,8 @@ export default function globalSetup(): void {
       APP_ENV: 'testing',
       APP_KEY: 'base64:8mx6/PHn6hHX2o4bOMOlPxpdrJeWHdxklSX7Z92ro8Q=',
       APP_URL: apiUrl,
+      APP_TIMEZONE: 'UTC',
+      SELFHANDLER_TIMEZONE: 'UTC',
       DB_CONNECTION: 'sqlite',
       DB_DATABASE: e2eDatabase,
       CACHE_STORE: 'database',

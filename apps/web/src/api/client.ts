@@ -12,7 +12,10 @@ import type {
 } from './types'
 import { jsonRequest, request } from './http'
 
-export { ApiError } from './http'
+// The SelfHandler error contract: a message for the user plus the per-field
+// validation errors of a 422 response.
+export { ApiError, validationErrors } from './http'
+export type { ValidationErrors } from './http'
 
 export function getToday(date: string): Promise<TodayResponse> {
   return request<TodayResponse>(`/today?date=${encodeURIComponent(date)}`)

@@ -2,13 +2,13 @@
 
 namespace App\Models;
 
+use App\Support\UserOwned;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class DailyReview extends Model
 {
-    use HasFactory;
+    use HasFactory, UserOwned;
 
     protected $fillable = [
         'user_id',
@@ -26,17 +26,12 @@ class DailyReview extends Model
     protected function casts(): array
     {
         return [
-            'review_date' => 'date',
+            'review_date' => 'date:Y-m-d',
             'mood' => 'integer',
             'energy' => 'integer',
             'stress' => 'integer',
             'day_rating' => 'integer',
             'completed_at' => 'datetime',
         ];
-    }
-
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class);
     }
 }

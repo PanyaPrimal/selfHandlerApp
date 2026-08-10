@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { getDailyReview, saveDailyReview } from '../api/client'
+import { formatCalendarDate } from '../lib/format'
 import type { DailyReviewPayload } from '../api/types'
 
 const route = useRoute()
@@ -57,7 +58,7 @@ onMounted(loadReview)
     <header class="view-header">
       <div>
         <p class="eyebrow">Evening review</p>
-        <h1>{{ reviewDate }}</h1>
+        <h1>{{ formatCalendarDate(reviewDate) }}</h1>
       </div>
     </header>
 

@@ -26,8 +26,7 @@ class MvpApiTest extends TestCase
             'user_id' => $user->id,
             'name' => 'Wednesday-only routine',
             'schedule_type' => 'weekdays',
-            'weekdays' => ['WE'],
-        ]);
+        ])->syncWeekdays(['WE']);
 
         $this->actingAs($user)
             ->getJson('/api/today?date=2026-06-22')
@@ -58,7 +57,7 @@ class MvpApiTest extends TestCase
         $this->assertDatabaseHas('routine_logs', [
             'user_id' => $user->id,
             'routine_id' => $routine->id,
-            'log_date' => '2026-06-22 00:00:00',
+            'log_date' => '2026-06-22',
             'status' => 'done',
         ]);
 

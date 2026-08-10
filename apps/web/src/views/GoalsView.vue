@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { createGoal, getGoals } from '../api/client'
+import { formatCalendarDate } from '../lib/format'
 import type { Goal, GoalPayload } from '../api/types'
 
 const goals = ref<Goal[]>([])
@@ -72,7 +73,10 @@ onMounted(loadGoals)
       <ul v-else class="item-list">
         <li v-for="goal in goals" :key="goal.id">
           <strong>{{ goal.name }}</strong>
-          <p class="muted">{{ goal.status }}<span v-if="goal.target_date"> · {{ goal.target_date }}</span></p>
+          <p class="muted">
+            {{ goal.status }}
+            <span v-if="goal.target_date"> · by {{ formatCalendarDate(goal.target_date) }}</span>
+          </p>
         </li>
       </ul>
     </section>

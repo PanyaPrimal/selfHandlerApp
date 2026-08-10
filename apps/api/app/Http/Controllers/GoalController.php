@@ -10,13 +10,13 @@ use Illuminate\Validation\Rule;
 
 class GoalController extends Controller
 {
+    private const RELATIONS = ['routines', 'routines.scheduleWeekdays'];
+
     public function index(Request $request): JsonResponse
     {
-        $user = $request->user();
-
         $goals = Goal::query()
-            ->where('user_id', $user->id)
-            ->with('routines')
+            ->ownedBy($request->user())
+            ->with(self::RELATIONS)
             ->orderBy('status')
             ->orderBy('target_date')
             ->orderBy('name')
@@ -30,35 +30,34 @@ class GoalController extends Controller
         $user = $request->user();
         $goal = Goal::create([...$this->validatedData($request), 'user_id' => $user->id]);
 
-        return response()->json(['data' => $goal->load('routines')], 201);
+        return response()->json(['data' => $goal->load(self::RELATIONS)], 201);
     }
 
     public function update(Request $request, Goal $goal): JsonResponse
     {
-        $user = $request->user();
-        abort_unless($goal->user_id === $user->id, 404);
+        abort_unless($goal->isOwnedBy($request->user()), 404);
 
         $goal->update($this->validatedData($request, partial: true));
 
-        return response()->json(['data' => $goal->fresh('routines')]);
+        return response()->json(['data' => $goal->fresh(self::RELATIONS)]);
     }
 
     public function linkRoutine(Request $request, Goal $goal, Routine $routine): JsonResponse
     {
         $user = $request->user();
-        abort_unless($goal->user_id === $user->id && $routine->user_id === $user->id, 404);
+        abort_unless($goal->isOwnedBy($user) && $routine->isOwnedBy($user), 404);
 
         $goal->routines()->syncWithoutDetaching([
             $routine->id => ['user_id' => $user->id],
         ]);
 
-        return response()->json(['data' => $goal->fresh('routines')]);
+        return response()->json(['data' => $goal->fresh(self::RELATIONS)]);
     }
 
     public function unlinkRoutine(Request $request, Goal $goal, Routine $routine): JsonResponse
     {
         $user = $request->user();
-        abort_unless($goal->user_id === $user->id && $routine->user_id === $user->id, 404);
+        abort_unless($goal->isOwnedBy($user) && $routine->isOwnedBy($user), 404);
 
         $goal->routines()->detach($routine->id);
 

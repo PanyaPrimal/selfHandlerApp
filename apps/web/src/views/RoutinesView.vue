@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { createRoutine, getRoutines } from '../api/client'
-import type { Routine, RoutinePayload } from '../api/types'
+import type { Routine, RoutinePayload, Weekday } from '../api/types'
 
 const routines = ref<Routine[]>([])
 const isLoading = ref(false)
@@ -46,7 +46,7 @@ async function submitRoutine(): Promise<void> {
   await loadRoutines()
 }
 
-function toggleWeekday(day: string): void {
+function toggleWeekday(day: Weekday): void {
   const selected = new Set(form.weekdays ?? [])
 
   if (selected.has(day)) {

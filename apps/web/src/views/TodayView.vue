@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { getToday, updateRoutineLog } from '../api/client'
+import { formatCalendarDate } from '../lib/format'
 import { useAuthSession } from '../auth/session'
 import type { RoutineLog, TodayResponse, TodayRoutine } from '../api/types'
 
@@ -81,7 +82,7 @@ onMounted(loadToday)
   <section class="view-stack">
     <header class="view-header">
       <div>
-        <p class="eyebrow">{{ selectedDate }}</p>
+        <p class="eyebrow">{{ formatCalendarDate(selectedDate) }}</p>
         <h1>Good evening, {{ displayName }}</h1>
       </div>
 

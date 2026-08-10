@@ -15,7 +15,7 @@ class DailyReviewController extends Controller
         $reviewDate = CarbonImmutable::parse($date)->toDateString();
 
         $review = DailyReview::query()
-            ->where('user_id', $user->id)
+            ->ownedBy($user)
             ->whereDate('review_date', $reviewDate)
             ->first();
 
@@ -38,7 +38,7 @@ class DailyReviewController extends Controller
         ]);
 
         $review = DailyReview::query()
-            ->where('user_id', $user->id)
+            ->ownedBy($user)
             ->whereDate('review_date', $reviewDate)
             ->first();
 

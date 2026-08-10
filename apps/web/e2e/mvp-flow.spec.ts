@@ -1,43 +1,6 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
+import { collectRuntimeIssues, expectNoRuntimeIssues } from './core-daily-loop/support'
 import { registerViaUi, uniqueCredentials } from './support/auth'
-
-function collectRuntimeIssues(page: Page): string[] {
-  const issues: string[] = []
-
-  page.on('console', (message) => {
-    const text = message.text()
-
-    if (text.includes('[vite]')) {
-      return
-    }
-
-    if (message.type() === 'warning' || message.type() === 'error') {
-      issues.push(`[console:${message.type()}] ${text}`)
-    }
-  })
-
-  page.on('pageerror', (error) => {
-    issues.push(`[pageerror] ${error.message}`)
-  })
-
-  page.on('requestfailed', (request) => {
-    issues.push(`[requestfailed] ${request.method()} ${request.url()} ${request.failure()?.errorText}`)
-  })
-
-  page.on('response', (response) => {
-    const url = new URL(response.url())
-
-    if (response.status() === 401 && url.pathname === '/api/auth/user') {
-      return
-    }
-
-    if (response.url().includes('/api/') && response.status() >= 400) {
-      issues.push(`[response] ${response.status()} ${response.request().method()} ${response.url()}`)
-    }
-  })
-
-  return issues
-}
 
 test('daily MVP loop works end-to-end', async ({ page }, testInfo) => {
   const routineName = `${testInfo.project.name} smoke routine ${Date.now()}`
@@ -64,5 +27,5 @@ test('daily MVP loop works end-to-end', async ({ page }, testInfo) => {
   await page.getByRole('button', { name: /Save review/i }).click()
   await expect(page.getByText('Review saved.')).toBeVisible()
 
-  expect(issues).toEqual([])
+  expectNoRuntimeIssues(issues)
 })
