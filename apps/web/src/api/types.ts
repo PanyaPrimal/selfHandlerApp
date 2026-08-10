@@ -85,6 +85,7 @@ export interface RegisterPayload {
   email: string
   password: string
   password_confirmation: string
+  invite_code: string
 }
 
 export interface LoginPayload {

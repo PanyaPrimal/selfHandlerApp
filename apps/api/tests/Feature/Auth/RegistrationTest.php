@@ -61,7 +61,7 @@ class RegistrationTest extends AuthTestCase
 
         $response
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['name', 'email', 'password']);
+            ->assertJsonValidationErrors(['name', 'email', 'password', 'invite_code']);
 
         $this->assertDatabaseCount('users', 0);
         $this->assertGuest();
@@ -97,21 +97,23 @@ class RegistrationTest extends AuthTestCase
         $this->assertAuthenticatedAs($current);
     }
 
-    public function test_concurrent_duplicate_is_mapped_to_a_validation_error_by_the_endpoint(): void
+    public function test_a_unique_violation_thrown_during_insert_is_mapped_to_a_validation_error(): void
     {
+        // Reproduce the race at the insert boundary: validation passes (no
+        // existing row yet), but the INSERT itself throws a unique violation
+        // because a concurrent request won. The endpoint must map this to a 422
+        // email error rather than a 500, and must not leave a session.
         $eventName = 'eloquent.creating: '.User::class;
-        $winner = null;
 
-        Event::listen($eventName, function (User $candidate) use (&$winner): void {
-            if ($winner !== null || $candidate->email !== 'race@example.test') {
-                return;
+        Event::listen($eventName, function (User $candidate): void {
+            if ($candidate->email === 'race@example.test') {
+                throw new UniqueConstraintViolationException(
+                    'sqlite',
+                    'insert into "users"',
+                    [],
+                    new \PDOException('UNIQUE constraint failed: users.email'),
+                );
             }
-
-            $winner = User::withoutEvents(fn (): User => User::create([
-                'name' => 'Concurrent winner',
-                'email' => $candidate->email,
-                'password' => self::VALID_PASSWORD,
-            ]));
         });
 
         try {
@@ -126,10 +128,10 @@ class RegistrationTest extends AuthTestCase
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['email']);
 
-        $this->assertDatabaseCount('users', 1);
-        $this->assertDatabaseHas('users', [
-            'id' => $winner->id,
-            'email' => 'race@example.test',
+        // The transaction rolled back: no user row and no consumed invite.
+        $this->assertDatabaseCount('users', 0);
+        $this->assertDatabaseMissing('invitations', [
+            'used_at' => now()->toDateTimeString(),
         ]);
         $this->assertGuest();
     }

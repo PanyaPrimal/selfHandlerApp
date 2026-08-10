@@ -1,0 +1,176 @@
+# Local homelab / mini-PC deployment for SelfHandler.
+#
+# This is the "just run it on my machine" path. It reuses the same Docker
+# images as production but builds them locally and relaxes the HTTPS-only
+# session settings so the app works over plain http://<host>:<port>.
+#
+# It does NOT use any of the deployment/scripts/*, Tailscale, age encryption,
+# private runners or off-host backups. Those belong to the strict production
+# feature (002-homelab-deployment) and are irrelevant for a personal box.
+#
+# Usage (from repo root):
+#   docker compose --env-file _local-deploy/.env -f _local-deploy/compose.local.yaml up -d --build
+# then run migrations once (see run.ps1 / README in this folder).
+
+name: selfhandler-local
+
+x-runtime-defaults: &runtime-defaults
+  restart: unless-stopped
+  init: true
+  logging:
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: "3"
+
+services:
+  db:
+    <<: *runtime-defaults
+    image: mysql:8.4.11
+    user: "999:999"
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --skip-name-resolve
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - data
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_ROOT_PASSWORD\" mysqladmin ping --host=127.0.0.1 --user=root --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  # One-shot migration runner. Runs `artisan migrate --force` once, then exits.
+  # `docker compose up` waits for it to finish successfully before app/web
+  # are considered started (they depend on it completing).
+  migrate:
+    image: selfhandler-local-app:latest
+    build:
+      context: ..
+      dockerfile: deployment/docker/Dockerfile
+      target: app-runtime
+      args:
+        SOURCE_REVISION: ${APP_RELEASE_SHA}
+    user: "82:82"
+    restart: "no"
+    environment: &app-env
+      APP_NAME: ${APP_NAME:-SelfHandler}
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_URL: ${APP_URL}
+      APP_KEY: ${APP_KEY}
+      APP_RELEASE_SHA: ${APP_RELEASE_SHA}
+      APP_LOCALE: ${APP_LOCALE:-en}
+      APP_FALLBACK_LOCALE: ${APP_FALLBACK_LOCALE:-en}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Europe/Kyiv}
+      LOG_CHANNEL: stderr
+      LOG_LEVEL: ${LOG_LEVEL:-warning}
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      CACHE_STORE: database
+      SESSION_DRIVER: database
+      SESSION_CONNECTION: mysql
+      SESSION_LIFETIME: ${SESSION_LIFETIME:-120}
+      SESSION_ENCRYPT: "true"
+      SESSION_COOKIE: selfhandler_session
+      SESSION_PATH: /
+      # LAN http -> "false" (default). Funnel public HTTPS -> "true" (.env.funnel).
+      SESSION_SECURE_COOKIE: ${SESSION_SECURE_COOKIE:-false}
+      SESSION_HTTP_ONLY: "true"
+      SESSION_SAME_SITE: lax
+      QUEUE_CONNECTION: database
+      SANCTUM_STATEFUL_DOMAINS: ${SANCTUM_STATEFUL_DOMAINS}
+      FILESYSTEM_DISK: local
+    # Use the image's default entrypoint (app-entrypoint) so it restores the
+    # bootstrap cache into the tmpfs and caches config first, then run migrate
+    # instead of php-fpm.
+    command: ["php", "/app/artisan", "migrate", "--force", "--no-ansi"]
+    tmpfs:
+      - /tmp:uid=82,gid=82,mode=1770
+      - /app/bootstrap/cache:uid=82,gid=82,mode=0750
+      - /app/storage/framework:uid=82,gid=82,mode=0750
+      - /app/storage/logs:uid=82,gid=82,mode=0750
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - data
+
+  app:
+    <<: *runtime-defaults
+    image: selfhandler-local-app:latest
+    user: "82:82"
+    environment: *app-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - private_files:/app/storage/app/private
+    tmpfs:
+      - /tmp:uid=82,gid=82,mode=1770
+      - /app/bootstrap/cache:uid=82,gid=82,mode=0750
+      - /app/storage/framework:uid=82,gid=82,mode=0750
+      - /app/storage/logs:uid=82,gid=82,mode=0750
+    networks:
+      - app
+      - data
+    healthcheck:
+      test: ["CMD-SHELL", "php-fpm -t >/dev/null 2>&1 && php -r '$$s=@fsockopen(\"127.0.0.1\",9000,$$e,$$m,2);exit($$s?0:1);'"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+
+  web:
+    <<: *runtime-defaults
+    image: selfhandler-local-web:latest
+    build:
+      context: ..
+      dockerfile: deployment/docker/Dockerfile
+      target: web-runtime
+      args:
+        SOURCE_REVISION: ${APP_RELEASE_SHA}
+    user: "101:101"
+    depends_on:
+      app:
+        condition: service_healthy
+    volumes:
+      # Local nginx that accepts any Host so LAN-IP / hostname access works.
+      - ./nginx.local.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      # Bind on all interfaces so you can open it from your laptop/phone on the
+      # LAN. Change to 127.0.0.1:${WEB_PORT} if you only want localhost.
+      - "${WEB_BIND:-0.0.0.0}:${WEB_PORT:-18080}:8080"
+    networks:
+      - app
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -T 5 -O - http://127.0.0.1:8080/api/health | grep -q '\"status\":\"ok\"'"]
+      interval: 10s
+      timeout: 6s
+      retries: 6
+      start_period: 15s
+
+networks:
+  app:
+    name: selfhandler_local_app
+  data:
+    name: selfhandler_local_data
+    internal: true
+
+volumes:
+  mysql_data:
+    name: selfhandler_local_mysql_data
+  private_files:
+    name: selfhandler_local_private_files

@@ -5,20 +5,47 @@ namespace App\Http\Controllers;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Resources\UserResource;
+use App\Models\Invitation;
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
     public function register(RegisterRequest $request): JsonResponse
     {
+        $code = $request->validated('invite_code');
+
         try {
-            $user = User::create($request->safe()->only(['name', 'email', 'password']));
+            $user = DB::transaction(function () use ($request, $code): User {
+                // Lock the invite row so two concurrent sign-ups cannot both
+                // consume the same code; re-check it is still unused inside the
+                // transaction.
+                $invitation = Invitation::where('code', $code)
+                    ->whereNull('used_at')
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($invitation === null) {
+                    throw ValidationException::withMessages([
+                        'invite_code' => ['This invite code is invalid or has already been used.'],
+                    ]);
+                }
+
+                $user = User::create($request->safe()->only(['name', 'email', 'password']));
+
+                $invitation->forceFill([
+                    'used_by' => $user->id,
+                    'used_at' => now(),
+                ])->save();
+
+                return $user;
+            });
         } catch (UniqueConstraintViolationException) {
             throw ValidationException::withMessages([
                 'email' => ['The email has already been taken.'],

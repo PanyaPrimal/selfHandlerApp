@@ -13,10 +13,12 @@ const form = reactive<RegisterPayload>({
   email: '',
   password: '',
   password_confirmation: '',
+  invite_code: '',
 })
 const fieldErrors = ref<ValidationErrors>({})
 const error = ref<string | null>(null)
 const isSubmitting = ref(false)
+const inviteInput = ref<HTMLInputElement | null>(null)
 const nameInput = ref<HTMLInputElement | null>(null)
 const emailInput = ref<HTMLInputElement | null>(null)
 const passwordInput = ref<HTMLInputElement | null>(null)
@@ -61,6 +63,7 @@ async function focusFirstError(): Promise<void> {
   await nextTick()
 
   const inputs: Array<[string, HTMLInputElement | null]> = [
+    ['invite_code', inviteInput.value],
     ['name', nameInput.value],
     ['email', emailInput.value],
     ['password', passwordInput.value],
@@ -111,6 +114,27 @@ async function submitRegistration(): Promise<void> {
       <div v-if="error" class="notice error" role="alert" aria-live="assertive">{{ error }}</div>
 
       <form class="auth-form" novalidate :aria-busy="isSubmitting" @submit.prevent="submitRegistration">
+        <label class="field">
+          <span>Invite code</span>
+          <input
+            ref="inviteInput"
+            v-model="form.invite_code"
+            name="invite_code"
+            autocomplete="off"
+            autocapitalize="characters"
+            spellcheck="false"
+            maxlength="64"
+            required
+            :disabled="isSubmitting"
+            :aria-invalid="Boolean(fieldErrors.invite_code?.length)"
+            :aria-describedby="fieldErrors.invite_code?.length ? 'register-invite-error' : 'register-invite-help'"
+          />
+          <small id="register-invite-help" class="helper-text">Registration is invite-only. Enter the code you were given.</small>
+          <small v-if="fieldErrors.invite_code?.length" id="register-invite-error" class="field-error">
+            {{ fieldErrors.invite_code[0] }}
+          </small>
+        </label>
+
         <label class="field">
           <span>Display name</span>
           <input

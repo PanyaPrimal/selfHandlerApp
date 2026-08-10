@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Models\Invitation;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
@@ -14,16 +15,33 @@ abstract class AuthTestCase extends TestCase
     protected const VALID_PASSWORD = 'correct horse battery staple';
 
     /**
+     * Create a fresh, unused invite code and return it.
+     */
+    protected function createInvitation(?string $code = null): Invitation
+    {
+        return Invitation::create([
+            'code' => $code ?? Invitation::generateCode(),
+        ]);
+    }
+
+    /**
+     * Build a valid registration payload, minting a fresh invite code unless
+     * the caller supplied one.
+     *
      * @param  array<string, mixed>  $overrides
      * @return array<string, mixed>
      */
     protected function registrationPayload(array $overrides = []): array
     {
+        $inviteCode = $overrides['invite_code'] ?? $this->createInvitation()->code;
+        unset($overrides['invite_code']);
+
         return array_replace([
             'name' => 'Alex Example',
             'email' => 'alex@example.test',
             'password' => self::VALID_PASSWORD,
             'password_confirmation' => self::VALID_PASSWORD,
+            'invite_code' => $inviteCode,
         ], $overrides);
     }
 
