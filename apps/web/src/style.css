@@ -390,6 +390,10 @@ h3 {
   gap: 12px;
 }
 
+.daily-summary {
+  grid-template-columns: 1.3fr repeat(3, minmax(0, 0.72fr));
+}
+
 .metric {
   display: grid;
   gap: 8px;
@@ -440,6 +444,17 @@ h3 {
   color: var(--accent);
   border-color: var(--accent-border);
   background: var(--accent-soft);
+}
+
+.action-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.inline-action {
+  margin-left: 12px;
 }
 
 .item-list {
@@ -551,6 +566,12 @@ h3 {
   flex-shrink: 0;
 }
 
+.button-row button.selected {
+  color: #ffffff;
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
 .segmented-list {
   display: flex;
   flex-wrap: wrap;
@@ -581,6 +602,40 @@ h3 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
   align-items: end;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.checkbox-field {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 10px;
+}
+
+.checkbox-field input {
+  width: auto;
+}
+
+.management-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.management-copy {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.management-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .review-form {
@@ -617,9 +672,16 @@ textarea {
 
 input:focus,
 select:focus,
-textarea:focus {
+textarea:focus,
+button:focus-visible,
+a:focus-visible {
   outline: 2px solid var(--accent-border);
+  outline-offset: 2px;
   border-color: var(--accent);
+}
+
+.field .field-error {
+  color: var(--error);
 }
 
 select[multiple] {
@@ -773,6 +835,13 @@ input[type="range"] {
   .review-form,
   .rating-grid {
     grid-template-columns: 1fr;
+  }
+
+  .management-row,
+  .archive-heading,
+  .action-notice {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .button-row {

@@ -7,6 +7,7 @@ use App\ValueObjects\WeekdayCode;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use RuntimeException;
 
 /**
  * One weekday of a weekday-scheduled routine.
@@ -29,6 +30,23 @@ class RoutineWeekday extends Model
         return [
             'weekday' => WeekdayCode::class,
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::saving(function (RoutineWeekday $weekday): void {
+            if (blank($weekday->user_id)) {
+                return;
+            }
+
+            $routineOwnerId = Routine::withTrashed()
+                ->whereKey($weekday->routine_id)
+                ->value('user_id');
+
+            if ((int) $routineOwnerId !== (int) $weekday->user_id) {
+                throw new RuntimeException('A routine weekday must have the same owner as its routine.');
+            }
+        });
     }
 
     public function routine(): BelongsTo

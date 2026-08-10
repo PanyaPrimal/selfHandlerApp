@@ -13,8 +13,11 @@ Route::get('/health', HealthController::class);
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/today', TodayController::class);
 
-    Route::apiResource('routines', RoutineController::class)->except(['show']);
+    Route::get('/routines', [RoutineController::class, 'index']);
+    Route::post('/routines', [RoutineController::class, 'store']);
+    Route::patch('/routines/{routine}', [RoutineController::class, 'update']);
     Route::put('/routines/{routine}/logs/{date}', [RoutineLogController::class, 'upsert']);
+    Route::delete('/routines/{routine}/logs/{date}', [RoutineLogController::class, 'clear']);
 
     Route::get('/daily-reviews/{date}', [DailyReviewController::class, 'show']);
     Route::put('/daily-reviews/{date}', [DailyReviewController::class, 'upsert']);

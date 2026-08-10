@@ -6,8 +6,9 @@ import type {
   ItemResponse,
   ListResponse,
   Routine,
+  RoutineCreatePayload,
   RoutineLog,
-  RoutinePayload,
+  RoutineUpdatePayload,
   TodayResponse,
 } from './types'
 import { jsonRequest, request } from './http'
@@ -17,23 +18,49 @@ import { jsonRequest, request } from './http'
 export { ApiError, validationErrors } from './http'
 export type { ValidationErrors } from './http'
 
-export function getToday(date: string): Promise<TodayResponse> {
-  return request<TodayResponse>(`/today?date=${encodeURIComponent(date)}`)
+export function getToday(date?: string): Promise<TodayResponse> {
+  const query = date ? `?date=${encodeURIComponent(date)}` : ''
+  return request<TodayResponse>(`/today${query}`)
 }
 
-export async function getRoutines(): Promise<Routine[]> {
-  const response = await request<ListResponse<Routine>>('/routines')
+export async function getRoutines(archived = false): Promise<Routine[]> {
+  const response = await request<ListResponse<Routine>>(`/routines?archived=${archived}`)
   return response.data
 }
 
-export async function createRoutine(payload: RoutinePayload): Promise<Routine> {
+export async function createRoutine(payload: RoutineCreatePayload): Promise<Routine> {
   const response = await jsonRequest<ItemResponse<Routine>>('/routines', 'POST', payload)
   return response.data
 }
 
-export async function updateRoutineLog(routineId: number, date: string, status: RoutineLog['status']): Promise<RoutineLog> {
-  const response = await jsonRequest<ItemResponse<RoutineLog>>(`/routines/${routineId}/logs/${date}`, 'PUT', { status })
+export async function updateRoutine(routineId: number, payload: RoutineUpdatePayload): Promise<Routine> {
+  const response = await jsonRequest<ItemResponse<Routine>>(`/routines/${routineId}`, 'PATCH', payload)
   return response.data
+}
+
+export function archiveRoutine(routineId: number): Promise<Routine> {
+  return updateRoutine(routineId, { is_archived: true })
+}
+
+export function restoreRoutine(routineId: number): Promise<Routine> {
+  return updateRoutine(routineId, { is_archived: false })
+}
+
+export async function updateRoutineLog(
+  routineId: number,
+  date: string,
+  status: RoutineLog['status'],
+  note?: string | null,
+): Promise<RoutineLog> {
+  const response = await jsonRequest<ItemResponse<RoutineLog>>(`/routines/${routineId}/logs/${date}`, 'PUT', {
+    status,
+    ...(note === undefined ? {} : { note }),
+  })
+  return response.data
+}
+
+export function clearRoutineLog(routineId: number, date: string): Promise<void> {
+  return request<void>(`/routines/${routineId}/logs/${date}`, { method: 'DELETE' })
 }
 
 export async function getGoals(): Promise<Goal[]> {

@@ -7,6 +7,8 @@ use App\Models\RoutineLog;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
 class RoutineLogController extends Controller
@@ -16,35 +18,59 @@ class RoutineLogController extends Controller
         $user = $request->user();
         abort_unless($routine->isOwnedBy($user), 404);
 
-        $logDate = CarbonImmutable::parse($date)->toDateString();
+        $logDate = $this->validatedDate($date);
         $data = $request->validate([
             'status' => ['required', Rule::in(['done', 'skipped'])],
-            'note' => ['nullable', 'string'],
+            'note' => ['sometimes', 'nullable', 'string', 'max:2000'],
         ]);
 
+        $completedAt = $data['status'] === 'done' ? now() : null;
         $log = RoutineLog::query()
             ->ownedBy($user)
-            ->where('routine_id', $routine->id)
-            ->whereDate('log_date', $logDate)
-            ->first();
-
-        if ($log) {
-            $log->update([
-                'status' => $data['status'],
-                'note' => $data['note'] ?? null,
-                'completed_at' => $data['status'] === 'done' ? now() : null,
-            ]);
-        } else {
-            $log = RoutineLog::create([
+            ->firstOrCreate([
                 'user_id' => $user->id,
                 'routine_id' => $routine->id,
                 'log_date' => $logDate,
+            ], [
                 'status' => $data['status'],
                 'note' => $data['note'] ?? null,
-                'completed_at' => $data['status'] === 'done' ? now() : null,
+                'completed_at' => $completedAt,
+            ]);
+
+        if (! $log->wasRecentlyCreated) {
+            $log->update([
+                'status' => $data['status'],
+                'note' => $data['note'] ?? null,
+                'completed_at' => $data['status'] === 'done'
+                    ? ($log->status === 'done' && $log->completed_at ? $log->completed_at : $completedAt)
+                    : null,
             ]);
         }
 
         return response()->json(['data' => $log]);
+    }
+
+    public function clear(Request $request, Routine $routine, string $date): Response
+    {
+        $user = $request->user();
+        abort_unless($routine->isOwnedBy($user), 404);
+
+        RoutineLog::query()
+            ->ownedBy($user)
+            ->where('routine_id', $routine->id)
+            ->where('log_date', $this->validatedDate($date))
+            ->delete();
+
+        return response()->noContent();
+    }
+
+    private function validatedDate(string $date): string
+    {
+        $validated = Validator::make(
+            ['date' => $date],
+            ['date' => ['required', 'date_format:Y-m-d']],
+        )->validate();
+
+        return CarbonImmutable::parse($validated['date'], config('selfhandler.timezone'))->toDateString();
     }
 }

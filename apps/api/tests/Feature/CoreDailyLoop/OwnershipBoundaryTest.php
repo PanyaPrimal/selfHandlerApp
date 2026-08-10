@@ -85,6 +85,39 @@ class OwnershipBoundaryTest extends CoreDailyLoopTestCase
         $routine->update(['user_id' => $other->id]);
     }
 
+    public function test_routine_children_cannot_claim_an_owner_different_from_their_parent(): void
+    {
+        $owner = $this->createUser('owner@example.test');
+        $other = $this->createUser('other@example.test', name: 'Other Owner');
+        $routine = $this->createRoutine($owner);
+
+        try {
+            RoutineLog::create([
+                'user_id' => $other->id,
+                'routine_id' => $routine->id,
+                'log_date' => self::DATE,
+                'status' => 'done',
+            ]);
+            $this->fail('A routine log accepted an owner different from its routine.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('same owner', $exception->getMessage());
+        }
+
+        try {
+            RoutineWeekday::create([
+                'user_id' => $other->id,
+                'routine_id' => $routine->id,
+                'weekday' => 'MO',
+            ]);
+            $this->fail('A routine weekday accepted an owner different from its routine.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('same owner', $exception->getMessage());
+        }
+
+        $this->assertDatabaseCount('routine_logs', 0);
+        $this->assertDatabaseCount('routine_weekdays', 0);
+    }
+
     public function test_cross_owner_requests_are_rejected_and_leave_no_trace(): void
     {
         $owner = $this->createUser('owner@example.test');

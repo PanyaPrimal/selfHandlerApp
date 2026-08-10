@@ -109,20 +109,46 @@ state, and confirm the item and completion summary survive reload without duplic
 
 ### Tests for User Story 1
 
-- [ ] T009 [P] [US1] Add schedule, post-history schedule immutability, lifecycle, state-transition, idempotency, and Today contract tests in `apps/api/tests/Feature/CoreDailyLoop/RoutineApiTest.php` (FR-001-FR-007, FR-020, SC-007)
-- [ ] T010 [P] [US1] Add daily/weekday/start/end/archive scheduling unit tests in `apps/api/tests/Unit/CoreDailyLoop/RoutineScheduleServiceTest.php` (FR-002-FR-004, FR-017)
+- [X] T009 [P] [US1] Add schedule, post-history schedule immutability, lifecycle, state-transition, idempotency, and Today contract tests in `apps/api/tests/Feature/CoreDailyLoop/RoutineApiTest.php` (FR-001-FR-007, FR-020, SC-007)
+- [X] T010 [P] [US1] Add daily/weekday/start/end/archive scheduling unit tests in `apps/api/tests/Unit/CoreDailyLoop/RoutineScheduleServiceTest.php` (FR-002-FR-004, FR-017)
 
 ### Implementation for User Story 1
 
-- [ ] T011 [US1] Implement normalized schedule evaluation in `apps/api/app/Services/RoutineScheduleService.php` and update `apps/api/app/Models/Routine.php` relationships/casts (FR-002-FR-004, FR-017)
-- [ ] T012 [US1] Complete routine create/edit/pause/archive/restore, `archived_at`, post-history schedule immutability, and ownership validation in `apps/api/app/Http/Controllers/RoutineController.php` and `apps/api/routes/api.php` (FR-001-FR-003, FR-016, FR-020)
-- [ ] T013 [US1] Implement done/skipped upsert plus idempotent clear-to-pending in `apps/api/app/Http/Controllers/RoutineLogController.php` and `apps/api/routes/api.php` (FR-005-FR-006, SC-007)
-- [ ] T014 [US1] Build the scheduled checklist and selected-day summary in `apps/api/app/Http/Controllers/TodayController.php` (FR-004, FR-007, FR-017)
-- [ ] T015 [US1] Complete typed routine CRUD, archive/restore, mark, and clear client operations in `apps/web/src/api/client.ts` and `apps/web/src/api/types.ts` (FR-001-FR-007)
-- [ ] T016 [US1] Implement routine edit/schedule/archive/restore states in `apps/web/src/views/RoutinesView.vue` and durable done/skip/pending interactions in `apps/web/src/views/TodayView.vue` (FR-001-FR-007, FR-018-FR-019)
-- [ ] T017 [US1] Add desktop and phone P1 journeys in `apps/web/e2e/core-daily-loop/routine-flow.spec.ts` (SC-001, SC-002, SC-005, SC-007, SC-008)
+- [X] T011 [US1] Implement normalized schedule evaluation in `apps/api/app/Services/RoutineScheduleService.php` and update `apps/api/app/Models/Routine.php` relationships/casts (FR-002-FR-004, FR-017)
+- [X] T012 [US1] Complete routine create/edit/pause/archive/restore, `archived_at`, post-history schedule immutability, and ownership validation in `apps/api/app/Http/Controllers/RoutineController.php` and `apps/api/routes/api.php` (FR-001-FR-003, FR-016, FR-020)
+- [X] T013 [US1] Implement done/skipped upsert plus idempotent clear-to-pending in `apps/api/app/Http/Controllers/RoutineLogController.php` and `apps/api/routes/api.php` (FR-005-FR-006, SC-007)
+- [X] T014 [US1] Build the scheduled checklist and selected-day summary in `apps/api/app/Http/Controllers/TodayController.php` (FR-004, FR-007, FR-017)
+- [X] T015 [US1] Complete typed routine CRUD, archive/restore, mark, and clear client operations in `apps/web/src/api/client.ts` and `apps/web/src/api/types.ts` (FR-001-FR-007)
+- [X] T016 [US1] Implement routine edit/schedule/archive/restore states in `apps/web/src/views/RoutinesView.vue` and durable done/skip/pending interactions in `apps/web/src/views/TodayView.vue` (FR-001-FR-007, FR-018-FR-019)
+- [X] T017 [US1] Add desktop and phone P1 journeys in `apps/web/e2e/core-daily-loop/routine-flow.spec.ts` (SC-001, SC-002, SC-005, SC-007, SC-008)
 
 **Checkpoint**: User Story 1 is independently usable and is the recommended first implementation stop.
+
+### Phase 3 implementation notes (2026-08-10)
+
+- **Contract-only routine routes.** The prototype resource route also exposed `PUT` and `DELETE` for
+  routines, with delete silently meaning pause. US1 now exposes only the specified list, create, and
+  `PATCH` update routes; pause, archive, and restore are explicit update states, while clearing one
+  occurrence uses the contracted log `DELETE` route.
+- **Historical occurrence rule.** An archived or paused routine with a log is restored into Today only
+  for a calendar date that has ended. This preserves past results without allowing a current-day log
+  to keep an archived routine in current planning. Soft-deleted trash remains excluded as defined by
+  [data-model.md](data-model.md).
+- **Ownership and idempotency hardening.** Routine weekday/log models reject parent-owner mismatches,
+  and the first log write uses `firstOrCreate()` so the user-scoped unique key is also a concurrency
+  backstop. Repeated done preserves the original completion instant; clear-to-pending is idempotent.
+- **Browser harness adjustment.** Chromium reports `net::ERR_ABORTED` for fully received `204`
+  responses from PHP's development server. Runtime issue collection now ignores that signal only when
+  the same request has an observed successful `204`; all unpaired failed requests still fail a test.
+- **Exact phone acceptance width.** The mobile Playwright project now uses a 390-pixel viewport, and
+  the US1 journey asserts there is no horizontal overflow on Routines and Today.
+
+### Phase 3 validation evidence (2026-08-10)
+
+- `php artisan test`: 66 passed (540 assertions)
+- `./vendor/bin/pint`: clean
+- `npm run typecheck` and `npm run build`: pass
+- `npm run test:e2e`: 14 passed (desktop + 390 px mobile)
 
 ---
 

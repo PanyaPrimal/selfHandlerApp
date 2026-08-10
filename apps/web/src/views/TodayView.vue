@@ -1,115 +1,191 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import { getToday, updateRoutineLog } from '../api/client'
+import { clearRoutineLog, getToday, updateRoutineLog } from '../api/client'
 import { formatCalendarDate } from '../lib/format'
 import { useAuthSession } from '../auth/session'
 import type { RoutineLog, TodayResponse, TodayRoutine } from '../api/types'
 
-const today = new Date().toISOString().slice(0, 10)
-const selectedDate = ref(today)
+type RoutineState = RoutineLog['status'] | 'pending'
+
+const selectedDate = ref('')
 const data = ref<TodayResponse | null>(null)
 const isLoading = ref(false)
+const actionRoutineId = ref<number | null>(null)
 const error = ref<string | null>(null)
+const statusMessage = ref<string | null>(null)
+const retryAction = ref<(() => Promise<void>) | null>(null)
 const session = useAuthSession()
 const displayName = computed(() => session.user?.name ?? 'there')
 
-const completionLabel = computed(() => {
-  if (!data.value) {
-    return '0%'
-  }
-
-  return `${Math.round(data.value.summary.completion_rate)}%`
-})
-
+const completionLabel = computed(() => `${Math.round(data.value?.summary.completion_rate ?? 0)}%`)
 const progressWidth = computed(() => `${data.value?.summary.completion_rate ?? 0}%`)
 
-async function loadToday(): Promise<void> {
+async function loadToday(date?: string): Promise<void> {
   isLoading.value = true
   error.value = null
+  statusMessage.value = null
+  retryAction.value = null
+
+  if (date && data.value?.date !== date) {
+    data.value = null
+  }
 
   try {
-    data.value = await getToday(selectedDate.value)
+    const response = await getToday(date)
+    data.value = response
+    selectedDate.value = response.date
   } catch (currentError) {
-    error.value = currentError instanceof Error ? currentError.message : 'Failed to load Today'
+    error.value = currentError instanceof Error ? currentError.message : 'Failed to load Today.'
+    retryAction.value = () => loadToday(date)
   } finally {
     isLoading.value = false
   }
 }
 
-function markLocalRoutine(routineId: number, status: RoutineLog['status']): void {
+function cloneToday(value: TodayResponse): TodayResponse {
+  return JSON.parse(JSON.stringify(value)) as TodayResponse
+}
+
+function recalculateSummary(): void {
   if (!data.value) {
     return
   }
 
-  data.value.routines = data.value.routines.map((routine) => {
-    if (routine.id !== routineId) {
-      return routine
-    }
+  const scheduled = data.value.routines.length
+  const done = data.value.routines.filter((routine) => routine.log?.status === 'done').length
+  const skipped = data.value.routines.filter((routine) => routine.log?.status === 'skipped').length
 
-    return {
-      ...routine,
-      log: {
-        id: routine.log?.id ?? 0,
-        routine_id: routine.id,
-        log_date: selectedDate.value,
-        status,
-        note: routine.log?.note ?? null,
-        completed_at: status === 'done' ? new Date().toISOString() : null,
-      },
-    }
-  })
-}
-
-async function markRoutine(routine: TodayRoutine, status: RoutineLog['status']): Promise<void> {
-  const previousData = data.value ? JSON.parse(JSON.stringify(data.value)) as TodayResponse : null
-  markLocalRoutine(routine.id, status)
-  error.value = null
-
-  try {
-    await updateRoutineLog(routine.id, selectedDate.value, status)
-    await loadToday()
-  } catch (currentError) {
-    data.value = previousData
-    error.value = currentError instanceof Error ? currentError.message : 'Failed to update routine'
+  data.value.summary = {
+    scheduled,
+    done,
+    skipped,
+    pending: scheduled - done - skipped,
+    completion_rate: scheduled === 0 ? 0 : Math.round((done / scheduled) * 10_000) / 100,
   }
 }
 
-onMounted(loadToday)
+function setLocalState(routine: TodayRoutine, state: RoutineState, savedLog?: RoutineLog): void {
+  if (!data.value) {
+    return
+  }
+
+  const currentLog = routine.log
+  data.value.routines = data.value.routines.map((item) => {
+    if (item.id !== routine.id) {
+      return item
+    }
+
+    if (state === 'pending') {
+      return { ...item, log: null }
+    }
+
+    return {
+      ...item,
+      log: savedLog ?? {
+        id: currentLog?.id ?? 0,
+        routine_id: item.id,
+        log_date: selectedDate.value,
+        status: state,
+        note: currentLog?.note ?? null,
+        completed_at: state === 'done' ? new Date().toISOString() : null,
+      },
+    }
+  })
+  recalculateSummary()
+}
+
+async function setRoutineState(routine: TodayRoutine, state: RoutineState): Promise<void> {
+  if (!data.value || actionRoutineId.value !== null) {
+    return
+  }
+
+  const previousData = cloneToday(data.value)
+  actionRoutineId.value = routine.id
+  error.value = null
+  statusMessage.value = null
+  retryAction.value = null
+  setLocalState(routine, state)
+
+  try {
+    if (state === 'pending') {
+      await clearRoutineLog(routine.id, selectedDate.value)
+      setLocalState(routine, state)
+    } else {
+      const savedLog = await updateRoutineLog(routine.id, selectedDate.value, state)
+      setLocalState(routine, state, savedLog)
+    }
+
+    statusMessage.value = `${routine.name} is ${state}.`
+  } catch (currentError) {
+    data.value = previousData
+    error.value = currentError instanceof Error ? currentError.message : 'Failed to update the routine.'
+    retryAction.value = () => setRoutineState(routine, state)
+  } finally {
+    actionRoutineId.value = null
+  }
+}
+
+function loadSelectedDate(): void {
+  void loadToday(selectedDate.value)
+}
+
+function retry(): void {
+  void retryAction.value?.()
+}
+
+onMounted(() => loadToday())
 </script>
 
 <template>
   <section class="view-stack">
     <header class="view-header">
       <div>
-        <p class="eyebrow">{{ formatCalendarDate(selectedDate) }}</p>
+        <p class="eyebrow">{{ selectedDate ? formatCalendarDate(selectedDate) : 'Today' }}</p>
         <h1>Good evening, {{ displayName }}</h1>
       </div>
 
       <label class="field compact-field">
         <span>Date</span>
-        <input v-model="selectedDate" type="date" @change="loadToday" />
+        <input v-model="selectedDate" type="date" :disabled="isLoading" @change="loadSelectedDate" />
       </label>
     </header>
 
-    <div v-if="error" class="notice error">{{ error }}</div>
+    <div v-if="error" class="notice error action-notice" role="alert">
+      <span>{{ error }}</span>
+      <button v-if="retryAction" type="button" class="secondary" @click="retry">Retry</button>
+    </div>
+    <div v-if="statusMessage" class="notice success" role="status">{{ statusMessage }}</div>
+
+    <section v-if="isLoading && !data" class="panel" aria-label="Loading Today" role="status">
+      <p class="muted">Loading Today…</p>
+      <div class="skeleton-line" style="width: 44%"></div>
+      <div class="skeleton-line" style="width: 90%"></div>
+      <div class="skeleton-line" style="width: 75%"></div>
+    </section>
 
     <template v-if="data">
-      <section class="summary-grid">
+      <p v-if="isLoading" class="muted" role="status">Loading selected date…</p>
+
+      <section class="summary-grid daily-summary" aria-label="Daily completion summary">
         <div class="metric">
           <span>Completion</span>
           <strong>{{ completionLabel }}</strong>
-          <div class="progress-track" aria-hidden="true">
+          <div class="progress-track" role="progressbar" aria-label="Daily completion" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="Math.round(data.summary.completion_rate)">
             <div class="progress-fill" :style="{ width: progressWidth }"></div>
           </div>
         </div>
         <div class="metric">
-          <span>Done</span>
-          <strong>{{ data.summary.done }}/{{ data.summary.scheduled }}</strong>
+          <span>Scheduled</span>
+          <strong>{{ data.summary.scheduled }}</strong>
         </div>
         <div class="metric">
-          <span>Handled</span>
-          <strong>{{ data.summary.done + data.summary.skipped }}/{{ data.summary.scheduled }}</strong>
+          <span>Done</span>
+          <strong>{{ data.summary.done }}</strong>
+        </div>
+        <div class="metric">
+          <span>Skipped / pending</span>
+          <strong>{{ data.summary.skipped }} / {{ data.summary.pending }}</strong>
         </div>
       </section>
 
@@ -121,9 +197,9 @@ onMounted(loadToday)
 
         <div v-if="data.routines.length === 0" class="state-block">
           <div class="state-icon" aria-hidden="true"></div>
-          <h3>No routines yet</h3>
-          <p class="muted">Add your first routine and it'll show up here every day.</p>
-          <RouterLink to="/routines">New routine</RouterLink>
+          <h3>No routines scheduled</h3>
+          <p class="muted">There is nothing planned for this date.</p>
+          <RouterLink to="/routines">Manage routines</RouterLink>
         </div>
 
         <ul v-else class="item-list">
@@ -131,30 +207,57 @@ onMounted(loadToday)
             v-for="routine in data.routines"
             :key="routine.id"
             class="routine-row"
+            :aria-label="routine.name"
             :class="{
               'is-done': routine.log?.status === 'done',
               'is-skipped': routine.log?.status === 'skipped',
             }"
           >
-            <button class="routine-main ghost" type="button" @click="markRoutine(routine, 'done')">
+            <div class="routine-main">
               <span class="routine-check" aria-hidden="true">
-                {{ routine.log?.status === 'done' ? '✓' : routine.log?.status === 'skipped' ? '-' : '' }}
+                {{ routine.log?.status === 'done' ? '✓' : routine.log?.status === 'skipped' ? '−' : '' }}
               </span>
               <span>
                 <strong class="routine-title">{{ routine.name }}</strong>
                 <span class="routine-meta">
-                  <span v-if="routine.preferred_time" class="mono">{{ routine.preferred_time }}</span>
+                  <span v-if="routine.preferred_time" class="mono">{{ routine.preferred_time.slice(0, 5) }}</span>
                   <span>{{ routine.kind }}</span>
-                  <span v-if="routine.log">marked {{ routine.log.status }}</span>
+                  <span>{{ routine.log?.status ?? 'pending' }}</span>
                 </span>
                 <span v-if="routine.goals.length > 0" class="goal-chip-list">
                   <span v-for="goal in routine.goals" :key="goal.id" class="goal-chip">{{ goal.name }}</span>
                 </span>
               </span>
-            </button>
+            </div>
 
-            <div class="button-row">
-              <button type="button" class="secondary" @click="markRoutine(routine, 'skipped')">Skip</button>
+            <div class="button-row state-actions" :aria-label="`Set ${routine.name} state`">
+              <button
+                type="button"
+                class="secondary"
+                :aria-label="`Mark ${routine.name} done`"
+                :class="{ selected: routine.log?.status === 'done' }"
+                :aria-pressed="routine.log?.status === 'done'"
+                :disabled="actionRoutineId !== null"
+                @click="setRoutineState(routine, 'done')"
+              >Done</button>
+              <button
+                type="button"
+                class="secondary"
+                :aria-label="`Mark ${routine.name} skipped`"
+                :class="{ selected: routine.log?.status === 'skipped' }"
+                :aria-pressed="routine.log?.status === 'skipped'"
+                :disabled="actionRoutineId !== null"
+                @click="setRoutineState(routine, 'skipped')"
+              >Skip</button>
+              <button
+                type="button"
+                class="secondary"
+                :aria-label="`Set ${routine.name} to pending`"
+                :class="{ selected: !routine.log }"
+                :aria-pressed="!routine.log"
+                :disabled="actionRoutineId !== null"
+                @click="setRoutineState(routine, 'pending')"
+              >Pending</button>
             </div>
           </li>
         </ul>
@@ -170,11 +273,5 @@ onMounted(loadToday)
         </p>
       </section>
     </template>
-
-    <section v-else-if="isLoading" class="panel">
-      <div class="skeleton-line" style="width: 44%"></div>
-      <div class="skeleton-line" style="width: 90%"></div>
-      <div class="skeleton-line" style="width: 75%"></div>
-    </section>
   </section>
 </template>

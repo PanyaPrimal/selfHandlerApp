@@ -81,10 +81,9 @@ class OwnershipBoundaryTest extends AuthTestCase
         [$userA, $userB, $routineA, $routineB, $goalA, $goalB] = $this->seedTwoAccounts();
         $this->actingAs($userA);
 
-        $this->putJson("/api/routines/{$routineB->id}", ['name' => 'Stolen routine'])->assertNotFound();
         $this->patchJson("/api/routines/{$routineB->id}", ['name' => 'Stolen routine'])->assertNotFound();
-        $this->deleteJson("/api/routines/{$routineB->id}")->assertNotFound();
         $this->putJson("/api/routines/{$routineB->id}/logs/".self::DATE, ['status' => 'done'])->assertNotFound();
+        $this->deleteJson("/api/routines/{$routineB->id}/logs/".self::DATE)->assertNotFound();
 
         $this->putJson("/api/goals/{$goalB->id}", ['name' => 'Stolen goal'])->assertNotFound();
         $this->patchJson("/api/goals/{$goalB->id}", ['name' => 'Stolen goal'])->assertNotFound();
@@ -139,6 +138,7 @@ class OwnershipBoundaryTest extends AuthTestCase
         $this->actingAs($userA);
         $routineAId = $this->postJson('/api/routines', [
             'name' => 'Same title',
+            'schedule_type' => 'daily',
             'user_id' => $userB->id,
         ])->assertCreated()->json('data.id');
         $goalAId = $this->postJson('/api/goals', [
@@ -161,6 +161,7 @@ class OwnershipBoundaryTest extends AuthTestCase
         $this->actingAs($userB);
         $routineBId = $this->postJson('/api/routines', [
             'name' => 'Same title',
+            'schedule_type' => 'daily',
             'user_id' => $userA->id,
         ])->assertCreated()->json('data.id');
         $goalBId = $this->postJson('/api/goals', [

@@ -4,7 +4,6 @@ namespace App\Models;
 
 use App\Support\UserOwned;
 use App\ValueObjects\WeekdayCode;
-use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -102,30 +101,5 @@ class Routine extends Model
         }
 
         $this->unsetRelation('scheduleWeekdays');
-    }
-
-    public function isScheduledFor(CarbonInterface $date): bool
-    {
-        if (! $this->is_active || $this->is_archived) {
-            return false;
-        }
-
-        if ($this->starts_on && $this->starts_on->isAfter($date)) {
-            return false;
-        }
-
-        if ($this->ends_on && $this->ends_on->isBefore($date)) {
-            return false;
-        }
-
-        if ($this->schedule_type === 'daily') {
-            return true;
-        }
-
-        if ($this->schedule_type === 'weekdays') {
-            return in_array(WeekdayCode::fromDate($date)->value, $this->weekdays, true);
-        }
-
-        return false;
     }
 }

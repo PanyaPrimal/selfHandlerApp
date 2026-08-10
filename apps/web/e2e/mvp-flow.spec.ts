@@ -16,9 +16,9 @@ test('daily MVP loop works end-to-end', async ({ page }, testInfo) => {
   await expect(page).toHaveURL('/')
   await expect(page.getByText(routineName)).toBeVisible()
 
-  const routineButton = page.getByRole('button', { name: new RegExp(routineName) })
+  const routineButton = page.getByRole('button', { name: `Mark ${routineName} done` })
   await routineButton.click()
-  await expect(routineButton).toContainText('marked done')
+  await expect(routineButton).toHaveAttribute('aria-pressed', 'true')
 
   await page.getByRole('link', { name: /Review/i }).click()
   await expect(page).toHaveURL('/review')

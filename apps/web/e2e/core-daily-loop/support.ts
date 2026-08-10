@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test'
+import { expect, type Page, type Request } from '@playwright/test'
 
 /**
  * Start recording browser problems that a passing assertion would otherwise
@@ -9,6 +9,7 @@ import { expect, type Page } from '@playwright/test'
  */
 export function collectRuntimeIssues(page: Page): string[] {
   const issues: string[] = []
+  const successfulNoContentRequests = new WeakSet<Request>()
 
   page.on('console', (message) => {
     const text = message.text()
@@ -27,11 +28,22 @@ export function collectRuntimeIssues(page: Page): string[] {
   })
 
   page.on('requestfailed', (request) => {
+    // Chromium can report net::ERR_ABORTED after a fully received 204 from the
+    // PHP development server. A paired successful response is not a runtime
+    // failure and the calling fetch has already resolved normally.
+    if (successfulNoContentRequests.has(request)) {
+      return
+    }
+
     issues.push(`[requestfailed] ${request.method()} ${request.url()} ${request.failure()?.errorText}`)
   })
 
   page.on('response', (response) => {
     const url = new URL(response.url())
+
+    if (response.status() === 204) {
+      successfulNoContentRequests.add(response.request())
+    }
 
     // An anonymous session probe answering 401 is the expected guest path.
     if (response.status() === 401 && url.pathname === '/api/auth/user') {

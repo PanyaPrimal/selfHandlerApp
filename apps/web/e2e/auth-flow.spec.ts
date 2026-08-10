@@ -19,8 +19,8 @@ test('registration normalizes identity, restores the session, and rejects a dupl
   await registerViaUi(page, credentials, { emailInput: mixedEmail })
   await expect(page.getByRole('heading', { name: new RegExp(credentials.name) })).toBeVisible()
 
-  await page.getByRole('link', { name: 'Routines' }).click()
-  await expect(page.getByText('No routines yet.')).toBeVisible()
+  await page.getByRole('link', { name: 'Routines', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'No routines yet' })).toBeVisible()
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Repeatable actions' })).toBeVisible()
 
@@ -113,7 +113,7 @@ test('two accounts stay isolated in simultaneous contexts and after account swit
   try {
     await registerViaUi(pageB, accountB, { redirectTo: '/routines' })
     await expect(pageB.getByText(routineA)).toHaveCount(0)
-    await expect(pageB.getByText('No routines yet.')).toBeVisible()
+    await expect(pageB.getByRole('heading', { name: 'No routines yet' })).toBeVisible()
     await pageB.getByLabel('Name').fill(routineB)
     await pageB.getByRole('button', { name: 'Create' }).click()
     await expect(pageB.getByText(routineB)).toBeVisible()
@@ -122,7 +122,7 @@ test('two accounts stay isolated in simultaneous contexts and after account swit
     await expect(page.getByText(routineA)).toBeVisible()
     await expect(page.getByText(routineB)).toHaveCount(0)
 
-    const foreignResponse = await pageB.request.put(`/api/routines/${routineAId}`, {
+    const foreignResponse = await pageB.request.patch(`/api/routines/${routineAId}`, {
       headers: await xsrfHeader(pageB),
       data: {
         name: 'Cross-account mutation',

@@ -64,7 +64,7 @@ export interface DailyReview {
   completed_at: string
 }
 
-export interface TodayRoutine extends Pick<Routine, 'id' | 'name' | 'description' | 'kind' | 'preferred_time' | 'sort_order'> {
+export interface TodayRoutine extends Pick<Routine, 'id' | 'name' | 'description' | 'kind' | 'preferred_time' | 'sort_order' | 'is_active' | 'is_archived'> {
   log: RoutineLog | null
   goals: GoalSummary[]
 }
@@ -106,18 +106,26 @@ export interface LoginPayload {
   password: string
 }
 
-export interface RoutinePayload {
-  name: string
+export interface RoutineInput {
+  name?: string
   description?: string | null
   kind?: Routine['kind']
   schedule_type?: Routine['schedule_type']
-  weekdays?: Weekday[] | null
+  weekdays?: Weekday[]
   preferred_time?: string | null
   sort_order?: number
   is_active?: boolean
+  is_archived?: boolean
   starts_on?: string | null
   ends_on?: string | null
 }
+
+export interface RoutineCreatePayload extends RoutineInput {
+  name: string
+  schedule_type: Routine['schedule_type']
+}
+
+export type RoutineUpdatePayload = RoutineInput
 
 export interface GoalPayload {
   name: string
