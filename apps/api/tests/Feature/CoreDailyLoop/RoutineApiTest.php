@@ -59,7 +59,7 @@ class RoutineApiTest extends CoreDailyLoopTestCase
             'user_id' => $owner->id,
             'name' => 'Morning stretch',
         ]);
-        $this->assertDatabaseCount('routine_weekdays', 2);
+        $this->assertDatabaseCount('recurring_rule_weekdays', 2);
     }
 
     public function test_routine_fields_respect_the_contract_limits(): void
@@ -117,8 +117,9 @@ class RoutineApiTest extends CoreDailyLoopTestCase
             ->assertUnprocessable()
             ->assertJsonValidationErrors('starts_on');
 
-        $this->assertDatabaseHas('routines', [
-            'id' => $routine->id,
+        $this->assertDatabaseHas('recurring_rules', [
+            'owner_type' => 'routine',
+            'owner_id' => $routine->id,
             'starts_on' => '2026-08-10',
             'ends_on' => '2026-08-20',
         ]);
@@ -196,7 +197,7 @@ class RoutineApiTest extends CoreDailyLoopTestCase
         $this->assertSame('Morning walk', $routine->name);
         $this->assertSame('weekdays', $routine->schedule_type);
         $this->assertSame(['MO', 'WE'], $routine->weekdays);
-        $this->assertSame('2026-08-01', $routine->starts_on->format('Y-m-d'));
+        $this->assertSame('2026-08-01', $routine->starts_on);
 
         $this->patchJson("/api/routines/{$routine->id}", [
             'name' => 'History-safe edit',
@@ -249,14 +250,14 @@ class RoutineApiTest extends CoreDailyLoopTestCase
             ->assertJsonPath('data.schedule_type', 'weekdays')
             ->assertJsonPath('data.weekdays', ['MO', 'FR']);
 
-        $this->assertDatabaseCount('routine_weekdays', 2);
+        $this->assertDatabaseCount('recurring_rule_weekdays', 2);
 
         $this->patchJson("/api/routines/{$routine->id}", ['schedule_type' => 'daily'])
             ->assertOk()
             ->assertJsonPath('data.schedule_type', 'daily')
             ->assertJsonPath('data.weekdays', []);
 
-        $this->assertDatabaseCount('routine_weekdays', 0);
+        $this->assertDatabaseCount('recurring_rule_weekdays', 0);
     }
 
     public function test_today_contains_only_scheduled_routines_in_stable_order_and_matches_its_contract(): void

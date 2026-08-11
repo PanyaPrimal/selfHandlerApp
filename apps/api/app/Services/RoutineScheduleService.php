@@ -3,15 +3,21 @@
 namespace App\Services;
 
 use App\Models\Routine;
-use App\ValueObjects\WeekdayCode;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 
 /**
- * Evaluates the deliberately small daily/weekday schedule used by feature 001.
+ * Owner-aware view of a routine's schedule.
+ *
+ * The recurrence rule decides which calendar days the pattern lands on; this
+ * facade adds the routine lifecycle the engine deliberately knows nothing about
+ * — deleted, paused, archived. The signature is unchanged from feature 001, so
+ * Today, progress and streaks keep calling it exactly as before.
  */
 class RoutineScheduleService
 {
+    public function __construct(private readonly RecurringRuleExpander $expander) {}
+
     public function isScheduledFor(Routine $routine, CarbonInterface|string $date, ?string $timezone = null): bool
     {
         $timezone ??= config('selfhandler.timezone');
@@ -26,23 +32,13 @@ class RoutineScheduleService
             return false;
         }
 
-        if ($routine->starts_on && $routine->starts_on->format('Y-m-d') > $dateValue) {
+        $rule = $routine->recurringRule;
+
+        if (! $rule) {
             return false;
         }
 
-        if ($routine->ends_on && $routine->ends_on->format('Y-m-d') < $dateValue) {
-            return false;
-        }
-
-        return match ($routine->schedule_type) {
-            'daily' => true,
-            'weekdays' => in_array(
-                WeekdayCode::fromDate($calendarDate)->value,
-                $routine->weekdays,
-                true,
-            ),
-            default => false,
-        };
+        return $this->expander->occursOn($rule, $dateValue);
     }
 
     private function calendarDate(CarbonInterface|string $date, string $timezone): CarbonImmutable

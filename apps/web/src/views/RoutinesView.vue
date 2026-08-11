@@ -73,6 +73,12 @@ const weekdayOptions: UiOption<Weekday>[] = [
   { value: 'SA', label: 'Sat' },
   { value: 'SU', label: 'Sun' },
 ]
+// The schedule locks once a routine has results, so the rule is explained in the
+// editor rather than only surfacing as a rejected save.
+const scheduleHelper = computed(() => (editingId.value === null
+  ? 'Daily runs every day; by weekdays runs only on the days you choose.'
+  : 'Schedule fields lock after the first daily result. If this routine already has results, archive it and create a replacement.'))
+
 const kindOptions: UiOption<Routine['kind']>[] = [
   { value: 'routine', label: 'Routine' },
   { value: 'habit', label: 'Habit' },
@@ -367,6 +373,7 @@ onMounted(loadRoutines)
           label="Schedule"
           name="schedule_type"
           :options="scheduleOptions"
+          :helper="scheduleHelper"
           :error="fieldErrors.schedule_type?.[0]"
           @update:model-value="clearFieldError('schedule_type')"
         />
@@ -388,7 +395,6 @@ onMounted(loadRoutines)
           :model-value="form.weekdays"
           :options="weekdayOptions"
           wide
-          helper="Schedule fields lock after the first daily result."
           :error="fieldErrors.weekdays?.[0]"
           @update:model-value="setWeekdays"
         />

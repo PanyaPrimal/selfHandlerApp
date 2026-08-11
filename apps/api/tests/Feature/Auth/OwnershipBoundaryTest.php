@@ -208,12 +208,10 @@ class OwnershipBoundaryTest extends AuthTestCase
         $routineA = Routine::create([
             'user_id' => $userA->id,
             'name' => 'Shared title',
-            'schedule_type' => 'daily',
         ]);
         $routineB = Routine::create([
             'user_id' => $userB->id,
             'name' => 'Shared title',
-            'schedule_type' => 'daily',
         ]);
         $goalA = Goal::create(['user_id' => $userA->id, 'name' => 'A goal']);
         $goalB = Goal::create(['user_id' => $userB->id, 'name' => 'B goal']);

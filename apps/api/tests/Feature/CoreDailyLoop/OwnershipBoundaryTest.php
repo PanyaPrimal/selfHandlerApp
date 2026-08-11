@@ -4,9 +4,9 @@ namespace Tests\Feature\CoreDailyLoop;
 
 use App\Models\DailyReview;
 use App\Models\Goal;
+use App\Models\RecurringRuleWeekday;
 use App\Models\Routine;
 use App\Models\RoutineLog;
-use App\Models\RoutineWeekday;
 use RuntimeException;
 
 /**
@@ -39,7 +39,7 @@ class OwnershipBoundaryTest extends CoreDailyLoopTestCase
         $this->assertSame([$ownedGoal->id], Goal::query()->ownedBy($owner)->pluck('id')->all());
         $this->assertSame([$otherGoal->id], Goal::query()->ownedBy($other)->pluck('id')->all());
         $this->assertSame(1, RoutineLog::query()->ownedBy($owner)->count());
-        $this->assertSame(2, RoutineWeekday::query()->ownedBy($owner)->count());
+        $this->assertSame(2, RecurringRuleWeekday::query()->ownedBy($owner)->count());
         $this->assertSame(['Owner review'], DailyReview::query()->ownedBy($owner)->pluck('notes')->all());
 
         $this->assertTrue($ownedRoutine->isOwnedBy($owner));
@@ -53,18 +53,18 @@ class OwnershipBoundaryTest extends CoreDailyLoopTestCase
         $routine = $this->createRoutine($owner, [], ['TU', 'TH']);
 
         $this->assertSame(['TU', 'TH'], $routine->weekdays);
-        $this->assertDatabaseCount('routine_weekdays', 2);
+        $this->assertDatabaseCount('recurring_rule_weekdays', 2);
 
-        foreach (RoutineWeekday::all() as $weekday) {
+        foreach (RecurringRuleWeekday::all() as $weekday) {
             $this->assertSame($owner->id, $weekday->user_id);
-            $this->assertSame($routine->id, $weekday->routine_id);
+            $this->assertSame($routine->recurringRule->id, $weekday->recurring_rule_id);
         }
 
-        $routine->syncWeekdays(['th', 'SA', 'SA', 'not-a-weekday']);
+        $routine->recurringRule->syncWeekdays(['th', 'SA', 'SA', 'not-a-weekday']);
 
         $this->assertSame(['TH', 'SA'], $routine->fresh()->weekdays);
-        $this->assertDatabaseCount('routine_weekdays', 2);
-        $this->assertSame(2, RoutineWeekday::query()->ownedBy($owner)->count());
+        $this->assertDatabaseCount('recurring_rule_weekdays', 2);
+        $this->assertSame(2, RecurringRuleWeekday::query()->ownedBy($owner)->count());
     }
 
     public function test_records_cannot_be_stored_without_an_owner_or_moved_to_another_owner(): void
@@ -104,18 +104,18 @@ class OwnershipBoundaryTest extends CoreDailyLoopTestCase
         }
 
         try {
-            RoutineWeekday::create([
+            RecurringRuleWeekday::create([
                 'user_id' => $other->id,
-                'routine_id' => $routine->id,
+                'recurring_rule_id' => $routine->recurringRule->id,
                 'weekday' => 'MO',
             ]);
-            $this->fail('A routine weekday accepted an owner different from its routine.');
+            $this->fail('A rule weekday accepted an owner different from its rule.');
         } catch (RuntimeException $exception) {
             $this->assertStringContainsString('same owner', $exception->getMessage());
         }
 
         $this->assertDatabaseCount('routine_logs', 0);
-        $this->assertDatabaseCount('routine_weekdays', 0);
+        $this->assertDatabaseCount('recurring_rule_weekdays', 0);
     }
 
     public function test_cross_owner_requests_are_rejected_and_leave_no_trace(): void
@@ -142,8 +142,8 @@ class OwnershipBoundaryTest extends CoreDailyLoopTestCase
         $this->assertSame('Morning walk', $otherRoutine->fresh()->name);
         $this->assertDatabaseCount('routine_logs', 0);
         $this->assertDatabaseCount('goal_routine', 0);
-        $this->assertSame(2, RoutineWeekday::query()->count());
-        $this->assertSame(1, RoutineWeekday::query()->ownedBy($other)->count());
+        $this->assertSame(2, RecurringRuleWeekday::query()->count());
+        $this->assertSame(1, RecurringRuleWeekday::query()->ownedBy($other)->count());
     }
 
     public function test_owner_scoped_uniqueness_allows_the_same_schedule_for_two_accounts(): void
@@ -159,7 +159,7 @@ class OwnershipBoundaryTest extends CoreDailyLoopTestCase
         $this->createReview($owner, self::DATE);
         $this->createReview($other, self::DATE);
 
-        $this->assertDatabaseCount('routine_weekdays', 2);
+        $this->assertDatabaseCount('recurring_rule_weekdays', 2);
         $this->assertDatabaseCount('routine_logs', 2);
         $this->assertDatabaseCount('daily_reviews', 2);
     }

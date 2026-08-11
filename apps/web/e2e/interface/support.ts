@@ -166,22 +166,34 @@ export function openSurface(page: Page): Locator {
   return page.locator('.ui-surface')
 }
 
-/** Assert an open surface stays inside the viewport and clear of the tab bar. */
+/**
+ * Assert an open surface stays inside the viewport and clear of the tab bar.
+ *
+ * Positioning settles over a frame or two after the surface appears, so the
+ * measurement retries like any other Playwright assertion instead of sampling
+ * the surface mid-flight.
+ */
 export async function expectSurfaceWithinViewport(page: Page, surface: Locator): Promise<void> {
-  const box = await surface.boundingBox()
-  expect(box).not.toBeNull()
-
   const viewport = page.viewportSize()
   expect(viewport).not.toBeNull()
 
-  if (!box || !viewport) {
+  if (!viewport) {
     return
   }
 
-  expect(box.x).toBeGreaterThanOrEqual(-1)
-  expect(box.y).toBeGreaterThanOrEqual(-1)
-  expect(box.x + box.width).toBeLessThanOrEqual(viewport.width + 1)
-  expect(box.y + box.height).toBeLessThanOrEqual(viewport.height + 1)
+  await expect(async () => {
+    const box = await surface.boundingBox()
+    expect(box).not.toBeNull()
+
+    if (!box) {
+      return
+    }
+
+    expect(box.x).toBeGreaterThanOrEqual(-1)
+    expect(box.y).toBeGreaterThanOrEqual(-1)
+    expect(box.x + box.width).toBeLessThanOrEqual(viewport.width + 1)
+    expect(box.y + box.height).toBeLessThanOrEqual(viewport.height + 1)
+  }).toPass({ timeout: 5_000 })
 }
 
 function pageOf(scope: Page | Locator): Page {

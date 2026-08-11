@@ -36,7 +36,7 @@ class RoutineProgressService
         /** @var Collection<int, Routine> $routines */
         $routines = Routine::query()
             ->ownedBy($user)
-            ->with('scheduleWeekdays')
+            ->with('recurringRule.ruleWeekdays')
             ->orderBy('id')
             ->get();
 
@@ -152,10 +152,7 @@ class RoutineProgressService
 
         foreach ($routines as $routine) {
             if ($routine->starts_on) {
-                $startsOn = CarbonImmutable::parse(
-                    $routine->starts_on->format('Y-m-d'),
-                    $timezone,
-                )->startOfDay();
+                $startsOn = CarbonImmutable::parse($routine->starts_on, $timezone)->startOfDay();
 
                 if ($startsOn->isBefore($historyStart)) {
                     $historyStart = $startsOn;
@@ -267,10 +264,7 @@ class RoutineProgressService
         }
 
         $lowerBound = $routine->starts_on
-            ? CarbonImmutable::parse(
-                $routine->starts_on->format('Y-m-d'),
-                $timezone,
-            )->startOfDay()
+            ? CarbonImmutable::parse($routine->starts_on, $timezone)->startOfDay()
             : ($state['oldest_log_date'] ?? $state['next_date'])->subDays(7);
 
         while ($state['next_date']->greaterThanOrEqualTo($lowerBound)) {

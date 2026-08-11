@@ -89,7 +89,7 @@ Without a single engine, every module would reinvent its own scheduling → inco
 - **Skip:** status `skipped` → counts in analytics/reports as "not done" (discipline)
 - **Reschedule:** status `rescheduled` + `rescheduled_to`; an occurrence on the new date is created (or shifted). The user chooses whether to skip or reschedule (see [Modules Spec](modules.md))
 - **Editing a single occurrence ≠ editing the rule:** rescheduling/canceling a single date does not change the rule (much like "I moved this one meeting, but the series stays")
-- ❓ editing a rule retroactively (changed the schedule) — what happens to already-materialized future occurrences: regenerate the unmarked ones, keep the marked ones. To be finalized during implementation
+- **Editing a rule retroactively** (resolved 2026-08-12 by feature `006-unified-recurrence`): unmarked future occurrences are regenerated, and occurrences already linked to a fact are kept. A link to a fact is evidence that something happened; an unmarked future occurrence is only a prediction and is safe to replace.
 
 ---
 
@@ -124,11 +124,23 @@ erDiagram
 
 ---
 
-## Open questions (to resolve during implementation)
+## Open questions
 
-1. Materialization window size (+90d? depends on how far ahead the Planner/calendar looks).
-2. Editing a rule retroactively → the fate of already-materialized future occurrences (regenerate the unmarked ones).
-3. `payload` (JSON on the rule) vs. storing domain data only in the polymorphic owner.
-4. The supported subset of `rrule` at launch (if we include a parser in the engine MVP at all).
-5. Whether `slot` needs its own column or `occurrence_time` is enough (for multi-occurrence days).
-6. How the Planner (Module 5) aggregates occurrences from all modules into a single calendar — a `Schedulable` view/contract.
+**Resolved by feature `006-unified-recurrence` (2026-08-12), the first implementation:**
+
+1. **Materialization window size** — 90 days ahead of the owner's current local day, clamped by the
+   rule's own start and end. Recorded on the rule as `last_materialized_until`.
+2. **Editing a rule retroactively** — regenerate unmarked future occurrences, keep the ones linked to a
+   fact. See "Skips and reschedules" above.
+5. **`slot` versus `occurrence_time`** — both exist. `slot` is a non-null label (empty string for a
+   single-slot day) so it can take part in the uniqueness key, which `NULL` cannot on MySQL;
+   `occurrence_time` carries the time itself.
+
+**Still open, each waiting for a consumer:**
+
+3. `payload` (JSON on the rule) vs. storing domain data only in the polymorphic owner. Feature 006 needs
+   neither, so it added neither.
+4. The supported subset of `rrule` at launch. Feature 006 implements `daily` and `weekly` only; interval,
+   monthly, month-days, on/off cycles and multi-slot days arrive with the module that needs them.
+6. How the Planner (Module 5) aggregates occurrences from all modules into a single calendar — a
+   `Schedulable` view/contract.

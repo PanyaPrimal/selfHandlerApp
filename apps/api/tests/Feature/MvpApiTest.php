@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Goal;
 use App\Models\Routine;
 use App\Models\User;
+use App\Services\RoutineRecurrence;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -12,21 +13,35 @@ class MvpApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * Give a routine its recurrence rule, exactly as the API does.
+     *
+     * @param  list<string>  $weekdays
+     */
+    private function scheduleRoutine(
+        Routine $routine,
+        User $user,
+        string $scheduleType = 'daily',
+        array $weekdays = [],
+    ): Routine {
+        app(RoutineRecurrence::class)->apply($routine, $user, ['schedule_type' => $scheduleType], $weekdays);
+
+        return $routine;
+    }
+
     public function test_today_returns_scheduled_routines_and_summary(): void
     {
         $user = User::factory()->create();
 
-        Routine::create([
+        $this->scheduleRoutine(Routine::create([
             'user_id' => $user->id,
             'name' => 'Morning walk',
-            'schedule_type' => 'daily',
-        ]);
+        ]), $user, 'daily');
 
-        Routine::create([
+        $this->scheduleRoutine(Routine::create([
             'user_id' => $user->id,
             'name' => 'Wednesday-only routine',
-            'schedule_type' => 'weekdays',
-        ])->syncWeekdays(['WE']);
+        ]), $user, 'weekdays', ['WE']);
 
         $this->actingAs($user)
             ->getJson('/api/today?date=2026-06-22')
@@ -40,10 +55,10 @@ class MvpApiTest extends TestCase
     public function test_routine_log_can_be_upserted(): void
     {
         $user = User::factory()->create();
-        $routine = Routine::create([
+        $routine = $this->scheduleRoutine(Routine::create([
             'user_id' => $user->id,
             'name' => 'Read',
-        ]);
+        ]), $user);
 
         $this->actingAs($user)
             ->putJson("/api/routines/{$routine->id}/logs/2026-06-22", [
@@ -110,10 +125,10 @@ class MvpApiTest extends TestCase
             'user_id' => $user->id,
             'name' => 'Improve discipline',
         ]);
-        $routine = Routine::create([
+        $routine = $this->scheduleRoutine(Routine::create([
             'user_id' => $user->id,
             'name' => 'Evening review',
-        ]);
+        ]), $user);
 
         $this->actingAs($user)
             ->postJson("/api/goals/{$goal->id}/routines/{$routine->id}")

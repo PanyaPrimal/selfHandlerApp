@@ -218,12 +218,23 @@ class RoutineProgressServiceTest extends CoreDailyLoopTestCase
                 'id' => $routineId,
                 'user_id' => $owner->id,
                 'name' => 'Routine '.$routineId,
-                'schedule_type' => 'daily',
-                'starts_on' => $historyStart->toDateString(),
                 'created_at' => $timestamp,
                 'updated_at' => $timestamp,
             ], $routineIds);
             DB::table('routines')->insert($routineRows);
+
+            // The schedule lives on the recurrence rule, so the bulk fixture
+            // writes one daily rule per routine rather than a routine column.
+            DB::table('recurring_rules')->insert(array_map(static fn (int $routineId): array => [
+                'user_id' => $owner->id,
+                'owner_type' => 'routine',
+                'owner_id' => $routineId,
+                'frequency' => 'daily',
+                'starts_on' => $historyStart->toDateString(),
+                'timezone' => 'UTC',
+                'created_at' => $timestamp,
+                'updated_at' => $timestamp,
+            ], $routineIds));
 
             for ($date = $historyStart; $date->lessThanOrEqualTo($selectedDate); $date = $date->addDay()) {
                 $dateValue = $date->toDateString();
@@ -251,10 +262,14 @@ class RoutineProgressServiceTest extends CoreDailyLoopTestCase
             $connection->disableQueryLog();
         }
 
+        // The budget guards against N+1, not against a constant. It rose by one
+        // when the schedule moved onto the recurrence rule, because weekdays are
+        // now one relation deeper (routines -> rules -> weekdays); the count is
+        // still independent of the 500 routines and 365 days below.
         $this->assertLessThanOrEqual(
-            5,
+            6,
             $queryCount,
-            'Progress calculation must load routines, weekday rows, and history in a fixed number of queries.',
+            'Progress calculation must load routines, their rules, weekday rows, and history in a fixed number of queries.',
         );
         $this->assertSummary($progress['seven_day'], 3500, 3500, 0, 0, 100.0);
         $this->assertCount(500, $progress['routine_streaks']);

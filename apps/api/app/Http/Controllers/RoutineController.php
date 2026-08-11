@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Routine;
+use App\Services\RoutineRecurrence;
 use App\ValueObjects\WeekdayCode;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,7 +15,9 @@ use Illuminate\Validation\Validator as LaravelValidator;
 
 class RoutineController extends Controller
 {
-    private const RELATIONS = ['goals', 'scheduleWeekdays'];
+    private const RELATIONS = ['goals', 'recurringRule.ruleWeekdays'];
+
+    public function __construct(private readonly RoutineRecurrence $recurrence) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -36,14 +39,16 @@ class RoutineController extends Controller
         $data = $this->validatedData($request);
         $weekdays = $this->pullWeekdays($data);
 
-        $routine = DB::transaction(function () use ($data, $user, $weekdays): Routine {
+        $schedule = $this->pullSchedule($data);
+
+        $routine = DB::transaction(function () use ($data, $schedule, $user, $weekdays): Routine {
             $routine = Routine::create([
                 ...$data,
                 'user_id' => $user->id,
                 'archived_at' => ($data['is_archived'] ?? false) ? now() : null,
             ]);
 
-            $routine->syncWeekdays($weekdays ?? []);
+            $this->recurrence->apply($routine, $user, $schedule, $weekdays ?? []);
 
             return $routine;
         });
@@ -55,22 +60,21 @@ class RoutineController extends Controller
     {
         abort_unless($routine->isOwnedBy($request->user()), 404);
 
+        $user = $request->user();
         $data = $this->validatedData($request, partial: true, routine: $routine);
         $weekdays = $this->pullWeekdays($data);
-        $switchedToDaily = ($data['schedule_type'] ?? null) === 'daily';
+        $schedule = $this->pullSchedule($data);
 
         if (array_key_exists('is_archived', $data) && $data['is_archived'] !== $routine->is_archived) {
             $data['archived_at'] = $data['is_archived'] ? now() : null;
         }
 
-        DB::transaction(function () use ($data, $routine, $switchedToDaily, $weekdays): void {
+        DB::transaction(function () use ($data, $routine, $schedule, $user, $weekdays): void {
             $routine->update($data);
 
-            if ($weekdays !== null) {
-                $routine->syncWeekdays($weekdays);
-            } elseif ($switchedToDaily) {
-                $routine->syncWeekdays([]);
-            }
+            // The lifecycle flags decide whether the window stays live, so the
+            // rule is refreshed even when the schedule itself did not change.
+            $this->recurrence->apply($routine, $user, $schedule, $weekdays);
         });
 
         return response()->json(['data' => $routine->fresh(self::RELATIONS)]);
@@ -95,6 +99,29 @@ class RoutineController extends Controller
         unset($data['weekdays']);
 
         return $weekdays;
+    }
+
+    /**
+     * Take the schedule fields out of the validated payload.
+     *
+     * They belong to the recurrence rule, not to the routine row, so they are
+     * applied through `RoutineRecurrence` rather than mass-assigned.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function pullSchedule(array &$data): array
+    {
+        $schedule = [];
+
+        foreach (['schedule_type', 'preferred_time', 'starts_on', 'ends_on'] as $field) {
+            if (array_key_exists($field, $data)) {
+                $schedule[$field] = $data[$field];
+                unset($data[$field]);
+            }
+        }
+
+        return $schedule;
     }
 
     /**
@@ -140,10 +167,10 @@ class RoutineController extends Controller
 
             $startsOn = $request->exists('starts_on')
                 ? $request->input('starts_on')
-                : $routine?->starts_on?->format('Y-m-d');
+                : $routine?->starts_on;
             $endsOn = $request->exists('ends_on')
                 ? $request->input('ends_on')
-                : $routine?->ends_on?->format('Y-m-d');
+                : $routine?->ends_on;
 
             if (
                 is_string($startsOn)
@@ -177,7 +204,7 @@ class RoutineController extends Controller
 
             if (
                 $request->exists('starts_on')
-                && $request->input('starts_on') !== $routine->starts_on?->format('Y-m-d')
+                && $request->input('starts_on') !== $routine->starts_on
             ) {
                 $this->addScheduleLockedError($validator, 'starts_on');
             }

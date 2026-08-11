@@ -7,6 +7,7 @@ use App\Models\Goal;
 use App\Models\Routine;
 use App\Models\RoutineLog;
 use App\Models\User;
+use App\Services\RoutineRecurrence;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -35,18 +36,26 @@ abstract class CoreDailyLoopTestCase extends TestCase
      */
     protected function createRoutine(User $user, array $attributes = [], array $weekdays = []): Routine
     {
+        // The schedule now lives on the recurrence rule, so the fixture keeps the
+        // feature 001 vocabulary and translates it exactly as the API does.
+        $schedule = ['schedule_type' => $weekdays === [] ? 'daily' : 'weekdays'];
+
+        foreach (['schedule_type', 'preferred_time', 'starts_on', 'ends_on'] as $field) {
+            if (array_key_exists($field, $attributes)) {
+                $schedule[$field] = $attributes[$field];
+                unset($attributes[$field]);
+            }
+        }
+
         $routine = Routine::create([
             'user_id' => $user->id,
             'name' => 'Morning walk',
-            'schedule_type' => $weekdays === [] ? 'daily' : 'weekdays',
             ...$attributes,
         ]);
 
-        if ($weekdays !== []) {
-            $routine->syncWeekdays($weekdays);
-        }
+        app(RoutineRecurrence::class)->apply($routine, $user, $schedule, $weekdays);
 
-        return $routine->fresh(['goals', 'scheduleWeekdays']);
+        return $routine->fresh(['goals', 'recurringRule.ruleWeekdays']);
     }
 
     /**

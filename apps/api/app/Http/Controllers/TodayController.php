@@ -45,7 +45,7 @@ class TodayController extends Controller
                     ->where('goals.is_archived', false)
                     ->orderBy('goals.name')
                     ->orderBy('goals.id'),
-                'scheduleWeekdays',
+                'recurringRule.ruleWeekdays',
             ])
             ->orderBy('sort_order')
             ->orderBy('name')

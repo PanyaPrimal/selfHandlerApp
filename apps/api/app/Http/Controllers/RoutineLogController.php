@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Routine;
 use App\Models\RoutineLog;
+use App\Services\OccurrenceFactSynchronizer;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,6 +14,8 @@ use Illuminate\Validation\Rule;
 
 class RoutineLogController extends Controller
 {
+    public function __construct(private readonly OccurrenceFactSynchronizer $occurrences) {}
+
     public function upsert(Request $request, Routine $routine, string $date): JsonResponse
     {
         $user = $request->user();
@@ -47,6 +50,9 @@ class RoutineLogController extends Controller
             ]);
         }
 
+        // The engine mirrors the fact so a planned day knows what satisfied it.
+        $this->occurrences->syncFromLog($log);
+
         return response()->json(['data' => $log]);
     }
 
@@ -55,11 +61,15 @@ class RoutineLogController extends Controller
         $user = $request->user();
         abort_unless($routine->isOwnedBy($user), 404);
 
+        $logDate = $this->validatedDate($date, $user->calendarTimezone());
+
         RoutineLog::query()
             ->ownedBy($user)
             ->where('routine_id', $routine->id)
-            ->where('log_date', $this->validatedDate($date, $user->calendarTimezone()))
+            ->where('log_date', $logDate)
             ->delete();
+
+        $this->occurrences->clearForRoutineDate($routine, $logDate);
 
         return response()->noContent();
     }

@@ -117,7 +117,7 @@ class GoalController extends Controller
         return [
             'routines' => fn ($query) => $query
                 ->ownedBy($user)
-                ->with('scheduleWeekdays')
+                ->with('recurringRule.ruleWeekdays')
                 ->orderBy('routines.sort_order')
                 ->orderBy('routines.name')
                 ->orderBy('routines.id'),

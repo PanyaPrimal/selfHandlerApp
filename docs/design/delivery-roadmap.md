@@ -148,6 +148,8 @@ backend-served or CMS-backed changelog, and any component without a current cons
 
 ### 006 — Unified Recurrence with Routine Migration
 
+**Status:** Complete on 2026-08-12 (`30/30` tasks).
+
 **User outcome:** routines keep their current behavior while gaining a reusable, occurrence-based
 schedule that future modules can share.
 

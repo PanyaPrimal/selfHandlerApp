@@ -3,12 +3,12 @@
 namespace App\Models;
 
 use App\Support\UserOwned;
-use App\ValueObjects\WeekdayCode;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Routine extends Model
@@ -20,22 +20,38 @@ class Routine extends Model
         'name',
         'description',
         'kind',
-        'schedule_type',
-        'preferred_time',
         'sort_order',
         'is_active',
         'is_archived',
         'archived_at',
-        'starts_on',
-        'ends_on',
     ];
 
     /**
-     * The normalized weekday rows are exposed as a plain list of codes.
+     * The schedule lives on the recurrence rule, but the routine API has always
+     * presented it inline, so it is appended rather than reshaped.
      *
      * @var list<string>
      */
-    protected $appends = ['weekdays'];
+    protected $appends = ['schedule_type', 'weekdays', 'preferred_time', 'starts_on', 'ends_on'];
+
+    /**
+     * The rule is an implementation detail behind the schedule accessors.
+     *
+     * @var list<string>
+     */
+    protected $hidden = ['recurringRule'];
+
+    /**
+     * Mirror the column defaults so a freshly created instance knows its own
+     * lifecycle without a re-read. Materialization asks the routine whether its
+     * schedule should be live, and an unread `is_active` would read as "no".
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'is_active' => true,
+        'is_archived' => false,
+    ];
 
     protected function casts(): array
     {
@@ -44,8 +60,6 @@ class Routine extends Model
             'is_active' => 'boolean',
             'is_archived' => 'boolean',
             'archived_at' => 'datetime',
-            'starts_on' => 'date:Y-m-d',
-            'ends_on' => 'date:Y-m-d',
         ];
     }
 
@@ -61,45 +75,49 @@ class Routine extends Model
         return $this->hasMany(RoutineLog::class);
     }
 
-    public function scheduleWeekdays(): HasMany
+    public function recurringRule(): HasOne
     {
-        return $this->hasMany(RoutineWeekday::class);
+        return $this->hasOne(RecurringRule::class, 'owner_id')
+            ->where('owner_type', RecurringRule::OWNER_ROUTINE);
     }
 
     /**
-     * The schedule weekdays as codes in calendar order.
-     *
+     * @return Attribute<string, never>
+     */
+    protected function scheduleType(): Attribute
+    {
+        return Attribute::get(fn (): string => $this->recurringRule?->scheduleType() ?? 'daily');
+    }
+
+    /**
      * @return Attribute<list<string>, never>
      */
     protected function weekdays(): Attribute
     {
-        return Attribute::get(fn (): array => WeekdayCode::normalizeList(
-            $this->scheduleWeekdays->pluck('weekday'),
-        ));
+        return Attribute::get(fn (): array => $this->recurringRule?->weekdays ?? []);
     }
 
     /**
-     * Replace the stored schedule weekdays with the given codes.
-     *
-     * @param  iterable<mixed>  $codes
+     * @return Attribute<string|null, never>
      */
-    public function syncWeekdays(iterable $codes): void
+    protected function preferredTime(): Attribute
     {
-        $weekdays = WeekdayCode::normalizeList($codes);
+        return Attribute::get(fn (): ?string => $this->recurringRule?->slot_time);
+    }
 
-        $this->scheduleWeekdays()->whereNotIn('weekday', $weekdays)->delete();
+    /**
+     * @return Attribute<string|null, never>
+     */
+    protected function startsOn(): Attribute
+    {
+        return Attribute::get(fn (): ?string => $this->recurringRule?->starts_on?->format('Y-m-d'));
+    }
 
-        $stored = WeekdayCode::normalizeList(
-            $this->scheduleWeekdays()->get()->pluck('weekday'),
-        );
-
-        foreach (array_diff($weekdays, $stored) as $weekday) {
-            $this->scheduleWeekdays()->create([
-                'user_id' => $this->user_id,
-                'weekday' => $weekday,
-            ]);
-        }
-
-        $this->unsetRelation('scheduleWeekdays');
+    /**
+     * @return Attribute<string|null, never>
+     */
+    protected function endsOn(): Attribute
+    {
+        return Attribute::get(fn (): ?string => $this->recurringRule?->ends_on?->format('Y-m-d'));
     }
 }
