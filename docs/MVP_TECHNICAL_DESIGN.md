@@ -366,8 +366,11 @@ Feature `004-profile-settings` is complete as of 2026-08-12. It adds an additive
 existing-user backfill, registration provisioning and repair, full atomic profile GET/PUT contracts,
 regional preferences, canonical anthropometrics, formula readiness, a responsive Account editor, and
 explicit user-timezone propagation through Today, routine logs, scheduling, and progress. Its final
-gate passed 120 Laravel tests with 918 assertions, production Vue typecheck/build, Pint, and 30 desktop/mobile Playwright
-journeys. Homelab deployment was deliberately unchanged.
+gate passed 120 Laravel tests with 918 assertions, production Vue typecheck/build, Pint, and 30
+desktop/mobile Playwright journeys. Deployment was not part of the feature task list; the completed
+release was subsequently rolled out to the existing homelab on 2026-08-12 as revision
+`d6ebdf62e28e3a771d4fc71f14cf88295ab20200`. The additive migration created and backfilled one profile
+for the existing user, with all prior domain row counts preserved.
 
 - T001-T008: configured timezone boundary, additive schema alignment, ownership concern, API errors,
   explicit fixtures, and browser support

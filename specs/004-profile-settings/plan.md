@@ -238,3 +238,12 @@ No constitution violations or complexity exceptions are required.
   `Europe/Kyiv` default. The temporary SQLite file was removed after verification.
 
 No accepted product deviation exists. The intentionally deferred scope in `spec.md` remains deferred.
+
+### Operational Rollout
+
+The completed revision `d6ebdf62e28e3a771d4fc71f14cf88295ab20200` was deployed separately to
+the existing accepted homelab stack on 2026-08-12. Before mutation, database and private-volume
+backups were captured and SHA-256 verified. Migration batch 4 applied only
+`2026_08_11_120000_create_user_profiles_table`; the existing user received one `Europe/Kyiv` profile,
+all prior domain row counts were preserved, app/web release labels matched the revision, and local plus
+private public health checks returned `ok`.
