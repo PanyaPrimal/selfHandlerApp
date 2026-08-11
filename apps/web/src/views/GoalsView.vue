@@ -18,8 +18,11 @@ import {
 } from '../api/client'
 import type { Goal, GoalCreatePayload, Routine } from '../api/types'
 import AsyncState from '../components/AsyncState.vue'
+import { UiCheckbox, UiDatePicker, UiTextInput, UiTextarea } from '../components/ui'
 import { formatCalendarDate } from '../lib/format'
 import { useAuthSession } from '../auth/session'
+
+type FocusableControl = { focus: () => void }
 
 interface GoalForm {
   name: string
@@ -46,9 +49,10 @@ const fieldErrors = ref<ValidationErrors>({})
 const retryAction = shallowRef<(() => void) | null>(null)
 const linkSelections = reactive<Record<number, number[]>>({})
 const form = reactive<GoalForm>(emptyForm())
-const nameInput = ref<HTMLInputElement | null>(null)
-const descriptionInput = ref<HTMLTextAreaElement | null>(null)
-const targetDateInput = ref<HTMLInputElement | null>(null)
+const nameInput = ref<FocusableControl | null>(null)
+const descriptionInput = ref<FocusableControl | null>(null)
+const targetDateInput = ref<FocusableControl | null>(null)
+const locale = computed(() => session.user?.preferences.locale ?? 'en-GB')
 const goalListHeading = ref<HTMLHeadingElement | null>(null)
 const feedbackRetryButton = ref<HTMLButtonElement | null>(null)
 const activeRoutines = computed(() => routines.value.filter((routine) => routine.is_active && !routine.is_archived))
@@ -146,7 +150,7 @@ function goalPayload(): GoalCreatePayload {
 async function focusFirstError(): Promise<void> {
   await nextTick()
 
-  const inputs: Array<[keyof GoalForm, HTMLElement | null]> = [
+  const inputs: Array<[keyof GoalForm, FocusableControl | null]> = [
     ['name', nameInput.value],
     ['target_date', targetDateInput.value],
     ['description', descriptionInput.value],
@@ -327,6 +331,22 @@ async function saveRoutineLinks(goal: Goal): Promise<void> {
   }
 }
 
+function toggleRoutineLink(goalId: number, routineId: number, checked: boolean): void {
+  const current = new Set(linkSelections[goalId] ?? [])
+
+  if (checked) {
+    current.add(routineId)
+  } else {
+    current.delete(routineId)
+  }
+
+  // Keep the routine order stable so the saved link set does not depend on
+  // the order the user happened to tick the boxes.
+  linkSelections[goalId] = activeRoutines.value
+    .map((routine) => routine.id)
+    .filter((id) => current.has(id))
+}
+
 function clearFieldError(field: keyof GoalForm): void {
   if (!fieldErrors.value[field]) {
     return
@@ -372,58 +392,41 @@ onMounted(loadWorkspace)
           :aria-busy="isSubmitting"
           @submit.prevent="submitGoal"
         >
-          <label class="field">
-            <span>Name</span>
-            <input
-              ref="nameInput"
-              v-model="form.name"
-              name="name"
-              maxlength="160"
-              required
-              :disabled="mutationBusy"
-              :aria-invalid="Boolean(fieldErrors.name?.length)"
-              :aria-describedby="fieldErrors.name?.length ? 'goal-name-error' : undefined"
-              @input="clearFieldError('name')"
-            />
-            <small v-if="fieldErrors.name?.length" id="goal-name-error" class="field-error">
-              {{ fieldErrors.name[0] }}
-            </small>
-          </label>
+          <UiTextInput
+            ref="nameInput"
+            v-model="form.name"
+            label="Name"
+            name="name"
+            :maxlength="160"
+            required
+            :disabled="mutationBusy"
+            :error="fieldErrors.name?.[0]"
+            @update:model-value="clearFieldError('name')"
+          />
 
-          <label class="field">
-            <span>Target date</span>
-            <input
-              ref="targetDateInput"
-              v-model="form.target_date"
-              name="target_date"
-              type="date"
-              :disabled="mutationBusy"
-              :aria-invalid="Boolean(fieldErrors.target_date?.length)"
-              :aria-describedby="fieldErrors.target_date?.length ? 'goal-target-date-error' : undefined"
-              @input="clearFieldError('target_date')"
-            />
-            <small v-if="fieldErrors.target_date?.length" id="goal-target-date-error" class="field-error">
-              {{ fieldErrors.target_date[0] }}
-            </small>
-          </label>
+          <UiDatePicker
+            ref="targetDateInput"
+            label="Target date"
+            name="target_date"
+            :model-value="form.target_date || null"
+            :locale="locale"
+            :disabled="mutationBusy"
+            :error="fieldErrors.target_date?.[0]"
+            @update:model-value="(value) => { form.target_date = value ?? ''; clearFieldError('target_date') }"
+          />
 
-          <label class="field wide-field">
-            <span>Description</span>
-            <textarea
-              ref="descriptionInput"
-              v-model="form.description"
-              name="description"
-              rows="3"
-              maxlength="5000"
-              :disabled="mutationBusy"
-              :aria-invalid="Boolean(fieldErrors.description?.length)"
-              :aria-describedby="fieldErrors.description?.length ? 'goal-description-error' : undefined"
-              @input="clearFieldError('description')"
-            />
-            <small v-if="fieldErrors.description?.length" id="goal-description-error" class="field-error">
-              {{ fieldErrors.description[0] }}
-            </small>
-          </label>
+          <UiTextarea
+            ref="descriptionInput"
+            v-model="form.description"
+            label="Description"
+            name="description"
+            :rows="3"
+            :maxlength="5000"
+            wide
+            :disabled="mutationBusy"
+            :error="fieldErrors.description?.[0]"
+            @update:model-value="clearFieldError('description')"
+          />
 
           <div class="form-actions wide-field button-row">
             <button v-if="editingId !== null" type="button" class="secondary" :disabled="mutationBusy" @click="cancelEdit">
@@ -545,15 +548,15 @@ onMounted(loadWorkspace)
                 <p class="muted">Choose active routines that support this goal.</p>
               </div>
               <div v-if="activeRoutines.length > 0" class="routine-link-options">
-                <label v-for="routine in activeRoutines" :key="routine.id" class="checkbox-field">
-                  <input
-                    v-model="linkSelections[goal.id]"
-                    type="checkbox"
-                    :value="routine.id"
-                    :disabled="mutationBusy"
-                  />
-                  <span>{{ routine.name }}</span>
-                </label>
+                <UiCheckbox
+                  v-for="routine in activeRoutines"
+                  :key="routine.id"
+                  :label="routine.name"
+                  :name="`goal-${goal.id}-routine-${routine.id}`"
+                  :model-value="(linkSelections[goal.id] ?? []).includes(routine.id)"
+                  :disabled="mutationBusy"
+                  @update:model-value="(checked) => toggleRoutineLink(goal.id, routine.id, checked)"
+                />
               </div>
               <p v-else class="muted">No active routines are available to link.</p>
               <div class="form-actions">

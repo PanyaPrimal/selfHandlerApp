@@ -6,6 +6,7 @@ import AsyncState from '../components/AsyncState.vue'
 import ProgressSummary from '../components/ProgressSummary.vue'
 import { formatCalendarDate } from '../lib/format'
 import { useAuthSession } from '../auth/session'
+import { UiDatePicker } from '../components/ui'
 import type { RoutineLog, TodayResponse, TodayRoutine } from '../api/types'
 
 type RoutineState = RoutineLog['status'] | 'pending'
@@ -17,14 +18,33 @@ const actionRoutineId = ref<number | null>(null)
 const error = ref<string | null>(null)
 const statusMessage = ref<string | null>(null)
 const retryAction = ref<(() => Promise<void>) | null>(null)
-const dateInput = ref<HTMLInputElement | null>(null)
+const dateControl = ref<{ focus: () => void } | null>(null)
+// The user's real current day, resolved by the API from their profile time zone.
+// It is captured on the first unparameterised load and only marks the calendar;
+// it never becomes a value on its own.
+const userToday = ref<string | null>(null)
 const session = useAuthSession()
+const locale = computed(() => session.user?.preferences.locale ?? 'en-GB')
 const displayName = computed(() => session.user?.name ?? 'there')
 
 const completionLabel = computed(() => `${Math.round(data.value?.summary.completion_rate ?? 0)}%`)
 const progressWidth = computed(() => `${data.value?.summary.completion_rate ?? 0}%`)
 
-async function loadToday(date?: string, focusTarget?: HTMLElement | null): Promise<void> {
+type FocusTarget = HTMLElement | { focus: () => void }
+
+function refocus(target: FocusTarget | null | undefined): void {
+  if (!target) {
+    return
+  }
+
+  if (target instanceof HTMLElement && !target.isConnected) {
+    return
+  }
+
+  target.focus()
+}
+
+async function loadToday(date?: string, focusTarget?: FocusTarget | null): Promise<void> {
   isLoading.value = true
   error.value = null
   statusMessage.value = null
@@ -38,16 +58,18 @@ async function loadToday(date?: string, focusTarget?: HTMLElement | null): Promi
     const response = await getToday(date)
     data.value = response
     selectedDate.value = response.date
+
+    if (!date) {
+      userToday.value = response.date
+    }
   } catch (currentError) {
     error.value = currentError instanceof Error ? currentError.message : 'Failed to load Today.'
-    retryAction.value = () => loadToday(date, focusTarget ?? dateInput.value)
+    retryAction.value = () => loadToday(date, focusTarget ?? dateControl.value)
   } finally {
     isLoading.value = false
     await nextTick()
 
-    if (focusTarget?.isConnected) {
-      focusTarget.focus()
-    }
+    refocus(focusTarget)
   }
 }
 
@@ -138,14 +160,17 @@ async function setRoutineState(
     actionRoutineId.value = null
     await nextTick()
 
-    if (focusTarget?.isConnected) {
-      focusTarget.focus()
-    }
+    refocus(focusTarget)
   }
 }
 
-function loadSelectedDate(): void {
-  void loadToday(selectedDate.value, dateInput.value)
+function loadSelectedDate(value: string | null): void {
+  if (!value) {
+    return
+  }
+
+  selectedDate.value = value
+  void loadToday(value, dateControl.value)
 }
 
 function retry(): void {
@@ -163,10 +188,20 @@ onMounted(() => loadToday())
         <h1>Good evening, {{ displayName }}</h1>
       </div>
 
-      <label class="field compact-field">
-        <span>Date</span>
-        <input ref="dateInput" v-model="selectedDate" type="date" :disabled="isLoading" @change="loadSelectedDate" />
-      </label>
+      <div class="compact-field">
+        <UiDatePicker
+          ref="dateControl"
+          label="Date"
+          name="today-date"
+          :model-value="selectedDate || null"
+          :locale="locale"
+          :today="userToday"
+          :disabled="isLoading"
+          :clearable="false"
+          placeholder="Choose a day"
+          @update:model-value="loadSelectedDate"
+        />
+      </div>
     </header>
 
     <div v-if="error && data" class="notice error action-notice" role="alert">

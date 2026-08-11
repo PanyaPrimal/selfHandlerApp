@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { collectRuntimeIssues, expectNoRuntimeIssues } from './support'
 import { registerViaUi, uniqueCredentials } from '../support/auth'
+import { chooseSegment, dateTrigger, pickDate } from '../interface/support'
 
 const selectedMonday = '2026-08-10'
 
@@ -8,7 +9,7 @@ async function createWeekdayRoutine(page: Page, name: string, weekday: 'Mon' | '
   const form = page.getByRole('form', { name: 'Create routine' })
 
   await form.getByLabel('Name').fill(name)
-  await form.getByLabel('Schedule').selectOption('weekdays')
+  await chooseSegment(form, 'Schedule', 'By weekdays')
   await form.getByRole('button', { name: weekday, exact: true }).click()
   await form.getByLabel('Display order').fill(String(order))
   await form.getByRole('button', { name: 'Create routine' }).click()
@@ -18,8 +19,8 @@ async function createWeekdayRoutine(page: Page, name: string, weekday: 'Mon' | '
 }
 
 async function selectDate(page: Page, date: string): Promise<void> {
-  await page.getByLabel('Date').fill(date)
-  await expect(page.getByLabel('Date')).toHaveValue(date)
+  await pickDate(page, 'Date', date)
+  await expect(dateTrigger(page, 'Date')).toBeVisible()
   await expect(page.getByRole('heading', { name: /Good evening/ })).toBeVisible()
   await expect(page.getByText('Loading selected date…')).toBeHidden()
 }
@@ -48,7 +49,7 @@ test('weekday routine planning and daily state transitions survive reload', asyn
 
   const createForm = page.getByRole('form', { name: 'Create routine' })
   await createForm.getByLabel('Name').fill('Missing weekday')
-  await createForm.getByLabel('Schedule').selectOption('weekdays')
+  await chooseSegment(createForm, 'Schedule', 'By weekdays')
   await createForm.getByRole('button', { name: 'Create routine' }).click()
   await expect(createForm.getByText('Choose at least one weekday.')).toBeVisible()
 

@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page, type Response, type TestInfo } from '@playwright/test'
 import { collectRuntimeIssues, expectNoRuntimeIssues } from './support'
 import { registerViaUi, uniqueCredentials, xsrfHeader } from '../support/auth'
+import { chooseSegment, dateTrigger, pickDate, toggleOption } from '../interface/support'
 
 const PERIOD_END = '2026-08-06'
 
@@ -38,13 +39,11 @@ async function createRoutine(
 ): Promise<number> {
   const form = page.getByRole('form', { name: 'Create routine' })
   await form.getByLabel('Name').fill(name)
-  await form.getByLabel('Schedule').selectOption(schedule)
+  await chooseSegment(form, 'Schedule', schedule === 'daily' ? 'Daily' : 'By weekdays')
 
   if (schedule === 'weekdays') {
-    const weekdayPicker = form.getByLabel('Weekdays')
-
     for (const weekday of weekdays) {
-      await weekdayPicker.getByRole('button', { name: weekday, exact: true }).click()
+      await toggleOption(form, 'Weekdays', weekday)
     }
   }
 
@@ -76,8 +75,7 @@ async function seedLog(
 }
 
 async function openPeriodEnd(page: Page): Promise<void> {
-  const dateInput = page.getByLabel('Date')
-  await expect(dateInput).toBeEnabled()
+  await expect(dateTrigger(page, 'Date')).toBeEnabled()
 
   const responsePromise = page.waitForResponse((response) => {
     const url = new URL(response.url())
@@ -85,7 +83,7 @@ async function openPeriodEnd(page: Page): Promise<void> {
       && url.pathname === '/api/today'
       && url.searchParams.get('date') === PERIOD_END
   })
-  await dateInput.fill(PERIOD_END)
+  await pickDate(page, 'Date', PERIOD_END)
   expect((await responsePromise).status()).toBe(200)
 }
 

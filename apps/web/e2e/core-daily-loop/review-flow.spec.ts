@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Response, type TestInfo } from '@playwright/test'
+import { dateTrigger, pickDate } from '../interface/support'
 import { collectRuntimeIssues } from './support'
 import { registerViaUi, uniqueCredentials } from '../support/auth'
 
@@ -193,15 +194,14 @@ test('review is created, restored, updated idempotently, and reflected on Today'
   await expectNoHorizontalOverflow(page)
 
   await page.getByRole('link', { name: 'Today', exact: true }).click()
-  const dateInput = page.getByLabel('Date')
-  await expect(dateInput).toBeEnabled()
+  await expect(dateTrigger(page, 'Date')).toBeEnabled()
   const todayResponsePromise = page.waitForResponse((response) => {
     const url = new URL(response.url())
     return response.request().method() === 'GET'
       && url.pathname === '/api/today'
       && url.searchParams.get('date') === REVIEW_DATE
   })
-  await dateInput.fill(REVIEW_DATE)
+  await pickDate(page, 'Date', REVIEW_DATE)
   expect((await todayResponsePromise).status()).toBe(200)
 
   await expect(page.getByText('Review saved for this date.')).toBeVisible()

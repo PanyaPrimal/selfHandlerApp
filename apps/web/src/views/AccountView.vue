@@ -6,6 +6,14 @@ import { ApiError, validationErrors, type ValidationErrors } from '../api/http'
 import type { Profile, ProfileInput, ProfileOptions } from '../api/types'
 import { logout, updateAuthenticatedUser, useAuthSession } from '../auth/session'
 import {
+  UiCombobox,
+  UiDatePicker,
+  UiNumberInput,
+  UiSelect,
+  UiTextInput,
+} from '../components/ui'
+import type { UiOption } from '../components/ui'
+import {
   centimetersToMeters,
   feetInchesToMeters,
   gramsToKilograms,
@@ -36,6 +44,47 @@ const form = reactive<ProfileInput>({
 })
 
 const profile = ref<Profile | null>(null)
+const locale = computed(() => form.locale)
+
+/** Finite option lists come from the API so the client never invents a value. */
+function labelled<T extends string>(values: readonly T[], labels?: Record<string, string>): UiOption<T>[] {
+  return values.map((value) => ({ value, label: labels?.[value] ?? value }))
+}
+
+const timezoneOptions = computed(() => labelled(options.value?.timezones ?? []))
+const localeOptions = computed(() => labelled(options.value?.locales ?? []))
+const unitSystemOptions = computed(() =>
+  labelled(options.value?.unit_systems ?? [], { metric: 'Metric', imperial: 'Imperial' }),
+)
+const currencyOptions = computed(() => labelled(options.value?.base_currencies ?? []))
+const toneOptions = computed(() =>
+  labelled(options.value?.recommendation_tones ?? [], {
+    neutral: 'Neutral',
+    friendly: 'Friendly',
+    direct: 'Direct',
+  }),
+)
+const sexOptions = computed(() =>
+  labelled(options.value?.sexes ?? [], {
+    female: 'Female',
+    male: 'Male',
+    unspecified: 'Unspecified',
+  }),
+)
+const activityOptions = computed(() =>
+  labelled(options.value?.baseline_activities ?? [], {
+    sedentary: 'Sedentary',
+    light: 'Light',
+    moderate: 'Moderate',
+    high: 'High',
+  }),
+)
+const formulaOptions = computed(() =>
+  labelled(options.value?.bmr_formulas ?? [], {
+    mifflin_st_jeor: 'Mifflin-St Jeor',
+    katch_mcardle: 'Katch-McArdle',
+  }),
+)
 const userInitial = computed(() => form.name.trim().charAt(0).toUpperCase() || '?')
 const dirty = computed(() => acceptedSnapshot.value !== '' && JSON.stringify(form) !== acceptedSnapshot.value)
 const heightCm = computed({
@@ -178,11 +227,14 @@ onMounted(load)
             <p class="muted">{{ session.user?.email }}</p>
           </div>
         </div>
-        <label class="field">
-          <span>Display name</span>
-          <input v-model="form.name" data-field="name" maxlength="100" autocomplete="name" :aria-invalid="!!errors.name" />
-          <span v-if="errors.name" class="field-error">{{ errors.name[0] }}</span>
-        </label>
+        <UiTextInput
+          v-model="form.name"
+          label="Display name"
+          name="name"
+          :maxlength="100"
+          autocomplete="name"
+          :error="errors.name?.[0]"
+        />
       </section>
 
       <section class="panel profile-section" aria-labelledby="regional-heading">
@@ -191,17 +243,44 @@ onMounted(load)
           <p class="muted">Your timezone defines what “Today” means for this account.</p>
         </div>
         <div class="form-grid">
-          <label class="field wide-field">
-            <span>Timezone</span>
-            <select v-model="form.timezone" data-field="timezone" :aria-invalid="!!errors.timezone">
-              <option v-for="timezone in options.timezones" :key="timezone" :value="timezone">{{ timezone }}</option>
-            </select>
-            <span v-if="errors.timezone" class="field-error">{{ errors.timezone[0] }}</span>
-          </label>
-          <label class="field"><span>Language &amp; date format</span><select v-model="form.locale" data-field="locale"><option v-for="value in options.locales" :key="value" :value="value">{{ value }}</option></select></label>
-          <label class="field"><span>Units</span><select v-model="form.unit_system" data-field="unit_system"><option v-for="value in options.unit_systems" :key="value" :value="value">{{ value }}</option></select></label>
-          <label class="field"><span>Base currency</span><select v-model="form.base_currency" data-field="base_currency"><option v-for="value in options.base_currencies" :key="value" :value="value">{{ value }}</option></select></label>
-          <label class="field"><span>Recommendation tone</span><select v-model="form.recommendation_tone" data-field="recommendation_tone"><option v-for="value in options.recommendation_tones" :key="value" :value="value">{{ value }}</option></select></label>
+          <UiCombobox
+            v-model="form.timezone"
+            label="Timezone"
+            name="timezone"
+            :options="timezoneOptions"
+            wide
+            placeholder="Search time zones"
+            helper="Type a city or region to narrow the list."
+            :error="errors.timezone?.[0]"
+          />
+          <UiSelect
+            v-model="form.locale"
+            label="Language & date format"
+            name="locale"
+            :options="localeOptions"
+            :error="errors.locale?.[0]"
+          />
+          <UiSelect
+            v-model="form.unit_system"
+            label="Units"
+            name="unit_system"
+            :options="unitSystemOptions"
+            :error="errors.unit_system?.[0]"
+          />
+          <UiSelect
+            v-model="form.base_currency"
+            label="Base currency"
+            name="base_currency"
+            :options="currencyOptions"
+            :error="errors.base_currency?.[0]"
+          />
+          <UiSelect
+            v-model="form.recommendation_tone"
+            label="Recommendation tone"
+            name="recommendation_tone"
+            :options="toneOptions"
+            :error="errors.recommendation_tone?.[0]"
+          />
         </div>
       </section>
 
@@ -216,22 +295,97 @@ onMounted(load)
           </span>
         </div>
         <div class="form-grid">
-          <label class="field"><span>Date of birth</span><input v-model="form.date_of_birth" data-field="date_of_birth" type="date" :aria-invalid="!!errors.date_of_birth" /><span v-if="errors.date_of_birth" class="field-error">{{ errors.date_of_birth[0] }}</span></label>
-          <label class="field"><span>Sex used by formula</span><select v-model="form.sex" data-field="sex"><option :value="null">Not set</option><option v-for="value in options.sexes" :key="value" :value="value">{{ value }}</option></select></label>
+          <UiDatePicker
+            v-model="form.date_of_birth"
+            label="Date of birth"
+            name="date_of_birth"
+            :locale="locale"
+            :error="errors.date_of_birth?.[0]"
+          />
+          <UiSelect
+            v-model="form.sex"
+            label="Sex used by formula"
+            name="sex"
+            :options="sexOptions"
+            nullable
+            :error="errors.sex?.[0]"
+          />
 
-          <label v-if="form.unit_system === 'metric'" class="field"><span>Height (cm)</span><input v-model="heightCm" data-field="height_meters" type="number" min="50" max="300" step="0.1" /><span v-if="errors.height_meters" class="field-error">{{ errors.height_meters[0] }}</span></label>
+          <UiNumberInput
+            v-if="form.unit_system === 'metric'"
+            v-model="heightCm"
+            label="Height (cm)"
+            name="height_meters"
+            :min="50"
+            :max="300"
+            :step="0.1"
+            :error="errors.height_meters?.[0]"
+          />
           <div v-else class="imperial-height">
-            <label class="field"><span>Height (ft)</span><input v-model="heightFeet" data-field="height_meters" type="number" min="1" max="9" /></label>
-            <label class="field"><span>Inches</span><input v-model="heightInches" type="number" min="0" max="11.9" step="0.1" /></label>
-            <span v-if="errors.height_meters" class="field-error">{{ errors.height_meters[0] }}</span>
+            <UiNumberInput
+              v-model="heightFeet"
+              label="Height (ft)"
+              name="height_meters"
+              :min="1"
+              :max="9"
+              :error="errors.height_meters?.[0]"
+            />
+            <UiNumberInput
+              v-model="heightInches"
+              label="Inches"
+              name="height_inches"
+              :min="0"
+              :max="11.9"
+              :step="0.1"
+            />
           </div>
 
-          <label v-if="form.unit_system === 'metric'" class="field"><span>Weight (kg)</span><input v-model="weightKg" data-field="weight_grams" type="number" min="20" max="500" step="0.01" /><span v-if="errors.weight_grams" class="field-error">{{ errors.weight_grams[0] }}</span></label>
-          <label v-else class="field"><span>Weight (lb)</span><input v-model="weightLb" data-field="weight_grams" type="number" min="44" max="1102" step="0.1" /><span v-if="errors.weight_grams" class="field-error">{{ errors.weight_grams[0] }}</span></label>
+          <UiNumberInput
+            v-if="form.unit_system === 'metric'"
+            v-model="weightKg"
+            label="Weight (kg)"
+            name="weight_grams"
+            :min="20"
+            :max="500"
+            :step="0.01"
+            :error="errors.weight_grams?.[0]"
+          />
+          <UiNumberInput
+            v-else
+            v-model="weightLb"
+            label="Weight (lb)"
+            name="weight_grams"
+            :min="44"
+            :max="1102"
+            :step="0.1"
+            :error="errors.weight_grams?.[0]"
+          />
 
-          <label class="field"><span>Body fat (%)</span><input v-model="form.body_fat_percentage" data-field="body_fat_percentage" type="number" min="2" max="75" step="0.01" :aria-invalid="!!errors.body_fat_percentage" /><span v-if="errors.body_fat_percentage" class="field-error">{{ errors.body_fat_percentage[0] }}</span></label>
-          <label class="field"><span>Non-sport activity</span><select v-model="form.baseline_activity" data-field="baseline_activity"><option :value="null">Not set</option><option v-for="value in options.baseline_activities" :key="value" :value="value">{{ value }}</option></select></label>
-          <label class="field wide-field"><span>Metabolic formula</span><select v-model="form.bmr_formula" data-field="bmr_formula"><option v-for="value in options.bmr_formulas" :key="value" :value="value">{{ value === 'mifflin_st_jeor' ? 'Mifflin–St Jeor' : 'Katch–McArdle' }}</option></select><span v-if="errors.bmr_formula" class="field-error">{{ errors.bmr_formula[0] }}</span></label>
+          <UiNumberInput
+            v-model="form.body_fat_percentage"
+            label="Body fat (%)"
+            name="body_fat_percentage"
+            :min="2"
+            :max="75"
+            :step="0.01"
+            :error="errors.body_fat_percentage?.[0]"
+          />
+          <UiSelect
+            v-model="form.baseline_activity"
+            label="Non-sport activity"
+            name="baseline_activity"
+            :options="activityOptions"
+            nullable
+            :error="errors.baseline_activity?.[0]"
+          />
+          <UiSelect
+            v-model="form.bmr_formula"
+            label="Metabolic formula"
+            name="bmr_formula"
+            :options="formulaOptions"
+            wide
+            :error="errors.bmr_formula?.[0]"
+          />
         </div>
         <p v-if="profile && !profile.calculation_ready" class="helper-text">Missing: {{ profile.missing_fields.join(', ') }}. Readiness updates after saving.</p>
       </section>

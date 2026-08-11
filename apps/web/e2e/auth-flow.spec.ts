@@ -7,6 +7,7 @@ import {
   uniqueCredentials,
   xsrfHeader,
 } from './support/auth'
+import { gotoDestination } from './interface/support'
 
 async function expectRedirect(page: Page, path: string, redirect: string): Promise<void> {
   await expect(page).toHaveURL((url) => url.pathname === path && url.searchParams.get('redirect') === redirect)
@@ -24,7 +25,7 @@ test('registration normalizes identity, restores the session, and rejects a dupl
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Repeatable actions' })).toBeVisible()
 
-  await page.getByRole('link', { name: 'Account', exact: true }).click()
+  await gotoDestination(page, 'Account')
   await expect(page.locator('.content-shell').getByText(credentials.email)).toBeVisible()
   await logoutViaUi(page)
 
@@ -36,7 +37,7 @@ test('registration normalizes identity, restores the session, and rejects a dupl
   await page.getByLabel('Confirm password').fill(credentials.password)
   await page.getByRole('button', { name: 'Create account' }).click()
 
-  await expect(page.locator('#register-email-error')).toBeVisible()
+  await expect(page.getByLabel('Email')).toHaveAttribute('aria-invalid', 'true')
   await expect(page.getByLabel('Password', { exact: true })).toHaveValue('')
   await expect(page.getByLabel('Confirm password')).toHaveValue('')
 })
@@ -170,8 +171,8 @@ test('CSRF, validation, rate limits, and unavailable bootstrap are recoverable',
   await page.getByLabel('Password', { exact: true }).fill('short')
   await page.getByLabel('Confirm password').fill('different')
   await page.getByRole('button', { name: 'Create account' }).click()
-  await expect(page.locator('#register-email-error')).toBeVisible()
-  await expect(page.locator('#register-password-error')).toBeVisible()
+  await expect(page.getByLabel('Email')).toHaveAttribute('aria-invalid', 'true')
+  await expect(page.getByLabel('Password', { exact: true })).toHaveAttribute('aria-invalid', 'true')
   await expect(page.getByLabel('Password', { exact: true })).toHaveValue('')
   await expect(page.getByLabel('Confirm password')).toHaveValue('')
 

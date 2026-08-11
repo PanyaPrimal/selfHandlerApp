@@ -3,6 +3,7 @@ import { safeRedirect } from './auth/redirect'
 import { restoreSession, useAuthSession } from './auth/session'
 import AppShell from './layouts/AppShell.vue'
 import AccountView from './views/AccountView.vue'
+import ChangelogView from './views/ChangelogView.vue'
 import GoalsView from './views/GoalsView.vue'
 import LoginView from './views/LoginView.vue'
 import RegisterView from './views/RegisterView.vue'
@@ -61,6 +62,11 @@ export const router = createRouter({
           path: 'account',
           name: 'account',
           component: AccountView,
+        },
+        {
+          path: 'changelog',
+          name: 'changelog',
+          component: ChangelogView,
         },
       ],
     },

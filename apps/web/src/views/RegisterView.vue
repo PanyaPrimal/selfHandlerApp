@@ -5,6 +5,9 @@ import { ApiError, validationErrors, type ValidationErrors } from '../api/http'
 import type { RegisterPayload } from '../api/types'
 import { safeRedirect } from '../auth/redirect'
 import { register } from '../auth/session'
+import { UiTextInput } from '../components/ui'
+
+type FocusableControl = { focus: () => void }
 
 const route = useRoute()
 const router = useRouter()
@@ -18,11 +21,11 @@ const form = reactive<RegisterPayload>({
 const fieldErrors = ref<ValidationErrors>({})
 const error = ref<string | null>(null)
 const isSubmitting = ref(false)
-const inviteInput = ref<HTMLInputElement | null>(null)
-const nameInput = ref<HTMLInputElement | null>(null)
-const emailInput = ref<HTMLInputElement | null>(null)
-const passwordInput = ref<HTMLInputElement | null>(null)
-const confirmationInput = ref<HTMLInputElement | null>(null)
+const inviteInput = ref<FocusableControl | null>(null)
+const nameInput = ref<FocusableControl | null>(null)
+const emailInput = ref<FocusableControl | null>(null)
+const passwordInput = ref<FocusableControl | null>(null)
+const confirmationInput = ref<FocusableControl | null>(null)
 
 function clearPasswords(): void {
   form.password = ''
@@ -62,7 +65,7 @@ function failureMessage(currentError: unknown): string {
 async function focusFirstError(): Promise<void> {
   await nextTick()
 
-  const inputs: Array<[string, HTMLInputElement | null]> = [
+  const inputs: Array<[string, FocusableControl | null]> = [
     ['invite_code', inviteInput.value],
     ['name', nameInput.value],
     ['email', emailInput.value],
@@ -114,107 +117,68 @@ async function submitRegistration(): Promise<void> {
       <div v-if="error" class="notice error" role="alert" aria-live="assertive">{{ error }}</div>
 
       <form class="auth-form" novalidate :aria-busy="isSubmitting" @submit.prevent="submitRegistration">
-        <label class="field">
-          <span>Invite code</span>
-          <input
-            ref="inviteInput"
-            v-model="form.invite_code"
-            name="invite_code"
-            autocomplete="off"
-            autocapitalize="characters"
-            spellcheck="false"
-            maxlength="64"
-            required
-            :disabled="isSubmitting"
-            :aria-invalid="Boolean(fieldErrors.invite_code?.length)"
-            :aria-describedby="fieldErrors.invite_code?.length ? 'register-invite-error' : 'register-invite-help'"
-          />
-          <small id="register-invite-help" class="helper-text">Registration is invite-only. Enter the code you were given.</small>
-          <small v-if="fieldErrors.invite_code?.length" id="register-invite-error" class="field-error">
-            {{ fieldErrors.invite_code[0] }}
-          </small>
-        </label>
+        <UiTextInput
+          ref="inviteInput"
+          v-model="form.invite_code"
+          label="Invite code"
+          name="invite_code"
+          autocomplete="off"
+          :maxlength="64"
+          required
+          :disabled="isSubmitting"
+          helper="Registration is invite-only. Enter the code you were given."
+          :error="fieldErrors.invite_code?.[0]"
+        />
 
-        <label class="field">
-          <span>Display name</span>
-          <input
-            ref="nameInput"
-            v-model="form.name"
-            name="name"
-            autocomplete="name"
-            maxlength="100"
-            required
-            :disabled="isSubmitting"
-            :aria-invalid="Boolean(fieldErrors.name?.length)"
-            :aria-describedby="fieldErrors.name?.length ? 'register-name-error' : undefined"
-          />
-          <small v-if="fieldErrors.name?.length" id="register-name-error" class="field-error">
-            {{ fieldErrors.name[0] }}
-          </small>
-        </label>
+        <UiTextInput
+          ref="nameInput"
+          v-model="form.name"
+          label="Display name"
+          name="name"
+          autocomplete="name"
+          :maxlength="100"
+          required
+          :disabled="isSubmitting"
+          :error="fieldErrors.name?.[0]"
+        />
 
-        <label class="field">
-          <span>Email</span>
-          <input
-            ref="emailInput"
-            v-model="form.email"
-            name="email"
-            type="email"
-            autocomplete="email"
-            maxlength="255"
-            required
-            :disabled="isSubmitting"
-            :aria-invalid="Boolean(fieldErrors.email?.length)"
-            :aria-describedby="fieldErrors.email?.length ? 'register-email-error' : undefined"
-          />
-          <small v-if="fieldErrors.email?.length" id="register-email-error" class="field-error">
-            {{ fieldErrors.email[0] }}
-          </small>
-        </label>
+        <UiTextInput
+          ref="emailInput"
+          v-model="form.email"
+          label="Email"
+          name="email"
+          type="email"
+          autocomplete="email"
+          :maxlength="255"
+          required
+          :disabled="isSubmitting"
+          :error="fieldErrors.email?.[0]"
+        />
 
-        <label class="field">
-          <span>Password</span>
-          <input
-            ref="passwordInput"
-            v-model="form.password"
-            name="password"
-            type="password"
-            aria-label="Password"
-            autocomplete="new-password"
-            minlength="12"
-            required
-            :disabled="isSubmitting"
-            :aria-invalid="Boolean(fieldErrors.password?.length)"
-            :aria-describedby="fieldErrors.password?.length ? 'register-password-error' : 'register-password-help'"
-          />
-          <small id="register-password-help" class="helper-text">Use at least 12 characters.</small>
-          <small v-if="fieldErrors.password?.length" id="register-password-error" class="field-error">
-            {{ fieldErrors.password[0] }}
-          </small>
-        </label>
+        <UiTextInput
+          ref="passwordInput"
+          v-model="form.password"
+          label="Password"
+          name="password"
+          type="password"
+          autocomplete="new-password"
+          required
+          :disabled="isSubmitting"
+          helper="Use at least 12 characters."
+          :error="fieldErrors.password?.[0]"
+        />
 
-        <label class="field">
-          <span>Confirm password</span>
-          <input
-            ref="confirmationInput"
-            v-model="form.password_confirmation"
-            name="password_confirmation"
-            type="password"
-            autocomplete="new-password"
-            minlength="12"
-            required
-            :disabled="isSubmitting"
-            :aria-invalid="Boolean(fieldErrors.password_confirmation?.length)"
-            :aria-describedby="fieldErrors.password_confirmation?.length ? 'register-confirmation-error' : undefined"
-          />
-          <small
-            v-if="fieldErrors.password_confirmation?.length"
-            id="register-confirmation-error"
-            class="field-error"
-          >
-            {{ fieldErrors.password_confirmation[0] }}
-          </small>
-        </label>
+        <UiTextInput
+          ref="confirmationInput"
+          v-model="form.password_confirmation"
+          label="Confirm password"
+          name="password_confirmation"
+          type="password"
+          autocomplete="new-password"
+          required
+          :disabled="isSubmitting"
+          :error="fieldErrors.password_confirmation?.[0]"
+        />
 
         <button type="submit" :disabled="isSubmitting">
           {{ isSubmitting ? 'Creating account...' : 'Create account' }}

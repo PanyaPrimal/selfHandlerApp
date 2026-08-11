@@ -13,6 +13,9 @@ import type { DailyReview, DailyReviewPayload } from '../api/types'
 import AsyncState from '../components/AsyncState.vue'
 import { formatCalendarDate } from '../lib/format'
 import { useAuthSession } from '../auth/session'
+import { UiTextarea } from '../components/ui'
+
+type FocusableControl = { focus: () => void }
 
 interface ReviewForm {
   mood: number
@@ -44,9 +47,9 @@ const moodInput = ref<HTMLInputElement | null>(null)
 const energyInput = ref<HTMLInputElement | null>(null)
 const stressInput = ref<HTMLInputElement | null>(null)
 const dayRatingInput = ref<HTMLInputElement | null>(null)
-const wentWellInput = ref<HTMLTextAreaElement | null>(null)
-const improveTomorrowInput = ref<HTMLTextAreaElement | null>(null)
-const notesInput = ref<HTMLTextAreaElement | null>(null)
+const wentWellInput = ref<FocusableControl | null>(null)
+const improveTomorrowInput = ref<FocusableControl | null>(null)
+const notesInput = ref<FocusableControl | null>(null)
 const retrySaveButton = ref<HTMLButtonElement | null>(null)
 const saveButton = ref<HTMLButtonElement | null>(null)
 const isDirty = computed(() => isReady.value && snapshot() !== savedSnapshot.value)
@@ -172,7 +175,7 @@ function reviewPayload(): DailyReviewPayload {
 async function focusFirstError(): Promise<void> {
   await nextTick()
 
-  const inputs: Array<[ReviewField, HTMLElement | null]> = [
+  const inputs: Array<[ReviewField, FocusableControl | null]> = [
     ['mood', moodInput.value],
     ['energy', energyInput.value],
     ['stress', stressInput.value],
@@ -360,59 +363,44 @@ watch(
           </label>
         </div>
 
-        <label class="field wide-field">
-          <span>Went well</span>
-          <textarea
-            ref="wentWellInput"
-            v-model="form.went_well"
-            name="went_well"
-            rows="3"
-            maxlength="5000"
-            :disabled="isSaving"
-            :aria-invalid="Boolean(fieldErrors.went_well?.length)"
-            :aria-describedby="fieldErrors.went_well?.length ? 'review-went-well-error' : undefined"
-            @input="markChanged('went_well')"
-          />
-          <small v-if="fieldErrors.went_well?.length" id="review-went-well-error" class="field-error">
-            {{ fieldErrors.went_well[0] }}
-          </small>
-        </label>
+        <UiTextarea
+          ref="wentWellInput"
+          v-model="form.went_well"
+          label="Went well"
+          name="went_well"
+          :rows="3"
+          :maxlength="5000"
+          wide
+          :disabled="isSaving"
+          :error="fieldErrors.went_well?.[0]"
+          @update:model-value="markChanged('went_well')"
+        />
 
-        <label class="field wide-field">
-          <span>Improve tomorrow</span>
-          <textarea
-            ref="improveTomorrowInput"
-            v-model="form.improve_tomorrow"
-            name="improve_tomorrow"
-            rows="3"
-            maxlength="5000"
-            :disabled="isSaving"
-            :aria-invalid="Boolean(fieldErrors.improve_tomorrow?.length)"
-            :aria-describedby="fieldErrors.improve_tomorrow?.length ? 'review-improve-error' : undefined"
-            @input="markChanged('improve_tomorrow')"
-          />
-          <small v-if="fieldErrors.improve_tomorrow?.length" id="review-improve-error" class="field-error">
-            {{ fieldErrors.improve_tomorrow[0] }}
-          </small>
-        </label>
+        <UiTextarea
+          ref="improveTomorrowInput"
+          v-model="form.improve_tomorrow"
+          label="Improve tomorrow"
+          name="improve_tomorrow"
+          :rows="3"
+          :maxlength="5000"
+          wide
+          :disabled="isSaving"
+          :error="fieldErrors.improve_tomorrow?.[0]"
+          @update:model-value="markChanged('improve_tomorrow')"
+        />
 
-        <label class="field wide-field">
-          <span>Notes</span>
-          <textarea
-            ref="notesInput"
-            v-model="form.notes"
-            name="notes"
-            rows="4"
-            maxlength="10000"
-            :disabled="isSaving"
-            :aria-invalid="Boolean(fieldErrors.notes?.length)"
-            :aria-describedby="fieldErrors.notes?.length ? 'review-notes-error' : undefined"
-            @input="markChanged('notes')"
-          />
-          <small v-if="fieldErrors.notes?.length" id="review-notes-error" class="field-error">
-            {{ fieldErrors.notes[0] }}
-          </small>
-        </label>
+        <UiTextarea
+          ref="notesInput"
+          v-model="form.notes"
+          label="Notes"
+          name="notes"
+          :rows="4"
+          :maxlength="10000"
+          wide
+          :disabled="isSaving"
+          :error="fieldErrors.notes?.[0]"
+          @update:model-value="markChanged('notes')"
+        />
 
         <div v-if="saveError" class="notice error wide-field" role="alert" aria-live="assertive">
           <span>{{ saveError }}</span>

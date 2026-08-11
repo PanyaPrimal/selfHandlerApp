@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import {
   archiveRoutine,
   createRoutine,
@@ -9,8 +9,23 @@ import {
   validationErrors,
 } from '../api/client'
 import AsyncState from '../components/AsyncState.vue'
+import {
+  UiDatePicker,
+  UiNumberInput,
+  UiSegmented,
+  UiSelect,
+  UiSwitch,
+  UiTextInput,
+  UiTextarea,
+  UiTimeField,
+  UiToggleGroup,
+} from '../components/ui'
+import { useAuthSession } from '../auth/session'
 import type { Routine, RoutineCreatePayload, RoutineUpdatePayload, Weekday } from '../api/types'
 import type { ValidationErrors } from '../api/client'
+import type { UiOption } from '../components/ui'
+
+type FocusableControl = { focus: () => void }
 
 interface RoutineForm {
   name: string
@@ -36,26 +51,37 @@ const error = ref<string | null>(null)
 const success = ref<string | null>(null)
 const fieldErrors = ref<ValidationErrors>({})
 const form = reactive<RoutineForm>(emptyForm())
-const nameInput = ref<HTMLInputElement | null>(null)
-const kindInput = ref<HTMLSelectElement | null>(null)
-const descriptionInput = ref<HTMLTextAreaElement | null>(null)
-const scheduleTypeInput = ref<HTMLSelectElement | null>(null)
-const preferredTimeInput = ref<HTMLInputElement | null>(null)
-const weekdayGroup = ref<HTMLDivElement | null>(null)
-const startsOnInput = ref<HTMLInputElement | null>(null)
-const endsOnInput = ref<HTMLInputElement | null>(null)
-const sortOrderInput = ref<HTMLInputElement | null>(null)
-const activeInput = ref<HTMLInputElement | null>(null)
+const nameInput = ref<FocusableControl | null>(null)
+const kindInput = ref<FocusableControl | null>(null)
+const descriptionInput = ref<FocusableControl | null>(null)
+const scheduleTypeInput = ref<FocusableControl | null>(null)
+const preferredTimeInput = ref<FocusableControl | null>(null)
+const weekdayGroup = ref<FocusableControl | null>(null)
+const startsOnInput = ref<FocusableControl | null>(null)
+const endsOnInput = ref<FocusableControl | null>(null)
+const sortOrderInput = ref<FocusableControl | null>(null)
+const activeInput = ref<FocusableControl | null>(null)
 const routineListHeading = ref<HTMLHeadingElement | null>(null)
-const weekdayOptions = [
-  ['MO', 'Mon'],
-  ['TU', 'Tue'],
-  ['WE', 'Wed'],
-  ['TH', 'Thu'],
-  ['FR', 'Fri'],
-  ['SA', 'Sat'],
-  ['SU', 'Sun'],
-] as const
+const session = useAuthSession()
+const locale = computed(() => session.user?.preferences.locale ?? 'en-GB')
+const weekdayOptions: UiOption<Weekday>[] = [
+  { value: 'MO', label: 'Mon' },
+  { value: 'TU', label: 'Tue' },
+  { value: 'WE', label: 'Wed' },
+  { value: 'TH', label: 'Thu' },
+  { value: 'FR', label: 'Fri' },
+  { value: 'SA', label: 'Sat' },
+  { value: 'SU', label: 'Sun' },
+]
+const kindOptions: UiOption<Routine['kind']>[] = [
+  { value: 'routine', label: 'Routine' },
+  { value: 'habit', label: 'Habit' },
+  { value: 'sleep', label: 'Sleep' },
+]
+const scheduleOptions: UiOption<Routine['schedule_type']>[] = [
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekdays', label: 'By weekdays' },
+]
 
 function emptyForm(): RoutineForm {
   return {
@@ -111,7 +137,7 @@ function routinePayload(): RoutineCreatePayload {
 async function focusFirstError(): Promise<void> {
   await nextTick()
 
-  const inputs: Array<[keyof RoutineForm, HTMLElement | null]> = [
+  const inputs: Array<[keyof RoutineForm, FocusableControl | null]> = [
     ['name', nameInput.value],
     ['kind', kindInput.value],
     ['description', descriptionInput.value],
@@ -271,18 +297,9 @@ async function toggleActive(routine: Routine, focusTarget?: HTMLElement | null):
   }
 }
 
-function toggleWeekday(day: Weekday): void {
-  const selected = new Set(form.weekdays)
-
-  if (selected.has(day)) {
-    selected.delete(day)
-  } else {
-    selected.add(day)
-  }
-
-  form.weekdays = weekdayOptions
-    .map(([value]) => value)
-    .filter((value) => selected.has(value))
+function setWeekdays(days: Weekday[]): void {
+  form.weekdays = days
+  clearFieldError('weekdays')
 }
 
 onMounted(loadRoutines)
@@ -309,171 +326,112 @@ onMounted(loadRoutines)
       </div>
 
       <form class="form-grid" :aria-label="editingId === null ? 'Create routine' : 'Edit routine'" :aria-busy="isSubmitting" novalidate @submit.prevent="submitRoutine">
-        <label class="field">
-          <span>Name</span>
-          <input
-            ref="nameInput"
-            v-model="form.name"
-            name="name"
-            required
-            maxlength="160"
-            placeholder="Morning walk"
-            :aria-invalid="Boolean(fieldErrors.name?.length)"
-            :aria-describedby="fieldErrors.name?.length ? 'routine-name-error' : undefined"
-            @input="clearFieldError('name')"
-          />
-          <small v-if="fieldErrors.name?.length" id="routine-name-error" class="field-error">{{ fieldErrors.name[0] }}</small>
-        </label>
+        <UiTextInput
+          ref="nameInput"
+          v-model="form.name"
+          label="Name"
+          name="name"
+          required
+          :maxlength="160"
+          placeholder="Morning walk"
+          :error="fieldErrors.name?.[0]"
+          @update:model-value="clearFieldError('name')"
+        />
 
-        <label class="field">
-          <span>Kind</span>
-          <select
-            ref="kindInput"
-            v-model="form.kind"
-            name="kind"
-            :aria-invalid="Boolean(fieldErrors.kind?.length)"
-            :aria-describedby="fieldErrors.kind?.length ? 'routine-kind-error' : undefined"
-            @change="clearFieldError('kind')"
-          >
-            <option value="routine">Routine</option>
-            <option value="habit">Habit</option>
-            <option value="sleep">Sleep</option>
-          </select>
-          <small v-if="fieldErrors.kind?.length" id="routine-kind-error" class="field-error">{{ fieldErrors.kind[0] }}</small>
-        </label>
+        <UiSelect
+          ref="kindInput"
+          v-model="form.kind"
+          label="Kind"
+          name="kind"
+          :options="kindOptions"
+          :error="fieldErrors.kind?.[0]"
+          @update:model-value="clearFieldError('kind')"
+        />
 
-        <label class="field wide-field">
-          <span>Description</span>
-          <textarea
-            ref="descriptionInput"
-            v-model="form.description"
-            name="description"
-            rows="2"
-            maxlength="2000"
-            placeholder="Optional context"
-            :aria-invalid="Boolean(fieldErrors.description?.length)"
-            :aria-describedby="fieldErrors.description?.length ? 'routine-description-error' : undefined"
-            @input="clearFieldError('description')"
-          ></textarea>
-          <small v-if="fieldErrors.description?.length" id="routine-description-error" class="field-error">{{ fieldErrors.description[0] }}</small>
-        </label>
+        <UiTextarea
+          ref="descriptionInput"
+          v-model="form.description"
+          label="Description"
+          name="description"
+          :rows="2"
+          :maxlength="2000"
+          placeholder="Optional context"
+          wide
+          :error="fieldErrors.description?.[0]"
+          @update:model-value="clearFieldError('description')"
+        />
 
-        <label class="field">
-          <span>Schedule</span>
-          <select
-            ref="scheduleTypeInput"
-            v-model="form.schedule_type"
-            name="schedule_type"
-            :aria-invalid="Boolean(fieldErrors.schedule_type?.length)"
-            :aria-describedby="fieldErrors.schedule_type?.length ? 'routine-schedule-error' : undefined"
-            @change="clearFieldError('schedule_type')"
-          >
-            <option value="daily">Daily</option>
-            <option value="weekdays">By weekdays</option>
-          </select>
-          <small v-if="fieldErrors.schedule_type?.length" id="routine-schedule-error" class="field-error">{{ fieldErrors.schedule_type[0] }}</small>
-        </label>
+        <UiSegmented
+          ref="scheduleTypeInput"
+          v-model="form.schedule_type"
+          label="Schedule"
+          name="schedule_type"
+          :options="scheduleOptions"
+          :error="fieldErrors.schedule_type?.[0]"
+          @update:model-value="clearFieldError('schedule_type')"
+        />
 
-        <label class="field">
-          <span>Preferred time</span>
-          <input
-            ref="preferredTimeInput"
-            v-model="form.preferred_time"
-            name="preferred_time"
-            type="time"
-            :aria-invalid="Boolean(fieldErrors.preferred_time?.length)"
-            :aria-describedby="fieldErrors.preferred_time?.length ? 'routine-time-error' : undefined"
-            @input="clearFieldError('preferred_time')"
-          />
-          <small v-if="fieldErrors.preferred_time?.length" id="routine-time-error" class="field-error">{{ fieldErrors.preferred_time[0] }}</small>
-        </label>
+        <UiTimeField
+          ref="preferredTimeInput"
+          label="Preferred time"
+          name="preferred_time"
+          :model-value="form.preferred_time || null"
+          :error="fieldErrors.preferred_time?.[0]"
+          @update:model-value="(value) => { form.preferred_time = value ?? ''; clearFieldError('preferred_time') }"
+        />
 
-        <div v-if="form.schedule_type === 'weekdays'" class="field wide-field">
-          <span>Weekdays</span>
-          <div
-            ref="weekdayGroup"
-            class="segmented-list focus-target"
-            role="group"
-            aria-label="Weekdays"
-            :aria-invalid="Boolean(fieldErrors.weekdays?.length)"
-            :aria-describedby="fieldErrors.weekdays?.length ? 'routine-weekdays-error' : undefined"
-            tabindex="-1"
-          >
-            <button
-              v-for="[value, label] in weekdayOptions"
-              :key="value"
-              type="button"
-              class="secondary"
-              :class="{ selected: form.weekdays.includes(value) }"
-              :aria-pressed="form.weekdays.includes(value)"
-              @click="toggleWeekday(value); clearFieldError('weekdays')"
-            >
-              {{ label }}
-            </button>
-          </div>
-          <small v-if="fieldErrors.weekdays?.length" id="routine-weekdays-error" class="field-error">{{ fieldErrors.weekdays[0] }}</small>
-          <span class="helper-text">Schedule fields lock after the first daily result.</span>
-        </div>
+        <UiToggleGroup
+          v-if="form.schedule_type === 'weekdays'"
+          ref="weekdayGroup"
+          label="Weekdays"
+          name="weekdays"
+          :model-value="form.weekdays"
+          :options="weekdayOptions"
+          wide
+          helper="Schedule fields lock after the first daily result."
+          :error="fieldErrors.weekdays?.[0]"
+          @update:model-value="setWeekdays"
+        />
 
-        <label class="field">
-          <span>Starts on</span>
-          <input
-            ref="startsOnInput"
-            v-model="form.starts_on"
-            name="starts_on"
-            type="date"
-            :aria-invalid="Boolean(fieldErrors.starts_on?.length)"
-            :aria-describedby="fieldErrors.starts_on?.length ? 'routine-starts-error' : undefined"
-            @input="clearFieldError('starts_on')"
-          />
-          <small v-if="fieldErrors.starts_on?.length" id="routine-starts-error" class="field-error">{{ fieldErrors.starts_on[0] }}</small>
-        </label>
+        <UiDatePicker
+          ref="startsOnInput"
+          label="Starts on"
+          name="starts_on"
+          :model-value="form.starts_on || null"
+          :locale="locale"
+          :error="fieldErrors.starts_on?.[0]"
+          @update:model-value="(value) => { form.starts_on = value ?? ''; clearFieldError('starts_on') }"
+        />
 
-        <label class="field">
-          <span>Ends on</span>
-          <input
-            ref="endsOnInput"
-            v-model="form.ends_on"
-            name="ends_on"
-            type="date"
-            :aria-invalid="Boolean(fieldErrors.ends_on?.length)"
-            :aria-describedby="fieldErrors.ends_on?.length ? 'routine-ends-error' : undefined"
-            @input="clearFieldError('ends_on')"
-          />
-          <small v-if="fieldErrors.ends_on?.length" id="routine-ends-error" class="field-error">{{ fieldErrors.ends_on[0] }}</small>
-        </label>
+        <UiDatePicker
+          ref="endsOnInput"
+          label="Ends on"
+          name="ends_on"
+          :model-value="form.ends_on || null"
+          :locale="locale"
+          :error="fieldErrors.ends_on?.[0]"
+          @update:model-value="(value) => { form.ends_on = value ?? ''; clearFieldError('ends_on') }"
+        />
 
-        <label class="field">
-          <span>Display order</span>
-          <input
-            ref="sortOrderInput"
-            v-model.number="form.sort_order"
-            name="sort_order"
-            type="number"
-            min="0"
-            step="1"
-            :aria-invalid="Boolean(fieldErrors.sort_order?.length)"
-            :aria-describedby="fieldErrors.sort_order?.length ? 'routine-order-error' : undefined"
-            @input="clearFieldError('sort_order')"
-          />
-          <small v-if="fieldErrors.sort_order?.length" id="routine-order-error" class="field-error">{{ fieldErrors.sort_order[0] }}</small>
-        </label>
+        <UiNumberInput
+          ref="sortOrderInput"
+          label="Display order"
+          name="sort_order"
+          :model-value="form.sort_order"
+          :min="0"
+          :step="1"
+          :error="fieldErrors.sort_order?.[0]"
+          @update:model-value="(value) => { form.sort_order = value ?? 0; clearFieldError('sort_order') }"
+        />
 
-        <div class="field">
-          <label class="checkbox-field">
-            <input
-              ref="activeInput"
-              v-model="form.is_active"
-              name="is_active"
-              type="checkbox"
-              :aria-invalid="Boolean(fieldErrors.is_active?.length)"
-              :aria-describedby="fieldErrors.is_active?.length ? 'routine-active-error' : undefined"
-              @change="clearFieldError('is_active')"
-            />
-            <span>Active in planning</span>
-          </label>
-          <small v-if="fieldErrors.is_active?.length" id="routine-active-error" class="field-error">{{ fieldErrors.is_active[0] }}</small>
-        </div>
+        <UiSwitch
+          ref="activeInput"
+          v-model="form.is_active"
+          label="Active in planning"
+          name="is_active"
+          :error="fieldErrors.is_active?.[0]"
+          @update:model-value="clearFieldError('is_active')"
+        />
 
         <div class="form-actions wide-field">
           <button type="submit" :disabled="isSubmitting">

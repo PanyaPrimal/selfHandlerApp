@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page, type Response, type TestInfo } from '@playwright/test'
 import { collectRuntimeIssues, expectNoRuntimeIssues } from './support'
 import { registerViaUi, uniqueCredentials } from '../support/auth'
+import { chooseSegment, dateTrigger, pickDate } from '../interface/support'
 
 const TODAY_DATE = '2026-08-06'
 
@@ -28,7 +29,7 @@ function goalRow(page: Page, goalName: string): Locator {
 async function createDailyRoutine(page: Page, name: string): Promise<number> {
   const form = page.getByRole('form', { name: 'Create routine' })
   await form.getByLabel('Name').fill(name)
-  await form.getByLabel('Schedule').selectOption('daily')
+  await chooseSegment(form, 'Schedule', 'Daily')
 
   const responsePromise = page.waitForResponse((response) => (
     isApiResponse(response, 'POST', '/api/routines')
@@ -47,7 +48,7 @@ async function createGoal(page: Page, name: string): Promise<number> {
   const form = page.getByRole('form', { name: 'Create goal' })
   await form.getByLabel('Name').fill(name)
   await form.getByLabel('Description').fill('Connect daily action to a meaningful outcome.')
-  await form.getByLabel('Target date').fill('2026-12-31')
+  await pickDate(page, 'Target date', '2026-12-31')
 
   const responsePromise = page.waitForResponse((response) => (
     isApiResponse(response, 'POST', '/api/goals')
@@ -106,8 +107,7 @@ async function openGoals(page: Page): Promise<void> {
 
 async function openToday(page: Page): Promise<void> {
   await page.getByRole('link', { name: 'Today', exact: true }).click()
-  const dateInput = page.getByLabel('Date')
-  await expect(dateInput).toBeEnabled()
+  await expect(dateTrigger(page, 'Date')).toBeEnabled()
 
   const responsePromise = page.waitForResponse((response) => {
     const url = new URL(response.url())
@@ -115,7 +115,7 @@ async function openToday(page: Page): Promise<void> {
       && url.pathname === '/api/today'
       && url.searchParams.get('date') === TODAY_DATE
   })
-  await dateInput.fill(TODAY_DATE)
+  await pickDate(page, 'Date', TODAY_DATE)
   expect((await responsePromise).status()).toBe(200)
 }
 
@@ -259,7 +259,7 @@ test('goal loading retries and create validation preserves the draft', async ({ 
   const form = page.getByRole('form', { name: 'Create goal' })
   await form.getByLabel('Name').fill('Draft goal survives validation')
   await form.getByLabel('Description').fill('Keep this description after the rejected request.')
-  await form.getByLabel('Target date').fill('2026-12-31')
+  await pickDate(page, 'Target date', '2026-12-31')
 
   const validationResponsePromise = page.waitForResponse((response) => (
     isApiResponse(response, 'POST', '/api/goals')
@@ -271,7 +271,7 @@ test('goal loading retries and create validation preserves the draft', async ({ 
   await expect(page.getByText('The goal name could not be saved.')).toBeVisible()
   await expect(form.getByLabel('Name')).toHaveValue('Draft goal survives validation')
   await expect(form.getByLabel('Description')).toHaveValue('Keep this description after the rejected request.')
-  await expect(form.getByLabel('Target date')).toHaveValue('2026-12-31')
+  await expect(dateTrigger(page, 'Target date')).toContainText('31 Dec 2026')
 
   const expectedResponses = issues.filter((issue) => (
     issue.includes('[response] 503 GET ') && issue.includes('/api/goals')

@@ -5,6 +5,9 @@ import { ApiError, validationErrors, type ValidationErrors } from '../api/http'
 import type { LoginPayload } from '../api/types'
 import { safeRedirect } from '../auth/redirect'
 import { login, restoreSession, useAuthSession } from '../auth/session'
+import { UiTextInput } from '../components/ui'
+
+type FocusableControl = { focus: () => void }
 
 const route = useRoute()
 const router = useRouter()
@@ -15,8 +18,8 @@ const form = reactive<LoginPayload>({
 const fieldErrors = ref<ValidationErrors>({})
 const error = ref<string | null>(null)
 const isSubmitting = ref(false)
-const emailInput = ref<HTMLInputElement | null>(null)
-const passwordInput = ref<HTMLInputElement | null>(null)
+const emailInput = ref<FocusableControl | null>(null)
+const passwordInput = ref<FocusableControl | null>(null)
 
 function failureMessage(currentError: unknown): string {
   if (!(currentError instanceof ApiError)) {
@@ -111,42 +114,30 @@ async function submitLogin(): Promise<void> {
       <div v-if="error" class="notice error" role="alert" aria-live="assertive">{{ error }}</div>
 
       <form class="auth-form" novalidate :aria-busy="isSubmitting" @submit.prevent="submitLogin">
-        <label class="field">
-          <span>Email</span>
-          <input
-            ref="emailInput"
-            v-model="form.email"
-            name="email"
-            type="email"
-            autocomplete="email"
-            maxlength="255"
-            required
-            :disabled="isSubmitting"
-            :aria-invalid="Boolean(fieldErrors.email?.length)"
-            :aria-describedby="fieldErrors.email?.length ? 'login-email-error' : undefined"
-          />
-          <small v-if="fieldErrors.email?.length" id="login-email-error" class="field-error">
-            {{ fieldErrors.email[0] }}
-          </small>
-        </label>
+        <UiTextInput
+          ref="emailInput"
+          v-model="form.email"
+          label="Email"
+          name="email"
+          type="email"
+          autocomplete="email"
+          :maxlength="255"
+          required
+          :disabled="isSubmitting"
+          :error="fieldErrors.email?.[0]"
+        />
 
-        <label class="field">
-          <span>Password</span>
-          <input
-            ref="passwordInput"
-            v-model="form.password"
-            name="password"
-            type="password"
-            autocomplete="current-password"
-            required
-            :disabled="isSubmitting"
-            :aria-invalid="Boolean(fieldErrors.password?.length)"
-            :aria-describedby="fieldErrors.password?.length ? 'login-password-error' : undefined"
-          />
-          <small v-if="fieldErrors.password?.length" id="login-password-error" class="field-error">
-            {{ fieldErrors.password[0] }}
-          </small>
-        </label>
+        <UiTextInput
+          ref="passwordInput"
+          v-model="form.password"
+          label="Password"
+          name="password"
+          type="password"
+          autocomplete="current-password"
+          required
+          :disabled="isSubmitting"
+          :error="fieldErrors.password?.[0]"
+        />
 
         <button type="submit" :disabled="isSubmitting">
           {{ isSubmitting ? 'Signing in...' : 'Sign in' }}

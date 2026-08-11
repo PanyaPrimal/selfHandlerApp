@@ -1,19 +1,20 @@
 import { expect, test } from '@playwright/test'
 import { openFreshProfile, saveProfile } from './support'
+import { chooseOption, pickDate } from '../interface/support'
 
 test('canonical baseline survives display-unit changes and formula validation', async ({ page }, testInfo) => {
   await openFreshProfile(page, testInfo)
 
-  await page.getByLabel('Date of birth').fill('1990-06-15')
-  await page.getByLabel('Sex used by formula').selectOption('female')
+  await pickDate(page, 'Date of birth', '1990-06-15')
+  await chooseOption(page, 'Sex used by formula', 'Female')
   await page.getByLabel('Height (cm)').fill('172.5')
   await page.getByLabel('Weight (kg)').fill('68.4')
-  await page.getByLabel('Non-sport activity').selectOption('moderate')
+  await chooseOption(page, 'Non-sport activity', 'Moderate')
   await saveProfile(page)
 
-  await page.getByLabel('Units').selectOption('imperial')
+  await chooseOption(page, 'Units', 'Imperial')
   await expect(page.getByLabel('Weight (lb)')).toHaveValue('150.8')
-  await page.getByLabel('Metabolic formula').selectOption('katch_mcardle')
+  await chooseOption(page, 'Metabolic formula', 'Katch-McArdle')
   await page.getByRole('button', { name: 'Save profile' }).click()
   await expect(page.getByText(/Body fat percentage is required/)).toBeVisible()
 
