@@ -18,7 +18,7 @@ class RoutineLogController extends Controller
         $user = $request->user();
         abort_unless($routine->isOwnedBy($user), 404);
 
-        $logDate = $this->validatedDate($date);
+        $logDate = $this->validatedDate($date, $user->calendarTimezone());
         $data = $request->validate([
             'status' => ['required', Rule::in(['done', 'skipped'])],
             'note' => ['sometimes', 'nullable', 'string', 'max:2000'],
@@ -58,19 +58,19 @@ class RoutineLogController extends Controller
         RoutineLog::query()
             ->ownedBy($user)
             ->where('routine_id', $routine->id)
-            ->where('log_date', $this->validatedDate($date))
+            ->where('log_date', $this->validatedDate($date, $user->calendarTimezone()))
             ->delete();
 
         return response()->noContent();
     }
 
-    private function validatedDate(string $date): string
+    private function validatedDate(string $date, string $timezone): string
     {
         $validated = Validator::make(
             ['date' => $date],
             ['date' => ['required', 'date_format:Y-m-d']],
         )->validate();
 
-        return CarbonImmutable::parse($validated['date'], config('selfhandler.timezone'))->toDateString();
+        return CarbonImmutable::parse($validated['date'], $timezone)->toDateString();
     }
 }

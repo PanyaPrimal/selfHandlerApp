@@ -9,10 +9,12 @@ Detailed system design: vision, module specifications, data schemas, and cross-c
 1. **[vision.md](vision.md)** — product vision, 11 modules, stack, roadmap. The entry point.
 2. **[modules.md](modules.md)** — detailed specification of each module (what we track, fields, behavior, relationships). The basis for the database schema.
 3. **[decisions.md](decisions.md)** — log of product and architectural decisions plus the "why" behind them. What's settled, what's deferred.
+4. **[delivery-roadmap.md](delivery-roadmap.md)** — dependency-aware order for converting the design into Spec Kit features `004+`.
 
 ## Cross-cutting mechanisms (shared across all modules)
 
-Designed once and reused everywhere — to be laid down before any code is written:
+Designed once and reused everywhere. Their contracts are settled before dependent modules, while
+implementation begins with the first real consumer to avoid unused frameworks:
 
 - **[data-conventions.md](data-conventions.md)** — schema conventions: money (Money/DECIMAL), "base + type" polymorphism, `user_id` from day one, deletion vs. archiving, time zones, units, aggregation strategy.
 - **[recurrence-engine.md](recurrence-engine.md)** — recurrence engine (`RecurringRule` + `PlannedOccurrence`): schedules, courses, recurring payments, habits. One format for the entire application.
@@ -34,4 +36,7 @@ Designed once and reused everywhere — to be laid down before any code is writt
 
 ## Status
 
-All 11 modules and cross-cutting mechanisms are designed. The next step is layered implementation starting from the MVP. The "before the first migration" checklist is at the end of [data-conventions.md](data-conventions.md).
+All 11 modules and cross-cutting mechanisms are designed. The first product slice, authentication,
+and the accepted homelab baseline are implemented. Further Spec Kit increments follow the dependency
+order in [delivery-roadmap.md](delivery-roadmap.md). The schema rules remain in
+[data-conventions.md](data-conventions.md).

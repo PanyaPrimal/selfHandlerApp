@@ -3,6 +3,7 @@
 use App\Http\Controllers\DailyReviewController;
 use App\Http\Controllers\GoalController;
 use App\Http\Controllers\HealthController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RoutineController;
 use App\Http\Controllers\RoutineLogController;
 use App\Http\Controllers\TodayController;
@@ -11,6 +12,9 @@ use Illuminate\Support\Facades\Route;
 Route::get('/health', HealthController::class);
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/profile', [ProfileController::class, 'show']);
+    Route::put('/profile', [ProfileController::class, 'update']);
+
     Route::get('/today', TodayController::class);
 
     Route::get('/routines', [RoutineController::class, 'index']);

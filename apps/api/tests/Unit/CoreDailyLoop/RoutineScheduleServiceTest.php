@@ -80,4 +80,14 @@ class RoutineScheduleServiceTest extends CoreDailyLoopTestCase
 
         $this->assertTrue($this->service->isScheduledFor($routine, $sundayEveningUtc));
     }
+
+    public function test_explicit_user_timezone_overrides_the_installation_fallback(): void
+    {
+        config(['selfhandler.timezone' => 'America/New_York']);
+        $routine = $this->createRoutine($this->createUser(), [], ['MO']);
+        $sundayEveningUtc = CarbonImmutable::parse('2026-08-09 21:30:00 UTC');
+
+        $this->assertTrue($this->service->isScheduledFor($routine, $sundayEveningUtc, 'Europe/Kyiv'));
+        $this->assertFalse($this->service->isScheduledFor($routine, $sundayEveningUtc, 'America/New_York'));
+    }
 }

@@ -87,7 +87,7 @@ export async function loginViaUi(
 
 export async function logoutViaUi(page: Page): Promise<void> {
   await page.goto('/account')
-  await expect(page.getByRole('heading', { name: 'Your account' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Your personal baseline' })).toBeVisible()
   await page.getByRole('button', { name: 'Sign out' }).click()
   await expect(page).toHaveURL('/login')
 }

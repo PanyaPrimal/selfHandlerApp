@@ -19,6 +19,7 @@ import {
 import type { Goal, GoalCreatePayload, Routine } from '../api/types'
 import AsyncState from '../components/AsyncState.vue'
 import { formatCalendarDate } from '../lib/format'
+import { useAuthSession } from '../auth/session'
 
 interface GoalForm {
   name: string
@@ -28,6 +29,7 @@ interface GoalForm {
 
 type GoalAction = 'complete' | 'abandon' | 'reactivate' | 'archive' | 'restore'
 type WorkspaceFocus = 'none' | 'form' | 'list'
+const session = useAuthSession()
 
 const goals = ref<Goal[]>([])
 const routines = ref<Routine[]>([])
@@ -473,7 +475,7 @@ onMounted(loadWorkspace)
                 <p v-if="goal.description" class="muted">{{ goal.description }}</p>
                 <p class="routine-meta">
                   <span>{{ goal.status }}</span>
-                  <span v-if="goal.target_date">by {{ formatCalendarDate(goal.target_date) }}</span>
+                  <span v-if="goal.target_date">by {{ formatCalendarDate(goal.target_date, session.user?.preferences.locale) }}</span>
                   <span v-if="goal.routines.length > 0">
                     Linked: {{ goal.routines.map((routine) => routine.name).join(', ') }}
                   </span>

@@ -159,7 +159,7 @@ onMounted(() => loadToday())
   <section class="view-stack">
     <header class="view-header">
       <div>
-        <p class="eyebrow">{{ selectedDate ? formatCalendarDate(selectedDate) : 'Today' }}</p>
+        <p class="eyebrow">{{ selectedDate ? formatCalendarDate(selectedDate, session.user?.preferences.locale) : 'Today' }}</p>
         <h1>Good evening, {{ displayName }}</h1>
       </div>
 

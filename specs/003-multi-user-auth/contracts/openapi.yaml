@@ -531,6 +531,9 @@ components:
           type: string
           format: email
           maxLength: 255
+        preferences:
+          description: Optional non-sensitive summary added by feature 004-profile-settings.
+          $ref: '../../004-profile-settings/contracts/openapi.yaml#/components/schemas/PreferenceSummary'
       example:
         id: 42
         name: Alex Example

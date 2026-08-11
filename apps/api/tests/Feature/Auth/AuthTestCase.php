@@ -67,6 +67,15 @@ abstract class AuthTestCase extends TestCase
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
+                    'preferences' => [
+                        'timezone' => 'UTC',
+                        'locale' => 'en-GB',
+                        'unit_system' => 'metric',
+                        'base_currency' => 'UAH',
+                        'recommendation_tone' => 'neutral',
+                        'bmr_formula' => 'mifflin_st_jeor',
+                        'calculation_ready' => false,
+                    ],
                 ],
             ]);
     }

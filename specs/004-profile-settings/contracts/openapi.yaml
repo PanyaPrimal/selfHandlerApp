@@ -1,0 +1,319 @@
+openapi: 3.1.0
+info:
+  title: SelfHandler Profile and Settings API
+  version: 1.0.0
+  description: REST contract for feature 004-profile-settings.
+servers:
+  - url: /api
+security:
+  - sessionCookie: []
+paths:
+  /profile:
+    get:
+      operationId: getProfile
+      summary: Get the authenticated user's complete profile and supported options
+      responses:
+        '200':
+          description: Current profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+    put:
+      operationId: updateProfile
+      summary: Atomically replace the authenticated user's editable profile state
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileInput'
+      responses:
+        '200':
+          description: Accepted current profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: selfhandler_session
+  responses:
+    Unauthenticated:
+      description: No valid authenticated session
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ValidationFailed:
+      description: One or more fields are invalid; no changes are accepted
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+  schemas:
+    ProfileResponse:
+      type: object
+      additionalProperties: false
+      required: [data, options]
+      properties:
+        data:
+          $ref: '#/components/schemas/Profile'
+        options:
+          $ref: '#/components/schemas/ProfileOptions'
+    Profile:
+      type: object
+      additionalProperties: false
+      required:
+        - user
+        - timezone
+        - locale
+        - unit_system
+        - base_currency
+        - recommendation_tone
+        - bmr_formula
+        - date_of_birth
+        - sex
+        - height_meters
+        - weight_grams
+        - body_fat_percentage
+        - baseline_activity
+        - calculation_ready
+        - missing_fields
+        - updated_at
+      properties:
+        user:
+          $ref: '#/components/schemas/UserSummary'
+        timezone:
+          type: string
+          maxLength: 64
+          examples: [Europe/Kyiv]
+        locale:
+          $ref: '#/components/schemas/Locale'
+        unit_system:
+          $ref: '#/components/schemas/UnitSystem'
+        base_currency:
+          $ref: '#/components/schemas/BaseCurrency'
+        recommendation_tone:
+          $ref: '#/components/schemas/RecommendationTone'
+        bmr_formula:
+          $ref: '#/components/schemas/BmrFormula'
+        date_of_birth:
+          type: [string, 'null']
+          format: date
+        sex:
+          oneOf:
+            - $ref: '#/components/schemas/Sex'
+            - type: 'null'
+        height_meters:
+          type: [number, 'null']
+          minimum: 0.5
+          maximum: 3
+          multipleOf: 0.001
+        weight_grams:
+          type: [integer, 'null']
+          minimum: 20000
+          maximum: 500000
+        body_fat_percentage:
+          type: [number, 'null']
+          minimum: 2
+          maximum: 75
+          multipleOf: 0.01
+        baseline_activity:
+          oneOf:
+            - $ref: '#/components/schemas/BaselineActivity'
+            - type: 'null'
+        calculation_ready:
+          type: boolean
+          readOnly: true
+        missing_fields:
+          type: array
+          readOnly: true
+          uniqueItems: true
+          items:
+            type: string
+            enum: [date_of_birth, sex, height_meters, weight_grams, body_fat_percentage, baseline_activity]
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    ProfileInput:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - timezone
+        - locale
+        - unit_system
+        - base_currency
+        - recommendation_tone
+        - bmr_formula
+        - date_of_birth
+        - sex
+        - height_meters
+        - weight_grams
+        - body_fat_percentage
+        - baseline_activity
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        timezone:
+          type: string
+          maxLength: 64
+          examples: [Europe/Kyiv]
+        locale:
+          $ref: '#/components/schemas/Locale'
+        unit_system:
+          $ref: '#/components/schemas/UnitSystem'
+        base_currency:
+          $ref: '#/components/schemas/BaseCurrency'
+        recommendation_tone:
+          $ref: '#/components/schemas/RecommendationTone'
+        bmr_formula:
+          $ref: '#/components/schemas/BmrFormula'
+        date_of_birth:
+          type: [string, 'null']
+          format: date
+        sex:
+          oneOf:
+            - $ref: '#/components/schemas/Sex'
+            - type: 'null'
+        height_meters:
+          type: [number, 'null']
+          minimum: 0.5
+          maximum: 3
+          multipleOf: 0.001
+        weight_grams:
+          type: [integer, 'null']
+          minimum: 20000
+          maximum: 500000
+        body_fat_percentage:
+          type: [number, 'null']
+          minimum: 2
+          maximum: 75
+          multipleOf: 0.01
+        baseline_activity:
+          oneOf:
+            - $ref: '#/components/schemas/BaselineActivity'
+            - type: 'null'
+    UserSummary:
+      type: object
+      additionalProperties: false
+      required: [id, name, email, preferences]
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        preferences:
+          $ref: '#/components/schemas/PreferenceSummary'
+    PreferenceSummary:
+      type: object
+      additionalProperties: false
+      required: [timezone, locale, unit_system, base_currency, recommendation_tone, bmr_formula, calculation_ready]
+      properties:
+        timezone:
+          type: string
+        locale:
+          $ref: '#/components/schemas/Locale'
+        unit_system:
+          $ref: '#/components/schemas/UnitSystem'
+        base_currency:
+          $ref: '#/components/schemas/BaseCurrency'
+        recommendation_tone:
+          $ref: '#/components/schemas/RecommendationTone'
+        bmr_formula:
+          $ref: '#/components/schemas/BmrFormula'
+        calculation_ready:
+          type: boolean
+    ProfileOptions:
+      type: object
+      additionalProperties: false
+      required: [timezones, locales, unit_systems, base_currencies, recommendation_tones, bmr_formulas, sexes, baseline_activities]
+      properties:
+        timezones:
+          type: array
+          items:
+            type: string
+        locales:
+          type: array
+          items:
+            $ref: '#/components/schemas/Locale'
+        unit_systems:
+          type: array
+          items:
+            $ref: '#/components/schemas/UnitSystem'
+        base_currencies:
+          type: array
+          items:
+            $ref: '#/components/schemas/BaseCurrency'
+        recommendation_tones:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecommendationTone'
+        bmr_formulas:
+          type: array
+          items:
+            $ref: '#/components/schemas/BmrFormula'
+        sexes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Sex'
+        baseline_activities:
+          type: array
+          items:
+            $ref: '#/components/schemas/BaselineActivity'
+    Locale:
+      type: string
+      enum: [en-GB, uk-UA, ru-UA]
+    UnitSystem:
+      type: string
+      enum: [metric, imperial]
+    BaseCurrency:
+      type: string
+      enum: [UAH, USD, EUR]
+    RecommendationTone:
+      type: string
+      enum: [neutral, friendly, direct]
+    BmrFormula:
+      type: string
+      enum: [mifflin_st_jeor, katch_mcardle]
+    Sex:
+      type: string
+      enum: [female, male, unspecified]
+    BaselineActivity:
+      type: string
+      enum: [sedentary, light, moderate, high]
+    ErrorResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+    ValidationErrorResponse:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          required: [errors]
+          properties:
+            errors:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  type: string

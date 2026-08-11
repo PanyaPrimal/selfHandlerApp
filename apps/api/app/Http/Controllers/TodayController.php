@@ -24,7 +24,7 @@ class TodayController extends Controller
         $validated = $request->validate([
             'date' => ['sometimes', 'date_format:Y-m-d'],
         ]);
-        $timezone = config('selfhandler.timezone');
+        $timezone = $user->calendarTimezone();
         $date = isset($validated['date'])
             ? CarbonImmutable::parse($validated['date'], $timezone)->startOfDay()
             : CarbonImmutable::now($timezone)->startOfDay();
@@ -51,7 +51,7 @@ class TodayController extends Controller
             ->orderBy('name')
             ->orderBy('id')
             ->get()
-            ->filter(fn (Routine $routine): bool => $this->scheduleService->isScheduledFor($routine, $date)
+            ->filter(fn (Routine $routine): bool => $this->scheduleService->isScheduledFor($routine, $date, $timezone)
                 || ($isHistoricalDate && $logs->has($routine->id)))
             ->values();
 

@@ -2,6 +2,9 @@
 import { computed } from 'vue'
 import type { TodayResponse } from '../api/types'
 import { formatCalendarDate } from '../lib/format'
+import { useAuthSession } from '../auth/session'
+
+const session = useAuthSession()
 
 const props = defineProps<{
   progress: TodayResponse['progress']
@@ -22,7 +25,7 @@ const progressWidth = computed(() => `${props.progress.seven_day.completion_rate
         <h2 id="recent-progress-heading">Recent progress</h2>
       </div>
       <p class="muted">
-        {{ formatCalendarDate(progress.period_start) }}–{{ formatCalendarDate(progress.period_end) }}
+        {{ formatCalendarDate(progress.period_start, session.user?.preferences.locale) }}–{{ formatCalendarDate(progress.period_end, session.user?.preferences.locale) }}
       </p>
     </div>
 

@@ -1,5 +1,10 @@
 # Tasks: Homelab Deployment
 
+> **Delivery disposition (2026-08-11):** implementation stops after T055 by product decision. The
+> existing private homelab deployment is accepted as sufficient. T056-T059 remain unchecked to
+> preserve implementation truth, but they are intentionally skipped and excluded from the product
+> delivery queue unless that decision is explicitly revisited.
+
 **Input**: Design documents from `specs/002-homelab-deployment/`
 
 **Prerequisites**: `plan.md`, `spec.md`, `research.md`, `data-model.md`, `contracts/`, `quickstart.md`

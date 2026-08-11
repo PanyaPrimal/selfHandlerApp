@@ -12,6 +12,7 @@ import {
 import type { DailyReview, DailyReviewPayload } from '../api/types'
 import AsyncState from '../components/AsyncState.vue'
 import { formatCalendarDate } from '../lib/format'
+import { useAuthSession } from '../auth/session'
 
 interface ReviewForm {
   mood: number
@@ -26,6 +27,7 @@ interface ReviewForm {
 type ReviewField = keyof ReviewForm
 
 const route = useRoute()
+const session = useAuthSession()
 const reviewDate = ref('')
 const isLoading = ref(true)
 const isReady = ref(false)
@@ -246,7 +248,7 @@ watch(
     <header class="view-header">
       <div>
         <p class="eyebrow">Evening review</p>
-        <h1>{{ reviewDate ? formatCalendarDate(reviewDate) : 'Your daily review' }}</h1>
+        <h1>{{ reviewDate ? formatCalendarDate(reviewDate, session.user?.preferences.locale) : 'Your daily review' }}</h1>
       </div>
     </header>
 

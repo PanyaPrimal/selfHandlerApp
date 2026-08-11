@@ -269,7 +269,11 @@ class RoutineApiTest extends CoreDailyLoopTestCase
         $this->createRoutine($owner, ['name' => 'Not started', 'starts_on' => '2026-08-11']);
         $this->createRoutine($owner, ['name' => 'Already ended', 'ends_on' => '2026-08-09']);
         $this->createRoutine($owner, ['name' => 'Paused', 'is_active' => false]);
-        $this->createRoutine($owner, ['name' => 'Archived', 'is_archived' => true, 'archived_at' => now()]);
+        $this->createRoutine($owner, [
+            'name' => 'Archived',
+            'is_archived' => true,
+            'archived_at' => '2026-08-10 00:00:00 UTC',
+        ]);
         $this->actingAs($owner);
 
         $this->getJson('/api/today?date='.self::MONDAY)

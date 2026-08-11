@@ -29,9 +29,10 @@ class RoutineProgressService
      */
     public function calculate(User $user, CarbonInterface|string $selectedDate): array
     {
-        $date = $this->calendarDate($selectedDate);
+        $timezone = $user->calendarTimezone();
+        $date = $this->calendarDate($selectedDate, $timezone);
         $periodStart = $date->subDays(6);
-        $today = CarbonImmutable::now(config('selfhandler.timezone'))->startOfDay();
+        $today = CarbonImmutable::now($timezone)->startOfDay();
         /** @var Collection<int, Routine> $routines */
         $routines = Routine::query()
             ->ownedBy($user)
@@ -39,7 +40,7 @@ class RoutineProgressService
             ->orderBy('id')
             ->get();
 
-        $scheduled = $this->countScheduledOccurrences($routines, $periodStart, $date);
+        $scheduled = $this->countScheduledOccurrences($routines, $periodStart, $date, $timezone);
         $done = 0;
         $skipped = 0;
         $routineStreaks = $routines
@@ -48,7 +49,7 @@ class RoutineProgressService
 
         if ($routines->isNotEmpty()) {
             $routineMap = $routines->keyBy('id');
-            $logs = $this->logQuery($user, $routines, $periodStart, $date);
+            $logs = $this->logQuery($user, $routines, $periodStart, $date, $timezone);
             $currentRoutine = null;
             $streakState = null;
 
@@ -60,8 +61,8 @@ class RoutineProgressService
                 }
 
                 $logDateValue = (string) $log->log_date;
-                $logDate = CarbonImmutable::parse($logDateValue, config('selfhandler.timezone'))->startOfDay();
-                $isScheduled = $this->scheduleService->isScheduledFor($routine, $logDate);
+                $logDate = CarbonImmutable::parse($logDateValue, $timezone)->startOfDay();
+                $isScheduled = $this->scheduleService->isScheduledFor($routine, $logDate, $timezone);
 
                 if (
                     $isScheduled
@@ -77,7 +78,7 @@ class RoutineProgressService
 
                 if ($currentRoutine?->id !== $routine->id) {
                     if ($currentRoutine && $streakState) {
-                        $this->finishStreak($currentRoutine, $streakState, $today);
+                        $this->finishStreak($currentRoutine, $streakState, $today, $timezone);
                         $routineStreaks[$currentRoutine->id] = $streakState['count'];
                     }
 
@@ -88,12 +89,12 @@ class RoutineProgressService
                 $streakState['oldest_log_date'] = $logDate;
 
                 if ($isScheduled && ! $streakState['broken']) {
-                    $this->applyStreakLog($routine, $streakState, $logDate, (string) $log->status, $today);
+                    $this->applyStreakLog($routine, $streakState, $logDate, (string) $log->status, $today, $timezone);
                 }
             }
 
             if ($currentRoutine && $streakState) {
-                $this->finishStreak($currentRoutine, $streakState, $today);
+                $this->finishStreak($currentRoutine, $streakState, $today, $timezone);
                 $routineStreaks[$currentRoutine->id] = $streakState['count'];
             }
         }
@@ -121,12 +122,13 @@ class RoutineProgressService
         Collection $routines,
         CarbonImmutable $periodStart,
         CarbonImmutable $periodEnd,
+        string $timezone,
     ): int {
         $scheduled = 0;
 
         for ($date = $periodStart; $date->lessThanOrEqualTo($periodEnd); $date = $date->addDay()) {
             foreach ($routines as $routine) {
-                if ($this->scheduleService->isScheduledFor($routine, $date)) {
+                if ($this->scheduleService->isScheduledFor($routine, $date, $timezone)) {
                     $scheduled++;
                 }
             }
@@ -143,6 +145,7 @@ class RoutineProgressService
         Collection $routines,
         CarbonImmutable $periodStart,
         CarbonImmutable $periodEnd,
+        string $timezone,
     ): Builder {
         $historyStart = $periodStart;
         $unboundedRoutineIds = [];
@@ -151,7 +154,7 @@ class RoutineProgressService
             if ($routine->starts_on) {
                 $startsOn = CarbonImmutable::parse(
                     $routine->starts_on->format('Y-m-d'),
-                    config('selfhandler.timezone'),
+                    $timezone,
                 )->startOfDay();
 
                 if ($startsOn->isBefore($historyStart)) {
@@ -170,7 +173,7 @@ class RoutineProgressService
                 ->min('log_date');
 
             if (is_string($oldestLog) && $oldestLog < $historyStart->toDateString()) {
-                $historyStart = CarbonImmutable::parse($oldestLog, config('selfhandler.timezone'))->startOfDay();
+                $historyStart = CarbonImmutable::parse($oldestLog, $timezone)->startOfDay();
             }
         }
 
@@ -215,12 +218,13 @@ class RoutineProgressService
         CarbonImmutable $logDate,
         string $status,
         CarbonImmutable $today,
+        string $timezone,
     ): void {
         while ($state['next_date']->greaterThanOrEqualTo($logDate)) {
             $candidate = $state['next_date'];
             $state['next_date'] = $candidate->subDay();
 
-            if (! $this->scheduleService->isScheduledFor($routine, $candidate)) {
+            if (! $this->scheduleService->isScheduledFor($routine, $candidate, $timezone)) {
                 continue;
             }
 
@@ -252,8 +256,12 @@ class RoutineProgressService
      *     oldest_log_date: CarbonImmutable|null
      * }  $state
      */
-    private function finishStreak(Routine $routine, array &$state, CarbonImmutable $today): void
-    {
+    private function finishStreak(
+        Routine $routine,
+        array &$state,
+        CarbonImmutable $today,
+        string $timezone,
+    ): void {
         if ($state['broken']) {
             return;
         }
@@ -261,7 +269,7 @@ class RoutineProgressService
         $lowerBound = $routine->starts_on
             ? CarbonImmutable::parse(
                 $routine->starts_on->format('Y-m-d'),
-                config('selfhandler.timezone'),
+                $timezone,
             )->startOfDay()
             : ($state['oldest_log_date'] ?? $state['next_date'])->subDays(7);
 
@@ -269,7 +277,7 @@ class RoutineProgressService
             $candidate = $state['next_date'];
             $state['next_date'] = $candidate->subDay();
 
-            if (! $this->scheduleService->isScheduledFor($routine, $candidate)) {
+            if (! $this->scheduleService->isScheduledFor($routine, $candidate, $timezone)) {
                 continue;
             }
 
@@ -281,10 +289,8 @@ class RoutineProgressService
         }
     }
 
-    private function calendarDate(CarbonInterface|string $date): CarbonImmutable
+    private function calendarDate(CarbonInterface|string $date, string $timezone): CarbonImmutable
     {
-        $timezone = config('selfhandler.timezone');
-
         if (is_string($date)) {
             return CarbonImmutable::parse($date, $timezone)->startOfDay();
         }

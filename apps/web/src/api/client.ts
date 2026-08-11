@@ -6,6 +6,8 @@ import type {
   GoalUpdatePayload,
   ItemResponse,
   ListResponse,
+  ProfileInput,
+  ProfileResponse,
   Routine,
   RoutineCreatePayload,
   RoutineLog,
@@ -18,6 +20,14 @@ import { jsonRequest, request } from './http'
 // validation errors of a 422 response.
 export { ApiError, validationErrors } from './http'
 export type { ValidationErrors } from './http'
+
+export function getProfile(): Promise<ProfileResponse> {
+  return request<ProfileResponse>('/profile')
+}
+
+export function updateProfile(payload: ProfileInput): Promise<ProfileResponse> {
+  return jsonRequest<ProfileResponse>('/profile', 'PUT', payload)
+}
 
 export function getToday(date?: string): Promise<TodayResponse> {
   const query = date ? `?date=${encodeURIComponent(date)}` : ''

@@ -27,6 +27,58 @@ export interface User {
   id: number
   name: string
   email: string
+  preferences: PreferenceSummary
+}
+
+export type ProfileLocale = 'en-GB' | 'uk-UA' | 'ru-UA'
+export type UnitSystem = 'metric' | 'imperial'
+export type BaseCurrency = 'UAH' | 'USD' | 'EUR'
+export type RecommendationTone = 'neutral' | 'friendly' | 'direct'
+export type BmrFormula = 'mifflin_st_jeor' | 'katch_mcardle'
+export type ProfileSex = 'female' | 'male' | 'unspecified'
+export type BaselineActivity = 'sedentary' | 'light' | 'moderate' | 'high'
+
+export interface PreferenceSummary {
+  timezone: string
+  locale: ProfileLocale
+  unit_system: UnitSystem
+  base_currency: BaseCurrency
+  recommendation_tone: RecommendationTone
+  bmr_formula: BmrFormula
+  calculation_ready: boolean
+}
+
+export interface Profile extends Omit<PreferenceSummary, 'calculation_ready'> {
+  user: User
+  date_of_birth: string | null
+  sex: ProfileSex | null
+  height_meters: number | null
+  weight_grams: number | null
+  body_fat_percentage: number | null
+  baseline_activity: BaselineActivity | null
+  calculation_ready: boolean
+  missing_fields: string[]
+  updated_at: string
+}
+
+export interface ProfileInput extends Omit<Profile, 'user' | 'calculation_ready' | 'missing_fields' | 'updated_at'> {
+  name: string
+}
+
+export interface ProfileOptions {
+  timezones: string[]
+  locales: ProfileLocale[]
+  unit_systems: UnitSystem[]
+  base_currencies: BaseCurrency[]
+  recommendation_tones: RecommendationTone[]
+  bmr_formulas: BmrFormula[]
+  sexes: ProfileSex[]
+  baseline_activities: BaselineActivity[]
+}
+
+export interface ProfileResponse {
+  data: Profile
+  options: ProfileOptions
 }
 
 export interface RoutineLog {

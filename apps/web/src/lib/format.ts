@@ -1,9 +1,3 @@
-const calendarDateFormat = new Intl.DateTimeFormat('en-GB', {
-  day: 'numeric',
-  month: 'short',
-  year: 'numeric',
-})
-
 /**
  * Render a calendar date for reading.
  *
@@ -12,7 +6,7 @@ const calendarDateFormat = new Intl.DateTimeFormat('en-GB', {
  * previous day for anyone west of Greenwich. A full timestamp is accepted too
  * and reduced to its date part.
  */
-export function formatCalendarDate(value: string | null | undefined): string {
+export function formatCalendarDate(value: string | null | undefined, locale = 'en-GB'): string {
   if (!value) {
     return ''
   }
@@ -23,5 +17,9 @@ export function formatCalendarDate(value: string | null | undefined): string {
     return value
   }
 
-  return calendarDateFormat.format(new Date(year, month - 1, day))
+  return new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(year, month - 1, day))
 }

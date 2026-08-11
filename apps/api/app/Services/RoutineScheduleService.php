@@ -12,16 +12,17 @@ use Carbon\CarbonInterface;
  */
 class RoutineScheduleService
 {
-    public function isScheduledFor(Routine $routine, CarbonInterface|string $date): bool
+    public function isScheduledFor(Routine $routine, CarbonInterface|string $date, ?string $timezone = null): bool
     {
-        $calendarDate = $this->calendarDate($date);
+        $timezone ??= config('selfhandler.timezone');
+        $calendarDate = $this->calendarDate($date, $timezone);
         $dateValue = $calendarDate->toDateString();
 
         if ($routine->trashed() || ! $routine->is_active) {
             return false;
         }
 
-        if ($routine->is_archived && ! $this->wasArchivedAfter($routine, $calendarDate)) {
+        if ($routine->is_archived && ! $this->wasArchivedAfter($routine, $calendarDate, $timezone)) {
             return false;
         }
 
@@ -44,10 +45,8 @@ class RoutineScheduleService
         };
     }
 
-    private function calendarDate(CarbonInterface|string $date): CarbonImmutable
+    private function calendarDate(CarbonInterface|string $date, string $timezone): CarbonImmutable
     {
-        $timezone = config('selfhandler.timezone');
-
         if (is_string($date)) {
             return CarbonImmutable::parse($date, $timezone)->startOfDay();
         }
@@ -57,14 +56,14 @@ class RoutineScheduleService
             ->startOfDay();
     }
 
-    private function wasArchivedAfter(Routine $routine, CarbonImmutable $date): bool
+    private function wasArchivedAfter(Routine $routine, CarbonImmutable $date, string $timezone): bool
     {
         if (! $routine->archived_at) {
             return false;
         }
 
         $archiveDate = CarbonImmutable::instance($routine->archived_at)
-            ->setTimezone(config('selfhandler.timezone'))
+            ->setTimezone($timezone)
             ->startOfDay();
 
         return $date->isBefore($archiveDate);

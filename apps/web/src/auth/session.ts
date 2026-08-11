@@ -51,6 +51,10 @@ export function useAuthSession(): Readonly<SessionState> {
   return publicState
 }
 
+export function updateAuthenticatedUser(user: User): void {
+  replaceUser(user, 'authenticated')
+}
+
 export function restoreSession(force = false): Promise<void> {
   if (!force && restored) {
     return Promise.resolve()

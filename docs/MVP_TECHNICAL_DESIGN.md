@@ -356,11 +356,18 @@ used by this slice:
 ## Time and Calendar Boundary
 
 Application and storage timestamps remain UTC. Strict `Y-m-d` fields are interpreted in
-`SELFHANDLER_TIMEZONE`, which is also used for the default Today/Review date and for deciding whether
-a pending occurrence has ended. Calendar dates are serialized as dates, never shifted through UTC as
-instants.
+the authenticated user's named profile timezone. `SELFHANDLER_TIMEZONE` remains only the deterministic
+default used while provisioning or repairing a profile. Calendar dates are serialized as dates, never
+shifted through UTC as instants.
 
 ## Implemented Delivery Status
+
+Feature `004-profile-settings` is complete as of 2026-08-12. It adds an additive one-to-one profile,
+existing-user backfill, registration provisioning and repair, full atomic profile GET/PUT contracts,
+regional preferences, canonical anthropometrics, formula readiness, a responsive Account editor, and
+explicit user-timezone propagation through Today, routine logs, scheduling, and progress. Its final
+gate passed 120 Laravel tests with 918 assertions, production Vue typecheck/build, Pint, and 30 desktop/mobile Playwright
+journeys. Homelab deployment was deliberately unchanged.
 
 - T001-T008: configured timezone boundary, additive schema alignment, ownership concern, API errors,
   explicit fixtures, and browser support

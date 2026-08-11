@@ -18,6 +18,22 @@ class RoutineProgressServiceTest extends CoreDailyLoopTestCase
         parent::tearDown();
     }
 
+    public function test_progress_uses_the_users_timezone_instead_of_the_installation_fallback(): void
+    {
+        config(['selfhandler.timezone' => 'America/New_York']);
+        $owner = $this->createUser();
+        $owner->ensureProfile()->update(['timezone' => 'Europe/Kyiv']);
+        $this->createRoutine($owner, [
+            'starts_on' => self::MONDAY,
+            'is_archived' => true,
+            'archived_at' => '2026-08-10 22:30:00 UTC',
+        ]);
+
+        $progress = $this->service()->calculate($owner, self::MONDAY);
+
+        $this->assertSame(1, $progress['seven_day']['scheduled']);
+    }
+
     public function test_mixed_daily_and_weekday_history_has_exact_seven_day_counts(): void
     {
         $service = $this->service();

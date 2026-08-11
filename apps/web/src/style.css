@@ -821,6 +821,60 @@ input[type="range"] {
   max-width: 620px;
 }
 
+.profile-page {
+  max-width: 880px;
+}
+
+.profile-form {
+  display: grid;
+  gap: 20px;
+}
+
+.profile-section {
+  gap: 20px;
+}
+
+.profile-actions,
+.danger-zone {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.profile-actions {
+  position: sticky;
+  bottom: 12px;
+  z-index: 10;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--shadow);
+}
+
+.readiness-badge {
+  display: inline-flex;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--subtle);
+  background: var(--paper-soft);
+  font-size: 0.82rem;
+}
+
+.readiness-badge.ready {
+  color: var(--accent);
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+}
+
+.imperial-height {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
 .account-identity {
   display: flex;
   align-items: center;
@@ -919,6 +973,17 @@ input[type="range"] {
   .review-actions {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .profile-actions,
+  .danger-zone {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .profile-actions button,
+  .danger-zone button {
+    width: 100%;
   }
 
   .review-actions button {

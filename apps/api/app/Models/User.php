@@ -3,10 +3,12 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Support\ProfileDefaults;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
@@ -80,5 +82,27 @@ class User extends Authenticatable
     public function dailyReviews(): HasMany
     {
         return $this->hasMany(DailyReview::class);
+    }
+
+    public function profile(): HasOne
+    {
+        return $this->hasOne(UserProfile::class);
+    }
+
+    public function ensureProfile(): UserProfile
+    {
+        if ($this->relationLoaded('profile') && $this->profile) {
+            return $this->profile;
+        }
+
+        $profile = $this->profile()->firstOrCreate([], ProfileDefaults::attributes());
+        $this->setRelation('profile', $profile);
+
+        return $profile;
+    }
+
+    public function calendarTimezone(): string
+    {
+        return $this->ensureProfile()->timezone;
     }
 }

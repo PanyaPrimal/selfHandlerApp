@@ -38,6 +38,7 @@ class AuthController extends Controller
                 }
 
                 $user = User::create($request->safe()->only(['name', 'email', 'password']));
+                $user->ensureProfile();
 
                 $invitation->forceFill([
                     'used_by' => $user->id,
@@ -65,11 +66,16 @@ class AuthController extends Controller
         $request->authenticate();
         $request->session()->regenerate();
 
-        return (new UserResource(Auth::guard('web')->user()))->response();
+        $user = Auth::guard('web')->user();
+        $user->ensureProfile();
+
+        return (new UserResource($user))->response();
     }
 
     public function user(Request $request): JsonResponse
     {
+        $request->user()->ensureProfile();
+
         return (new UserResource($request->user()))
             ->response()
             ->setStatusCode(200);

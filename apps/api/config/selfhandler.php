@@ -17,4 +17,21 @@ return [
 
     'timezone' => env('SELFHANDLER_TIMEZONE', 'UTC'),
 
+    'profile' => [
+        'locales' => ['en-GB', 'uk-UA', 'ru-UA'],
+        'unit_systems' => ['metric', 'imperial'],
+        'currencies' => ['UAH', 'USD', 'EUR'],
+        'recommendation_tones' => ['neutral', 'friendly', 'direct'],
+        'bmr_formulas' => ['mifflin_st_jeor', 'katch_mcardle'],
+        'sexes' => ['female', 'male', 'unspecified'],
+        'baseline_activities' => ['sedentary', 'light', 'moderate', 'high'],
+        'defaults' => [
+            'locale' => 'en-GB',
+            'unit_system' => 'metric',
+            'base_currency' => 'UAH',
+            'recommendation_tone' => 'neutral',
+            'bmr_formula' => 'mifflin_st_jeor',
+        ],
+    ],
+
 ];
