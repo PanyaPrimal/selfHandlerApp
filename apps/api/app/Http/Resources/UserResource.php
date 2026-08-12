@@ -26,6 +26,7 @@ class UserResource extends JsonResource
                 'recommendation_tone' => $profile->recommendation_tone,
                 'bmr_formula' => $profile->bmr_formula,
                 'calculation_ready' => $profile->calculationReady(),
+                'theme' => $profile->themePreferences(),
             ],
         ];
     }

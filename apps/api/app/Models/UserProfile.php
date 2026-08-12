@@ -16,7 +16,7 @@ class UserProfile extends Model
         'user_id', 'timezone', 'locale', 'unit_system', 'base_currency',
         'date_of_birth', 'sex', 'height_meters', 'weight_grams',
         'body_fat_percentage', 'baseline_activity', 'recommendation_tone',
-        'bmr_formula',
+        'bmr_formula', 'theme_preferences',
     ];
 
     protected function casts(): array
@@ -26,7 +26,21 @@ class UserProfile extends Model
             'height_meters' => 'decimal:3',
             'weight_grams' => 'integer',
             'body_fat_percentage' => 'decimal:2',
+            'theme_preferences' => 'array',
         ];
+    }
+
+    /** @return array{scheme: string, accent: string, accent_hex: string, texture: bool, mono_numerals: bool, motion: string} */
+    public function themePreferences(): array
+    {
+        return array_replace([
+            'scheme' => 'light',
+            'accent' => 'forest',
+            'accent_hex' => '#6d5ac4',
+            'texture' => true,
+            'mono_numerals' => true,
+            'motion' => 'system',
+        ], $this->theme_preferences ?? []);
     }
 
     /** @return list<string> */

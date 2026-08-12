@@ -2,8 +2,9 @@ import { expect, test } from '@playwright/test'
 import { registerViaUi, uniqueCredentials } from '../support/auth'
 import { expectNoHorizontalOverflow, expectSurfaceWithinViewport } from './support'
 
-const primary = ['Today', 'Routines', 'Goals', 'Review']
-const secondary = ['Account', 'Changelog']
+const desktopDestinations = ['Today', 'Routines', 'Goals', 'Review', 'Settings', 'Account', 'Changelog']
+const mobilePrimary = ['Today', 'Routines', 'Goals']
+const mobileMore = ['Review', 'Settings', 'Account', 'Changelog']
 
 test('the desktop sidebar lists every destination directly', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'Desktop sidebar layout')
@@ -13,7 +14,7 @@ test('the desktop sidebar lists every destination directly', async ({ page }, te
   const sidebar = page.locator('.nav-list--desktop')
   await expect(sidebar).toBeVisible()
 
-  for (const label of [...primary, ...secondary]) {
+  for (const label of desktopDestinations) {
     await expect(sidebar.getByRole('link', { name: label, exact: true })).toBeVisible()
   }
 
@@ -29,7 +30,7 @@ test('at 390px the primary tabs stay, and the rest live behind More', async ({ p
   const bar = page.locator('.nav-list--compact')
   await expect(bar).toBeVisible()
 
-  for (const label of primary) {
+  for (const label of mobilePrimary) {
     const tab = bar.getByRole('link', { name: label, exact: true })
     await expect(tab).toBeVisible()
 
@@ -37,7 +38,7 @@ test('at 390px the primary tabs stay, and the rest live behind More', async ({ p
     expect(box?.height ?? 0).toBeGreaterThanOrEqual(40)
   }
 
-  for (const label of secondary) {
+  for (const label of mobileMore) {
     await expect(bar.getByRole('link', { name: label, exact: true })).toHaveCount(0)
   }
 
@@ -73,12 +74,17 @@ test('every destination is reachable at 390px', async ({ page }, testInfo) => {
 
   const bar = page.locator('.nav-list--compact')
 
-  for (const [label, url] of [['Routines', '/routines'], ['Goals', '/goals'], ['Review', '/review']] as const) {
+  for (const [label, url] of [['Routines', '/routines'], ['Goals', '/goals']] as const) {
     await bar.getByRole('link', { name: label, exact: true }).click()
     await expect(page).toHaveURL(new RegExp(`^.*${url}`))
   }
 
-  for (const [label, url] of [['Account', '/account'], ['Changelog', '/changelog']] as const) {
+  for (const [label, url] of [
+    ['Review', '/review'],
+    ['Settings', '/settings/appearance'],
+    ['Account', '/account'],
+    ['Changelog', '/changelog'],
+  ] as const) {
     await bar.getByRole('button', { name: /More/ }).click()
     await page.getByRole('menu').getByRole('menuitem', { name: label, exact: true }).click()
     await expect(page).toHaveURL(url)

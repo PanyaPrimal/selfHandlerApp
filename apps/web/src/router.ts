@@ -13,6 +13,7 @@ import RegisterView from './views/RegisterView.vue'
 import ReviewView from './views/ReviewView.vue'
 import RoutinesView from './views/RoutinesView.vue'
 import TodayView from './views/TodayView.vue'
+import AppearanceSettingsView from './views/AppearanceSettingsView.vue'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -75,6 +76,11 @@ export const router = createRouter({
           path: 'body',
           name: 'body',
           component: BodyView,
+        },
+        {
+          path: 'settings/appearance',
+          name: 'settings-appearance',
+          component: AppearanceSettingsView,
         },
         {
           path: 'account',

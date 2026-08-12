@@ -2,58 +2,40 @@
 import { computed, nextTick, ref } from 'vue'
 import UiField from './UiField.vue'
 import { useFieldIds } from './useFieldIds'
-import type { UiOption } from './types'
+import type { UiSwatchOption } from './types'
 
-/** A radio group drawn as segments, for small mandatory choices. */
-const props = withDefaults(
-  defineProps<{
-    label: string
-    name: string
-    modelValue: V
-    options: readonly UiOption<V>[]
-    helper?: string
-    error?: string
-    disabled?: boolean
-    wide?: boolean
-  }>(),
-  { helper: undefined, error: undefined, disabled: false, wide: false },
-)
+const props = defineProps<{
+  label: string
+  name: string
+  modelValue: V
+  options: readonly UiSwatchOption<V>[]
+  helper?: string
+  error?: string
+  disabled?: boolean
+}>()
 
 const emit = defineEmits<{ 'update:modelValue': [V] }>()
-
 const group = ref<HTMLElement | null>(null)
 const ids = useFieldIds(props.name, () => Boolean(props.helper), () => Boolean(props.error))
-const invalid = computed(() => Boolean(props.error))
-const selectedIndex = computed(() =>
-  props.options.findIndex((option) => option.value === props.modelValue),
-)
+const selectedIndex = computed(() => props.options.findIndex((option) => option.value === props.modelValue))
 
 function optionId(index: number): string {
-  return `${ids.controlId}-option-${index}`
+  return `${ids.controlId}-swatch-${index}`
 }
 
 function select(index: number): void {
   const option = props.options[index]
-
-  if (!option || option.disabled || props.disabled) {
-    return
-  }
-
+  if (!option || option.disabled || props.disabled) return
   emit('update:modelValue', option.value)
 }
 
 function move(delta: number): void {
   const count = props.options.length
-
-  if (count === 0) {
-    return
-  }
-
+  if (!count) return
   const from = selectedIndex.value < 0 ? 0 : selectedIndex.value
 
   for (let step = 1; step <= count; step += 1) {
     const index = (from + delta * step + count * count) % count
-
     if (!props.options[index].disabled) {
       select(index)
       void nextTick(() => document.getElementById(optionId(index))?.focus())
@@ -63,27 +45,16 @@ function move(delta: number): void {
 }
 
 function onKeydown(event: KeyboardEvent): void {
-  switch (event.key) {
-    case 'ArrowRight':
-    case 'ArrowDown':
-      event.preventDefault()
-      move(1)
-      break
-    case 'ArrowLeft':
-    case 'ArrowUp':
-      event.preventDefault()
-      move(-1)
-      break
-    default:
-      break
+  if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+    event.preventDefault()
+    move(1)
+  } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+    event.preventDefault()
+    move(-1)
   }
 }
 
-defineExpose({
-  focus: () =>
-    (group.value?.querySelector('[tabindex="0"]') as HTMLElement | null)?.focus() ??
-    group.value?.focus(),
-})
+defineExpose({ focus: () => group.value?.querySelector<HTMLElement>('[tabindex="0"]')?.focus() })
 </script>
 
 <template>
@@ -95,18 +66,17 @@ defineExpose({
     :error-id="ids.errorId"
     :helper="helper"
     :error="error"
-    :wide="wide"
     labelledby
   >
     <div
       :id="ids.controlId"
       ref="group"
-      class="ui-segmented"
+      class="ui-swatch-group"
       role="radiogroup"
-      :data-field="name"
       :aria-labelledby="labelId"
-      :aria-invalid="invalid || undefined"
       :aria-describedby="ids.describedBy.value"
+      :aria-invalid="error ? true : undefined"
+      :data-field="name"
       @keydown="onKeydown"
     >
       <button
@@ -115,15 +85,18 @@ defineExpose({
         :key="String(option.value)"
         type="button"
         role="radio"
-        class="ui-segmented__item"
-        :class="{ 'is-selected': index === selectedIndex, 'has-description': option.description }"
+        class="ui-swatch"
+        :class="{ 'is-selected': index === selectedIndex }"
+        :style="{ '--swatch-color': option.color }"
         :aria-checked="index === selectedIndex"
+        :aria-label="`${option.label}, ${option.hex}`"
         :tabindex="index === (selectedIndex < 0 ? 0 : selectedIndex) ? 0 : -1"
         :disabled="disabled || option.disabled"
         @click="select(index)"
       >
-        <span>{{ option.label }}</span>
-        <small v-if="option.description">{{ option.description }}</small>
+        <span class="ui-swatch__colour" aria-hidden="true"></span>
+        <strong>{{ option.label }}</strong>
+        <small>{{ option.hex }}</small>
       </button>
     </div>
   </UiField>

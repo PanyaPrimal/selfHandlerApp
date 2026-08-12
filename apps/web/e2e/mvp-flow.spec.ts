@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { collectRuntimeIssues, expectNoRuntimeIssues } from './core-daily-loop/support'
 import { registerViaUi, uniqueCredentials } from './support/auth'
+import { gotoDestination } from './interface/support'
 
 test('daily MVP loop works end-to-end', async ({ page }, testInfo) => {
   const routineName = `${testInfo.project.name} smoke routine ${Date.now()}`
@@ -20,7 +21,7 @@ test('daily MVP loop works end-to-end', async ({ page }, testInfo) => {
   await routineButton.click()
   await expect(routineButton).toHaveAttribute('aria-pressed', 'true')
 
-  await page.getByRole('link', { name: /Review/i }).click()
+  await gotoDestination(page, 'Review')
   await expect(page).toHaveURL('/review')
   await page.getByLabel('Went well').fill('Smoke test: routine flow works.')
   await page.getByLabel('Improve tomorrow').fill('Check goal linking next.')

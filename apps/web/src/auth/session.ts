@@ -7,6 +7,7 @@ import {
 } from '../api/auth'
 import { ApiError, resetCsrfProtection } from '../api/http'
 import type { LoginPayload, RegisterPayload, User } from '../api/types'
+import { clearAccountTheme, syncThemeFromProfile } from '../theme'
 
 export type SessionStatus = 'checking' | 'authenticated' | 'guest' | 'unavailable'
 
@@ -33,6 +34,10 @@ function replaceUser(user: User | null, status: SessionStatus): void {
   state.user = user
   state.status = status
 
+  if (user) {
+    syncThemeFromProfile(user.preferences.theme)
+  }
+
   if (previousUserId !== nextUserId) {
     state.generation += 1
   }
@@ -40,6 +45,7 @@ function replaceUser(user: User | null, status: SessionStatus): void {
 
 function becomeGuest(): void {
   replaceUser(null, 'guest')
+  clearAccountTheme()
   resetCsrfProtection()
 }
 

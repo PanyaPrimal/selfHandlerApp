@@ -4,6 +4,9 @@ import { setUnauthorizedHandler } from './api/http'
 import { expireSession } from './auth/session'
 import { router } from './router'
 import './style.css'
+import { initializeTheme } from './theme'
+
+initializeTheme()
 
 setUnauthorizedHandler(() => {
   const currentRoute = router.currentRoute.value

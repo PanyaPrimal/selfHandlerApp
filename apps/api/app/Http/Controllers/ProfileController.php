@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\UpdateProfileRequest;
+use App\Http\Requests\UpdateThemePreferencesRequest;
 use App\Http\Resources\ProfileResource;
 use App\Models\UserProfile;
 use App\Support\ProfileDefaults;
@@ -33,6 +34,17 @@ class ProfileController extends Controller
         });
 
         return $this->response($profile, $request);
+    }
+
+    public function updateTheme(UpdateThemePreferencesRequest $request): JsonResponse
+    {
+        $profile = $request->user()->ensureProfile();
+        $theme = $request->validated('preferences.theme');
+        $theme['accent_hex'] = strtolower($theme['accent_hex']);
+
+        $profile->forceFill(['theme_preferences' => $theme])->save();
+
+        return $this->response($profile->fresh(['user']), $request);
     }
 
     private function response(UserProfile $profile, Request $request): JsonResponse

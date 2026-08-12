@@ -28,6 +28,7 @@ class ProfileResource extends JsonResource
             'weight_grams' => $profile->weight_grams,
             'body_fat_percentage' => $profile->body_fat_percentage === null ? null : (float) $profile->body_fat_percentage,
             'baseline_activity' => $profile->baseline_activity,
+            'theme' => $profile->themePreferences(),
             'calculation_ready' => $profile->calculationReady(),
             'missing_fields' => $profile->missingCalculationFields(),
             'updated_at' => $profile->updated_at?->toISOString(),

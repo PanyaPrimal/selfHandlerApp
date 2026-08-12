@@ -16,20 +16,24 @@ interface Destination {
  * rest live behind "More". Squeezing every destination into one 390px row would
  * drop each tab below a comfortable touch target and truncate its label.
  */
-const primaryDestinations: Destination[] = [
+const desktopDestinations: Destination[] = [
   { name: 'today', to: '/', label: 'Today' },
   { name: 'routines', to: '/routines', label: 'Routines' },
   { name: 'goals', to: '/goals', label: 'Goals' },
   { name: 'review', to: '/review', label: 'Review' },
-]
-
-const secondaryDestinations: Destination[] = [
   { name: 'planner', to: '/planner', label: 'Planner' },
   { name: 'storage', to: '/storage', label: 'Storage' },
   { name: 'body', to: '/body', label: 'Body' },
+]
+
+const utilityDestinations: Destination[] = [
+  { name: 'settings-appearance', to: '/settings/appearance', label: 'Settings' },
   { name: 'account', to: '/account', label: 'Account' },
   { name: 'changelog', to: '/changelog', label: 'Changelog' },
 ]
+
+const mobileDestinations = desktopDestinations.slice(0, 3)
+const moreDestinations = [...desktopDestinations.slice(3), ...utilityDestinations]
 
 const route = useRoute()
 const session = useAuthSession()
@@ -37,7 +41,7 @@ const moreButton = ref<HTMLElement | null>(null)
 const userInitial = computed(() => session.user?.name.trim().charAt(0).toUpperCase() || '?')
 
 const secondaryIsActive = computed(() =>
-  secondaryDestinations.some((destination) => destination.name === route.name),
+  moreDestinations.some((destination) => destination.name === route.name),
 )
 
 const more = useAnchoredSurface({
@@ -61,18 +65,30 @@ function goToSecondary(): void {
       </RouterLink>
 
       <nav class="nav-list nav-list--desktop" aria-label="Primary navigation">
-        <RouterLink
-          v-for="destination in [...primaryDestinations, ...secondaryDestinations]"
-          :key="destination.name"
-          :to="destination.to"
-        >
-          <span class="nav-dot" aria-hidden="true"></span>
-          <span>{{ destination.label }}</span>
-        </RouterLink>
+        <div class="nav-group">
+          <RouterLink
+            v-for="destination in desktopDestinations"
+            :key="destination.name"
+            :to="destination.to"
+          >
+            <span class="nav-dot" aria-hidden="true"></span>
+            <span>{{ destination.label }}</span>
+          </RouterLink>
+        </div>
+        <div class="nav-group nav-group--utility">
+          <RouterLink
+            v-for="destination in utilityDestinations"
+            :key="destination.name"
+            :to="destination.to"
+          >
+            <span class="nav-dot" aria-hidden="true"></span>
+            <span>{{ destination.label }}</span>
+          </RouterLink>
+        </div>
       </nav>
 
       <nav class="nav-list nav-list--compact" aria-label="Primary navigation">
-        <RouterLink v-for="destination in primaryDestinations" :key="destination.name" :to="destination.to">
+        <RouterLink v-for="destination in mobileDestinations" :key="destination.name" :to="destination.to">
           <span class="nav-dot" aria-hidden="true"></span>
           <span>{{ destination.label }}</span>
         </RouterLink>
@@ -103,7 +119,7 @@ function goToSecondary(): void {
             class="nav-more__menu"
           >
             <RouterLink
-              v-for="destination in secondaryDestinations"
+              v-for="destination in moreDestinations"
               :key="destination.name"
               class="nav-more__item"
               role="menuitem"

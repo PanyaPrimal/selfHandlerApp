@@ -75,6 +75,14 @@ abstract class AuthTestCase extends TestCase
                         'recommendation_tone' => 'neutral',
                         'bmr_formula' => 'mifflin_st_jeor',
                         'calculation_ready' => false,
+                        'theme' => [
+                            'scheme' => 'light',
+                            'accent' => 'forest',
+                            'accent_hex' => '#6d5ac4',
+                            'texture' => true,
+                            'mono_numerals' => true,
+                            'motion' => 'system',
+                        ],
                     ],
                 ],
             ]);

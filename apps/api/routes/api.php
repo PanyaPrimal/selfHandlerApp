@@ -20,6 +20,7 @@ Route::get('/health', HealthController::class);
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/profile', [ProfileController::class, 'show']);
     Route::put('/profile', [ProfileController::class, 'update']);
+    Route::patch('/profile', [ProfileController::class, 'updateTheme']);
 
     Route::get('/today', TodayController::class);
 

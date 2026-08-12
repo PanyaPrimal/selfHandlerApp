@@ -8,6 +8,7 @@ class ProfileApiTest extends ProfileTestCase
     {
         $this->getJson('/api/profile')->assertUnauthorized();
         $this->putJson('/api/profile', $this->validPayload())->assertUnauthorized();
+        $this->patchJson('/api/profile', ['preferences' => ['theme' => []]])->assertUnauthorized();
     }
 
     public function test_get_returns_only_the_current_users_full_profile_and_finite_options(): void
@@ -95,5 +96,61 @@ class ProfileApiTest extends ProfileTestCase
 
         $this->assertDatabaseCount('user_profiles', 1);
         $this->assertDatabaseHas('user_profiles', ['user_id' => $user->id, 'weight_grams' => 68400]);
+    }
+
+    public function test_theme_preferences_are_partially_updated_without_touching_profile_fields(): void
+    {
+        $user = $this->createUser();
+        $profile = $this->createProfile($user, ['timezone' => 'Europe/Kyiv']);
+
+        $payload = [
+            'preferences' => [
+                'theme' => [
+                    'scheme' => 'system',
+                    'accent' => 'custom',
+                    'accent_hex' => '#6D5AC4',
+                    'texture' => false,
+                    'mono_numerals' => false,
+                    'motion' => 'reduce',
+                ],
+            ],
+        ];
+
+        $this->actingAs($user)->patchJson('/api/profile', $payload)
+            ->assertOk()
+            ->assertJsonPath('data.theme.scheme', 'system')
+            ->assertJsonPath('data.theme.accent_hex', '#6d5ac4')
+            ->assertJsonPath('data.user.preferences.theme.motion', 'reduce')
+            ->assertJsonPath('data.timezone', 'Europe/Kyiv');
+
+        $this->assertSame('Europe/Kyiv', $profile->fresh()->timezone);
+        $expected = $payload['preferences']['theme'];
+        $expected['accent_hex'] = '#6d5ac4';
+        $this->assertSame($expected, $profile->fresh()->themePreferences());
+    }
+
+    public function test_theme_patch_requires_the_complete_bounded_shape_and_rejects_unknown_fields(): void
+    {
+        $user = $this->createUser();
+        $this->createProfile($user);
+
+        $this->actingAs($user)->patchJson('/api/profile', [
+            'preferences' => [
+                'theme' => [
+                    'scheme' => 'sepia',
+                    'accent' => 'custom',
+                    'accent_hex' => 'not-a-colour',
+                    'texture' => true,
+                    'mono_numerals' => true,
+                    'motion' => 'system',
+                    'user_id' => 999,
+                ],
+            ],
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                'preferences.theme',
+                'preferences.theme.scheme',
+                'preferences.theme.accent_hex',
+            ]);
     }
 }

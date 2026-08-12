@@ -30,6 +30,19 @@ export interface User {
   preferences: PreferenceSummary
 }
 
+export type ThemeScheme = 'light' | 'dark' | 'system'
+export type ThemeAccent = 'forest' | 'slate' | 'gold' | 'brick' | 'custom'
+export type ThemeMotion = 'system' | 'reduce'
+
+export interface ThemePreferences {
+  scheme: ThemeScheme
+  accent: ThemeAccent
+  accent_hex: string
+  texture: boolean
+  mono_numerals: boolean
+  motion: ThemeMotion
+}
+
 export type ProfileLocale = 'en-GB' | 'uk-UA' | 'ru-UA'
 export type UnitSystem = 'metric' | 'imperial'
 export type BaseCurrency = 'UAH' | 'USD' | 'EUR'
@@ -46,9 +59,10 @@ export interface PreferenceSummary {
   recommendation_tone: RecommendationTone
   bmr_formula: BmrFormula
   calculation_ready: boolean
+  theme: ThemePreferences
 }
 
-export interface Profile extends Omit<PreferenceSummary, 'calculation_ready'> {
+export interface Profile extends Omit<PreferenceSummary, 'calculation_ready' | 'theme'> {
   user: User
   date_of_birth: string | null
   sex: ProfileSex | null
@@ -58,11 +72,16 @@ export interface Profile extends Omit<PreferenceSummary, 'calculation_ready'> {
   baseline_activity: BaselineActivity | null
   calculation_ready: boolean
   missing_fields: string[]
+  theme: ThemePreferences
   updated_at: string
 }
 
-export interface ProfileInput extends Omit<Profile, 'user' | 'calculation_ready' | 'missing_fields' | 'updated_at'> {
+export interface ProfileInput extends Omit<Profile, 'user' | 'calculation_ready' | 'missing_fields' | 'theme' | 'updated_at'> {
   name: string
+}
+
+export interface ThemePreferencesPayload {
+  preferences: { theme: ThemePreferences }
 }
 
 export interface ProfileOptions {
