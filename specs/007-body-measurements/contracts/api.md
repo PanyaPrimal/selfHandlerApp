@@ -2,6 +2,12 @@
 
 **Feature ID**: `007-body-measurements`
 
+> The machine-readable contract is [openapi.yaml](openapi.yaml) (OpenAPI 3.1, 5 paths, 18 schemas).
+> This document is the prose companion: it explains the reasoning the schema cannot carry. Both are
+> held against the implementation by `apps/api/tests/Feature/Body/BodyOpenApiContractTest.php`, which
+> fails when a documented operation is not a route, a body route is undocumented, or a documented
+> vocabulary drifts from its enum.
+
 All routes are behind `auth:sanctum` and scoped to the authenticated user. Every value in a request or
 response body is in the metric's **canonical base unit**; unit conversion is a client presentation
 concern, exactly as it already is for the Profile.
@@ -65,7 +71,7 @@ Query: `metric` (required), `from` / `to` (optional).
 `state` is `empty` (no observations), `insufficient` (exactly one) or `ready`. In the first two states
 `change_per_week` is `null` — never `0`.
 
-## `GET /api/body/goals`, `POST /api/body/goals`, `PATCH /api/body/goals/{goal}`, `DELETE /api/body/goals/{goal}`
+## `GET /api/body/goals`, `POST /api/body/goals`, `PATCH /api/body/goals/{goal}`
 
 ```json
 {
@@ -109,7 +115,8 @@ value and never turns the response into an error.
 
 `current_value` and `progress` are `null` when the metric has no observation yet — never `0`.
 
-`DELETE` archives through the existing goal lifecycle rather than removing the row.
+There is no delete endpoint. A body goal is archived the same way any goal is, by sending
+`is_archived: true` to `PATCH`, so the row and its history survive.
 
 ## Existing contracts
 

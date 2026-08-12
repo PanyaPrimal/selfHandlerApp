@@ -1,0 +1,580 @@
+openapi: 3.1.0
+info:
+  title: SelfHandler Body Measurements and Body Goals API
+  version: 1.0.0
+  description: |
+    REST contract for feature 007-body-measurements.
+
+    Every value in a request or response body is expressed in the metric's
+    canonical base unit - grams for mass, metres for lengths, percent for
+    ratios - as an exact decimal string. Converting to the user's display unit
+    is a client concern, exactly as it already is for the profile.
+
+    Calendar dates are `YYYY-MM-DD` days, never instants.
+servers:
+  - url: /api
+security:
+  - sessionCookie: []
+paths:
+  /body/measurements:
+    get:
+      operationId: listBodyMeasurements
+      summary: List the authenticated user's measurements within a bounded window
+      description: |
+        Ordered by date regardless of insertion order. The window defaults to the
+        last 365 days and is always bounded, so history cannot grow the response
+        without limit.
+      parameters:
+        - name: metric
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/BodyMetric'
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 1000
+      responses:
+        '200':
+          description: Measurement history plus the metric vocabulary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BodyMeasurementsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+    put:
+      operationId: upsertBodyMeasurement
+      summary: Record an observation, or correct the one already stored for that day
+      description: |
+        There is one value per user, metric and calendar date. Saving the same
+        combination again replaces the value; it is a correction, not a second
+        observation and not an error.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BodyMeasurementInput'
+      responses:
+        '200':
+          description: The stored observation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BodyMeasurementItem'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /body/measurements/{measurement}:
+    delete:
+      operationId: deleteBodyMeasurement
+      summary: Delete one observation
+      parameters:
+        - name: measurement
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Deleted; every derived value follows
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /body/trend:
+    get:
+      operationId: getBodyTrend
+      summary: Deterministic trend for one metric over a bounded window
+      description: |
+        Ordinary least squares over the observations, reported as change per week
+        in the canonical unit. Fewer than two observations returns an explicit
+        state rather than a zero slope.
+      parameters:
+        - name: metric
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/BodyMetric'
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Trend, or an explicit empty/insufficient state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BodyTrend'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /body/goals:
+    get:
+      operationId: listBodyGoals
+      summary: List the authenticated user's body goals with progress
+      parameters:
+        - name: archived
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Body goals plus the metric and direction vocabularies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BodyGoalsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+    post:
+      operationId: createBodyGoal
+      summary: Create a goal of type body together with its typed detail
+      description: |
+        Creates an ordinary `Goal` with `type = "body"` and its one-to-one detail
+        in a single transaction. The goal keeps the existing goal lifecycle, so
+        `GET /goals` continues to list it unchanged.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BodyGoalInput'
+      responses:
+        '201':
+          description: The created goal, plus any pace warnings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BodyGoalResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /body/goals/{goal}:
+    patch:
+      operationId: updateBodyGoal
+      summary: Update a body goal, its detail, or its milestones
+      parameters:
+        - name: goal
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BodyGoalInput'
+      responses:
+        '200':
+          description: The updated goal, plus any pace warnings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BodyGoalResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: selfhandler_session
+  responses:
+    Unauthenticated:
+      description: No valid authenticated session
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: |
+        The record does not exist, or belongs to another account. Both cases
+        answer the same way so ownership cannot be probed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ValidationFailed:
+      description: One or more fields are invalid; nothing is written
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+  schemas:
+    BodyMetric:
+      type: string
+      description: The typed metric vocabulary. Adding a metric does not change the schema.
+      enum:
+        - body_mass
+        - body_fat_percentage
+        - waist
+        - chest
+        - hips
+        - thigh
+        - upper_arm
+        - neck
+        - calf
+    CanonicalValue:
+      type: string
+      description: |
+        An exact decimal in the metric's canonical base unit. A string rather
+        than a number so no value passes through binary floating point.
+      examples:
+        - '82500.0000'
+    BodyMetricOption:
+      type: object
+      required: [value, label, canonical_unit, display_unit, minimum, maximum]
+      properties:
+        value:
+          $ref: '#/components/schemas/BodyMetric'
+        label:
+          type: string
+        canonical_unit:
+          type: string
+          enum: [gram, metre, percent]
+        display_unit:
+          type: object
+          required: [metric, imperial]
+          properties:
+            metric:
+              type: string
+            imperial:
+              type: string
+        minimum:
+          $ref: '#/components/schemas/CanonicalValue'
+        maximum:
+          $ref: '#/components/schemas/CanonicalValue'
+    BodyMeasurement:
+      type: object
+      required: [id, metric, measured_on, value, note]
+      properties:
+        id:
+          type: integer
+        metric:
+          $ref: '#/components/schemas/BodyMetric'
+        measured_on:
+          type: string
+          format: date
+        value:
+          $ref: '#/components/schemas/CanonicalValue'
+        note:
+          type: [string, 'null']
+          maxLength: 500
+    BodyMeasurementItem:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/BodyMeasurement'
+    BodyMeasurementsResponse:
+      type: object
+      required: [data, metrics, today, from, to]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/BodyMeasurement'
+        metrics:
+          type: array
+          items:
+            $ref: '#/components/schemas/BodyMetricOption'
+        today:
+          type: string
+          format: date
+          description: The user's current day in their profile time zone, so the client never derives it.
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+    BodyMeasurementInput:
+      type: object
+      required: [metric, measured_on, value]
+      properties:
+        metric:
+          $ref: '#/components/schemas/BodyMetric'
+        measured_on:
+          type: string
+          format: date
+          description: Must not be after the user's current day; an observation already happened.
+        value:
+          type: number
+          description: In the metric's canonical base unit, within its plausible bounds.
+        note:
+          type: [string, 'null']
+          maxLength: 500
+    BodyTrendPoint:
+      type: object
+      required: [measured_on, value]
+      properties:
+        measured_on:
+          type: string
+          format: date
+        value:
+          $ref: '#/components/schemas/CanonicalValue'
+    BodyTrend:
+      type: object
+      required: [metric, state, points, first, last, change_per_week]
+      properties:
+        metric:
+          $ref: '#/components/schemas/BodyMetric'
+        state:
+          type: string
+          enum: [empty, insufficient, ready]
+          description: |
+            `empty` when there are no observations, `insufficient` with exactly
+            one. "Not enough information" and "no change" are different answers.
+        points:
+          type: integer
+          minimum: 0
+        first:
+          oneOf:
+            - $ref: '#/components/schemas/BodyTrendPoint'
+            - type: 'null'
+        last:
+          oneOf:
+            - $ref: '#/components/schemas/BodyTrendPoint'
+            - type: 'null'
+        change_per_week:
+          type: [string, 'null']
+          description: Canonical units per week. Null outside the `ready` state - never zero.
+    BodyGoalMilestone:
+      type: object
+      required: [id, target_value, target_date, achieved]
+      properties:
+        id:
+          type: integer
+        target_value:
+          $ref: '#/components/schemas/CanonicalValue'
+        target_date:
+          type: [string, 'null']
+          format: date
+        achieved:
+          type: boolean
+          description: Derived from the measurement history at read time, never stored.
+    BodyGoalDetail:
+      type: object
+      required:
+        - metric
+        - metric_label
+        - direction
+        - starting_value
+        - target_value
+        - current_value
+        - measured_on
+        - progress
+        - milestones
+      properties:
+        metric:
+          $ref: '#/components/schemas/BodyMetric'
+        metric_label:
+          type: string
+        direction:
+          type: string
+          enum: [lose, gain, maintain]
+        starting_value:
+          $ref: '#/components/schemas/CanonicalValue'
+        target_value:
+          $ref: '#/components/schemas/CanonicalValue'
+        current_value:
+          type: [string, 'null']
+          description: Latest observation on or before today. Null when there is none - never zero.
+        measured_on:
+          type: [string, 'null']
+          format: date
+        progress:
+          type: [number, 'null']
+          minimum: 0
+          maximum: 1
+          description: Direction-aware fraction from start to target. Null when there is no current value.
+        milestones:
+          type: array
+          items:
+            $ref: '#/components/schemas/BodyGoalMilestone'
+    BodyGoal:
+      type: object
+      required:
+        - id
+        - name
+        - description
+        - type
+        - status
+        - target_date
+        - completed_at
+        - is_archived
+        - archived_at
+        - body
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          maxLength: 160
+        description:
+          type: [string, 'null']
+        type:
+          type: string
+          const: body
+        status:
+          type: string
+          enum: [active, completed, abandoned]
+        target_date:
+          type: [string, 'null']
+          format: date
+        completed_at:
+          type: [string, 'null']
+          format: date-time
+        is_archived:
+          type: boolean
+        archived_at:
+          type: [string, 'null']
+          format: date-time
+        body:
+          oneOf:
+            - $ref: '#/components/schemas/BodyGoalDetail'
+            - type: 'null'
+    BodyGoalInput:
+      type: object
+      required: [name, metric, direction, starting_value, target_value]
+      properties:
+        name:
+          type: string
+          maxLength: 160
+        description:
+          type: [string, 'null']
+          maxLength: 5000
+        target_date:
+          type: [string, 'null']
+          format: date
+        status:
+          type: string
+          enum: [active, completed, abandoned]
+        is_archived:
+          type: boolean
+        metric:
+          $ref: '#/components/schemas/BodyMetric'
+        direction:
+          type: string
+          enum: [lose, gain, maintain]
+        starting_value:
+          type: number
+        target_value:
+          type: number
+        milestones:
+          type: array
+          maxItems: 20
+          description: Replaced as a set; they describe one plan.
+          items:
+            type: object
+            required: [target_value]
+            properties:
+              target_value:
+                type: number
+              target_date:
+                type: [string, 'null']
+                format: date
+    PaceWarning:
+      type: object
+      required: [field, code, message]
+      description: |
+        Advice, never an error. A warning does not block the save, does not alter
+        the stored target or date, and does not diagnose anything.
+      properties:
+        field:
+          type: string
+        code:
+          type: string
+          enum: [pace_above_guidance]
+        message:
+          type: string
+          description: |
+            For weight loss the message cites the CDC's published one-to-two
+            pounds a week. For weight gain it states that the limit is this
+            application's own, not published guidance. Metrics with neither
+            produce no warning at all.
+    BodyGoalResponse:
+      type: object
+      required: [data, warnings]
+      properties:
+        data:
+          $ref: '#/components/schemas/BodyGoal'
+        warnings:
+          type: array
+          description: Always present; empty when there is nothing to say.
+          items:
+            $ref: '#/components/schemas/PaceWarning'
+    BodyGoalsResponse:
+      type: object
+      required: [data, metrics, directions]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/BodyGoal'
+        metrics:
+          type: array
+          items:
+            $ref: '#/components/schemas/BodyMetricOption'
+        directions:
+          type: array
+          items:
+            type: string
+            enum: [lose, gain, maintain]
+    ErrorResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+    ValidationErrorResponse:
+      type: object
+      required: [message, errors]
+      properties:
+        message:
+          type: string
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string

@@ -68,6 +68,7 @@ sourced from published guidance, so ownership, determinism and boundary behaviou
 
 - [X] T023 Add the changelog entry for body measurements in `apps/web/src/content/changelog.ts`
 - [X] T024 Reconcile `spec.md`, `plan.md`, `contracts/api.md` and `data-model.md` against the implementation (Constitution VI)
+- [X] T027 Publish the machine-readable contract in `specs/007-body-measurements/contracts/openapi.yaml` and hold it against the routes and enums in `apps/api/tests/Feature/Body/BodyOpenApiContractTest.php` (contracts, Constitution VI)
 - [X] T025 Run the full gate: `php artisan test`, `vendor/bin/pint --test`, `npm run typecheck`, `npm run build`, both Playwright projects, `git diff --check` (SC-010)
 - [X] T026 Add the implementation-evidence section here and mark the roadmap entry complete
 
@@ -98,7 +99,7 @@ sourced from published guidance, so ownership, determinism and boundary behaviou
 
 ## Implementation Evidence
 
-**Completed**: 2026-08-12 — 26/26 tasks.
+**Completed**: 2026-08-12 — 27/27 tasks.
 
 ### Delivered
 
@@ -112,6 +113,14 @@ sourced from published guidance, so ownership, determinism and boundary behaviou
   `GET/POST/PATCH /api/body/goals`, all behind the existing session guard.
 - `/body` screen built on the feature 005 controls, reachable from the navigation, with explicit empty,
   insufficient and no-current-value states and display-unit conversion that does not drift.
+
+### Contract
+
+`contracts/openapi.yaml` (OpenAPI 3.1, 5 paths, 18 schemas) is the machine-readable contract;
+`contracts/api.md` remains the prose companion. `BodyOpenApiContractTest` fails when a documented
+operation is not a registered route, when a `/body` route is undocumented, or when the documented
+metric or direction vocabulary drifts from its enum. The guard was verified by injecting both kinds of
+drift and confirming it reports them.
 
 ### Defect found by the browser suite
 
