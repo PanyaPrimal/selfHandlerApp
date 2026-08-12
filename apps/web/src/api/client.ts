@@ -19,6 +19,12 @@ import type {
   RoutineCreatePayload,
   RoutineLog,
   RoutineUpdatePayload,
+  StorageItem,
+  StorageItemPayload,
+  StorageItemsResponse,
+  StorageProject,
+  StorageProjectPayload,
+  StorageProjectsResponse,
   TodayResponse,
 } from './types'
 import { jsonRequest, request } from './http'
@@ -181,4 +187,38 @@ export function createBodyGoal(payload: BodyGoalPayload): Promise<BodyGoalRespon
 
 export function updateBodyGoal(goalId: number, payload: Partial<BodyGoalPayload>): Promise<BodyGoalResponse> {
   return jsonRequest<BodyGoalResponse>(`/body/goals/${goalId}`, 'PATCH', payload)
+}
+
+export function getStorageItems(params: Record<string, string> = {}): Promise<StorageItemsResponse> {
+  const query = new URLSearchParams(params)
+  const suffix = query.toString() ? `?${query.toString()}` : ''
+
+  return request<StorageItemsResponse>(`/storage/items${suffix}`)
+}
+
+export async function createStorageItem(payload: StorageItemPayload): Promise<StorageItem> {
+  const response = await jsonRequest<ItemResponse<StorageItem>>('/storage/items', 'POST', payload)
+  return response.data
+}
+
+export async function updateStorageItem(itemId: number, payload: StorageItemPayload): Promise<StorageItem> {
+  const response = await jsonRequest<ItemResponse<StorageItem>>(`/storage/items/${itemId}`, 'PATCH', payload)
+  return response.data
+}
+
+export function deleteStorageItem(itemId: number): Promise<void> {
+  return request<void>(`/storage/items/${itemId}`, { method: 'DELETE' })
+}
+
+export function getStorageProjects(): Promise<StorageProjectsResponse> {
+  return request<StorageProjectsResponse>('/storage/projects')
+}
+
+export async function createStorageProject(payload: StorageProjectPayload): Promise<StorageProject> {
+  const response = await jsonRequest<ItemResponse<StorageProject>>('/storage/projects', 'POST', payload)
+  return response.data
+}
+
+export function deleteStorageProject(projectId: number): Promise<void> {
+  return request<void>(`/storage/projects/${projectId}`, { method: 'DELETE' })
 }

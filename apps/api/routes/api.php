@@ -5,7 +5,9 @@ use App\Http\Controllers\BodyMeasurementController;
 use App\Http\Controllers\DailyReviewController;
 use App\Http\Controllers\GoalController;
 use App\Http\Controllers\HealthController;
+use App\Http\Controllers\ItemController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\RoutineController;
 use App\Http\Controllers\RoutineLogController;
 use App\Http\Controllers\TodayController;
@@ -36,6 +38,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/body/goals', [BodyGoalController::class, 'index']);
     Route::post('/body/goals', [BodyGoalController::class, 'store']);
     Route::patch('/body/goals/{goal}', [BodyGoalController::class, 'update']);
+
+    Route::get('/storage/items', [ItemController::class, 'index']);
+    Route::post('/storage/items', [ItemController::class, 'store']);
+    Route::patch('/storage/items/{item}', [ItemController::class, 'update']);
+    Route::delete('/storage/items/{item}', [ItemController::class, 'destroy']);
+
+    Route::get('/storage/projects', [ProjectController::class, 'index']);
+    Route::post('/storage/projects', [ProjectController::class, 'store']);
+    Route::patch('/storage/projects/{project}', [ProjectController::class, 'update']);
+    Route::delete('/storage/projects/{project}', [ProjectController::class, 'destroy']);
 
     Route::get('/goals', [GoalController::class, 'index']);
     Route::post('/goals', [GoalController::class, 'store']);

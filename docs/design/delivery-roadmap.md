@@ -6,8 +6,8 @@ still requires `$speckit-specify -> $speckit-clarify -> $speckit-plan -> $specki
 $speckit-analyze -> $speckit-implement` before application code changes.
 
 > **Roadmap baseline (2026-08-12):** `001-core-daily-loop`, `003-multi-user-auth`,
-> `004-profile-settings`, `005-interface-foundation`, `006-unified-recurrence` and
-> `007-body-measurements` are complete.
+> `004-profile-settings`, `005-interface-foundation`, `006-unified-recurrence`,
+> `007-body-measurements` and `008-storage-inbox` are complete.
 > `002-homelab-deployment` stops at T055 by product decision: the current homelab deployment is
 > accepted, and T056-T059 are intentionally excluded from the product queue.
 >
@@ -43,7 +43,8 @@ The application already provides:
   Today/progress calendar boundaries;
 - one owned, accessible form-control layer and a user-facing changelog;
 - the shared recurrence boundary (`RecurringRule` + `PlannedOccurrence`) with routines as its consumer;
-- dated body measurements with deterministic trends and body-composition goals.
+- dated body measurements with deterministic trends and body-composition goals;
+- a capture inbox with tasks, ideas, projects, Storage-local tags and blocking child items.
 
 The shared recurrence boundary now exists and owns every routine schedule. A module that needs
 recurring behaviour uses it; no second scheduling table may be added.
@@ -183,6 +184,8 @@ safe pace validation, and deterministic trends needed by later Nutrition and Ana
 **Prerequisites:** 004 and 005. Recurring measurement reminders wait for 010; photos wait for 020.
 
 ### 008 — Storage Inbox and Quick Capture
+
+**Status:** Complete on 2026-08-12 (`26/26` tasks).
 
 **User outcome:** tasks and ideas can be captured quickly, triaged, grouped into projects, and broken
 into blocking child items.

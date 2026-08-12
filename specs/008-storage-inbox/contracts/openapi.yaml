@@ -1,0 +1,457 @@
+openapi: 3.1.0
+info:
+  title: SelfHandler Storage API
+  version: 1.0.0
+  description: |
+    REST contract for feature 008-storage-inbox.
+
+    Capture costs one field: a title alone creates an item in the inbox. Every
+    other field is triage and arrives later.
+
+    An item is one table plus a `type`, per `docs/design/data-conventions.md`
+    section 2. Nesting is one level deep, and a child marked as a blocker
+    prevents its parent from being completed.
+servers:
+  - url: /api
+security:
+  - sessionCookie: []
+paths:
+  /storage/items:
+    get:
+      operationId: listStorageItems
+      summary: List items, filtered and always bounded
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ItemStatus'
+        - name: type
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ItemType'
+        - name: project_id
+          in: query
+          required: false
+          schema:
+            type: [integer, 'null']
+        - name: parent_id
+          in: query
+          required: false
+          schema:
+            type: [integer, 'null']
+        - name: tag
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 64
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 200
+      responses:
+        '200':
+          description: Items plus the unsorted count and the vocabularies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+    post:
+      operationId: captureStorageItem
+      summary: Capture an item
+      description: |
+        A title is the only required field. The item is created with type `task`
+        and status `inbox` unless told otherwise.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ItemInput'
+      responses:
+        '201':
+          description: The captured item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemItem'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /storage/items/{item}:
+    patch:
+      operationId: updateStorageItem
+      summary: Triage or change an item
+      description: |
+        Completing an item is refused while any of its children is both a
+        blocker and still open; the error names them. Setting `tags` replaces the
+        set exactly, creating names that do not exist yet.
+      parameters:
+        - name: item
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ItemInput'
+      responses:
+        '200':
+          description: The updated item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemItem'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+    delete:
+      operationId: deleteStorageItem
+      summary: Delete an item; its children survive without a parent
+      parameters:
+        - name: item
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /storage/projects:
+    get:
+      operationId: listStorageProjects
+      summary: List projects with their open and completed counts
+      responses:
+        '200':
+          description: Projects with counts computed by this module
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+    post:
+      operationId: createStorageProject
+      summary: Create a project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectInput'
+      responses:
+        '201':
+          description: The created project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectItem'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /storage/projects/{project}:
+    patch:
+      operationId: updateStorageProject
+      summary: Rename or archive a project
+      parameters:
+        - name: project
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectInput'
+      responses:
+        '200':
+          description: The updated project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectItem'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+    delete:
+      operationId: deleteStorageProject
+      summary: Delete a project; its items survive without one
+      parameters:
+        - name: project
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: selfhandler_session
+  responses:
+    Unauthenticated:
+      description: No valid authenticated session
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: |
+        The record does not exist, or belongs to another account. Both answer the
+        same way so ownership cannot be probed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ValidationFailed:
+      description: |
+        One or more fields are invalid and nothing is written. A refused
+        completion reports under `status` and names the blocking children.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+  schemas:
+    ItemType:
+      type: string
+      description: Purchases and list items arrive with the features that own them.
+      enum: [task, idea]
+    ItemStatus:
+      type: string
+      description: |
+        `inbox` is the capture default and is a real state, so "how much is
+        unsorted" is a count rather than a rule each screen reimplements.
+      enum: [inbox, active, done, dropped]
+    ItemPriority:
+      type: string
+      enum: [low, normal, high]
+    Tag:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          maxLength: 64
+    Item:
+      type: object
+      required:
+        - id
+        - type
+        - title
+        - description
+        - status
+        - priority
+        - due_on
+        - project_id
+        - parent_id
+        - is_blocker
+        - completed_at
+        - dropped_at
+      properties:
+        id:
+          type: integer
+        type:
+          $ref: '#/components/schemas/ItemType'
+        title:
+          type: string
+          maxLength: 200
+        description:
+          type: [string, 'null']
+        status:
+          $ref: '#/components/schemas/ItemStatus'
+        priority:
+          oneOf:
+            - $ref: '#/components/schemas/ItemPriority'
+            - type: 'null'
+        due_on:
+          type: [string, 'null']
+          format: date
+          description: A calendar day. Nothing schedules or reminds on it in this feature.
+        project_id:
+          type: [integer, 'null']
+        parent_id:
+          type: [integer, 'null']
+        is_blocker:
+          type: boolean
+          description: Meaningful on a child; it blocks its parent's completion.
+        completed_at:
+          type: [string, 'null']
+          format: date-time
+          description: Derived by the server; never supplied by the client.
+        dropped_at:
+          type: [string, 'null']
+          format: date-time
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tag'
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/Item'
+    ItemItem:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/Item'
+    ItemsResponse:
+      type: object
+      required: [data, inbox_count, types, statuses, priorities]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Item'
+        inbox_count:
+          type: integer
+          minimum: 0
+        types:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemType'
+        statuses:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemStatus'
+        priorities:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemPriority'
+    ItemInput:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 200
+          description: Required on capture; rejected when blank after trimming.
+        type:
+          $ref: '#/components/schemas/ItemType'
+        description:
+          type: [string, 'null']
+          maxLength: 5000
+        status:
+          $ref: '#/components/schemas/ItemStatus'
+        priority:
+          oneOf:
+            - $ref: '#/components/schemas/ItemPriority'
+            - type: 'null'
+        due_on:
+          type: [string, 'null']
+          format: date
+        project_id:
+          type: [integer, 'null']
+        parent_id:
+          type: [integer, 'null']
+          description: Must belong to the same user and must not already be a child.
+        is_blocker:
+          type: boolean
+        tags:
+          type: array
+          maxItems: 20
+          description: Replaces the item's tags exactly.
+          items:
+            type: string
+            maxLength: 64
+    Project:
+      type: object
+      required: [id, name, description, is_archived, archived_at, open_count, completed_count]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          maxLength: 160
+        description:
+          type: [string, 'null']
+        is_archived:
+          type: boolean
+        archived_at:
+          type: [string, 'null']
+          format: date-time
+        open_count:
+          type: integer
+          minimum: 0
+        completed_count:
+          type: integer
+          minimum: 0
+    ProjectItem:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/Project'
+    ProjectsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Project'
+    ProjectInput:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 160
+          description: Required on create; unique per user.
+        description:
+          type: [string, 'null']
+          maxLength: 5000
+        is_archived:
+          type: boolean
+    ErrorResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+    ValidationErrorResponse:
+      type: object
+      required: [message, errors]
+      properties:
+        message:
+          type: string
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string

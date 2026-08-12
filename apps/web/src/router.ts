@@ -4,6 +4,7 @@ import { restoreSession, useAuthSession } from './auth/session'
 import AppShell from './layouts/AppShell.vue'
 import AccountView from './views/AccountView.vue'
 import BodyView from './views/BodyView.vue'
+import StorageView from './views/StorageView.vue'
 import ChangelogView from './views/ChangelogView.vue'
 import GoalsView from './views/GoalsView.vue'
 import LoginView from './views/LoginView.vue'
@@ -58,6 +59,11 @@ export const router = createRouter({
           path: 'review/:date?',
           name: 'review',
           component: ReviewView,
+        },
+        {
+          path: 'storage',
+          name: 'storage',
+          component: StorageView,
         },
         {
           path: 'body',

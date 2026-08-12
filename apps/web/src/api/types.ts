@@ -348,3 +348,75 @@ export interface BodyGoalResponse {
   data: BodyGoal
   warnings: BodyGoalWarning[]
 }
+
+/* ------------------------------------------------------------------ */
+/* Storage inbox (feature 008)                                         */
+/* ------------------------------------------------------------------ */
+
+export type ItemType = 'task' | 'idea'
+export type ItemStatus = 'inbox' | 'active' | 'done' | 'dropped'
+export type ItemPriority = 'low' | 'normal' | 'high'
+
+export interface StorageTag {
+  id: number
+  name: string
+}
+
+export interface StorageItem {
+  id: number
+  type: ItemType
+  title: string
+  description: string | null
+  status: ItemStatus
+  priority: ItemPriority | null
+  due_on: string | null
+  project_id: number | null
+  parent_id: number | null
+  is_blocker: boolean
+  completed_at: string | null
+  dropped_at: string | null
+  tags: StorageTag[]
+  children?: StorageItem[]
+}
+
+export interface StorageItemsResponse {
+  data: StorageItem[]
+  /** How much is still unsorted, computed by the Storage module. */
+  inbox_count: number
+  types: ItemType[]
+  statuses: ItemStatus[]
+  priorities: ItemPriority[]
+}
+
+export interface StorageItemPayload {
+  title?: string
+  type?: ItemType
+  description?: string | null
+  status?: ItemStatus
+  priority?: ItemPriority | null
+  due_on?: string | null
+  project_id?: number | null
+  parent_id?: number | null
+  is_blocker?: boolean
+  tags?: string[]
+}
+
+export interface StorageProject {
+  id: number
+  name: string
+  description: string | null
+  is_archived: boolean
+  archived_at: string | null
+  open_count: number
+  completed_count: number
+}
+
+export interface StorageProjectsResponse {
+  data: StorageProject[]
+}
+
+export interface StorageProjectPayload {
+  name?: string
+  description?: string | null
+  is_archived?: boolean
+}

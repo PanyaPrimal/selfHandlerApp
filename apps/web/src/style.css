@@ -815,6 +815,33 @@ input[type="range"] {
   accent-color: var(--accent);
 }
 
+.storage-page {
+  max-width: 880px;
+}
+
+.capture-form {
+  display: grid;
+  gap: 12px;
+}
+
+.storage-item {
+  display: grid;
+  gap: 14px;
+}
+
+.storage-children {
+  display: grid;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.kind-chip.is-blocker {
+  color: var(--error);
+  border-color: #ecdcd5;
+  background: var(--error-soft);
+}
+
 .body-page {
   max-width: 880px;
 }
