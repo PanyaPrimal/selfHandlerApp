@@ -63,7 +63,10 @@ return new class extends Migration
             $table->timestamp('materialized_at')->nullable();
             $table->timestamps();
 
-            $table->unique(['recurring_rule_id', 'occurrence_date', 'slot']);
+            // Named explicitly: the generated name would be 65 characters, one
+            // past MySQL's 64-character identifier limit. SQLite accepts it, so
+            // only a real MySQL migration surfaces the difference.
+            $table->unique(['recurring_rule_id', 'occurrence_date', 'slot'], 'planned_occurrences_rule_date_slot_unique');
             $table->index(['user_id', 'occurrence_date']);
         });
 
