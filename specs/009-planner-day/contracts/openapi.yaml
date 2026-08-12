@@ -1,0 +1,449 @@
+openapi: 3.1.0
+info:
+  title: SelfHandler Planner API
+  version: 1.0.0
+  description: |
+    The day surface.
+
+    Planner assembles a day from the modules that own its parts and stores only
+    one fact of its own: the time block. Everything else on a day is read
+    through the source contract, and every write goes back to the module that
+    owns the record — a skipped routine day becomes the same routine log that
+    Today writes, and a task's date is changed through Storage.
+
+    The one exception is the reschedule pointer, which is a decision about a
+    planned day rather than a fact about a routine, and so belongs here.
+
+servers:
+  - url: /api
+
+security:
+  - sessionCookie: []
+
+paths:
+  /planner/day:
+    get:
+      operationId: getPlannerDay
+      summary: Read one assembled day
+      description: |
+        Returns every entry on one calendar day, in one order, from every
+        registered source. Nothing is cached: a stored day would drift from the
+        modules the user actually edits.
+      parameters:
+        - name: date
+          in: query
+          required: false
+          description: |
+            `YYYY-MM-DD`. Defaults to the user's own today, resolved in their
+            profile time zone rather than from a UTC instant.
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: The day, which may legitimately be empty.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlannerDayResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /planner/occurrences/{occurrence}/reschedule:
+    patch:
+      operationId: reschedulePlannerOccurrence
+      summary: Move a planned routine day, or put it back
+      description: |
+        Sets `rescheduled_to`. The expanded `occurrence_date` is never
+        overwritten: it keeps what the rule produced, so the next
+        materialization does not see a missing day and recreate it as a
+        duplicate, and what was originally planned survives.
+
+        Passing `null` clears the move.
+      parameters:
+        - $ref: '#/components/parameters/OccurrenceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rescheduled_to]
+              properties:
+                rescheduled_to:
+                  type: ['string', 'null']
+                  format: date
+                  description: '`YYYY-MM-DD`, or null to put the day back.'
+      responses:
+        '200':
+          description: The updated occurrence.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PlannedOccurrence'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: |
+            The move was refused. A day that already has a result cannot be
+            moved, because moving it would claim the completion happened on
+            another date; a day cannot move into the past; and a day cannot move
+            past the materialized window.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+
+  /planner/occurrences/{occurrence}/skip:
+    put:
+      operationId: skipPlannerOccurrence
+      summary: Record that a planned routine day was skipped
+      description: |
+        A skip is a fact about the past, so it is written where such facts
+        already live: the routine log that Today writes and that progress and
+        streaks already read. No parallel planner-side skip state exists, and
+        the response is the routine log response unchanged.
+      parameters:
+        - $ref: '#/components/parameters/OccurrenceId'
+      responses:
+        '200':
+          description: The routine log, exactly as the Today endpoint returns it.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/RoutineLog'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /planner/time-blocks:
+    post:
+      operationId: createTimeBlock
+      summary: Add a time block
+      description: |
+        The one record Planner owns: an appointment or a stretch of time that
+        belongs to a single day. Overlaps are allowed — noting a conflict is
+        normal use.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimeBlockCreate'
+      responses:
+        '201':
+          description: The created block.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TimeBlock'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /planner/time-blocks/{block}:
+    patch:
+      operationId: updateTimeBlock
+      summary: Edit a time block
+      parameters:
+        - $ref: '#/components/parameters/BlockId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimeBlockUpdate'
+      responses:
+        '200':
+          description: The updated block.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TimeBlock'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    delete:
+      operationId: deleteTimeBlock
+      summary: Delete a time block
+      parameters:
+        - $ref: '#/components/parameters/BlockId'
+      responses:
+        '204':
+          description: Deleted.
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: selfhandler_session
+
+  parameters:
+    OccurrenceId:
+      name: occurrence
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    BlockId:
+      name: block
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+
+  responses:
+    Unauthenticated:
+      description: No active session.
+    NotFound:
+      description: |
+        No such record for this account. A record belonging to another account
+        is reported as missing rather than forbidden, so the API never confirms
+        that someone else's id exists.
+    ValidationError:
+      description: The request was refused, with the reason per field.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+
+  schemas:
+    PlannerSource:
+      type: string
+      description: Which module a day entry came from. Planner owns only `time_block`.
+      enum: [routine, storage, time_block]
+
+    PlannerAction:
+      type: string
+      description: |
+        What the user may do with an entry from inside the planner. An entry
+        that is already settled offers nothing.
+      enum: [skip, reschedule, move, edit, delete]
+
+    PlannerEntry:
+      type: object
+      required: [source, source_id, title, time, status, actions, meta]
+      properties:
+        source:
+          $ref: '#/components/schemas/PlannerSource'
+        source_id:
+          type: integer
+          format: int64
+          description: |
+            The id in the owning module, not a planner id: nothing is copied
+            here, so this is the record the write goes back to.
+        title:
+          type: string
+        time:
+          type: ['string', 'null']
+          pattern: '^\d{2}:\d{2}$'
+          description: '`HH:MM`, or null for an entry with no time of day.'
+        status:
+          type: string
+          description: The owning module's own status vocabulary, unchanged.
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlannerAction'
+        meta:
+          type: object
+          additionalProperties: true
+          description: |
+            Source-specific detail the day surface displays but does not
+            interpret, such as a routine's original `occurrence_date` or a
+            block's `ends_at`.
+
+    PlannerWindow:
+      type: object
+      required: [materialized_until, beyond]
+      properties:
+        materialized_until:
+          type: ['string', 'null']
+          format: date
+          description: How far routine days have been expanded.
+        beyond:
+          type: boolean
+          description: |
+            True when the requested day lies past that point. "Nothing is
+            planned" and "we have not expanded that far" are different answers,
+            and a day beyond the window must say which one it is rather than
+            looking convincingly empty.
+
+    PlannerDayResponse:
+      type: object
+      required: [date, today, entries, window, sources]
+      properties:
+        date:
+          type: string
+          format: date
+        today:
+          type: string
+          format: date
+          description: The user's own today, in their profile time zone.
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlannerEntry'
+        window:
+          $ref: '#/components/schemas/PlannerWindow'
+        sources:
+          type: array
+          description: The registered sources, so a client can tell empty from absent.
+          items:
+            $ref: '#/components/schemas/PlannerSource'
+
+    PlannedOccurrence:
+      type: object
+      required: [id, occurrence_date, rescheduled_to, status]
+      properties:
+        id:
+          type: integer
+          format: int64
+        occurrence_date:
+          type: string
+          format: date
+          description: What the rule expanded. Never overwritten by a move.
+        rescheduled_to:
+          type: ['string', 'null']
+          format: date
+        status:
+          type: string
+        routine_log_id:
+          type: ['integer', 'null']
+          format: int64
+
+    RoutineLog:
+      type: object
+      description: |
+        The existing routine log, returned unchanged. Planner adds no fields to
+        it and no endpoint of its own for reading it.
+      required: [id, routine_id, log_date, status]
+      properties:
+        id:
+          type: integer
+          format: int64
+        routine_id:
+          type: integer
+          format: int64
+        log_date:
+          type: string
+          format: date
+        status:
+          type: string
+        note:
+          type: ['string', 'null']
+        completed_at:
+          type: ['string', 'null']
+          format: date-time
+
+    TimeBlock:
+      type: object
+      required: [id, title, note, block_date, starts_at, ends_at]
+      properties:
+        id:
+          type: integer
+          format: int64
+        title:
+          type: string
+          maxLength: 200
+        note:
+          type: ['string', 'null']
+          maxLength: 500
+        block_date:
+          type: string
+          format: date
+        starts_at:
+          type: ['string', 'null']
+          pattern: '^\d{2}:\d{2}$'
+        ends_at:
+          type: ['string', 'null']
+          pattern: '^\d{2}:\d{2}$'
+
+    TimeBlockCreate:
+      type: object
+      required: [title, block_date]
+      properties:
+        title:
+          type: string
+          maxLength: 200
+        note:
+          type: ['string', 'null']
+          maxLength: 500
+        block_date:
+          type: string
+          format: date
+        starts_at:
+          type: ['string', 'null']
+          pattern: '^\d{2}:\d{2}$'
+          description: |
+            Optional: "dentist, Tuesday" is a real entry before the time is
+            known.
+        ends_at:
+          type: ['string', 'null']
+          pattern: '^\d{2}:\d{2}$'
+          description: Must not be earlier than `starts_at`.
+
+    TimeBlockUpdate:
+      type: object
+      description: Any subset of the create fields.
+      properties:
+        title:
+          type: string
+          maxLength: 200
+        note:
+          type: ['string', 'null']
+          maxLength: 500
+        block_date:
+          type: string
+          format: date
+        starts_at:
+          type: ['string', 'null']
+          pattern: '^\d{2}:\d{2}$'
+        ends_at:
+          type: ['string', 'null']
+          pattern: '^\d{2}:\d{2}$'
+
+    ValidationError:
+      type: object
+      required: [message, errors]
+      properties:
+        message:
+          type: string
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string

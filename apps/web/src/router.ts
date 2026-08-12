@@ -8,6 +8,7 @@ import StorageView from './views/StorageView.vue'
 import ChangelogView from './views/ChangelogView.vue'
 import GoalsView from './views/GoalsView.vue'
 import LoginView from './views/LoginView.vue'
+import PlannerView from './views/PlannerView.vue'
 import RegisterView from './views/RegisterView.vue'
 import ReviewView from './views/ReviewView.vue'
 import RoutinesView from './views/RoutinesView.vue'
@@ -59,6 +60,11 @@ export const router = createRouter({
           path: 'review/:date?',
           name: 'review',
           component: ReviewView,
+        },
+        {
+          path: 'planner',
+          name: 'planner',
+          component: PlannerView,
         },
         {
           path: 'storage',

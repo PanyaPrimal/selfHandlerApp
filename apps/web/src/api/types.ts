@@ -420,3 +420,57 @@ export interface StorageProjectPayload {
   description?: string | null
   is_archived?: boolean
 }
+
+/* ------------------------------------------------------------------ */
+/* Planner                                                            */
+/* ------------------------------------------------------------------ */
+
+/** Which module a day entry came from. Planner owns only `time_block`. */
+export type PlannerSource = 'routine' | 'storage' | 'time_block'
+
+/** What the user may do with an entry from inside the planner. */
+export type PlannerAction = 'skip' | 'reschedule' | 'move' | 'edit' | 'delete'
+
+export interface PlannerEntry {
+  source: PlannerSource
+  /** The id in the owning module, not a planner id: nothing is copied here. */
+  source_id: number
+  title: string
+  /** `HH:MM`, or null for an entry with no time of day. */
+  time: string | null
+  status: string
+  actions: PlannerAction[]
+  meta: Record<string, unknown>
+}
+
+export interface PlannerWindow {
+  /** How far routine days have been expanded, as `YYYY-MM-DD`. */
+  materialized_until: string | null
+  /** True when the day asked for lies past that point. */
+  beyond: boolean
+}
+
+export interface PlannerDayResponse {
+  date: string
+  today: string
+  entries: PlannerEntry[]
+  window: PlannerWindow
+  sources: PlannerSource[]
+}
+
+export interface TimeBlock {
+  id: number
+  title: string
+  note: string | null
+  block_date: string
+  starts_at: string | null
+  ends_at: string | null
+}
+
+export interface TimeBlockPayload {
+  title?: string
+  note?: string | null
+  block_date?: string
+  starts_at?: string | null
+  ends_at?: string | null
+}

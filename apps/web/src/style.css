@@ -842,6 +842,88 @@ input[type="range"] {
   background: var(--error-soft);
 }
 
+.planner-page {
+  max-width: 880px;
+}
+
+.planner-dates {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.planner-dates > button {
+  flex: 0 0 auto;
+}
+
+.planner-list {
+  display: grid;
+  gap: 12px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.planner-entry {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.planner-entry__main {
+  display: flex;
+  gap: 14px;
+  align-items: baseline;
+}
+
+/* The time column is fixed so the titles line up down the day. */
+.planner-entry__time {
+  flex: 0 0 auto;
+  min-width: 68px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.planner-entry__body {
+  /* Without this a long unbroken title forces the whole row wider than 390px. */
+  min-width: 0;
+}
+
+.planner-entry__body strong {
+  overflow-wrap: anywhere;
+}
+
+.planner-entry__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.planner-move,
+.planner-block-form {
+  display: grid;
+  gap: 12px;
+}
+
+@media (max-width: 480px) {
+  /* On a phone the time reads better above the title than beside it. */
+  .planner-entry__main {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .planner-entry__time {
+    min-width: 0;
+  }
+
+  .planner-dates > button {
+    flex: 1 1 auto;
+  }
+}
+
 .body-page {
   max-width: 880px;
 }

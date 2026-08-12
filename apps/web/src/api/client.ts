@@ -13,6 +13,7 @@ import type {
   GoalUpdatePayload,
   ItemResponse,
   ListResponse,
+  PlannerDayResponse,
   ProfileInput,
   ProfileResponse,
   Routine,
@@ -25,6 +26,8 @@ import type {
   StorageProject,
   StorageProjectPayload,
   StorageProjectsResponse,
+  TimeBlock,
+  TimeBlockPayload,
   TodayResponse,
 } from './types'
 import { jsonRequest, request } from './http'
@@ -221,4 +224,34 @@ export async function createStorageProject(payload: StorageProjectPayload): Prom
 
 export function deleteStorageProject(projectId: number): Promise<void> {
   return request<void>(`/storage/projects/${projectId}`, { method: 'DELETE' })
+}
+
+export function getPlannerDay(date?: string): Promise<PlannerDayResponse> {
+  const query = date ? `?date=${encodeURIComponent(date)}` : ''
+  return request<PlannerDayResponse>(`/planner/day${query}`)
+}
+
+/** Move a planned routine day, or pass `null` to put it back where it was. */
+export function reschedulePlannerOccurrence(occurrenceId: number, rescheduledTo: string | null): Promise<unknown> {
+  return jsonRequest<unknown>(`/planner/occurrences/${occurrenceId}/reschedule`, 'PATCH', {
+    rescheduled_to: rescheduledTo,
+  })
+}
+
+export function skipPlannerOccurrence(occurrenceId: number): Promise<unknown> {
+  return jsonRequest<unknown>(`/planner/occurrences/${occurrenceId}/skip`, 'PUT', {})
+}
+
+export async function createTimeBlock(payload: TimeBlockPayload): Promise<TimeBlock> {
+  const response = await jsonRequest<ItemResponse<TimeBlock>>('/planner/time-blocks', 'POST', payload)
+  return response.data
+}
+
+export async function updateTimeBlock(blockId: number, payload: TimeBlockPayload): Promise<TimeBlock> {
+  const response = await jsonRequest<ItemResponse<TimeBlock>>(`/planner/time-blocks/${blockId}`, 'PATCH', payload)
+  return response.data
+}
+
+export function deleteTimeBlock(blockId: number): Promise<void> {
+  return request<void>(`/planner/time-blocks/${blockId}`, { method: 'DELETE' })
 }

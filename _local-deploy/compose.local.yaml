@@ -134,6 +134,29 @@ services:
       retries: 6
       start_period: 15s
 
+  # Keeps the recurrence window ahead of the user. Without a process running
+  # the scheduler, `recurrence:materialize` never fires and a future day
+  # silently stops being plannable.
+  scheduler:
+    <<: *runtime-defaults
+    image: selfhandler-local-app:latest
+    user: "82:82"
+    environment: *app-env
+    command: ["php", "artisan", "schedule:work"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - private_files:/app/storage/app/private
+    tmpfs:
+      - /tmp:uid=82,gid=82,mode=1770
+      - /app/bootstrap/cache:uid=82,gid=82,mode=0750
+      - /app/storage/framework:uid=82,gid=82,mode=0750
+      - /app/storage/logs:uid=82,gid=82,mode=0750
+    networks:
+      - app
+      - data
+
   web:
     <<: *runtime-defaults
     image: selfhandler-local-web:latest

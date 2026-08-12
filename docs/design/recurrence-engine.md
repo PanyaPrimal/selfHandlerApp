@@ -136,11 +136,35 @@ erDiagram
    single-slot day) so it can take part in the uniqueness key, which `NULL` cannot on MySQL;
    `occurrence_time` carries the time itself.
 
+**Resolved by feature `009-planner-day` (2026-08-12):**
+
+6. **How the Planner aggregates a day across modules** — a read-only source contract, not a shared
+   occurrence table. `App\Contracts\SchedulableSource` is `name()` plus
+   `entriesFor(User $user, string $date): array`, and each source returns `App\Support\PlannerEntry`
+   values carrying the owning module's own id and status vocabulary. `SourceRegistry` lists the
+   implementations and `DayAssembler` merges and orders them on every read.
+
+   Three consequences worth stating, because they are what the contract is for:
+
+   - **A source reads. Every write goes back to the module that owns the record.** Skipping a routine
+     day writes the routine log Today already writes, so progress and streaks need no planner-specific
+     branch; moving a task changes its due date through Storage. Planner keeps no parallel copy of
+     either, which is why a day is assembled on every read rather than cached.
+   - **The one exception is `planned_occurrences.rescheduled_to`.** A reschedule is a decision about a
+     planned day rather than a fact about a routine, so it lives on the occurrence. It is a separate
+     nullable column beside `occurrence_date`, never a replacement: overwriting the expanded date would
+     make the next materialization see a missing day and recreate it as a duplicate, and would erase
+     what was originally planned.
+   - **A moved day is intent, and materialization must not delete it.** The stale-day sweep already
+     spared occurrences linked to a fact; feature 009 extended it to spare rescheduled ones too. Without
+     that, narrowing a rule would silently drop a day the user had deliberately moved somewhere else.
+
+   Only Planner reads through the contract. A module adding itself to a day implements the interface and
+   registers; nothing about the recurrence engine changes.
+
 **Still open, each waiting for a consumer:**
 
 3. `payload` (JSON on the rule) vs. storing domain data only in the polymorphic owner. Feature 006 needs
    neither, so it added neither.
 4. The supported subset of `rrule` at launch. Feature 006 implements `daily` and `weekly` only; interval,
    monthly, month-days, on/off cycles and multi-slot days arrive with the module that needs them.
-6. How the Planner (Module 5) aggregates occurrences from all modules into a single calendar — a
-   `Schedulable` view/contract.

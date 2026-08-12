@@ -47,7 +47,7 @@ class RecurrenceMaterializer
             $existing = PlannedOccurrence::query()
                 ->where('recurring_rule_id', $rule->id)
                 ->whereBetween('occurrence_date', [$from, $to])
-                ->get(['id', 'occurrence_date', 'routine_log_id']);
+                ->get(['id', 'occurrence_date', 'rescheduled_to', 'routine_log_id']);
 
             $known = $existing->pluck('occurrence_date')
                 ->map(fn ($date): string => $date->format('Y-m-d'))
@@ -76,10 +76,13 @@ class RecurrenceMaterializer
                 );
             }
 
-            // A day the rule no longer produces is removed, unless it is already
-            // linked to a fact: that link is evidence, not a prediction.
+            // A day the rule no longer produces is removed, unless the user has
+            // already put something of their own on it: a link to a fact is
+            // evidence, and a reschedule is a decision they made about a
+            // specific day. Neither is a prediction this run may overwrite.
             $stale = $existing
                 ->filter(fn (PlannedOccurrence $occurrence): bool => $occurrence->routine_log_id === null
+                    && $occurrence->rescheduled_to === null
                     && ! in_array($occurrence->occurrence_date->format('Y-m-d'), $wanted, true))
                 ->modelKeys();
 

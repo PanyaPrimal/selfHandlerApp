@@ -33,6 +33,7 @@ class PlannedOccurrence extends Model
         'user_id',
         'recurring_rule_id',
         'occurrence_date',
+        'rescheduled_to',
         'slot',
         'occurrence_time',
         'status',
@@ -61,6 +62,7 @@ class PlannedOccurrence extends Model
     {
         return [
             'occurrence_date' => 'date:Y-m-d',
+            'rescheduled_to' => 'date:Y-m-d',
             'materialized_at' => 'datetime',
         ];
     }

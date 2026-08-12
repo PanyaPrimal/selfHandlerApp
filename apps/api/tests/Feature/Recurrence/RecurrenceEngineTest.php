@@ -180,6 +180,40 @@ class RecurrenceEngineTest extends RecurrenceTestCase
         $this->assertNotContains('2026-08-12', $remaining, 'An unmarked day the rule dropped is removed.');
     }
 
+    public function test_a_moved_day_is_intent_and_survives_materialization(): void
+    {
+        $owner = $this->createUser();
+        $routine = $this->createRoutine($owner);
+        $rule = $this->ruleFor($routine);
+
+        $this->materializer()->materialize($rule, self::TODAY);
+
+        $moved = PlannedOccurrence::query()
+            ->where('recurring_rule_id', $rule->id)
+            ->where('occurrence_date', '2026-08-11')
+            ->firstOrFail();
+
+        $moved->forceFill(['rescheduled_to' => '2026-08-20'])->save();
+
+        // Re-running with the day still expanded must not disturb the move.
+        $this->materializer()->materialize($rule->fresh(), self::TODAY);
+        $this->assertSame('2026-08-20', $moved->fresh()->rescheduled_to?->format('Y-m-d'));
+
+        // Now narrow the rule so the original day no longer expands. The user
+        // deliberately moved that day; deleting it would silently drop the
+        // commitment from the date they moved it to.
+        $rule->update(['ends_on' => self::TODAY]);
+        $this->materializer()->materialize($rule->fresh(), self::TODAY);
+
+        $survivor = PlannedOccurrence::query()->find($moved->id);
+
+        $this->assertNotNull($survivor, 'A day the user moved is intent, not a prediction.');
+        $this->assertSame('2026-08-20', $survivor->rescheduled_to?->format('Y-m-d'));
+
+        // A day that was neither moved nor logged is still dropped as before.
+        $this->assertNotContains('2026-08-12', $this->windowDates($rule->fresh()));
+    }
+
     public function test_materialization_uses_a_bounded_number_of_queries(): void
     {
         $owner = $this->createUser();

@@ -24,6 +24,7 @@ const primaryDestinations: Destination[] = [
 ]
 
 const secondaryDestinations: Destination[] = [
+  { name: 'planner', to: '/planner', label: 'Planner' },
   { name: 'storage', to: '/storage', label: 'Storage' },
   { name: 'body', to: '/body', label: 'Body' },
   { name: 'account', to: '/account', label: 'Account' },

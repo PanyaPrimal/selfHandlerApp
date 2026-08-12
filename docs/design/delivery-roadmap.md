@@ -200,6 +200,9 @@ extraction. Add those only when their next real consumer exists.
 
 ### 009 — Planner and Day Planning
 
+**Status:** Complete on 2026-08-12 (`29/29` tasks). Answers open question 6 of the recurrence engine
+with a read-only `SchedulableSource` contract; see `specs/009-planner-day/tasks.md` for evidence.
+
 **User outcome:** the user plans a day using manual time blocks, recurring occurrences, routines, and
 dated Storage tasks in one place.
 

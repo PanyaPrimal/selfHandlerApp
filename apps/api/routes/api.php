@@ -6,10 +6,12 @@ use App\Http\Controllers\DailyReviewController;
 use App\Http\Controllers\GoalController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\ItemController;
+use App\Http\Controllers\PlannerController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\RoutineController;
 use App\Http\Controllers\RoutineLogController;
+use App\Http\Controllers\TimeBlockController;
 use App\Http\Controllers\TodayController;
 use Illuminate\Support\Facades\Route;
 
@@ -38,6 +40,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/body/goals', [BodyGoalController::class, 'index']);
     Route::post('/body/goals', [BodyGoalController::class, 'store']);
     Route::patch('/body/goals/{goal}', [BodyGoalController::class, 'update']);
+
+    Route::get('/planner/day', [PlannerController::class, 'day']);
+    Route::patch('/planner/occurrences/{occurrence}/reschedule', [PlannerController::class, 'reschedule']);
+    Route::put('/planner/occurrences/{occurrence}/skip', [PlannerController::class, 'skip']);
+
+    Route::post('/planner/time-blocks', [TimeBlockController::class, 'store']);
+    Route::patch('/planner/time-blocks/{block}', [TimeBlockController::class, 'update']);
+    Route::delete('/planner/time-blocks/{block}', [TimeBlockController::class, 'destroy']);
 
     Route::get('/storage/items', [ItemController::class, 'index']);
     Route::post('/storage/items', [ItemController::class, 'store']);
