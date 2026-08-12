@@ -32,12 +32,15 @@ export interface User {
 
 export type ThemeScheme = 'light' | 'dark' | 'system'
 export type ThemeAccent = 'forest' | 'slate' | 'gold' | 'brick' | 'custom'
+export type ThemeBackground = 'paper' | 'sand' | 'mist' | 'sage' | 'custom'
 export type ThemeMotion = 'system' | 'reduce'
 
 export interface ThemePreferences {
   scheme: ThemeScheme
   accent: ThemeAccent
   accent_hex: string
+  background: ThemeBackground
+  background_hex: string
   texture: boolean
   mono_numerals: boolean
   motion: ThemeMotion
@@ -80,8 +83,11 @@ export interface ProfileInput extends Omit<Profile, 'user' | 'calculation_ready'
   name: string
 }
 
-export interface ThemePreferencesPayload {
-  preferences: { theme: ThemePreferences }
+export interface PreferencesPayload {
+  preferences: {
+    locale?: ProfileLocale
+    theme?: ThemePreferences
+  }
 }
 
 export interface ProfileOptions {

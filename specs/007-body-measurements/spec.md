@@ -272,7 +272,7 @@ underlying quantity is shown converted, then convert back with no drift.
 
 ### Out of Scope
 
-Body photos and any attachment (waits for feature 020), reminders and notifications (feature 010),
+Body photos and any attachment (waits for feature 021), reminders and notifications (feature 011),
 AI interpretation, nutrition and workout recommendations, medical diagnosis, wearable and Apple
 Health/Google Fit import, complex analytics dashboards, and any automatic overwrite of the Profile
 baseline.

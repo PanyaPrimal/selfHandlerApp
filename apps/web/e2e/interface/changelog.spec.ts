@@ -6,7 +6,7 @@ test('the changelog opens directly, survives reload, and is ordered newest first
   await registerViaUi(page, uniqueCredentials(testInfo, 'Changelog'))
 
   await page.goto('/changelog')
-  await expect(page.getByRole('heading', { name: 'Что нового в SelfHandler' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'What is new in SelfHandler' })).toBeVisible()
 
   const dates = await page.locator('.changelog-entry time').evaluateAll((nodes) =>
     nodes.map((node) => node.getAttribute('datetime') ?? ''),
@@ -18,10 +18,10 @@ test('the changelog opens directly, survives reload, and is ordered newest first
   // Each entry carries the three things the reader needs.
   const first = page.locator('.changelog-entry').first()
   await expect(first.getByRole('heading')).toBeVisible()
-  await expect(first.getByText('Как проверить')).toBeVisible()
+  await expect(first.getByText('How to test')).toBeVisible()
 
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'Что нового в SelfHandler' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'What is new in SelfHandler' })).toBeVisible()
   await expectNoHorizontalOverflow(page)
 })
 
@@ -29,7 +29,7 @@ test('changelog links navigate into the application', async ({ page }, testInfo)
   await registerViaUi(page, uniqueCredentials(testInfo, 'ChangelogLinks'))
 
   await page.goto('/changelog')
-  await page.locator('.changelog-entry').filter({ hasText: 'Профиль и настройки' }).getByRole('link', { name: 'Account' }).click()
+  await page.locator('.changelog-entry').filter({ hasText: 'Profile and settings' }).getByRole('link', { name: 'Account' }).click()
 
   await expect(page).toHaveURL('/account')
   await expect(page.getByRole('heading', { name: 'Your personal baseline' })).toBeVisible()

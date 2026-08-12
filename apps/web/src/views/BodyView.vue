@@ -22,6 +22,8 @@ import type { UiOption } from '../components/ui'
 import { useAuthSession } from '../auth/session'
 import { formatCalendarDate } from '../lib/format'
 import { displayUnit, toCanonical, toDisplay } from '../lib/bodyUnits'
+import { useI18n } from '../i18n'
+import type { MessageKey } from '../i18n/locales/en'
 import type {
   BodyGoal,
   BodyGoalDirection,
@@ -33,7 +35,8 @@ import type {
 } from '../api/types'
 
 const session = useAuthSession()
-const locale = computed(() => session.user?.preferences.locale ?? 'en-GB')
+const i18n = useI18n()
+const locale = i18n.locale
 const unitSystem = computed(() => session.user?.preferences.unit_system ?? 'metric')
 
 const isLoading = ref(true)
@@ -63,8 +66,14 @@ const goalForm = ref({
   target_date: null as string | null,
 })
 
+const metricKeys: Record<BodyMetricKey, MessageKey> = {
+  body_mass: 'body.metric.bodyMass', body_fat_percentage: 'body.metric.bodyFat',
+  waist: 'body.metric.waist', chest: 'body.metric.chest', hips: 'body.metric.hips',
+  thigh: 'body.metric.thigh', upper_arm: 'body.metric.upperArm', neck: 'body.metric.neck', calf: 'body.metric.calf',
+}
+const metricLabel = (metric: BodyMetricKey): string => i18n.t(metricKeys[metric])
 const metricOptions = computed<UiOption<BodyMetricKey>[]>(() =>
-  metrics.value.map((metric) => ({ value: metric.value, label: metric.label })),
+  metrics.value.map((metric) => ({ value: metric.value, label: metricLabel(metric.value) })),
 )
 
 const activeMetric = computed(
@@ -75,11 +84,14 @@ const unitLabel = computed(() =>
   activeMetric.value ? displayUnit(activeMetric.value, unitSystem.value) : '',
 )
 
-const directionOptions: UiOption<BodyGoalDirection>[] = [
-  { value: 'lose', label: 'Lose' },
-  { value: 'maintain', label: 'Maintain' },
-  { value: 'gain', label: 'Gain' },
-]
+const directionOptions = computed<UiOption<BodyGoalDirection>[]>(() => [
+  { value: 'lose', label: i18n.t('body.lose') },
+  { value: 'maintain', label: i18n.t('body.maintain') },
+  { value: 'gain', label: i18n.t('body.gain') },
+])
+const directionLabel = (direction: BodyGoalDirection | undefined): string => direction
+  ? directionOptions.value.find((option) => option.value === direction)?.label ?? direction
+  : ''
 
 const history = computed(() =>
   measurements.value
@@ -130,7 +142,7 @@ async function load(): Promise<void> {
     goals.value = goalList.data
     await refreshTrend()
   } catch {
-    loadError.value = 'Could not load your body history. Check the service and try again.'
+    loadError.value = i18n.t('body.loadFailed')
   } finally {
     isLoading.value = false
   }
@@ -158,7 +170,7 @@ async function saveMeasurement(): Promise<void> {
     const canonical = toCanonical(entryValue.value, activeMetric.value, unitSystem.value)
 
     if (canonical === null) {
-      fieldErrors.value = { value: ['Enter a value first.'] }
+      fieldErrors.value = { value: [i18n.t('body.valueRequired')] }
       return
     }
 
@@ -168,14 +180,14 @@ async function saveMeasurement(): Promise<void> {
       value: canonical,
     })
 
-    feedback.value = 'Measurement saved.'
+    feedback.value = i18n.t('body.measurementSaved')
     entryValue.value = null
     await load()
   } catch (currentError) {
     fieldErrors.value = validationErrors(currentError)
 
     if (Object.keys(fieldErrors.value).length === 0) {
-      error.value = 'Could not save the measurement. Your entry is still here; please try again.'
+      error.value = i18n.t('body.measurementSaveFailed')
     }
   } finally {
     isSaving.value = false
@@ -187,10 +199,10 @@ async function removeMeasurement(measurement: BodyMeasurement): Promise<void> {
 
   try {
     await deleteBodyMeasurement(measurement.id)
-    feedback.value = 'Measurement deleted.'
+    feedback.value = i18n.t('body.measurementDeleted')
     await load()
   } catch {
-    error.value = 'Could not delete that measurement. Please try again.'
+    error.value = i18n.t('body.measurementDeleteFailed')
   }
 }
 
@@ -215,7 +227,7 @@ async function saveGoal(): Promise<void> {
     })
 
     goalWarnings.value = response.warnings
-    feedback.value = 'Body goal saved.'
+    feedback.value = i18n.t('body.goalSaved')
     goalOpen.value = false
     goalForm.value = {
       name: '',
@@ -229,7 +241,7 @@ async function saveGoal(): Promise<void> {
     fieldErrors.value = validationErrors(currentError)
 
     if (Object.keys(fieldErrors.value).length === 0) {
-      error.value = 'Could not save the goal. Your draft is still here; please try again.'
+      error.value = i18n.t('body.goalSaveFailed')
     }
   } finally {
     isSaving.value = false
@@ -247,9 +259,9 @@ onMounted(load)
   <section class="view-stack body-page">
     <header class="view-header">
       <div>
-        <p class="eyebrow">Body</p>
-        <h1>Measurements and body goals</h1>
-        <p class="muted">Dated observations, a deterministic trend, and progress toward a target.</p>
+        <p class="eyebrow">{{ i18n.t('body.eyebrow') }}</p>
+        <h1>{{ i18n.t('body.title') }}</h1>
+        <p class="muted">{{ i18n.t('body.subtitle') }}</p>
       </div>
     </header>
 
@@ -259,19 +271,19 @@ onMounted(load)
     <AsyncState
       :loading="isLoading"
       :error="loadError"
-      loading-title="Loading body history…"
+      :loading-title="i18n.t('body.loading')"
       panel
       @retry="load"
     >
       <section class="panel" aria-labelledby="body-entry-heading">
         <div class="section-heading">
-          <h2 id="body-entry-heading">Record a measurement</h2>
+          <h2 id="body-entry-heading">{{ i18n.t('body.record') }}</h2>
         </div>
 
-        <form class="form-grid" aria-label="Record a measurement" novalidate @submit.prevent="saveMeasurement">
+        <form class="form-grid" :aria-label="i18n.t('body.record')" novalidate @submit.prevent="saveMeasurement">
           <UiSelect
             v-model="selectedMetric"
-            label="Metric"
+            :label="i18n.t('body.metric')"
             name="metric"
             :options="metricOptions"
             :error="fieldErrors.metric?.[0]"
@@ -279,7 +291,7 @@ onMounted(load)
 
           <UiDatePicker
             v-model="entryDate"
-            label="Measured on"
+            :label="i18n.t('body.measuredOn')"
             name="measured_on"
             :locale="locale"
             :today="today"
@@ -289,17 +301,17 @@ onMounted(load)
 
           <UiNumberInput
             v-model="entryValue"
-            label="Value"
+            :label="i18n.t('body.value')"
             name="value"
             :step="0.1"
             :suffix="unitLabel"
-            :helper="`Entered and shown in ${unitLabel}. Stored exactly as you typed it.`"
+            :helper="i18n.t('body.valueHelp', { unit: unitLabel })"
             :error="fieldErrors.value?.[0]"
           />
 
           <div class="form-actions wide-field">
             <button type="submit" :disabled="isSaving">
-              {{ isSaving ? 'Saving…' : 'Save measurement' }}
+              {{ i18n.t(isSaving ? 'common.saving' : 'body.saveMeasurement') }}
             </button>
           </div>
         </form>
@@ -307,29 +319,29 @@ onMounted(load)
 
       <section class="panel" aria-labelledby="body-trend-heading">
         <div class="section-heading">
-          <h2 id="body-trend-heading">Trend</h2>
-          <span class="kind-chip">{{ activeMetric?.label }}</span>
+          <h2 id="body-trend-heading">{{ i18n.t('body.trend') }}</h2>
+          <span class="kind-chip">{{ activeMetric ? metricLabel(activeMetric.value) : '' }}</span>
         </div>
 
         <p v-if="!trend || trend.state === 'empty'" class="muted">
-          No measurements yet for this metric. Record one above and the history will start here.
+          {{ i18n.t('body.trendEmpty') }}
         </p>
         <p v-else-if="trend.state === 'insufficient'" class="muted">
-          One measurement so far. A second one is needed before a direction can be calculated.
+          {{ i18n.t('body.trendInsufficient') }}
         </p>
         <div v-else class="summary-grid">
           <div class="metric">
-            <span>Change per week</span>
+            <span>{{ i18n.t('body.changePerWeek') }}</span>
             <strong>{{ trendPerWeek !== null && trendPerWeek > 0 ? '+' : '' }}{{ trendPerWeek }}</strong>
             <span>{{ unitLabel }}</span>
           </div>
           <div class="metric">
-            <span>First</span>
+            <span>{{ i18n.t('body.first') }}</span>
             <strong>{{ showCanonical(trend.first?.value ?? null) }}</strong>
             <span>{{ formatCalendarDate(trend.first?.measured_on, locale) }}</span>
           </div>
           <div class="metric">
-            <span>Latest</span>
+            <span>{{ i18n.t('body.latest') }}</span>
             <strong>{{ showCanonical(trend.last?.value ?? null) }}</strong>
             <span>{{ formatCalendarDate(trend.last?.measured_on, locale) }}</span>
           </div>
@@ -338,9 +350,9 @@ onMounted(load)
 
       <section class="panel" aria-labelledby="body-goal-heading">
         <div class="section-heading">
-          <h2 id="body-goal-heading">Body goals</h2>
+          <h2 id="body-goal-heading">{{ i18n.t('body.goals') }}</h2>
           <button type="button" class="secondary" @click="goalOpen = !goalOpen">
-            {{ goalOpen ? 'Cancel' : 'Add a body goal' }}
+            {{ i18n.t(goalOpen ? 'common.cancel' : 'body.addGoal') }}
           </button>
         </div>
 
@@ -348,10 +360,10 @@ onMounted(load)
           {{ warning.message }}
         </div>
 
-        <form v-if="goalOpen" class="form-grid" aria-label="Create body goal" novalidate @submit.prevent="saveGoal">
+        <form v-if="goalOpen" class="form-grid" :aria-label="i18n.t('body.createGoal')" novalidate @submit.prevent="saveGoal">
           <UiTextInput
             v-model="goalForm.name"
-            label="Goal name"
+            :label="i18n.t('body.goalName')"
             name="name"
             :maxlength="160"
             required
@@ -359,13 +371,13 @@ onMounted(load)
           />
           <UiSegmented
             v-model="goalForm.direction"
-            label="Direction"
+            :label="i18n.t('body.direction')"
             name="direction"
             :options="directionOptions"
           />
           <UiNumberInput
             v-model="goalForm.starting_value"
-            label="Starting value"
+            :label="i18n.t('body.startingValue')"
             name="starting_value"
             :step="0.1"
             :suffix="unitLabel"
@@ -373,7 +385,7 @@ onMounted(load)
           />
           <UiNumberInput
             v-model="goalForm.target_value"
-            label="Target value"
+            :label="i18n.t('body.targetValue')"
             name="target_value"
             :step="0.1"
             :suffix="unitLabel"
@@ -381,7 +393,7 @@ onMounted(load)
           />
           <UiDatePicker
             v-model="goalForm.target_date"
-            label="Target date"
+            :label="i18n.t('body.targetDate')"
             name="target_date"
             :locale="locale"
             :today="today"
@@ -389,30 +401,30 @@ onMounted(load)
             :error="fieldErrors.target_date?.[0]"
           />
           <div class="form-actions wide-field">
-            <button type="submit" :disabled="isSaving">{{ isSaving ? 'Saving…' : 'Save body goal' }}</button>
+            <button type="submit" :disabled="isSaving">{{ i18n.t(isSaving ? 'common.saving' : 'body.saveGoal') }}</button>
           </div>
         </form>
 
         <p v-if="goalsForMetric.length === 0" class="muted">
-          No body goal for this metric yet.
+          {{ i18n.t('body.noGoal') }}
         </p>
         <ul v-else class="item-list">
           <li v-for="goal in goalsForMetric" :key="goal.id" class="body-goal" :aria-label="goal.name">
             <div class="meta-row">
               <strong>{{ goal.name }}</strong>
-              <span class="kind-chip">{{ goal.body?.direction }}</span>
+              <span class="kind-chip">{{ directionLabel(goal.body?.direction) }}</span>
             </div>
             <p class="muted">
               {{ showCanonical(goal.body?.starting_value ?? null) }}
               →
               {{ showCanonical(goal.body?.target_value ?? null) }}
-              <span v-if="goal.target_date"> · by {{ formatCalendarDate(goal.target_date, locale) }}</span>
+              <span v-if="goal.target_date"> · {{ i18n.t('body.byDate', { date: formatCalendarDate(goal.target_date, locale) }) }}</span>
             </p>
 
             <p v-if="goal.body?.progress === null" class="muted">
-              No measurement for this metric yet, so there is nothing to measure progress against.
+              {{ i18n.t('body.noProgress') }}
             </p>
-            <div v-else class="progress-track" role="img" :aria-label="`Progress ${Math.round((goal.body?.progress ?? 0) * 100)}%`">
+            <div v-else class="progress-track" role="img" :aria-label="i18n.t('body.progress', { value: Math.round((goal.body?.progress ?? 0) * 100) })">
               <div class="progress-fill" :style="{ width: `${(goal.body?.progress ?? 0) * 100}%` }"></div>
             </div>
 
@@ -432,10 +444,10 @@ onMounted(load)
 
       <section class="panel" aria-labelledby="body-history-heading">
         <div class="section-heading">
-          <h2 id="body-history-heading">History</h2>
+          <h2 id="body-history-heading">{{ i18n.t('body.history') }}</h2>
         </div>
 
-        <p v-if="history.length === 0" class="muted">Nothing recorded for this metric yet.</p>
+        <p v-if="history.length === 0" class="muted">{{ i18n.t('body.historyEmpty') }}</p>
         <ul v-else class="item-list">
           <li v-for="measurement in history" :key="measurement.id" class="management-row">
             <div class="management-copy">
@@ -446,9 +458,9 @@ onMounted(load)
               <button
                 type="button"
                 class="secondary"
-                :aria-label="`Delete measurement from ${measurement.measured_on}`"
+                :aria-label="i18n.t('body.deleteMeasurementOn', { date: measurement.measured_on })"
                 @click="removeMeasurement(measurement)"
-              >Delete</button>
+              >{{ i18n.t('common.delete') }}</button>
             </div>
           </li>
         </ul>

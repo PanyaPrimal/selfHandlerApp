@@ -2,11 +2,14 @@
 import { ref } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { restoreSession, useAuthSession } from './auth/session'
+import GlobalPreferences from './components/GlobalPreferences.vue'
+import { useI18n } from './i18n'
 
 const session = useAuthSession()
 const route = useRoute()
 const router = useRouter()
 const isRetrying = ref(false)
+const { t } = useI18n()
 
 async function retrySession(): Promise<void> {
   if (isRetrying.value) {
@@ -31,6 +34,7 @@ async function retrySession(): Promise<void> {
 </script>
 
 <template>
+  <GlobalPreferences />
   <main v-if="session.status === 'checking'" class="auth-shell" aria-live="polite" aria-busy="true">
     <section class="auth-card startup-card">
       <span class="brand auth-brand">
@@ -39,7 +43,7 @@ async function retrySession(): Promise<void> {
       </span>
       <div class="skeleton-line" style="width: 48%"></div>
       <div class="skeleton-line" style="width: 82%"></div>
-      <p class="muted">Restoring your session...</p>
+      <p class="muted">{{ t('app.restoringSession') }}</p>
     </section>
   </main>
 
@@ -50,10 +54,10 @@ async function retrySession(): Promise<void> {
         <span>SELFHANDLER</span>
       </span>
       <div class="state-icon startup-error" aria-hidden="true">!</div>
-      <h1>SelfHandler is unavailable</h1>
-      <p class="muted">We could not confirm your session. Check the service and try again.</p>
+      <h1>{{ t('app.unavailableTitle') }}</h1>
+      <p class="muted">{{ t('app.unavailableBody') }}</p>
       <button type="button" :disabled="isRetrying" @click="retrySession">
-        {{ isRetrying ? 'Retrying...' : 'Retry' }}
+        {{ isRetrying ? t('app.retrying') : t('common.retry') }}
       </button>
     </section>
   </main>
@@ -63,7 +67,7 @@ async function retrySession(): Promise<void> {
     class="auth-shell"
     aria-live="polite"
   >
-    <p class="muted">Returning to sign in...</p>
+    <p class="muted">{{ t('app.returningToSignIn') }}</p>
   </main>
 
   <RouterView v-else />

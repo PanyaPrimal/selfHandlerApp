@@ -7,7 +7,8 @@ import {
 } from '../api/auth'
 import { ApiError, resetCsrfProtection } from '../api/http'
 import type { LoginPayload, RegisterPayload, User } from '../api/types'
-import { clearAccountTheme, syncThemeFromProfile } from '../theme'
+import { syncThemeFromProfile } from '../theme'
+import { syncLocaleFromProfile } from '../i18n'
 
 export type SessionStatus = 'checking' | 'authenticated' | 'guest' | 'unavailable'
 
@@ -36,6 +37,7 @@ function replaceUser(user: User | null, status: SessionStatus): void {
 
   if (user) {
     syncThemeFromProfile(user.preferences.theme)
+    syncLocaleFromProfile(user.preferences.locale)
   }
 
   if (previousUserId !== nextUserId) {
@@ -45,7 +47,6 @@ function replaceUser(user: User | null, status: SessionStatus): void {
 
 function becomeGuest(): void {
   replaceUser(null, 'guest')
-  clearAccountTheme()
   resetCsrfProtection()
 }
 

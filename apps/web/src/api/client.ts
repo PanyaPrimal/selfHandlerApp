@@ -29,7 +29,7 @@ import type {
   TimeBlock,
   TimeBlockPayload,
   TodayResponse,
-  ThemePreferencesPayload,
+  PreferencesPayload,
 } from './types'
 import { jsonRequest, request } from './http'
 
@@ -46,8 +46,12 @@ export function updateProfile(payload: ProfileInput): Promise<ProfileResponse> {
   return jsonRequest<ProfileResponse>('/profile', 'PUT', payload)
 }
 
-export function updateThemePreferences(payload: ThemePreferencesPayload): Promise<ProfileResponse> {
+export function updatePreferences(payload: PreferencesPayload): Promise<ProfileResponse> {
   return jsonRequest<ProfileResponse>('/profile', 'PATCH', payload)
+}
+
+export function updateThemePreferences(theme: NonNullable<PreferencesPayload['preferences']['theme']>): Promise<ProfileResponse> {
+  return updatePreferences({ preferences: { theme } })
 }
 
 export function getToday(date?: string): Promise<TodayResponse> {

@@ -217,7 +217,7 @@ class ItemController extends Controller
 
         if ($partial && $data === []) {
             throw ValidationException::withMessages([
-                'request' => 'Provide at least one field to update.',
+                'request' => __('messages.field_required_update'),
             ]);
         }
 
@@ -231,7 +231,7 @@ class ItemController extends Controller
     private function validateTitle(LaravelValidator $validator, Request $request): void
     {
         if ($request->has('title') && trim((string) $request->input('title')) === '') {
-            $validator->errors()->add('title', 'Write something to capture.');
+            $validator->errors()->add('title', __('messages.write_capture'));
         }
     }
 
@@ -249,7 +249,7 @@ class ItemController extends Controller
             ->exists();
 
         if (! $owned) {
-            $validator->errors()->add('project_id', 'That project does not exist.');
+            $validator->errors()->add('project_id', __('messages.project_missing'));
         }
     }
 
@@ -262,7 +262,7 @@ class ItemController extends Controller
         }
 
         if ($item && (int) $parentId === $item->id) {
-            $validator->errors()->add('parent_id', 'An item cannot be its own parent.');
+            $validator->errors()->add('parent_id', __('messages.item_self_parent'));
 
             return;
         }
@@ -270,7 +270,7 @@ class ItemController extends Controller
         $parent = Item::query()->ownedBy($request->user())->whereKey($parentId)->first();
 
         if (! $parent) {
-            $validator->errors()->add('parent_id', 'That item does not exist.');
+            $validator->errors()->add('parent_id', __('messages.item_missing'));
 
             return;
         }
@@ -280,7 +280,7 @@ class ItemController extends Controller
         if ($parent->parent_id !== null) {
             $validator->errors()->add(
                 'parent_id',
-                'Items can be nested one level deep. Attach this to the item at the top instead.',
+                __('messages.item_nested'),
             );
 
             return;
@@ -289,7 +289,7 @@ class ItemController extends Controller
         if ($item && $item->children()->exists()) {
             $validator->errors()->add(
                 'parent_id',
-                'This item already has children, so it cannot become a child itself.',
+                __('messages.item_children'),
             );
         }
     }

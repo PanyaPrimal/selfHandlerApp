@@ -7,7 +7,6 @@ test('regional preferences persist and update the accepted account summary', asy
 
   await page.getByLabel('Display name').fill('Олексій Profile')
   await searchAndChoose(page, 'Timezone', 'Europe/Kyiv', 'Europe/Kyiv')
-  await chooseOption(page, 'Language & date format', 'uk-UA')
   await chooseOption(page, 'Units', 'Imperial')
   await chooseOption(page, 'Base currency', 'EUR')
   await chooseOption(page, 'Recommendation tone', 'Friendly')
@@ -17,6 +16,5 @@ test('regional preferences persist and update the accepted account summary', asy
   await page.reload()
   await expect(page.getByLabel('Display name')).toHaveValue('Олексій Profile')
   await expect(page.getByLabel('Timezone')).toHaveValue('Europe/Kyiv')
-  await expect(selectTrigger(page, 'Language & date format')).toHaveText('uk-UA')
   await expect(selectTrigger(page, 'Units')).toHaveText('Imperial')
 })

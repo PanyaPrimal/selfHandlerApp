@@ -34,6 +34,13 @@
 
 ## Notes
 
+## Localisation
+
+- [ ] CHKXXX Every user-visible string in scope has English, Russian, and Ukrainian copy
+- [ ] CHKXXX Validation/domain feedback and accessibility text are included
+- [ ] CHKXXX Locale-sensitive dates, numbers, currencies, units, and plurals are specified
+- [ ] CHKXXX Canonical-key parity, used-key, and hardcoded-copy gates are identified
+
 - Check items off as completed: `[x]`
 - Add comments or findings inline
 - Link to relevant resources or documentation

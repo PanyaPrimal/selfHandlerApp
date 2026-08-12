@@ -102,7 +102,7 @@ class GoalController extends Controller
 
         if ($partial && $data === []) {
             throw ValidationException::withMessages([
-                'request' => 'Provide at least one goal field to update.',
+                'request' => __('messages.goal_field_required'),
             ]);
         }
 

@@ -20,7 +20,7 @@ import type { Goal, GoalCreatePayload, Routine } from '../api/types'
 import AsyncState from '../components/AsyncState.vue'
 import { UiCheckbox, UiDatePicker, UiTextInput, UiTextarea } from '../components/ui'
 import { formatCalendarDate } from '../lib/format'
-import { useAuthSession } from '../auth/session'
+import { useI18n } from '../i18n'
 
 type FocusableControl = { focus: () => void }
 
@@ -32,7 +32,7 @@ interface GoalForm {
 
 type GoalAction = 'complete' | 'abandon' | 'reactivate' | 'archive' | 'restore'
 type WorkspaceFocus = 'none' | 'form' | 'list'
-const session = useAuthSession()
+const i18n = useI18n()
 
 const goals = ref<Goal[]>([])
 const routines = ref<Routine[]>([])
@@ -52,7 +52,7 @@ const form = reactive<GoalForm>(emptyForm())
 const nameInput = ref<FocusableControl | null>(null)
 const descriptionInput = ref<FocusableControl | null>(null)
 const targetDateInput = ref<FocusableControl | null>(null)
-const locale = computed(() => session.user?.preferences.locale ?? 'en-GB')
+const locale = i18n.locale
 const goalListHeading = ref<HTMLHeadingElement | null>(null)
 const feedbackRetryButton = ref<HTMLButtonElement | null>(null)
 const activeRoutines = computed(() => routines.value.filter((routine) => routine.is_active && !routine.is_archived))
@@ -82,7 +82,7 @@ function linkOptionsFor(goal: Goal): RoutineLinkOption[] {
       continue
     }
 
-    const state = routine.is_archived ? 'archived' : 'paused'
+    const state = i18n.t(routine.is_archived ? 'goal.routineArchived' : 'goal.routinePaused')
     options.set(routine.id, { id: routine.id, label: `${routine.name} (${state})`, unavailable: true })
   }
 
@@ -112,18 +112,18 @@ function resetLinkSelections(): void {
 
 function failureMessage(currentError: unknown, operation: 'load' | 'save' | 'action' | 'links'): string {
   if (currentError instanceof ApiError && currentError.status === 422) {
-    return 'Please correct the highlighted fields and try again.'
+    return i18n.t('goal.invalid')
   }
 
   const subject = operation === 'load'
-    ? 'loaded'
+    ? i18n.t('goal.operation.loaded')
     : operation === 'save'
-      ? 'saved'
+      ? i18n.t('goal.operation.saved')
       : operation === 'links'
-        ? 'linked'
-        : 'updated'
+        ? i18n.t('goal.operation.linked')
+        : i18n.t('goal.operation.updated')
 
-  return `Goals could not be ${subject}. Check the service and try again.`
+  return i18n.t('goal.operationFailed', { operation: subject })
 }
 
 function setRetry(action: () => void): void {
@@ -210,10 +210,10 @@ async function submitGoal(): Promise<void> {
 
     if (editingId.value === null) {
       await createGoal(payload)
-      success.value = 'Goal created.'
+      success.value = i18n.t('goal.created')
     } else {
       await updateGoal(editingId.value, payload)
-      success.value = 'Goal updated.'
+      success.value = i18n.t('goal.updated')
     }
 
     resetForm()
@@ -294,11 +294,11 @@ async function changeGoalLifecycle(goal: Goal, action: GoalAction): Promise<void
     restore: restoreGoal,
   }
   const messages: Record<GoalAction, string> = {
-    complete: 'Goal completed.',
-    abandon: 'Goal abandoned.',
-    reactivate: 'Goal reactivated.',
-    archive: 'Goal archived.',
-    restore: 'Goal restored.',
+    complete: i18n.t('goal.completed'),
+    abandon: i18n.t('goal.abandoned'),
+    reactivate: i18n.t('goal.reactivated'),
+    archive: i18n.t('goal.archivedNotice'),
+    restore: i18n.t('goal.restoredNotice'),
   }
 
   try {
@@ -350,7 +350,7 @@ async function saveRoutineLinks(goal: Goal): Promise<void> {
       await unlinkRoutineFromGoal(goal.id, routineId)
     }
 
-    success.value = 'Routine links saved.'
+    success.value = i18n.t('goal.linksSaved')
     await loadWorkspace('list')
   } catch (currentError) {
     error.value = failureMessage(currentError, 'links')
@@ -397,30 +397,30 @@ onMounted(loadWorkspace)
   <section class="view-stack">
     <header class="view-header">
       <div>
-        <p class="eyebrow">Goals</p>
-        <h1>Outcomes linked to action</h1>
+        <p class="eyebrow">{{ i18n.t('goal.eyebrow') }}</p>
+        <h1>{{ i18n.t('goal.title') }}</h1>
       </div>
     </header>
 
     <div v-if="!isLoading && !loadFailed && error" class="notice error action-notice" role="alert">
       <span>{{ error }}</span>
-      <button v-if="retryAction" ref="feedbackRetryButton" type="button" class="secondary" @click="retryAction">Retry</button>
+      <button v-if="retryAction" ref="feedbackRetryButton" type="button" class="secondary" @click="retryAction">{{ i18n.t('common.retry') }}</button>
     </div>
     <div v-if="success" class="notice success" role="status">{{ success }}</div>
 
     <AsyncState
       :loading="isLoading"
       :error="loadFailed ? error : null"
-      loading-title="Loading goals…"
-      loading-description="Restoring goals and their routine links."
+      :loading-title="i18n.t('goal.loading')"
+      :loading-description="i18n.t('goal.loadingBody')"
       panel
       @retry="loadWorkspace('form')"
     >
       <section class="panel">
-        <h2>{{ editingId === null ? 'Create goal' : 'Edit goal' }}</h2>
+        <h2>{{ i18n.t(editingId === null ? 'goal.create' : 'goal.edit') }}</h2>
         <form
           class="form-grid"
-          :aria-label="editingId === null ? 'Create goal' : 'Edit goal'"
+          :aria-label="i18n.t(editingId === null ? 'goal.create' : 'goal.edit')"
           novalidate
           :aria-busy="isSubmitting"
           @submit.prevent="submitGoal"
@@ -428,7 +428,7 @@ onMounted(loadWorkspace)
           <UiTextInput
             ref="nameInput"
             v-model="form.name"
-            label="Name"
+            :label="i18n.t('goal.name')"
             name="name"
             :maxlength="160"
             required
@@ -439,7 +439,7 @@ onMounted(loadWorkspace)
 
           <UiDatePicker
             ref="targetDateInput"
-            label="Target date"
+            :label="i18n.t('goal.targetDate')"
             name="target_date"
             :model-value="form.target_date || null"
             :locale="locale"
@@ -451,7 +451,7 @@ onMounted(loadWorkspace)
           <UiTextarea
             ref="descriptionInput"
             v-model="form.description"
-            label="Description"
+            :label="i18n.t('goal.description')"
             name="description"
             :rows="3"
             :maxlength="5000"
@@ -463,22 +463,22 @@ onMounted(loadWorkspace)
 
           <div class="form-actions wide-field button-row">
             <button v-if="editingId !== null" type="button" class="secondary" :disabled="mutationBusy" @click="cancelEdit">
-              Cancel
+              {{ i18n.t('common.cancel') }}
             </button>
             <button type="submit" :disabled="mutationBusy">
-              {{ isSubmitting ? 'Saving goal…' : editingId === null ? 'Create goal' : 'Save changes' }}
+              {{ isSubmitting ? i18n.t('goal.saving') : i18n.t(editingId === null ? 'goal.create' : 'goal.saveChanges') }}
             </button>
           </div>
         </form>
       </section>
 
-      <section class="panel" aria-label="Goal lists">
+      <section class="panel" :aria-label="i18n.t('goal.lists')">
         <div class="section-heading archive-heading">
           <div>
-            <p class="eyebrow">Goal library</p>
-            <h2 ref="goalListHeading" class="focus-target" tabindex="-1">{{ archivedView ? 'Archived goals' : 'Current goals' }}</h2>
+            <p class="eyebrow">{{ i18n.t('goal.library') }}</p>
+            <h2 ref="goalListHeading" class="focus-target" tabindex="-1">{{ i18n.t(archivedView ? 'goal.archived' : 'goal.current') }}</h2>
           </div>
-          <div class="segmented-list" role="group" aria-label="Goal archive filter">
+          <div class="segmented-list" role="group" :aria-label="i18n.t('goal.archiveFilter')">
             <button
               type="button"
               class="secondary"
@@ -486,7 +486,7 @@ onMounted(loadWorkspace)
               :aria-pressed="!archivedView"
               :disabled="mutationBusy"
               @click="switchArchiveView(false)"
-            >Current goals</button>
+            >{{ i18n.t('goal.current') }}</button>
             <button
               type="button"
               class="secondary"
@@ -494,28 +494,28 @@ onMounted(loadWorkspace)
               :aria-pressed="archivedView"
               :disabled="mutationBusy"
               @click="switchArchiveView(true)"
-            >Archived goals</button>
+            >{{ i18n.t('goal.archived') }}</button>
           </div>
         </div>
 
         <AsyncState
           :empty="goals.length === 0"
-          :empty-title="archivedView ? 'No archived goals yet' : 'No goals yet'"
-          :empty-description="archivedView ? 'Archived goals will remain available here.' : 'Create a goal to add purpose to daily routines.'"
+          :empty-title="i18n.t(archivedView ? 'goal.emptyArchived' : 'goal.emptyCurrent')"
+          :empty-description="i18n.t(archivedView ? 'goal.emptyArchivedBody' : 'goal.emptyCurrentBody')"
         >
-          <ul class="item-list" :aria-label="archivedView ? 'Archived goals' : 'Current goals'">
+          <ul class="item-list" :aria-label="i18n.t(archivedView ? 'goal.archived' : 'goal.current')">
           <li v-for="goal in goals" :key="goal.id" class="goal-card" :aria-label="goal.name">
             <div class="management-row">
               <div class="management-copy">
                 <strong>{{ goal.name }}</strong>
                 <p v-if="goal.description" class="muted">{{ goal.description }}</p>
                 <p class="routine-meta">
-                  <span>{{ goal.status }}</span>
-                  <span v-if="goal.target_date">by {{ formatCalendarDate(goal.target_date, session.user?.preferences.locale) }}</span>
+                  <span>{{ i18n.t(`goal.status.${goal.status}` as 'goal.status.active') }}</span>
+                  <span v-if="goal.target_date">{{ i18n.t('goal.byDate', { date: formatCalendarDate(goal.target_date, locale) }) }}</span>
                   <span v-if="goal.routines.length > 0">
-                    Linked: {{ goal.routines.map((routine) => routine.name).join(', ') }}
+                    {{ i18n.t('goal.linked', { names: goal.routines.map((routine) => routine.name).join(', ') }) }}
                   </span>
-                  <span v-else>No routines linked</span>
+                  <span v-else>{{ i18n.t('goal.noLinks') }}</span>
                 </p>
               </div>
 
@@ -523,63 +523,63 @@ onMounted(loadWorkspace)
                 <button
                   type="button"
                   class="secondary"
-                  :aria-label="`Edit ${goal.name}`"
+                  :aria-label="i18n.t('goal.editNamed', { name: goal.name })"
                   :disabled="mutationBusy"
                   @click="editGoal(goal)"
-                >Edit</button>
+                >{{ i18n.t('common.edit') }}</button>
                 <button
                   v-if="goal.status === 'active' && !goal.is_archived"
                   type="button"
                   class="secondary"
-                  :aria-label="`Complete ${goal.name}`"
+                  :aria-label="i18n.t('goal.completeNamed', { name: goal.name })"
                   :disabled="mutationBusy"
                   @click="changeGoalLifecycle(goal, 'complete')"
-                >Complete</button>
+                >{{ i18n.t('goal.complete') }}</button>
                 <button
                   v-if="goal.status === 'active' && !goal.is_archived"
                   type="button"
                   class="secondary"
-                  :aria-label="`Abandon ${goal.name}`"
+                  :aria-label="i18n.t('goal.abandonNamed', { name: goal.name })"
                   :disabled="mutationBusy"
                   @click="changeGoalLifecycle(goal, 'abandon')"
-                >Abandon</button>
+                >{{ i18n.t('goal.abandon') }}</button>
                 <button
                   v-if="goal.status !== 'active' && !goal.is_archived"
                   type="button"
                   class="secondary"
-                  :aria-label="`Reactivate ${goal.name}`"
+                  :aria-label="i18n.t('goal.reactivateNamed', { name: goal.name })"
                   :disabled="mutationBusy"
                   @click="changeGoalLifecycle(goal, 'reactivate')"
-                >Reactivate</button>
+                >{{ i18n.t('goal.reactivate') }}</button>
                 <button
                   v-if="!goal.is_archived"
                   type="button"
                   class="secondary"
-                  :aria-label="`Archive ${goal.name}`"
+                  :aria-label="i18n.t('goal.archiveNamed', { name: goal.name })"
                   :disabled="mutationBusy"
                   @click="changeGoalLifecycle(goal, 'archive')"
-                >Archive</button>
+                >{{ i18n.t('goal.archive') }}</button>
                 <button
                   v-else
                   type="button"
                   class="secondary"
-                  :aria-label="`Restore ${goal.name}`"
+                  :aria-label="i18n.t('goal.restoreNamed', { name: goal.name })"
                   :disabled="mutationBusy"
                   @click="changeGoalLifecycle(goal, 'restore')"
-                >Restore</button>
+                >{{ i18n.t('goal.restore') }}</button>
               </div>
             </div>
 
             <form
               v-if="!goal.is_archived"
               class="routine-link-form"
-              :aria-label="`Routine links for ${goal.name}`"
+              :aria-label="i18n.t('goal.routineLinksNamed', { name: goal.name })"
               @submit.prevent="saveRoutineLinks(goal)"
             >
               <div>
-                <strong>Routine links</strong>
+                <strong>{{ i18n.t('goal.routineLinks') }}</strong>
                 <p class="muted">
-                  Tick an active routine to link it, untick one to unlink it, then save.
+                  {{ i18n.t('goal.routineLinksHelp') }}
                 </p>
               </div>
               <div v-if="linkOptionsFor(goal).length > 0" class="routine-link-options">
@@ -593,14 +593,14 @@ onMounted(loadWorkspace)
                   @update:model-value="(checked) => toggleRoutineLink(goal, option.id, checked)"
                 />
               </div>
-              <p v-else class="muted">No active routines are available to link.</p>
+              <p v-else class="muted">{{ i18n.t('goal.noActiveRoutines') }}</p>
               <div class="form-actions">
                 <button
                   type="submit"
                   class="secondary"
-                  :aria-label="`Save routine links for ${goal.name}`"
+                  :aria-label="i18n.t('goal.saveLinksNamed', { name: goal.name })"
                   :disabled="mutationBusy"
-                >{{ linkSavingGoalId === goal.id ? 'Saving links…' : 'Save routine links' }}</button>
+                >{{ i18n.t(linkSavingGoalId === goal.id ? 'goal.savingLinks' : 'goal.saveLinks') }}</button>
               </div>
             </form>
           </li>

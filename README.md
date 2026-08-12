@@ -15,6 +15,11 @@ SelfHandler is a personal system for managing routines, health, goals, tasks, id
 - Mobile: Capacitor
 - Local backend runtime: Open Server
 
+The current web application supports complete English, Russian, and Ukrainian interfaces. Language
+and appearance are account preferences, while small validated browser caches apply them before Vue
+mounts to avoid a wrong-language or wrong-theme first frame. New UI copy must pass the repository
+localisation gate with `npm --prefix apps/web run check:i18n`.
+
 ## Monorepo Layout
 
 - `apps/api` - Laravel API

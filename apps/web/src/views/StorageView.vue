@@ -20,6 +20,7 @@ import type {
   StorageItem,
   StorageProject,
 } from '../api/types'
+import { useI18n } from '../i18n'
 
 const isLoading = ref(true)
 const loadError = ref<string | null>(null)
@@ -27,6 +28,7 @@ const isSubmitting = ref(false)
 const error = ref<string | null>(null)
 const feedback = ref<string | null>(null)
 const fieldErrors = ref<ValidationErrors>({})
+const i18n = useI18n()
 
 const items = ref<StorageItem[]>([])
 const projects = ref<StorageProject[]>([])
@@ -41,10 +43,11 @@ const showProjectForm = ref(false)
 /** One in-progress child title per parent, so the drafts cannot collide. */
 const childDrafts = reactive<Record<number, string>>({})
 
-const typeOptions: UiOption<ItemType>[] = [
-  { value: 'task', label: 'Task' },
-  { value: 'idea', label: 'Idea' },
-]
+const typeOptions = computed<UiOption<ItemType>[]>(() => [
+  { value: 'task', label: i18n.t('storage.task') },
+  { value: 'idea', label: i18n.t('storage.idea') },
+])
+const typeLabel = (type: ItemType): string => typeOptions.value.find((option) => option.value === type)?.label ?? type
 
 const projectOptions = computed<UiOption<number>[]>(() =>
   projects.value
@@ -76,7 +79,7 @@ async function load(): Promise<void> {
     inboxCount.value = itemList.inbox_count
     projects.value = projectList.data
   } catch {
-    loadError.value = 'Could not load Storage. Check the service and try again.'
+    loadError.value = i18n.t('storage.loadFailed')
   } finally {
     isLoading.value = false
   }
@@ -96,13 +99,13 @@ async function capture(): Promise<void> {
   try {
     await createStorageItem({ title: captureTitle.value })
     captureTitle.value = ''
-    feedback.value = 'Captured.'
+    feedback.value = i18n.t('storage.captured')
     await load()
   } catch (currentError) {
     fieldErrors.value = validationErrors(currentError)
 
     if (Object.keys(fieldErrors.value).length === 0) {
-      error.value = 'Could not capture that. Your text is still here; please try again.'
+      error.value = i18n.t('storage.captureFailed')
     }
   } finally {
     // The field is disabled while the request is in flight, and a disabled
@@ -123,7 +126,7 @@ async function patch(item: StorageItem, changes: Parameters<typeof updateStorage
   } catch (currentError) {
     const errors = validationErrors(currentError)
     // A refused completion explains what is blocking it.
-    error.value = errors.status?.[0] ?? errors.parent_id?.[0] ?? 'Could not save that change.'
+    error.value = errors.status?.[0] ?? errors.parent_id?.[0] ?? i18n.t('storage.changeFailed')
   }
 }
 
@@ -132,10 +135,10 @@ async function remove(item: StorageItem): Promise<void> {
 
   try {
     await deleteStorageItem(item.id)
-    feedback.value = 'Deleted.'
+    feedback.value = i18n.t('storage.deleted')
     await load()
   } catch {
-    error.value = 'Could not delete that item.'
+    error.value = i18n.t('storage.deleteFailed')
   }
 }
 
@@ -157,7 +160,7 @@ async function addChild(parent: StorageItem): Promise<void> {
     await load()
   } catch (currentError) {
     const errors = validationErrors(currentError)
-    error.value = errors.parent_id?.[0] ?? errors.title?.[0] ?? 'Could not add that child item.'
+    error.value = errors.parent_id?.[0] ?? errors.title?.[0] ?? i18n.t('storage.childFailed')
   } finally {
     isSubmitting.value = false
   }
@@ -186,15 +189,15 @@ async function addProject(): Promise<void> {
 async function removeProject(project: StorageProject): Promise<void> {
   try {
     await deleteStorageProject(project.id)
-    feedback.value = 'Project deleted. Its items are still here.'
+    feedback.value = i18n.t('storage.projectDeleted')
     await load()
   } catch {
-    error.value = 'Could not delete that project.'
+    error.value = i18n.t('storage.projectDeleteFailed')
   }
 }
 
 function statusLabel(status: ItemStatus): string {
-  return status === 'done' ? 'done' : status === 'dropped' ? 'dropped' : status
+  return i18n.t(status === 'done' ? 'storage.done' : status === 'dropped' ? 'storage.dropped' : status === 'inbox' ? 'storage.inboxStatus' : 'storage.activeStatus')
 }
 
 onMounted(load)
@@ -204,9 +207,9 @@ onMounted(load)
   <section class="view-stack storage-page">
     <header class="view-header">
       <div>
-        <p class="eyebrow">Storage</p>
-        <h1>Capture now, sort later</h1>
-        <p class="muted">One field is enough. Everything else is triage.</p>
+        <p class="eyebrow">{{ i18n.t('storage.eyebrow') }}</p>
+        <h1>{{ i18n.t('storage.title') }}</h1>
+        <p class="muted">{{ i18n.t('storage.subtitle') }}</p>
       </div>
     </header>
 
@@ -214,20 +217,20 @@ onMounted(load)
     <div v-if="feedback" class="notice success" role="status">{{ feedback }}</div>
 
     <section class="panel" aria-labelledby="capture-heading">
-      <h2 id="capture-heading">Capture</h2>
-      <form class="capture-form" aria-label="Capture an item" novalidate @submit.prevent="capture">
+      <h2 id="capture-heading">{{ i18n.t('storage.capture') }}</h2>
+      <form class="capture-form" :aria-label="i18n.t('storage.captureItem')" novalidate @submit.prevent="capture">
         <UiTextInput
           ref="captureInput"
           v-model="captureTitle"
-          label="What is on your mind?"
+          :label="i18n.t('storage.prompt')"
           name="title"
           :maxlength="200"
-          placeholder="Book the dentist"
+          :placeholder="i18n.t('storage.promptExample')"
           :disabled="isSubmitting"
           :error="fieldErrors.title?.[0]"
         />
         <div class="form-actions">
-          <button type="submit" :disabled="isSubmitting">{{ isSubmitting ? 'Saving…' : 'Capture' }}</button>
+          <button type="submit" :disabled="isSubmitting">{{ i18n.t(isSubmitting ? 'common.saving' : 'storage.captureAction') }}</button>
         </div>
       </form>
     </section>
@@ -235,28 +238,28 @@ onMounted(load)
     <AsyncState
       :loading="isLoading"
       :error="loadError"
-      loading-title="Loading Storage…"
+      :loading-title="i18n.t('storage.loading')"
       panel
       @retry="load"
     >
       <section class="panel" aria-labelledby="inbox-heading">
         <div class="section-heading">
-          <h2 id="inbox-heading">Inbox</h2>
-          <span class="kind-chip">{{ inboxCount }} unsorted</span>
+          <h2 id="inbox-heading">{{ i18n.t('storage.inbox') }}</h2>
+          <span class="kind-chip">{{ i18n.plural(inboxCount, { one: 'storage.unsorted.one', few: 'storage.unsorted.few', many: 'storage.unsorted.many', other: 'storage.unsorted.other' }) }}</span>
         </div>
 
         <p v-if="inbox.length === 0" class="muted">
-          Nothing waiting. Anything you capture lands here until you sort it.
+          {{ i18n.t('storage.inboxEmpty') }}
         </p>
         <ul v-else class="item-list">
           <li v-for="item in inbox" :key="item.id" class="management-row" :aria-label="item.title">
             <div class="management-copy">
               <strong>{{ item.title }}</strong>
-              <p class="muted">{{ item.type }}</p>
+              <p class="muted">{{ typeLabel(item.type) }}</p>
             </div>
             <div class="button-row management-actions">
-              <button type="button" class="secondary" :aria-label="`Triage ${item.title}`" @click="patch(item, { status: 'active' })">Triage</button>
-              <button type="button" class="secondary" :aria-label="`Drop ${item.title}`" @click="patch(item, { status: 'dropped' })">Drop</button>
+              <button type="button" class="secondary" :aria-label="i18n.t('storage.triageNamed', { name: item.title })" @click="patch(item, { status: 'active' })">{{ i18n.t('storage.triage') }}</button>
+              <button type="button" class="secondary" :aria-label="i18n.t('storage.dropNamed', { name: item.title })" @click="patch(item, { status: 'dropped' })">{{ i18n.t('storage.drop') }}</button>
             </div>
           </li>
         </ul>
@@ -264,17 +267,17 @@ onMounted(load)
 
       <section class="panel" aria-labelledby="active-heading">
         <div class="section-heading">
-          <h2 id="active-heading">In progress</h2>
+          <h2 id="active-heading">{{ i18n.t('storage.inProgress') }}</h2>
         </div>
 
-        <p v-if="active.length === 0" class="muted">Nothing in progress yet.</p>
+        <p v-if="active.length === 0" class="muted">{{ i18n.t('storage.activeEmpty') }}</p>
         <ul v-else class="item-list">
           <li v-for="item in active" :key="item.id" class="storage-item" :aria-label="item.title">
             <div class="management-row">
               <div class="management-copy">
                 <strong>{{ item.title }}</strong>
                 <p class="routine-meta">
-                  <span class="kind-chip">{{ item.type }}</span>
+                  <span class="kind-chip">{{ typeLabel(item.type) }}</span>
                   <span v-if="projectName(item)" class="kind-chip">{{ projectName(item) }}</span>
                   <span v-for="tag in item.tags" :key="tag.id" class="kind-chip">{{ tag.name }}</span>
                 </p>
@@ -282,29 +285,29 @@ onMounted(load)
               <div class="button-row management-actions">
                 <UiSelect
                   :model-value="item.type"
-                  :label="`Type of ${item.title}`"
+                  :label="i18n.t('storage.typeNamed', { name: item.title })"
                   :name="`type-${item.id}`"
                   :options="typeOptions"
                   @update:model-value="(value) => value && patch(item, { type: value })"
                 />
                 <UiSelect
                   :model-value="item.project_id"
-                  :label="`Project of ${item.title}`"
+                  :label="i18n.t('storage.projectNamed', { name: item.title })"
                   :name="`project-${item.id}`"
                   :options="projectOptions"
                   nullable
-                  nullable-label="No project"
-                  placeholder="No project"
+                  :nullable-label="i18n.t('storage.noProject')"
+                  :placeholder="i18n.t('storage.noProject')"
                   @update:model-value="(value) => patch(item, { project_id: value })"
                 />
-                <button type="button" class="secondary" :aria-label="`Complete ${item.title}`" @click="patch(item, { status: 'done' })">Complete</button>
-                <button type="button" class="secondary" :aria-label="`Delete ${item.title}`" @click="remove(item)">Delete</button>
+                <button type="button" class="secondary" :aria-label="i18n.t('storage.completeNamed', { name: item.title })" @click="patch(item, { status: 'done' })">{{ i18n.t('storage.complete') }}</button>
+                <button type="button" class="secondary" :aria-label="i18n.t('storage.deleteNamed', { name: item.title })" @click="remove(item)">{{ i18n.t('common.delete') }}</button>
               </div>
             </div>
 
             <div class="storage-children">
               <p v-if="childrenOf(item).length === 0" class="muted">
-                No child items. Attach one to break this down.
+                {{ i18n.t('storage.noChildren') }}
               </p>
               <ul v-else class="item-list">
                 <li v-for="child in childrenOf(item)" :key="child.id" class="management-row" :aria-label="child.title">
@@ -312,44 +315,44 @@ onMounted(load)
                     <strong>{{ child.title }}</strong>
                     <p class="routine-meta">
                       <span class="kind-chip">{{ statusLabel(child.status) }}</span>
-                      <span v-if="child.is_blocker" class="kind-chip is-blocker">blocker</span>
+                      <span v-if="child.is_blocker" class="kind-chip is-blocker">{{ i18n.t('storage.blocker') }}</span>
                     </p>
                   </div>
                   <div class="button-row management-actions">
                     <button
                       type="button"
                       class="secondary"
-                      :aria-label="`${child.is_blocker ? 'Unmark' : 'Mark'} ${child.title} as a blocker`"
+                      :aria-label="i18n.t(child.is_blocker ? 'storage.unmarkBlockerNamed' : 'storage.markBlockerNamed', { name: child.title })"
                       @click="patch(child, { is_blocker: !child.is_blocker })"
-                    >{{ child.is_blocker ? 'Not a blocker' : 'Blocker' }}</button>
+                    >{{ i18n.t(child.is_blocker ? 'storage.notBlocker' : 'storage.blocker') }}</button>
                     <button
                       v-if="child.status !== 'done'"
                       type="button"
                       class="secondary"
-                      :aria-label="`Complete ${child.title}`"
+                      :aria-label="i18n.t('storage.completeNamed', { name: child.title })"
                       @click="patch(child, { status: 'done' })"
-                    >Complete</button>
+                    >{{ i18n.t('storage.complete') }}</button>
                   </div>
                 </li>
               </ul>
 
               <form
                 class="capture-form"
-                :aria-label="`Add a child to ${item.title}`"
+                :aria-label="i18n.t('storage.addChildNamed', { name: item.title })"
                 novalidate
                 @submit.prevent="addChild(item)"
               >
                 <UiTextInput
                   :model-value="childDrafts[item.id] ?? ''"
-                  :label="`Add a child to ${item.title}`"
+                  :label="i18n.t('storage.addChildNamed', { name: item.title })"
                   :name="`child-${item.id}`"
                   :maxlength="200"
-                  placeholder="Something this depends on"
+                  :placeholder="i18n.t('storage.childExample')"
                   :disabled="isSubmitting"
                   @update:model-value="(value) => { childDrafts[item.id] = value }"
                 />
                 <div class="form-actions">
-                  <button type="submit" class="secondary">Add child</button>
+                  <button type="submit" class="secondary">{{ i18n.t('storage.addChild') }}</button>
                 </div>
               </form>
             </div>
@@ -359,41 +362,41 @@ onMounted(load)
 
       <section class="panel" aria-labelledby="projects-heading">
         <div class="section-heading">
-          <h2 id="projects-heading">Projects</h2>
+          <h2 id="projects-heading">{{ i18n.t('storage.projects') }}</h2>
           <button type="button" class="secondary" @click="showProjectForm = !showProjectForm">
-            {{ showProjectForm ? 'Cancel' : 'New project' }}
+            {{ i18n.t(showProjectForm ? 'common.cancel' : 'storage.newProject') }}
           </button>
         </div>
 
-        <form v-if="showProjectForm" class="capture-form" aria-label="Create project" novalidate @submit.prevent="addProject">
+        <form v-if="showProjectForm" class="capture-form" :aria-label="i18n.t('storage.createProject')" novalidate @submit.prevent="addProject">
           <UiTextInput
             v-model="newProjectName"
-            label="Project name"
+            :label="i18n.t('storage.projectName')"
             name="name"
             :maxlength="160"
             :error="fieldErrors.name?.[0]"
           />
           <div class="form-actions">
-            <button type="submit" :disabled="isSubmitting">Create project</button>
+            <button type="submit" :disabled="isSubmitting">{{ i18n.t('storage.createProject') }}</button>
           </div>
         </form>
 
-        <p v-if="projects.length === 0" class="muted">No projects yet.</p>
+        <p v-if="projects.length === 0" class="muted">{{ i18n.t('storage.noProjects') }}</p>
         <ul v-else class="item-list">
           <li v-for="project in projects" :key="project.id" class="management-row" :aria-label="project.name">
             <div class="management-copy">
               <strong>{{ project.name }}</strong>
-              <p class="muted">{{ project.open_count }} open · {{ project.completed_count }} done</p>
+              <p class="muted">{{ i18n.t('storage.projectCounts', { open: project.open_count, done: project.completed_count }) }}</p>
             </div>
             <div class="button-row management-actions">
-              <button type="button" class="secondary" :aria-label="`Delete ${project.name}`" @click="removeProject(project)">Delete</button>
+              <button type="button" class="secondary" :aria-label="i18n.t('storage.deleteNamed', { name: project.name })" @click="removeProject(project)">{{ i18n.t('common.delete') }}</button>
             </div>
           </li>
         </ul>
       </section>
 
       <section v-if="closed.length > 0" class="panel" aria-labelledby="closed-heading">
-        <h2 id="closed-heading">Closed</h2>
+        <h2 id="closed-heading">{{ i18n.t('storage.closed') }}</h2>
         <ul class="item-list">
           <li v-for="item in closed" :key="item.id" class="management-row" :aria-label="item.title">
             <div class="management-copy">
@@ -401,7 +404,7 @@ onMounted(load)
               <p class="muted">{{ statusLabel(item.status) }}</p>
             </div>
             <div class="button-row management-actions">
-              <button type="button" class="secondary" :aria-label="`Reopen ${item.title}`" @click="patch(item, { status: 'active' })">Reopen</button>
+              <button type="button" class="secondary" :aria-label="i18n.t('storage.reopenNamed', { name: item.title })" @click="patch(item, { status: 'active' })">{{ i18n.t('storage.reopen') }}</button>
             </div>
           </li>
         </ul>

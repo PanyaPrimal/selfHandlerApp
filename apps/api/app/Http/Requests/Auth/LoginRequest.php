@@ -39,7 +39,7 @@ class LoginRequest extends FormRequest
             RateLimiter::hit($this->throttleKey(), self::DECAY_SECONDS);
 
             throw ValidationException::withMessages([
-                'email' => ['The provided credentials are incorrect.'],
+                'email' => [__('messages.credentials_incorrect')],
             ]);
         }
 
@@ -56,7 +56,7 @@ class LoginRequest extends FormRequest
     protected function failedAuthorization(): void
     {
         throw new HttpResponseException(response()->json([
-            'message' => 'Already authenticated.',
+            'message' => __('messages.already_authenticated'),
         ], 409));
     }
 
@@ -70,7 +70,7 @@ class LoginRequest extends FormRequest
 
         throw new HttpResponseException(
             response()
-                ->json(['message' => 'Too many login attempts. Please try again later.'], 429)
+                ->json(['message' => __('messages.too_many_login')], 429)
                 ->header('Retry-After', (string) $retryAfter),
         );
     }

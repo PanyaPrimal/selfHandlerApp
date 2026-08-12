@@ -3,8 +3,10 @@ import { computed } from 'vue'
 import type { TodayResponse } from '../api/types'
 import { formatCalendarDate } from '../lib/format'
 import { useAuthSession } from '../auth/session'
+import { useI18n } from '../i18n'
 
 const session = useAuthSession()
+const { t } = useI18n()
 
 const props = defineProps<{
   progress: TodayResponse['progress']
@@ -21,8 +23,8 @@ const progressWidth = computed(() => `${props.progress.seven_day.completion_rate
   <section class="panel" role="region" aria-labelledby="recent-progress-heading">
     <div class="section-heading">
       <div>
-        <p class="eyebrow">Consistency</p>
-        <h2 id="recent-progress-heading">Recent progress</h2>
+        <p class="eyebrow">{{ t('summary.consistency') }}</p>
+        <h2 id="recent-progress-heading">{{ t('summary.recent') }}</h2>
       </div>
       <p class="muted">
         {{ formatCalendarDate(progress.period_start, session.user?.preferences.locale) }}–{{ formatCalendarDate(progress.period_end, session.user?.preferences.locale) }}
@@ -30,18 +32,18 @@ const progressWidth = computed(() => `${props.progress.seven_day.completion_rate
     </div>
 
     <div v-if="progress.seven_day.scheduled === 0" class="progress-empty">
-      <h3>No scheduled occurrences in this seven-day period.</h3>
-      <p class="muted">Add a routine or choose a period containing scheduled days to see recent completion.</p>
+      <h3>{{ t('summary.empty') }}</h3>
+      <p class="muted">{{ t('summary.emptyBody') }}</p>
     </div>
 
     <div v-else class="summary-grid progress-summary-grid">
       <div class="metric">
-        <span>Completion</span>
+        <span>{{ t('summary.completion') }}</span>
         <strong>{{ completionLabel }}</strong>
         <div
           class="progress-track"
           role="progressbar"
-          aria-label="Seven-day completion"
+          :aria-label="t('summary.sevenDayCompletion')"
           aria-valuemin="0"
           aria-valuemax="100"
           :aria-valuenow="Math.round(progress.seven_day.completion_rate)"
@@ -50,19 +52,19 @@ const progressWidth = computed(() => `${props.progress.seven_day.completion_rate
         </div>
       </div>
       <div class="metric">
-        <span>Scheduled</span>
+        <span>{{ t('summary.scheduled') }}</span>
         <strong>{{ progress.seven_day.scheduled }}</strong>
       </div>
       <div class="metric">
-        <span>Done</span>
+        <span>{{ t('summary.done') }}</span>
         <strong>{{ progress.seven_day.done }}</strong>
       </div>
       <div class="metric">
-        <span>Skipped</span>
+        <span>{{ t('summary.skipped') }}</span>
         <strong>{{ progress.seven_day.skipped }}</strong>
       </div>
       <div class="metric">
-        <span>Pending</span>
+        <span>{{ t('summary.pending') }}</span>
         <strong>{{ progress.seven_day.pending }}</strong>
       </div>
     </div>

@@ -4,6 +4,7 @@ import UiField from './UiField.vue'
 import UiPopoverSurface from './UiPopoverSurface.vue'
 import { useAnchoredSurface } from './useAnchoredSurface'
 import { useFieldIds } from './useFieldIds'
+import { useI18n } from '../../i18n'
 import {
   addDays,
   addMonths,
@@ -46,7 +47,7 @@ const props = withDefaults(
     error: undefined,
     disabled: false,
     required: false,
-    placeholder: 'Pick a date',
+    placeholder: '',
     min: null,
     max: null,
     today: null,
@@ -56,6 +57,7 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{ 'update:modelValue': [string | null] }>()
+const { t } = useI18n()
 
 const ids = useFieldIds(props.name, () => Boolean(props.helper), () => Boolean(props.error))
 const dialogId = `${ids.controlId}-dialog`
@@ -264,7 +266,7 @@ defineExpose({ focus: () => trigger.value?.focus() })
         @keydown="onTriggerKeydown"
       >
         <span :class="['ui-control__value', { 'is-placeholder': !displayValue }]">
-          {{ displayValue || placeholder }}
+          {{ displayValue || placeholder || t('common.pickDate') }}
         </span>
         <span class="ui-control__calendar-mark" aria-hidden="true"></span>
       </button>
@@ -283,14 +285,14 @@ defineExpose({ focus: () => trigger.value?.focus() })
           <button
             type="button"
             class="ui-calendar__nav"
-            :aria-label="`Previous month`"
+            :aria-label="t('common.previousMonth')"
             @click="shiftMonth(-1)"
           >‹</button>
           <span :id="gridLabelId" class="ui-calendar__title" aria-live="polite">{{ monthLabel }}</span>
           <button
             type="button"
             class="ui-calendar__nav"
-            :aria-label="`Next month`"
+            :aria-label="t('common.nextMonth')"
             @click="shiftMonth(1)"
           >›</button>
         </div>
@@ -331,7 +333,7 @@ defineExpose({ focus: () => trigger.value?.focus() })
         </div>
 
         <div v-if="clearable" class="ui-calendar__footer">
-          <button type="button" class="ui-calendar__clear" @click="clear">Clear</button>
+          <button type="button" class="ui-calendar__clear" @click="clear">{{ t('common.clear') }}</button>
         </div>
       </UiPopoverSurface>
     </div>

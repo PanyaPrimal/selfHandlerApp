@@ -109,6 +109,8 @@ class ProfileApiTest extends ProfileTestCase
                     'scheme' => 'system',
                     'accent' => 'custom',
                     'accent_hex' => '#6D5AC4',
+                    'background' => 'paper',
+                    'background_hex' => '#ECE9E2',
                     'texture' => false,
                     'mono_numerals' => false,
                     'motion' => 'reduce',
@@ -126,6 +128,7 @@ class ProfileApiTest extends ProfileTestCase
         $this->assertSame('Europe/Kyiv', $profile->fresh()->timezone);
         $expected = $payload['preferences']['theme'];
         $expected['accent_hex'] = '#6d5ac4';
+        $expected['background_hex'] = '#ece9e2';
         $this->assertSame($expected, $profile->fresh()->themePreferences());
     }
 
@@ -140,6 +143,8 @@ class ProfileApiTest extends ProfileTestCase
                     'scheme' => 'sepia',
                     'accent' => 'custom',
                     'accent_hex' => 'not-a-colour',
+                    'background' => 'custom',
+                    'background_hex' => 'not-a-colour',
                     'texture' => true,
                     'mono_numerals' => true,
                     'motion' => 'system',

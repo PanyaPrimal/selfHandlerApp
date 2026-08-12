@@ -1,3 +1,5 @@
+import { activeLocaleValue, translate } from '../i18n'
+
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api'
 const csrfUrl = import.meta.env.VITE_CSRF_URL ?? '/sanctum/csrf-cookie'
 
@@ -125,18 +127,19 @@ async function initializeCsrf(force = false): Promise<void> {
         method: 'GET',
         headers: {
           Accept: 'application/json',
+          'Accept-Language': activeLocaleValue(),
         },
         credentials: 'same-origin',
       })
     } catch (cause) {
-      throw new ApiError('Unable to reach SelfHandler.', 0, null, null, cause)
+      throw new ApiError(translate('common.errorReach'), 0, null, null, cause)
     }
 
     const payload = await parsePayload(response)
 
     if (!response.ok) {
       throw new ApiError(
-        responseMessage(payload, 'Unable to initialize request protection.'),
+        responseMessage(payload, translate('common.errorInitProtection')),
         response.status,
         payload,
         retryAfterSeconds(response),
@@ -144,7 +147,7 @@ async function initializeCsrf(force = false): Promise<void> {
     }
 
     if (!readCookie('XSRF-TOKEN')) {
-      throw new ApiError('Unable to initialize request protection.', 419)
+      throw new ApiError(translate('common.errorInitProtection'), 419)
     }
 
     csrfReady = true
@@ -176,6 +179,7 @@ async function executeRequest<T>(
 
   const headers = new Headers(init.headers)
   headers.set('Accept', 'application/json')
+  headers.set('Accept-Language', activeLocaleValue())
 
   if (init.body !== undefined && init.body !== null && !(init.body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
@@ -199,7 +203,7 @@ async function executeRequest<T>(
       credentials: 'same-origin',
     })
   } catch (cause) {
-    throw new ApiError('Unable to reach SelfHandler.', 0, null, null, cause)
+    throw new ApiError(translate('common.errorReach'), 0, null, null, cause)
   }
 
   if (response.status === 419 && unsafe && behavior.retryCsrf !== false && !csrfRetried) {
@@ -211,7 +215,7 @@ async function executeRequest<T>(
 
   if (!response.ok) {
     const error = new ApiError(
-      responseMessage(payload, `API request failed with ${response.status}`),
+      responseMessage(payload, translate('common.errorApiStatus', { status: response.status })),
       response.status,
       payload,
       retryAfterSeconds(response),

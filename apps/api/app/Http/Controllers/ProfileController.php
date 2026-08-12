@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\UpdatePreferencesRequest;
 use App\Http\Requests\UpdateProfileRequest;
-use App\Http\Requests\UpdateThemePreferencesRequest;
 use App\Http\Resources\ProfileResource;
 use App\Models\UserProfile;
 use App\Support\ProfileDefaults;
@@ -36,13 +36,23 @@ class ProfileController extends Controller
         return $this->response($profile, $request);
     }
 
-    public function updateTheme(UpdateThemePreferencesRequest $request): JsonResponse
+    public function updatePreferences(UpdatePreferencesRequest $request): JsonResponse
     {
         $profile = $request->user()->ensureProfile();
-        $theme = $request->validated('preferences.theme');
-        $theme['accent_hex'] = strtolower($theme['accent_hex']);
+        $preferences = $request->validated('preferences');
 
-        $profile->forceFill(['theme_preferences' => $theme])->save();
+        if (array_key_exists('locale', $preferences)) {
+            $profile->locale = $preferences['locale'];
+        }
+
+        if (array_key_exists('theme', $preferences)) {
+            $theme = $preferences['theme'];
+            $theme['accent_hex'] = strtolower($theme['accent_hex']);
+            $theme['background_hex'] = strtolower($theme['background_hex']);
+            $profile->theme_preferences = $theme;
+        }
+
+        $profile->save();
 
         return $this->response($profile->fresh(['user']), $request);
     }

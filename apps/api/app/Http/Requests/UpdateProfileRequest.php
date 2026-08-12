@@ -56,13 +56,13 @@ class UpdateProfileRequest extends FormRequest
                 ];
 
                 foreach (array_diff(array_keys($this->all()), $allowed) as $field) {
-                    $validator->errors()->add($field, 'This field is not supported.');
+                    $validator->errors()->add($field, __('messages.unsupported_field'));
                 }
 
                 if ($this->input('bmr_formula') === 'katch_mcardle' && $this->input('body_fat_percentage') === null) {
                     $validator->errors()->add(
                         'body_fat_percentage',
-                        'Body fat percentage is required for the Katch-McArdle formula.',
+                        __('messages.body_fat_required'),
                     );
                 }
             },

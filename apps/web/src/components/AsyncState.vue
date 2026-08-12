@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { nextTick, ref, watch } from 'vue'
+import { computed } from 'vue'
+import { useI18n } from '../i18n'
 
 const props = withDefaults(defineProps<{
   loading?: boolean
@@ -17,15 +19,19 @@ const props = withDefaults(defineProps<{
   loading: false,
   error: null,
   empty: false,
-  loadingTitle: 'Loading…',
+  loadingTitle: '',
   loadingDescription: '',
   loadingAriaLabel: '',
-  emptyTitle: 'Nothing here yet',
+  emptyTitle: '',
   emptyDescription: '',
-  retryLabel: 'Retry',
+  retryLabel: '',
   showEmptyIcon: false,
   panel: false,
 })
+const { t } = useI18n()
+const resolvedLoadingTitle = computed(() => props.loadingTitle || t('common.loading'))
+const resolvedEmptyTitle = computed(() => props.emptyTitle || t('common.nothingHere'))
+const resolvedRetryLabel = computed(() => props.retryLabel || t('common.retry'))
 
 defineEmits<{
   retry: []
@@ -57,7 +63,7 @@ watch(
     :aria-label="loadingAriaLabel || undefined"
   >
     <slot name="loading">
-      <strong>{{ loadingTitle }}</strong>
+      <strong>{{ resolvedLoadingTitle }}</strong>
       <span v-if="loadingDescription" class="muted">{{ loadingDescription }}</span>
     </slot>
   </div>
@@ -71,13 +77,13 @@ watch(
     tabindex="-1"
   >
     <strong>{{ error }}</strong>
-    <button type="button" class="secondary" @click="$emit('retry')">{{ retryLabel }}</button>
+    <button type="button" class="secondary" @click="$emit('retry')">{{ resolvedRetryLabel }}</button>
   </div>
 
   <div v-else-if="empty" class="state-block async-state" :class="{ panel }">
     <slot name="empty">
       <div v-if="showEmptyIcon" class="state-icon" aria-hidden="true"></div>
-      <h3>{{ emptyTitle }}</h3>
+      <h3>{{ resolvedEmptyTitle }}</h3>
       <p v-if="emptyDescription" class="muted">{{ emptyDescription }}</p>
     </slot>
   </div>

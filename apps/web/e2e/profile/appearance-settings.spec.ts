@@ -54,8 +54,8 @@ test('custom colour and the complete settings layout fit the 390px target', asyn
   test.skip(testInfo.project.name !== 'mobile', 'Exact mobile layout check')
   await registerViaUi(page, uniqueCredentials(testInfo, 'AppearanceMobile'), { redirectTo: '/settings/appearance' })
 
-  await page.getByLabel('Hex').fill('#6D5AC4')
-  await page.getByRole('button', { name: 'Use' }).click()
+  await page.getByLabel('Hex', { exact: true }).fill('#6D5AC4')
+  await page.getByRole('button', { name: 'Use', exact: true }).click()
   await expect(page.locator('html')).toHaveAttribute('data-accent', 'custom')
   await expect(page.getByText(/:1/).first()).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Live preview' })).toBeVisible()

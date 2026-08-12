@@ -30,13 +30,15 @@ class UserProfile extends Model
         ];
     }
 
-    /** @return array{scheme: string, accent: string, accent_hex: string, texture: bool, mono_numerals: bool, motion: string} */
+    /** @return array{scheme: string, accent: string, accent_hex: string, background: string, background_hex: string, texture: bool, mono_numerals: bool, motion: string} */
     public function themePreferences(): array
     {
         return array_replace([
             'scheme' => 'light',
             'accent' => 'forest',
             'accent_hex' => '#6d5ac4',
+            'background' => 'paper',
+            'background_hex' => '#ece9e2',
             'texture' => true,
             'mono_numerals' => true,
             'motion' => 'system',

@@ -162,7 +162,7 @@ class RoutineController extends Controller
             $routine,
         ): void {
             if ($request->has('weekdays') && $effectiveScheduleType !== 'weekdays') {
-                $validator->errors()->add('weekdays', 'Weekdays are only allowed for a weekday schedule.');
+                $validator->errors()->add('weekdays', __('messages.weekdays_daily'));
             }
 
             $startsOn = $request->exists('starts_on')
@@ -180,7 +180,7 @@ class RoutineController extends Controller
                 && $endsOn < $startsOn
             ) {
                 $field = $request->exists('ends_on') ? 'ends_on' : 'starts_on';
-                $validator->errors()->add($field, 'The end date must be on or after the start date.');
+                $validator->errors()->add($field, __('messages.end_after_start'));
             }
 
             if (! $partial || ! $routine?->logs()->exists()) {
@@ -214,7 +214,7 @@ class RoutineController extends Controller
 
         if ($partial && $data === []) {
             throw ValidationException::withMessages([
-                'request' => 'Provide at least one routine field to update.',
+                'request' => __('messages.routine_field_required'),
             ]);
         }
 
@@ -225,7 +225,7 @@ class RoutineController extends Controller
     {
         $validator->errors()->add(
             $field,
-            'The schedule cannot change after history exists. Archive this routine and create a replacement.',
+            __('messages.schedule_locked'),
         );
     }
 }

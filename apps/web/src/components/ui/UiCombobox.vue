@@ -5,6 +5,7 @@ import UiPopoverSurface from './UiPopoverSurface.vue'
 import { useAnchoredSurface } from './useAnchoredSurface'
 import { useFieldIds } from './useFieldIds'
 import type { UiOption } from './types'
+import { useI18n } from '../../i18n'
 
 const props = withDefaults(
   defineProps<{
@@ -25,13 +26,14 @@ const props = withDefaults(
     error: undefined,
     disabled: false,
     required: false,
-    placeholder: 'Search…',
-    emptyMessage: 'Nothing matches that search.',
+    placeholder: '',
+    emptyMessage: '',
     wide: false,
   },
 )
 
 const emit = defineEmits<{ 'update:modelValue': [V | null] }>()
+const { t } = useI18n()
 
 const ids = useFieldIds(props.name, () => Boolean(props.helper), () => Boolean(props.error))
 const listId = `${ids.controlId}-listbox`
@@ -235,7 +237,7 @@ defineExpose({ focus: () => input.value?.focus() })
         :name="name"
         :data-field="name"
         :value="displayValue"
-        :placeholder="selectedOption ? selectedOption.label : placeholder"
+        :placeholder="selectedOption ? selectedOption.label : (placeholder || t('common.search'))"
         :disabled="disabled"
         aria-autocomplete="list"
         :aria-required="required || undefined"
@@ -275,7 +277,7 @@ defineExpose({ focus: () => input.value?.focus() })
           </div>
         </div>
         <p v-if="matches.length === 0" :id="statusId" class="ui-listbox__empty" role="status">
-          {{ emptyMessage }}
+          {{ emptyMessage || t('common.noSearchResults') }}
         </p>
       </UiPopoverSurface>
     </div>

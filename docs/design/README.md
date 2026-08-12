@@ -22,6 +22,7 @@ implementation begins with the first real consumer to avoid unused frameworks:
 - **[attachments.md](attachments.md)** — attachments (photos/documents/tracks): polymorphic association + disk abstraction.
 - **[integrations.md](integrations.md)** — external integrations (Google/Apple calendars, later Strava/Garmin/banks): a single contract + adapters.
 - **[llm-layer.md](llm-layer.md)** — the optional AI layer: per-module Level-2 scenarios on top of the deterministic baseline, the context/tool-calling contract, and privacy/safety boundaries (BYOK).
+- **[localization.md](localization.md)** — supported locales, ownership, formatting, API-error, and delivery rules.
 
 ## Diagrams
 

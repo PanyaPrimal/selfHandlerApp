@@ -8,6 +8,7 @@ import { formatCalendarDate } from '../lib/format'
 import { useAuthSession } from '../auth/session'
 import { UiDatePicker } from '../components/ui'
 import type { RoutineLog, TodayResponse, TodayRoutine } from '../api/types'
+import { useI18n } from '../i18n'
 
 type RoutineState = RoutineLog['status'] | 'pending'
 
@@ -24,8 +25,23 @@ const dateControl = ref<{ focus: () => void } | null>(null)
 // it never becomes a value on its own.
 const userToday = ref<string | null>(null)
 const session = useAuthSession()
-const locale = computed(() => session.user?.preferences.locale ?? 'en-GB')
-const displayName = computed(() => session.user?.name ?? 'there')
+const i18n = useI18n()
+const locale = i18n.locale
+const displayName = computed(() => session.user?.name ?? i18n.t('today.there'))
+
+function routineKind(kind: TodayRoutine['kind']): string {
+  return i18n.t(`today.kind.${kind}` as 'today.kind.routine')
+}
+
+function routineState(state: RoutineState): string {
+  return i18n.t(`today.state.${state}` as 'today.state.done')
+}
+
+function streakLabel(count: number): string {
+  return i18n.plural(count, {
+    one: 'today.streak.one', few: 'today.streak.few', many: 'today.streak.many', other: 'today.streak.other',
+  })
+}
 
 const completionLabel = computed(() => `${Math.round(data.value?.summary.completion_rate ?? 0)}%`)
 const progressWidth = computed(() => `${data.value?.summary.completion_rate ?? 0}%`)
@@ -63,7 +79,7 @@ async function loadToday(date?: string, focusTarget?: FocusTarget | null): Promi
       userToday.value = response.date
     }
   } catch (currentError) {
-    error.value = currentError instanceof Error ? currentError.message : 'Failed to load Today.'
+    error.value = currentError instanceof Error ? currentError.message : i18n.t('today.loadFailed')
     retryAction.value = () => loadToday(date, focusTarget ?? dateControl.value)
   } finally {
     isLoading.value = false
@@ -151,10 +167,10 @@ async function setRoutineState(
     }
 
     data.value = await getToday(selectedDate.value)
-    statusMessage.value = `${routine.name} is ${state}.`
+    statusMessage.value = i18n.t('today.stateSaved', { name: routine.name, state: routineState(state) })
   } catch (currentError) {
     data.value = previousData
-    error.value = currentError instanceof Error ? currentError.message : 'Failed to update the routine.'
+    error.value = currentError instanceof Error ? currentError.message : i18n.t('today.updateFailed')
     retryAction.value = () => setRoutineState(routine, state, focusTarget)
   } finally {
     actionRoutineId.value = null
@@ -184,21 +200,21 @@ onMounted(() => loadToday())
   <section class="view-stack">
     <header class="view-header">
       <div>
-        <p class="eyebrow">{{ selectedDate ? formatCalendarDate(selectedDate, session.user?.preferences.locale) : 'Today' }}</p>
-        <h1>Good evening, {{ displayName }}</h1>
+        <p class="eyebrow">{{ selectedDate ? formatCalendarDate(selectedDate, locale) : i18n.t('nav.today') }}</p>
+        <h1>{{ i18n.t('today.greeting', { name: displayName }) }}</h1>
       </div>
 
       <div class="compact-field">
         <UiDatePicker
           ref="dateControl"
-          label="Date"
+          :label="i18n.t('today.date')"
           name="today-date"
           :model-value="selectedDate || null"
           :locale="locale"
           :today="userToday"
           :disabled="isLoading"
           :clearable="false"
-          placeholder="Choose a day"
+          :placeholder="i18n.t('today.chooseDay')"
           @update:model-value="loadSelectedDate"
         />
       </div>
@@ -206,46 +222,46 @@ onMounted(() => loadToday())
 
     <div v-if="error && data" class="notice error action-notice" role="alert">
       <span>{{ error }}</span>
-      <button v-if="retryAction" type="button" class="secondary" @click="retry">Retry</button>
+      <button v-if="retryAction" type="button" class="secondary" @click="retry">{{ i18n.t('common.retry') }}</button>
     </div>
     <div v-if="statusMessage" class="notice success" role="status">{{ statusMessage }}</div>
 
     <AsyncState
       :loading="isLoading && !data"
       :error="data ? null : error"
-      loading-title="Loading Today…"
-      loading-aria-label="Loading Today"
+      :loading-title="i18n.t('today.loading')"
+      :loading-aria-label="i18n.t('today.loading')"
       panel
       @retry="retry"
     >
       <template #loading>
-        <p class="muted">Loading Today…</p>
+        <p class="muted">{{ i18n.t('today.loading') }}</p>
         <div class="skeleton-line" style="width: 44%"></div>
         <div class="skeleton-line" style="width: 90%"></div>
         <div class="skeleton-line" style="width: 75%"></div>
       </template>
 
       <template v-if="data">
-      <p v-if="isLoading" class="muted" role="status">Loading selected date…</p>
+      <p v-if="isLoading" class="muted" role="status">{{ i18n.t('today.loadingDate') }}</p>
 
-      <section class="summary-grid daily-summary" aria-label="Daily completion summary">
+      <section class="summary-grid daily-summary" :aria-label="i18n.t('today.dailySummary')">
         <div class="metric">
-          <span>Completion</span>
+          <span>{{ i18n.t('summary.completion') }}</span>
           <strong>{{ completionLabel }}</strong>
-          <div class="progress-track" role="progressbar" aria-label="Daily completion" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="Math.round(data.summary.completion_rate)">
+          <div class="progress-track" role="progressbar" :aria-label="i18n.t('today.dailyCompletion')" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="Math.round(data.summary.completion_rate)">
             <div class="progress-fill" :style="{ width: progressWidth }"></div>
           </div>
         </div>
         <div class="metric">
-          <span>Scheduled</span>
+          <span>{{ i18n.t('summary.scheduled') }}</span>
           <strong>{{ data.summary.scheduled }}</strong>
         </div>
         <div class="metric">
-          <span>Done</span>
+          <span>{{ i18n.t('summary.done') }}</span>
           <strong>{{ data.summary.done }}</strong>
         </div>
         <div class="metric">
-          <span>Skipped / pending</span>
+          <span>{{ i18n.t('today.skippedPending') }}</span>
           <strong>{{ data.summary.skipped }} / {{ data.summary.pending }}</strong>
         </div>
       </section>
@@ -254,21 +270,21 @@ onMounted(() => loadToday())
 
       <section class="panel">
         <div class="section-heading">
-          <h2>Routines</h2>
-          <RouterLink to="/routines">Manage</RouterLink>
+          <h2>{{ i18n.t('today.routines') }}</h2>
+          <RouterLink to="/routines">{{ i18n.t('today.manage') }}</RouterLink>
         </div>
 
         <AsyncState
           :empty="data.routines.length === 0"
-          empty-title="No routines scheduled"
-          empty-description="There is nothing planned for this date."
+          :empty-title="i18n.t('today.empty')"
+          :empty-description="i18n.t('today.emptyBody')"
           show-empty-icon
         >
           <template #empty>
             <div class="state-icon" aria-hidden="true"></div>
-            <h3>No routines scheduled</h3>
-            <p class="muted">There is nothing planned for this date.</p>
-            <RouterLink to="/routines">Manage routines</RouterLink>
+            <h3>{{ i18n.t('today.empty') }}</h3>
+            <p class="muted">{{ i18n.t('today.emptyBody') }}</p>
+            <RouterLink to="/routines">{{ i18n.t('today.manageRoutines') }}</RouterLink>
           </template>
 
           <ul class="item-list">
@@ -290,12 +306,12 @@ onMounted(() => loadToday())
                 <strong class="routine-title">{{ routine.name }}</strong>
                 <span class="routine-meta">
                   <span v-if="routine.preferred_time" class="mono">{{ routine.preferred_time.slice(0, 5) }}</span>
-                  <span>{{ routine.kind }}</span>
-                  <span>{{ routine.log?.status ?? 'pending' }}</span>
+                  <span>{{ routineKind(routine.kind) }}</span>
+                  <span>{{ routineState(routine.log?.status ?? 'pending') }}</span>
                   <span
                     class="streak-badge"
-                    :aria-label="`Current streak: ${routine.current_streak} days`"
-                  >{{ routine.current_streak }}-day streak</span>
+                    :aria-label="i18n.t('today.currentStreak', { streak: streakLabel(routine.current_streak) })"
+                  >{{ streakLabel(routine.current_streak) }}</span>
                 </span>
                 <span v-if="routine.goals.length > 0" class="goal-chip-list">
                   <span v-for="goal in routine.goals" :key="goal.id" class="goal-chip">{{ goal.name }}</span>
@@ -303,34 +319,34 @@ onMounted(() => loadToday())
               </span>
             </div>
 
-            <div class="button-row state-actions" role="group" :aria-label="`Set ${routine.name} state`">
+            <div class="button-row state-actions" role="group" :aria-label="i18n.t('today.setState', { name: routine.name })">
               <button
                 type="button"
                 class="secondary"
-                :aria-label="`Mark ${routine.name} done`"
+                :aria-label="i18n.t('today.markDone', { name: routine.name })"
                 :class="{ selected: routine.log?.status === 'done' }"
                 :aria-pressed="routine.log?.status === 'done'"
                 :disabled="actionRoutineId !== null"
                 @click="setRoutineState(routine, 'done', $event.currentTarget as HTMLElement)"
-              >Done</button>
+              >{{ i18n.t('today.actionDone') }}</button>
               <button
                 type="button"
                 class="secondary"
-                :aria-label="`Mark ${routine.name} skipped`"
+                :aria-label="i18n.t('today.markSkipped', { name: routine.name })"
                 :class="{ selected: routine.log?.status === 'skipped' }"
                 :aria-pressed="routine.log?.status === 'skipped'"
                 :disabled="actionRoutineId !== null"
                 @click="setRoutineState(routine, 'skipped', $event.currentTarget as HTMLElement)"
-              >Skip</button>
+              >{{ i18n.t('today.actionSkip') }}</button>
               <button
                 type="button"
                 class="secondary"
-                :aria-label="`Set ${routine.name} to pending`"
+                :aria-label="i18n.t('today.markPending', { name: routine.name })"
                 :class="{ selected: !routine.log }"
                 :aria-pressed="!routine.log"
                 :disabled="actionRoutineId !== null"
                 @click="setRoutineState(routine, 'pending', $event.currentTarget as HTMLElement)"
-              >Pending</button>
+              >{{ i18n.t('today.actionPending') }}</button>
             </div>
             </li>
           </ul>
@@ -339,11 +355,11 @@ onMounted(() => loadToday())
 
       <section class="panel">
         <div class="section-heading">
-          <h2>Evening review</h2>
-          <RouterLink :to="`/review/${selectedDate}`">{{ data.review ? 'Edit' : 'Fill in' }}</RouterLink>
+          <h2>{{ i18n.t('today.eveningReview') }}</h2>
+          <RouterLink :to="`/review/${selectedDate}`">{{ data.review ? i18n.t('common.edit') : i18n.t('today.fillIn') }}</RouterLink>
         </div>
         <p class="muted">
-          {{ data.review ? 'Review saved for this date.' : 'No review yet.' }}
+          {{ data.review ? i18n.t('today.reviewSaved') : i18n.t('today.noReview') }}
         </p>
       </section>
       </template>

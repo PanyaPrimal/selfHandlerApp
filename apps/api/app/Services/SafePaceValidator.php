@@ -89,13 +89,10 @@ class SafePaceValidator
         $rate = number_format($ratePerWeek / 1000, 2, '.', '');
 
         if ($direction === 'gain') {
-            return "That target needs about {$rate} kg a week. SelfHandler treats more than 0.5 kg a week "
-                .'as fast; that is this application\'s own limit rather than published guidance. '
-                .'The goal was saved exactly as you entered it.';
+            return __('messages.pace_gain', ['rate' => $rate]);
         }
 
-        return "That target needs about {$rate} kg a week. The CDC describes 1 to 2 pounds a week as a "
-            .'gradual, steady pace. The goal was saved exactly as you entered it.';
+        return __('messages.pace_loss', ['rate' => $rate]);
     }
 
     private function weeksBetween(string $today, string $targetDate): ?float

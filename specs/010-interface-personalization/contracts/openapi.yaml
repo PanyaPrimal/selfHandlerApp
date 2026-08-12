@@ -1,0 +1,118 @@
+openapi: 3.1.0
+info:
+  title: SelfHandler Interface Preference Delta
+  version: 0.1.0
+  description: Strict partial locale/theme update added by feature 010.
+paths:
+  /api/profile:
+    patch:
+      summary: Update one or more presentation preferences
+      security:
+        - sanctumSession: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [preferences]
+              properties:
+                preferences:
+                  type: object
+                  additionalProperties: false
+                  minProperties: 1
+                  properties:
+                    locale:
+                      $ref: '#/components/schemas/ProfileLocale'
+                    theme:
+                      $ref: '#/components/schemas/ThemePreferences'
+      responses:
+        '200':
+          description: Full normalized profile and finite options
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, options]
+                properties:
+                  data:
+                    type: object
+                    required: [locale, theme, user]
+                    properties:
+                      locale:
+                        $ref: '#/components/schemas/ProfileLocale'
+                      theme:
+                        $ref: '#/components/schemas/ThemePreferences'
+                      user:
+                        type: object
+                        required: [id, name, email, preferences]
+                        properties:
+                          id: { type: integer }
+                          name: { type: string }
+                          email: { type: string, format: email }
+                          preferences:
+                            type: object
+                            required: [locale, theme]
+                            properties:
+                              locale:
+                                $ref: '#/components/schemas/ProfileLocale'
+                              theme:
+                                $ref: '#/components/schemas/ThemePreferences'
+                            additionalProperties: true
+                    additionalProperties: true
+                  options:
+                    type: object
+                    additionalProperties: true
+                additionalProperties: false
+        '401':
+          description: No authenticated session
+        '419':
+          description: CSRF state rejected
+        '422':
+          description: Atomic validation failure in the active locale
+components:
+  securitySchemes:
+    sanctumSession:
+      type: apiKey
+      in: cookie
+      name: selfhandler_session
+  schemas:
+    ProfileLocale:
+      type: string
+      enum: [en-GB, ru-UA, uk-UA]
+    ThemePreferences:
+      type: object
+      additionalProperties: false
+      required:
+        - scheme
+        - accent
+        - accent_hex
+        - background
+        - background_hex
+        - texture
+        - mono_numerals
+        - motion
+      properties:
+        scheme:
+          type: string
+          enum: [light, dark, system]
+        accent:
+          type: string
+          enum: [forest, slate, gold, brick, custom]
+        accent_hex:
+          type: string
+          pattern: '^#[0-9a-fA-F]{6}$'
+        background:
+          type: string
+          enum: [paper, sand, mist, sage, custom]
+        background_hex:
+          type: string
+          pattern: '^#[0-9a-fA-F]{6}$'
+        texture:
+          type: boolean
+        mono_numerals:
+          type: boolean
+        motion:
+          type: string
+          enum: [system, reduce]

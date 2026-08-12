@@ -1,313 +1,90 @@
-/**
- * User-facing changelog.
- *
- * This is product copy for the person who owns this installation, so the text is
- * written in plain Russian and names buttons and screens exactly as they appear
- * in the interface (which is in English). Everything else in the repository —
- * identifiers, comments, documents, tests — stays in English.
- *
- * The list is static on purpose: the content only changes when the application
- * changes, so it ships with the application. There is no endpoint, no table and
- * no editor. See `specs/005-interface-foundation/research.md` R7.
- */
+import type { MessageKey } from '../i18n/locales/en'
 
+/** Static, versioned changelog metadata. All user-facing copy lives in i18n catalogs. */
 export interface ChangelogLink {
-  /** Shown as written; matches the current wording in the interface. */
-  readonly label: string
-  /** In-application route path, e.g. `/routines`. */
+  readonly labelKey: MessageKey
   readonly to: string
 }
 
 export interface ChangelogEntry {
   readonly id: string
-  /** `YYYY-MM-DD` — the day the change became usable. */
   readonly date: string
-  /** Spec Kit feature identifier or category. */
   readonly feature: string
-  readonly title: string
-  readonly summary: string
-  readonly howToTest: string
+  readonly titleKey: MessageKey
+  readonly summaryKey: MessageKey
+  readonly testKey: MessageKey
   readonly links?: readonly ChangelogLink[]
-  readonly limitations?: readonly string[]
+  readonly limitationKeys?: readonly MessageKey[]
 }
 
 const entries: readonly ChangelogEntry[] = [
   {
-    id: 'planner-day',
-    date: '2026-08-12',
-    feature: '009-planner-day',
-    title: 'Planner: весь день на одном экране',
-    summary:
-      'Появился раздел Planner. Он показывает один день целиком: рутины на этот день, задачи из ' +
-      'Storage с этим сроком и собственные блоки времени — встречи и занятые промежутки. Ничего ' +
-      'никуда не копируется: Planner каждый раз собирает день из тех разделов, где записи живут на ' +
-      'самом деле. Рутину можно перенести на другой день или отметить пропуск прямо отсюда — ' +
-      'пропуск попадает туда же, куда его пишет Today, поэтому прогресс и серии считаются как ' +
-      'раньше. Перенесённая рутина не исчезает с исходного дня насовсем: её видно на новом дне с ' +
-      'пометкой, откуда она пришла, и её можно вернуть обратно кнопкой Put back.',
-    howToTest:
-      'Откройте Planner (на телефоне — через кнопку More). Кнопками Previous day / Next day или ' +
-      'через поле Day переключите дату. Нажмите Add a block, введите название и время — блок ' +
-      'появится в дне на своём месте. У рутины нажмите Move и выберите завтра: сегодня она ' +
-      'пропадёт, а завтра появится с пометкой moved from. Кнопка Put back вернёт её на место. ' +
-      'Нажмите Skip — на экране Today этот же день будет отмечен как пропущенный.',
-    links: [{ label: 'Planner', to: '/planner' }],
-    limitations: [
-      'День уже размеченных рутин рассчитан на 90 дней вперёд. Дальше этого Planner честно пишет, ' +
-        'что день ещё не заполнен, а не показывает его пустым.',
-      'Перенести можно только тот день, по которому ещё нет результата, и только вперёд: прошлое ' +
-        'не переписывается.',
-      'Блоки времени могут пересекаться — приложение не спорит с вашим днём, а просто показывает всё как есть.',
-      'Напоминаний и уведомлений пока нет: Planner показывает день, но не окликает вас.',
-      'Срок задачи меняется через Storage, поэтому Move у задачи двигает именно её срок.',
-    ],
+    id: 'interface-personalization', date: '2026-08-13', feature: '010-interface-personalization',
+    titleKey: 'changelog.entry.personalization.title', summaryKey: 'changelog.entry.personalization.summary',
+    testKey: 'changelog.entry.personalization.test',
+    links: [{ labelKey: 'nav.settings', to: '/settings/appearance' }, { labelKey: 'nav.account', to: '/account' }],
   },
   {
-    id: 'multi-user-auth',
-    date: '2026-08-09',
-    feature: '003-multi-user-auth',
-    title: 'Вход по приглашению и отдельные аккаунты',
-    summary:
-      'Появился вход по адресу почты и паролю. Регистрация закрытая: нужен код приглашения. ' +
-      'У каждого аккаунта свои рутины, цели, отметки и отчёты — чужие данные не видны и не доступны.',
-    howToTest:
-      'Выйдите через Sign out на экране Account и войдите заново. Если завести второй аккаунт по ' +
-      'другому коду приглашения, его списки будут пустыми и независимыми.',
-    links: [{ label: 'Account', to: '/account' }],
+    id: 'planner-day', date: '2026-08-12', feature: '009-planner-day',
+    titleKey: 'changelog.entry.planner.title', summaryKey: 'changelog.entry.planner.summary',
+    testKey: 'changelog.entry.planner.test', links: [{ labelKey: 'nav.planner', to: '/planner' }],
+    limitationKeys: ['changelog.entry.planner.limit'],
   },
   {
-    id: 'routines-and-today',
-    date: '2026-08-10',
-    feature: '001-core-daily-loop',
-    title: 'Рутины и экран Today',
-    summary:
-      'Можно завести повторяющееся действие: название, описание, расписание (каждый день или по ' +
-      'дням недели), желаемое время, даты начала и окончания. На экране Today появляется список ' +
-      'того, что запланировано на выбранный день, с отметками «сделано» и «пропущено». Рутину ' +
-      'можно поставить на паузу, отредактировать или отправить в архив, не теряя историю.',
-    howToTest:
-      'Откройте Routines, создайте рутину, затем перейдите на Today и отметьте её как выполненную. ' +
-      'Повторное нажатие снимает отметку.',
-    links: [
-      { label: 'Routines', to: '/routines' },
-      { label: 'Today', to: '/' },
-    ],
-    limitations: [
-      'После первой отметки расписание рутины блокируется, чтобы прошлые дни не переписывались задним числом.',
-    ],
+    id: 'storage-inbox', date: '2026-08-12', feature: '008-storage-inbox',
+    titleKey: 'changelog.entry.storage.title', summaryKey: 'changelog.entry.storage.summary',
+    testKey: 'changelog.entry.storage.test', links: [{ labelKey: 'nav.storage', to: '/storage' }],
+    limitationKeys: ['changelog.entry.storage.limit'],
   },
   {
-    id: 'daily-review',
-    date: '2026-08-10',
-    feature: '001-core-daily-loop',
-    title: 'Вечерний отчёт за день',
-    summary:
-      'Появился экран Review: настроение, энергия, стресс и общая оценка дня плюс три текстовых ' +
-      'поля — что получилось, что улучшить завтра и свободные заметки. На каждый день сохраняется ' +
-      'один отчёт, его можно дополнять в течение дня.',
-    howToTest:
-      'Откройте Review, выставьте оценки, напишите пару строк и нажмите Save review. Обновите ' +
-      'страницу — значения останутся на месте.',
-    links: [{ label: 'Review', to: '/review' }],
+    id: 'body-measurements', date: '2026-08-12', feature: '007-body-measurements',
+    titleKey: 'changelog.entry.body.title', summaryKey: 'changelog.entry.body.summary',
+    testKey: 'changelog.entry.body.test', links: [{ labelKey: 'nav.body', to: '/body' }],
+    limitationKeys: ['changelog.entry.body.limit'],
   },
   {
-    id: 'goals',
-    date: '2026-08-11',
-    feature: '001-core-daily-loop',
-    title: 'Цели и связь с рутинами',
-    summary:
-      'Можно ставить цели с описанием и датой, отмечать их выполненными или отложенными, ' +
-      'возвращать в работу и убирать в архив. Цель связывается с рутинами, которые к ней ведут, ' +
-      'и связанные цели показываются рядом с рутиной на экране Today.',
-    howToTest:
-      'Откройте Goals, создайте цель, в блоке Routine links отметьте нужные рутины и нажмите ' +
-      'Save routine links. Затем посмотрите на Today — рядом с рутиной появится название цели.',
-    links: [
-      { label: 'Goals', to: '/goals' },
-      { label: 'Today', to: '/' },
-    ],
+    id: 'unified-recurrence', date: '2026-08-12', feature: '006-unified-recurrence',
+    titleKey: 'changelog.entry.recurrence.title', summaryKey: 'changelog.entry.recurrence.summary',
+    testKey: 'changelog.entry.recurrence.test', links: [{ labelKey: 'nav.routines', to: '/routines' }],
   },
   {
-    id: 'progress-and-streaks',
-    date: '2026-08-11',
-    feature: '001-core-daily-loop',
-    title: 'Прогресс за семь дней и серии',
-    summary:
-      'На экране Today появился блок за последние семь дней: сколько было запланировано, ' +
-      'сколько сделано, пропущено и осталось, и какой процент выполнения. У каждой рутины ' +
-      'считается текущая серия подряд выполненных дней.',
-    howToTest:
-      'Отметьте несколько дней подряд на Today, переключая дату в поле Date, и посмотрите, ' +
-      'как меняется блок прогресса и счётчик серии у рутины.',
-    links: [{ label: 'Today', to: '/' }],
-    limitations: [
-      'Серия считается по фактическим отметкам. История постановок на паузу пока не восстанавливается.',
-    ],
+    id: 'interface-foundation', date: '2026-08-12', feature: '005-interface-foundation',
+    titleKey: 'changelog.entry.interface.title', summaryKey: 'changelog.entry.interface.summary',
+    testKey: 'changelog.entry.interface.test', links: [{ labelKey: 'nav.account', to: '/account' }],
   },
   {
-    id: 'profile-and-settings',
-    date: '2026-08-12',
-    feature: '004-profile-settings',
-    title: 'Профиль и настройки',
-    summary:
-      'Экран Account стал полноценным профилем: имя, часовой пояс, язык и формат даты, система ' +
-      'единиц, базовая валюта и тон рекомендаций. Отдельно хранятся исходные данные для расчётов — ' +
-      'дата рождения, пол, рост, вес, процент жира, бытовая активность и формула обмена веществ. ' +
-      'Именно ваш часовой пояс теперь определяет, какой день считается сегодняшним.',
-    howToTest:
-      'Откройте Account, поменяйте Units с metric на imperial и нажмите Save profile: рост и вес ' +
-      'покажутся в футах и фунтах, но сохранённое значение не изменится.',
-    links: [{ label: 'Account', to: '/account' }],
-    limitations: [
-      'Профиль хранит текущие исходные данные, а не историю измерений.',
-    ],
+    id: 'profile-and-settings', date: '2026-08-12', feature: '004-profile-settings',
+    titleKey: 'changelog.entry.profile.title', summaryKey: 'changelog.entry.profile.summary',
+    testKey: 'changelog.entry.profile.test', links: [{ labelKey: 'nav.account', to: '/account' }],
   },
   {
-    id: 'interface-foundation',
-    date: '2026-08-12',
-    feature: '005-interface-foundation',
-    title: 'Единый вид полей во всех формах',
-    summary:
-      'Раньше списки, календарь, выбор времени и галочки рисовались браузером и выбивались из ' +
-      'оформления приложения. Теперь все поля свои: выпадающий список, поиск по часовым поясам, ' +
-      'календарь, выбор времени, переключатели и галочки выглядят одинаково на всех экранах и ' +
-      'полностью работают с клавиатуры. Даты по-прежнему хранятся как календарный день и не ' +
-      'сдвигаются из-за часового пояса браузера.',
-    howToTest:
-      'Откройте Account и нажмите на поле Timezone: появится список с поиском — наберите часть ' +
-      'названия города. Затем на Routines откройте Starts on: календарь можно листать стрелками, ' +
-      'выбирать день клавишей Enter и закрывать клавишей Escape.',
-    links: [
-      { label: 'Account', to: '/account' },
-      { label: 'Routines', to: '/routines' },
-    ],
-    limitations: [
-      'Ползунки оценок в Review остались стандартными: они и так доступны с клавиатуры и не открывают системных окон.',
-    ],
+    id: 'goals', date: '2026-08-11', feature: '001-core-daily-loop',
+    titleKey: 'changelog.entry.goals.title', summaryKey: 'changelog.entry.goals.summary',
+    testKey: 'changelog.entry.goals.test', links: [{ labelKey: 'nav.goals', to: '/goals' }],
   },
   {
-    id: 'storage-inbox',
-    date: '2026-08-12',
-    feature: '008-storage-inbox',
-    title: 'Storage: быстрый захват задач и идей',
-    summary:
-      'Появился раздел Storage. Мысль записывается в одно поле и попадает во входящие — решать, ' +
-      'что это и куда относится, можно потом. При разборе задаче или идее можно задать тип, проект, ' +
-      'приоритет и теги. Крупное дело разбивается на дочерние пункты, и любой из них можно отметить ' +
-      'как блокирующий: пока он не закрыт, родительский пункт нельзя завершить — приложение скажет, ' +
-      'что именно мешает. Проекты показывают, сколько в них открыто и сколько сделано.',
-    howToTest:
-      'Откройте Storage (на телефоне — через кнопку More), напишите одну строку и нажмите Capture: ' +
-      'запись появится во входящих, а поле очистится и останется активным для следующей мысли. ' +
-      'Нажмите Triage, добавьте дочерний пункт, отметьте его кнопкой Blocker и попробуйте завершить ' +
-      'родительский — он не завершится, пока блокирующий пункт открыт.',
-    links: [{ label: 'Storage', to: '/storage' }],
-    limitations: [
-      'Пока есть только два типа: задача и идея. Покупки появятся вместе с финансами, списки — со своим контейнером.',
-      'Вложенность — один уровень: у дочернего пункта не может быть своих дочерних.',
-      'Пункт со сроком теперь показывается в Planner на этот день, но напоминаний по нему пока нет.',
-      'Теги живут только внутри Storage и пока не общие для всего приложения.',
-      'Удаление проекта или родительского пункта не удаляет вложенную работу: она остаётся без проекта или без родителя.',
-    ],
+    id: 'progress-and-streaks', date: '2026-08-11', feature: '001-core-daily-loop',
+    titleKey: 'changelog.entry.progress.title', summaryKey: 'changelog.entry.progress.summary',
+    testKey: 'changelog.entry.progress.test', links: [{ labelKey: 'nav.today', to: '/' }],
   },
   {
-    id: 'storage-inbox',
-    date: '2026-08-12',
-    feature: '008-storage-inbox',
-    title: 'Storage: быстрый захват задач и идей',
-    summary:
-      'Появился раздел Storage. Мысль записывается в одно поле и попадает во входящие — решать, ' +
-      'что это и куда относится, можно потом. При разборе задаче или идее можно задать тип, проект, ' +
-      'приоритет и теги. Крупное дело разбивается на дочерние пункты, и любой из них можно отметить ' +
-      'как блокирующий: пока он не закрыт, родительский пункт нельзя завершить — приложение скажет, ' +
-      'что именно мешает. Проекты показывают, сколько в них открыто и сколько сделано.',
-    howToTest:
-      'Откройте Storage (на телефоне — через кнопку More), напишите одну строку и нажмите Capture: ' +
-      'запись появится во входящих, а поле очистится и останется активным для следующей мысли. ' +
-      'Нажмите Triage, добавьте дочерний пункт, отметьте его кнопкой Blocker и попробуйте завершить ' +
-      'родительский — он не завершится, пока блокирующий пункт открыт.',
-    links: [{ label: 'Storage', to: '/storage' }],
-    limitations: [
-      'Пока есть только два типа: задача и идея. Покупки появятся вместе с финансами, списки — со своим контейнером.',
-      'Вложенность — один уровень: у дочернего пункта не может быть своих дочерних.',
-      'Срок у пункта — просто дата: ничто по нему не планирует и не напоминает. Это придёт с планнером и уведомлениями.',
-      'Теги живут только внутри Storage и пока не общие для всего приложения.',
-      'Удаление проекта или родительского пункта не удаляет вложенную работу: она остаётся без проекта или без родителя.',
-    ],
+    id: 'routines-and-today', date: '2026-08-10', feature: '001-core-daily-loop',
+    titleKey: 'changelog.entry.routines.title', summaryKey: 'changelog.entry.routines.summary',
+    testKey: 'changelog.entry.routines.test', links: [{ labelKey: 'nav.routines', to: '/routines' }, { labelKey: 'nav.today', to: '/' }],
   },
   {
-    id: 'body-measurements',
-    date: '2026-08-12',
-    feature: '007-body-measurements',
-    title: 'Замеры тела и цели по составу тела',
-    summary:
-      'Появился раздел Body: датированные замеры (вес, процент жира, талия, грудь, бёдра, бедро, ' +
-      'бицепс, шея, голень), история по каждому показателю и тренд — на сколько в неделю меняется ' +
-      'значение. Можно поставить цель по составу тела с начальным и целевым значением, датой и ' +
-      'промежуточными отметками; прогресс считается по вашим замерам. Если срок требует слишком ' +
-      'быстрого изменения веса, приложение об этом скажет, но цель всё равно сохранит ровно так, ' +
-      'как вы её ввели.',
-    howToTest:
-      'Откройте Body (на телефоне — через кнопку More), выберите показатель, дату и значение и ' +
-      'нажмите Save measurement. После второго замера появится блок Trend с изменением за неделю. ' +
-      'Затем нажмите Add a body goal и задайте цель.',
-    links: [{ label: 'Body', to: '/body' }],
-    limitations: [
-      'Один замер на показатель в день: сохранение той же даты повторно исправляет значение, а не добавляет второе.',
-      'Замер нельзя поставить будущей датой.',
-      'Предупреждение о темпе есть только для веса. Для снижения веса граница взята из рекомендации CDC (1–2 фунта в неделю), для набора — это собственное ограничение приложения, а не медицинская норма. Приложение ничего не диагностирует и не назначает.',
-      'Фотографии прогресса появятся вместе с вложениями, напоминания о замерах — вместе с уведомлениями.',
-    ],
+    id: 'daily-review', date: '2026-08-10', feature: '001-core-daily-loop',
+    titleKey: 'changelog.entry.review.title', summaryKey: 'changelog.entry.review.summary',
+    testKey: 'changelog.entry.review.test', links: [{ labelKey: 'nav.review', to: '/review' }],
   },
   {
-    id: 'unified-recurrence',
-    date: '2026-08-12',
-    feature: '006-unified-recurrence',
-    title: 'Единое расписание для рутин',
-    summary:
-      'Расписание рутины переехало в общий механизм повторений, который дальше будут использовать ' +
-      'планнер, привычки, добавки и тренировки. Снаружи всё осталось прежним: те же поля Schedule, ' +
-      'Weekdays, Preferred time, Starts on и Ends on, та же история отметок, те же серии и прогресс. ' +
-      'Внутри теперь одно место, где хранится расписание, и приложение заранее просчитывает ' +
-      'ближайшие 90 дней в вашем часовом поясе — корректно в том числе при переходе на летнее и ' +
-      'зимнее время.',
-    howToTest:
-      'Откройте Routines и создайте рутину по дням недели: выберите By weekdays, отметьте нужные дни ' +
-      'и сохраните. Перезагрузите страницу — расписание на месте. Затем отметьте её на Today: ' +
-      'история и серия считаются как раньше.',
-    links: [
-      { label: 'Routines', to: '/routines' },
-      { label: 'Today', to: '/' },
-    ],
-    limitations: [
-      'Пока поддерживаются только «каждый день» и «по дням недели». Интервалы, месячные повторения и циклы приёма появятся вместе с модулями, которым они нужны.',
-      'После первой отметки расписание по-прежнему блокируется: чтобы изменить его, заархивируйте рутину и создайте новую.',
-    ],
-  },
-  {
-    id: 'changelog',
-    date: '2026-08-12',
-    feature: '005-interface-foundation',
-    title: 'Этот список изменений',
-    summary:
-      'Появился экран Changelog: что изменилось, когда и как это быстро проверить. Записи идут ' +
-      'от новых к старым. На телефоне в нижней панели добавилась кнопка More — через неё ' +
-      'открываются Account, Changelog и остальные разделы.',
-    howToTest:
-      'Вы уже здесь. Сузьте окно до ширины телефона: основные вкладки останутся внизу, ' +
-      'а остальное спрячется под кнопку More.',
-    links: [{ label: 'Changelog', to: '/changelog' }],
+    id: 'multi-user-auth', date: '2026-08-09', feature: '003-multi-user-auth',
+    titleKey: 'changelog.entry.auth.title', summaryKey: 'changelog.entry.auth.summary',
+    testKey: 'changelog.entry.auth.test', links: [{ labelKey: 'nav.account', to: '/account' }],
   },
 ]
 
-/**
- * Newest first, with a total order so same-day entries never swap places between
- * renders. The sort is applied here rather than trusted to authoring order.
- */
 export const changelogEntries: readonly ChangelogEntry[] = [...entries].sort((left, right) => {
-  if (left.date !== right.date) {
-    return left.date < right.date ? 1 : -1
-  }
-
+  if (left.date !== right.date) return left.date < right.date ? 1 : -1
   return left.id < right.id ? 1 : -1
 })

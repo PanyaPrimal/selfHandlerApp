@@ -33,7 +33,7 @@ class AuthController extends Controller
 
                 if ($invitation === null) {
                     throw ValidationException::withMessages([
-                        'invite_code' => ['This invite code is invalid or has already been used.'],
+                        'invite_code' => [__('messages.invite_invalid')],
                     ]);
                 }
 
@@ -49,7 +49,7 @@ class AuthController extends Controller
             });
         } catch (UniqueConstraintViolationException) {
             throw ValidationException::withMessages([
-                'email' => ['The email has already been taken.'],
+                'email' => [__('messages.email_taken')],
             ]);
         }
 

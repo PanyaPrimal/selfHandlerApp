@@ -36,6 +36,18 @@
 
 **Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
 
+## Localisation Plan
+
+**Message ownership**: [canonical key set and where translations live]
+
+**Runtime locale**: [authoritative source, hydration, fallback, and reconciliation]
+
+**Formatting**: [Intl/date/number/currency/unit/plural decisions]
+
+**Backend feedback**: [how validation and domain messages use the active locale]
+
+**Delivery gates**: [parity, used-key, hardcoded-copy, typecheck, and browser checks]
+
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*

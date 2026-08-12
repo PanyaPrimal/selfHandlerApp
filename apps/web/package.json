@@ -8,6 +8,7 @@
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit",
+    "check:i18n": "node scripts/check-i18n.mjs",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "install:browsers": "playwright install chromium"

@@ -236,8 +236,8 @@ keyboard.
 
 ### Out of Scope
 
-Purchases and their money link (Finance, feature 017+), list items and the List container, scheduling,
-reminders and calendar placement (Planner 009, Notifications 010), converting an idea into a goal or a
+Purchases and their money link (Finance, feature 018+), list items and the List container, scheduling,
+reminders and calendar placement (Planner 009, Notifications 011), converting an idea into a goal or a
 project automatically, application-wide tags, recurring tasks, attachments, and AI triage. Each returns
 with the feature that owns it.
 

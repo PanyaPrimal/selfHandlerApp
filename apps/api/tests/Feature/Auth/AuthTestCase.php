@@ -79,6 +79,8 @@ abstract class AuthTestCase extends TestCase
                             'scheme' => 'light',
                             'accent' => 'forest',
                             'accent_hex' => '#6d5ac4',
+                            'background' => 'paper',
+                            'background_hex' => '#ece9e2',
                             'texture' => true,
                             'mono_numerals' => true,
                             'motion' => 'system',

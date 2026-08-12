@@ -6,6 +6,7 @@ import type { LoginPayload } from '../api/types'
 import { safeRedirect } from '../auth/redirect'
 import { login, restoreSession, useAuthSession } from '../auth/session'
 import { UiTextInput } from '../components/ui'
+import { useI18n } from '../i18n'
 
 type FocusableControl = { focus: () => void }
 
@@ -20,35 +21,36 @@ const error = ref<string | null>(null)
 const isSubmitting = ref(false)
 const emailInput = ref<FocusableControl | null>(null)
 const passwordInput = ref<FocusableControl | null>(null)
+const { t } = useI18n()
 
 function failureMessage(currentError: unknown): string {
   if (!(currentError instanceof ApiError)) {
-    return 'Something went wrong. Please try again.'
+    return t('common.errorGeneric')
   }
 
   if (currentError.status === 0 || currentError.status >= 500) {
-    return 'SelfHandler could not be reached. Check the service and try again.'
+    return t('common.errorReach')
   }
 
   if (currentError.status === 419) {
-    return 'Your secure form session expired. Please try again.'
+    return t('common.errorCsrf')
   }
 
   if (currentError.status === 429) {
     return currentError.retryAfter
-      ? `Too many attempts. Try again in ${currentError.retryAfter} seconds.`
-      : 'Too many attempts. Please wait and try again.'
+      ? t('common.errorRateSeconds', { seconds: currentError.retryAfter })
+      : t('common.errorRate')
   }
 
   if (currentError.status === 409) {
-    return 'This browser is already signed in. Reload to continue to the workspace.'
+    return t('common.alreadySignedIn')
   }
 
   if (currentError.status === 422) {
-    return 'The email or password is incorrect.'
+    return t('auth.loginInvalid')
   }
 
-  return 'Sign in failed. Please try again.'
+  return t('auth.loginFailed')
 }
 
 async function focusFirstError(): Promise<void> {
@@ -106,9 +108,9 @@ async function submitLogin(): Promise<void> {
       </RouterLink>
 
       <header class="auth-heading">
-        <p class="eyebrow">Personal workspace</p>
-        <h1>Welcome back</h1>
-        <p class="muted">Sign in to continue with your routines, goals, and daily review.</p>
+        <p class="eyebrow">{{ t('auth.personalWorkspace') }}</p>
+        <h1>{{ t('auth.welcomeBack') }}</h1>
+        <p class="muted">{{ t('auth.signInBody') }}</p>
       </header>
 
       <div v-if="error" class="notice error" role="alert" aria-live="assertive">{{ error }}</div>
@@ -117,7 +119,7 @@ async function submitLogin(): Promise<void> {
         <UiTextInput
           ref="emailInput"
           v-model="form.email"
-          label="Email"
+          :label="t('auth.email')"
           name="email"
           type="email"
           autocomplete="email"
@@ -130,7 +132,7 @@ async function submitLogin(): Promise<void> {
         <UiTextInput
           ref="passwordInput"
           v-model="form.password"
-          label="Password"
+          :label="t('auth.password')"
           name="password"
           type="password"
           autocomplete="current-password"
@@ -140,14 +142,14 @@ async function submitLogin(): Promise<void> {
         />
 
         <button type="submit" :disabled="isSubmitting">
-          {{ isSubmitting ? 'Signing in...' : 'Sign in' }}
+          {{ isSubmitting ? t('auth.signingIn') : t('auth.signIn') }}
         </button>
       </form>
 
       <p class="auth-switch muted">
-        New to SelfHandler?
+        {{ t('auth.new') }}
         <RouterLink :to="{ name: 'register', query: route.query.redirect ? { redirect: route.query.redirect } : {} }">
-          Create account
+          {{ t('auth.createAccount') }}
         </RouterLink>
       </p>
     </section>

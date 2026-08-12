@@ -50,14 +50,14 @@ apps/web/src/
 2. **Inputs**: time zone, locale and unit system come from Profile; none is copied.
 3. **Time**: `measured_on` is a calendar day defaulted from the user's profile time zone; timestamps
    stay UTC.
-4. **Scheduling**: none. Recurring measurement reminders wait for feature 010.
+4. **Scheduling**: none. Recurring measurement reminders wait for feature 011.
 5. **Cross-module links**: one direction — the body detail points at its goal; the goal knows only its
    type.
 6. **Evolution**: purely additive; rollback drops the three new tables and nothing else.
 7. **Contracts**: new endpoints, typed frontend payloads, and browser coverage in the same change.
 8. **Aggregates**: progress and trend are computed by this module.
 9. **Privacy**: health data is user-owned, never exposed across accounts, never sent anywhere.
-10. **Deferral**: photos wait for feature 020, reminders for 010, analysis for 022 and 025.
+10. **Deferral**: photos wait for feature 021, reminders for 011, analysis for 023 and 026.
 
 ## Constitution Check
 

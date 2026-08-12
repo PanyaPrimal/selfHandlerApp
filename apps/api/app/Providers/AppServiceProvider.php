@@ -34,7 +34,7 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(60)
                 ->by($request->ip() ?? 'unknown')
                 ->response(static fn (Request $request, array $headers) => response()->json([
-                    'message' => 'Too many login attempts. Please try again later.',
+                    'message' => __('messages.too_many_login'),
                 ], 429, $headers));
         });
 
@@ -42,7 +42,7 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(max(1, (int) config('auth.registration_attempts_per_minute', 3)))
                 ->by($request->ip() ?? 'unknown')
                 ->response(static fn (Request $request, array $headers) => response()->json([
-                    'message' => 'Too many registration attempts. Please try again later.',
+                    'message' => __('messages.too_many_registration'),
                 ], 429, $headers));
         });
     }

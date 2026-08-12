@@ -52,6 +52,9 @@ description: "Task list template for feature implementation"
 - [ ] T001 Create project structure per implementation plan
 - [ ] T002 Initialize [language] project with [framework] dependencies
 - [ ] T003 [P] Configure linting and formatting tools
+- [ ] TXXX [P] Define canonical English keys and complete Russian/Ukrainian translations for the
+  feature's full localisation surface
+- [ ] TXXX Add or extend locale parity, used-key, and hardcoded user-copy checks
 
 ---
 
@@ -152,6 +155,9 @@ Examples of foundational tasks (adjust based on your project):
 **Purpose**: Improvements that affect multiple user stories
 
 - [ ] TXXX [P] Documentation updates in docs/
+- [ ] TXXX [P] Verify every new user-visible string, validation/domain message, ARIA label, enum label,
+  and formatter in `en-GB`, `ru-UA`, and `uk-UA`
+- [ ] TXXX Run locale parity, used-key, and hardcoded-copy gates
 - [ ] TXXX Code cleanup and refactoring
 - [ ] TXXX Performance optimization across all stories
 - [ ] TXXX [P] Additional unit tests (if requested) in tests/unit/

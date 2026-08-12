@@ -93,6 +93,16 @@
 - **FR-004**: System MUST [data requirement, e.g., "persist user preferences"]
 - **FR-005**: System MUST [behavior, e.g., "log all security events"]
 
+### Localisation Surface *(mandatory)*
+
+- **Locales**: English (`en-GB`), Russian (`ru-UA`), and Ukrainian (`uk-UA`).
+- **New user text**: [navigation, headings, labels, helpers, placeholders, actions, states, errors,
+  validation/domain feedback, accessibility text, static content, and enum labels introduced or
+  changed by this feature]
+- **Formatting**: [dates, numbers, currencies, units, and plural forms affected by this feature]
+- **Non-translatable content**: [brand names, user content, identifiers, paths, or none]
+- **Verification**: [locale parity, used-key, hardcoded-copy, backend-message, and browser coverage]
+
 *Example of marking unclear requirements:*
 
 - **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]

@@ -4,11 +4,13 @@ import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { useAuthSession } from '../auth/session'
 import UiPopoverSurface from '../components/ui/UiPopoverSurface.vue'
 import { useAnchoredSurface } from '../components/ui/useAnchoredSurface'
+import { useI18n } from '../i18n'
+import type { MessageKey } from '../i18n/locales/en'
 
 interface Destination {
   name: string
   to: string
-  label: string
+  label: MessageKey
 }
 
 /**
@@ -17,19 +19,19 @@ interface Destination {
  * drop each tab below a comfortable touch target and truncate its label.
  */
 const desktopDestinations: Destination[] = [
-  { name: 'today', to: '/', label: 'Today' },
-  { name: 'routines', to: '/routines', label: 'Routines' },
-  { name: 'goals', to: '/goals', label: 'Goals' },
-  { name: 'review', to: '/review', label: 'Review' },
-  { name: 'planner', to: '/planner', label: 'Planner' },
-  { name: 'storage', to: '/storage', label: 'Storage' },
-  { name: 'body', to: '/body', label: 'Body' },
+  { name: 'today', to: '/', label: 'nav.today' },
+  { name: 'routines', to: '/routines', label: 'nav.routines' },
+  { name: 'goals', to: '/goals', label: 'nav.goals' },
+  { name: 'review', to: '/review', label: 'nav.review' },
+  { name: 'planner', to: '/planner', label: 'nav.planner' },
+  { name: 'storage', to: '/storage', label: 'nav.storage' },
+  { name: 'body', to: '/body', label: 'nav.body' },
 ]
 
 const utilityDestinations: Destination[] = [
-  { name: 'settings-appearance', to: '/settings/appearance', label: 'Settings' },
-  { name: 'account', to: '/account', label: 'Account' },
-  { name: 'changelog', to: '/changelog', label: 'Changelog' },
+  { name: 'settings-appearance', to: '/settings/appearance', label: 'nav.settings' },
+  { name: 'account', to: '/account', label: 'nav.account' },
+  { name: 'changelog', to: '/changelog', label: 'nav.changelog' },
 ]
 
 const mobileDestinations = desktopDestinations.slice(0, 3)
@@ -38,6 +40,7 @@ const moreDestinations = [...desktopDestinations.slice(3), ...utilityDestination
 const route = useRoute()
 const session = useAuthSession()
 const moreButton = ref<HTMLElement | null>(null)
+const { t } = useI18n()
 const userInitial = computed(() => session.user?.name.trim().charAt(0).toUpperCase() || '?')
 
 const secondaryIsActive = computed(() =>
@@ -64,7 +67,7 @@ function goToSecondary(): void {
         <span>SELFHANDLER</span>
       </RouterLink>
 
-      <nav class="nav-list nav-list--desktop" aria-label="Primary navigation">
+      <nav class="nav-list nav-list--desktop" :aria-label="t('nav.primary')">
         <div class="nav-group">
           <RouterLink
             v-for="destination in desktopDestinations"
@@ -72,7 +75,7 @@ function goToSecondary(): void {
             :to="destination.to"
           >
             <span class="nav-dot" aria-hidden="true"></span>
-            <span>{{ destination.label }}</span>
+            <span>{{ t(destination.label) }}</span>
           </RouterLink>
         </div>
         <div class="nav-group nav-group--utility">
@@ -82,15 +85,15 @@ function goToSecondary(): void {
             :to="destination.to"
           >
             <span class="nav-dot" aria-hidden="true"></span>
-            <span>{{ destination.label }}</span>
+            <span>{{ t(destination.label) }}</span>
           </RouterLink>
         </div>
       </nav>
 
-      <nav class="nav-list nav-list--compact" aria-label="Primary navigation">
+      <nav class="nav-list nav-list--compact" :aria-label="t('nav.primary')">
         <RouterLink v-for="destination in mobileDestinations" :key="destination.name" :to="destination.to">
           <span class="nav-dot" aria-hidden="true"></span>
-          <span>{{ destination.label }}</span>
+          <span>{{ t(destination.label) }}</span>
         </RouterLink>
 
         <div :ref="(element) => { more.anchorRef.value = element as HTMLElement | null }" class="nav-more">
@@ -106,7 +109,7 @@ function goToSecondary(): void {
             @click="more.toggle()"
           >
             <span class="nav-dot" aria-hidden="true"></span>
-            <span>More</span>
+            <span>{{ t('nav.more') }}</span>
           </button>
 
           <UiPopoverSurface
@@ -115,7 +118,7 @@ function goToSecondary(): void {
             :surface-style="more.surfaceStyle.value"
             :bind-ref="(element) => { more.surfaceRef.value = element }"
             role="menu"
-            aria-label="More destinations"
+            :aria-label="t('nav.moreDestinations')"
             class="nav-more__menu"
           >
             <RouterLink
@@ -126,7 +129,7 @@ function goToSecondary(): void {
               :to="destination.to"
               @click="goToSecondary"
             >
-              {{ destination.label }}
+              {{ t(destination.label) }}
             </RouterLink>
           </UiPopoverSurface>
         </div>
@@ -136,7 +139,7 @@ function goToSecondary(): void {
         v-if="session.user"
         class="user-pill"
         to="/account"
-        :aria-label="`Open account for ${session.user.name}`"
+        :aria-label="t('nav.openAccount', { name: session.user.name })"
       >
         <span>{{ userInitial }}</span>
         <div>

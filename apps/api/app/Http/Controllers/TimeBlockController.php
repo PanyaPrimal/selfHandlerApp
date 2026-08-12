@@ -57,7 +57,7 @@ class TimeBlockController extends Controller
 
         $validator->after(function (LaravelValidator $validator) use ($block, $request): void {
             if ($request->has('title') && trim((string) $request->input('title')) === '') {
-                $validator->errors()->add('title', 'Give the block a name.');
+                $validator->errors()->add('title', __('messages.block_name'));
             }
 
             $startsAt = $request->exists('starts_at')
@@ -70,7 +70,7 @@ class TimeBlockController extends Controller
             // Overlap between blocks is allowed on purpose; a block that ends
             // before it starts is simply not a span.
             if (is_string($startsAt) && is_string($endsAt) && $endsAt <= $startsAt) {
-                $validator->errors()->add('ends_at', 'The end time has to be after the start time.');
+                $validator->errors()->add('ends_at', __('messages.block_end_after_start'));
             }
         });
 
@@ -78,7 +78,7 @@ class TimeBlockController extends Controller
 
         if ($partial && $data === []) {
             throw ValidationException::withMessages([
-                'request' => 'Provide at least one field to update.',
+                'request' => __('messages.field_required_update'),
             ]);
         }
 

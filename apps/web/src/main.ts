@@ -5,7 +5,9 @@ import { expireSession } from './auth/session'
 import { router } from './router'
 import './style.css'
 import { initializeTheme } from './theme'
+import { initializeLocale } from './i18n'
 
+initializeLocale()
 initializeTheme()
 
 setUnauthorizedHandler(() => {

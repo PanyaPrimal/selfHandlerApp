@@ -149,6 +149,53 @@ body {
   min-height: 100vh;
 }
 
+.global-preferences {
+  position: fixed;
+  z-index: 1000;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+}
+
+.locale-switcher {
+  display: flex;
+  gap: 2px;
+}
+
+.locale-switcher__button,
+.quick-theme-toggle {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0 8px;
+  border-radius: 999px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.locale-switcher__button.selected,
+.quick-theme-toggle:hover {
+  color: #fff;
+  background: var(--accent);
+}
+
+.global-preferences__notice {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(340px, calc(100vw - 24px));
+  margin: 0;
+}
+
 a {
   color: inherit;
 }
@@ -1304,7 +1351,8 @@ input[type="range"] {
 
 /* Overlay surface shared by every popup control. */
 .ui-surface {
-  z-index: 60;
+  /* An open control must stay operable even beneath the fixed global toolbar. */
+  z-index: 1100;
   overflow: auto;
   min-width: 168px;
   padding: 6px;

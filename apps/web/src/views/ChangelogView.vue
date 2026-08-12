@@ -3,10 +3,10 @@ import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import { changelogEntries } from '../content/changelog'
 import { formatCalendarDate } from '../lib/format'
-import { useAuthSession } from '../auth/session'
+import { useI18n } from '../i18n'
 
-const session = useAuthSession()
-const locale = computed(() => session.user?.preferences.locale ?? 'en-GB')
+const i18n = useI18n()
+const locale = i18n.locale
 const entries = computed(() => changelogEntries)
 </script>
 
@@ -14,9 +14,9 @@ const entries = computed(() => changelogEntries)
   <section class="view-stack changelog-page">
     <header class="view-header">
       <div>
-        <p class="eyebrow">Changelog</p>
-        <h1>Что нового в SelfHandler</h1>
-        <p class="muted">Свежие изменения сверху. У каждого — короткое описание и способ проверить.</p>
+        <p class="eyebrow">{{ i18n.t('changelog.eyebrow') }}</p>
+        <h1>{{ i18n.t('changelog.title') }}</h1>
+        <p class="muted">{{ i18n.t('changelog.subtitle') }}</p>
       </div>
     </header>
 
@@ -24,7 +24,7 @@ const entries = computed(() => changelogEntries)
       <li v-for="entry in entries" :id="entry.id" :key="entry.id" class="panel changelog-entry">
         <div class="changelog-entry__head">
           <div>
-            <h2>{{ entry.title }}</h2>
+            <h2>{{ i18n.t(entry.titleKey) }}</h2>
             <p class="changelog-entry__meta">
               <time class="mono" :datetime="entry.date">{{ formatCalendarDate(entry.date, locale) }}</time>
               <span class="kind-chip">{{ entry.feature }}</span>
@@ -32,20 +32,20 @@ const entries = computed(() => changelogEntries)
           </div>
         </div>
 
-        <p>{{ entry.summary }}</p>
+        <p>{{ i18n.t(entry.summaryKey) }}</p>
 
         <div class="changelog-entry__test">
-          <strong>Как проверить</strong>
-          <p>{{ entry.howToTest }}</p>
+          <strong>{{ i18n.t('changelog.howToTest') }}</strong>
+          <p>{{ i18n.t(entry.testKey) }}</p>
         </div>
 
-        <ul v-if="entry.limitations?.length" class="changelog-entry__limits">
-          <li v-for="limitation in entry.limitations" :key="limitation">{{ limitation }}</li>
+        <ul v-if="entry.limitationKeys?.length" class="changelog-entry__limits">
+          <li v-for="limitationKey in entry.limitationKeys" :key="limitationKey">{{ i18n.t(limitationKey) }}</li>
         </ul>
 
-        <nav v-if="entry.links?.length" class="changelog-entry__links" aria-label="Перейти к разделу">
+        <nav v-if="entry.links?.length" class="changelog-entry__links" :aria-label="i18n.t('changelog.openSection')">
           <RouterLink v-for="link in entry.links" :key="link.to" class="changelog-link" :to="link.to">
-            {{ link.label }}
+            {{ i18n.t(link.labelKey) }}
           </RouterLink>
         </nav>
       </li>

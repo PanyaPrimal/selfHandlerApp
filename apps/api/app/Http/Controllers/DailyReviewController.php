@@ -40,7 +40,7 @@ class DailyReviewController extends Controller
 
         if ($data === []) {
             throw ValidationException::withMessages([
-                'request' => 'Provide at least one review field to save.',
+                'request' => __('messages.review_field_required'),
             ]);
         }
 

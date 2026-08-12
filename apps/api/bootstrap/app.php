@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\UseRequestLocale;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -23,6 +24,8 @@ return Application::configure(basePath: dirname(__DIR__))
                 | Request::HEADER_X_FORWARDED_PROTO,
         );
         $middleware->statefulApi();
+        $middleware->appendToGroup('api', UseRequestLocale::class);
+        $middleware->appendToGroup('web', UseRequestLocale::class);
         $middleware->redirectGuestsTo(
             static fn (Request $request): ?string => $request->is('api/*') ? null : '/login',
         );

@@ -39,8 +39,8 @@ class RegisterRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'invite_code.required' => 'An invite code is required to create an account.',
-            'invite_code.exists' => 'This invite code is invalid or has already been used.',
+            'invite_code.required' => __('messages.invite_required'),
+            'invite_code.exists' => __('messages.invite_invalid'),
         ];
     }
 
@@ -56,7 +56,7 @@ class RegisterRequest extends FormRequest
     protected function failedAuthorization(): void
     {
         throw new HttpResponseException(response()->json([
-            'message' => 'Already authenticated.',
+            'message' => __('messages.already_authenticated'),
         ], 409));
     }
 }

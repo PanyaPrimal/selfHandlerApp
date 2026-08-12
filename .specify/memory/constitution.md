@@ -1,15 +1,21 @@
 <!--
 Sync Impact Report
-- Version change: 1.0.0 -> 1.1.0
+- Version change: 1.1.0 -> 1.2.0
+- Added principle:
+  - VII. Complete Localisation Is a Delivery Gate
 - Amended constraints:
-  - Application runtime baseline: Laravel 11 -> Laravel 12 and PHP 8.4
+  - User-facing product text must ship in English, Russian and Ukrainian.
+  - Feature specifications, plans, task lists and checklists must include localisation coverage.
 - Rationale:
-  - The supported Laravel 12 line removes known dependency advisories and matches the immutable
-    production runtime required by feature 002.
+  - Interface language is a profile-owned preference and partial translation produces an unusable,
+    internally inconsistent product. Automated key-parity and hardcoded-copy checks make the rule
+    enforceable for every later feature.
 - Reviewed artifacts:
-  - specs/002-homelab-deployment/plan.md: compatible
-  - specs/002-homelab-deployment/research.md: compatible
-  - specs/002-homelab-deployment/tasks.md: compatible
+  - .specify/templates/spec-template.md: updated
+  - .specify/templates/plan-template.md: updated
+  - .specify/templates/tasks-template.md: updated
+  - .specify/templates/checklist-template.md: updated
+  - docs/design/localization.md: added
 - Follow-up TODOs: none
 -->
 # SelfHandler Constitution
@@ -66,10 +72,22 @@ API response or request changes MUST update backend tests, frontend types, and a
 the same feature. Tests MUST verify user-observable outcomes and ownership boundaries, not only happy
 path implementation details.
 
+### VII. Complete Localisation Is a Delivery Gate
+
+Every user-visible string MUST ship in English, Russian, and Ukrainian in the same feature, including
+navigation, controls, empty/loading/error states, validation and domain feedback, accessibility text,
+static product content, and newly exposed enum labels. English is the canonical key set; locale key
+parity and the absence of unapproved hardcoded product copy MUST be checked automatically. A feature
+MUST define its localisation surface in `spec.md`, plan translation and formatting behavior in
+`plan.md`, and include implementation and verification tasks in `tasks.md`. Profile locale is
+authoritative for an authenticated user; a local cache MAY prevent first-paint language flash but
+MUST remain derived, recoverable state.
+
 ## Product and Technology Constraints
 
-- Product and repository documentation MUST be written in English. Personal learning notes outside
-  the repository may remain in another language.
+- Product and repository documentation MUST be written in English. User-facing product text MUST be
+  available in English, Russian, and Ukrainian. Personal learning notes outside the repository may
+  remain in another language.
 - The delivery architecture is a monorepo with Laravel 12 on PHP 8.4 in `apps/api`, Vue 3 and Vite
   in `apps/web`, and a Capacitor shell in `apps/mobile`.
 - Web and API communicate through explicit REST contracts. Mobile reuses the web client unless an
@@ -96,6 +114,7 @@ path implementation details.
    - backend: `php artisan test` from `apps/api`;
    - frontend: `npm run typecheck` and `npm run build` from `apps/web`;
    - end-to-end: `npm run test:e2e` from the repository root for affected product flows.
+   - localisation: the repository's locale parity, used-key, and hardcoded-copy checks.
 6. A feature is complete only when its acceptance scenarios pass, its documentation and contracts
    match the implementation, and remaining work is recorded explicitly rather than implied.
 
@@ -111,4 +130,4 @@ materially expand governance, and PATCH versions clarify wording without changin
 feature plan and pre-implementation analysis MUST check constitution compliance. Exceptions require
 explicit user approval and MUST be recorded in the affected plan under Complexity Tracking.
 
-**Version**: 1.1.0 | **Ratified**: 2026-08-07 | **Last Amended**: 2026-08-10
+**Version**: 1.2.0 | **Ratified**: 2026-08-07 | **Last Amended**: 2026-08-13

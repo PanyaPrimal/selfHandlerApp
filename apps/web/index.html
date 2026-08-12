@@ -7,7 +7,12 @@
     <title>SelfHandler</title>
     <script>
       ;(() => {
-        const fallback = { scheme: 'light', accent: 'forest', accent_hex: '#6d5ac4', texture: true, mono_numerals: true, motion: 'system' }
+        const locales = { 'en-GB': 'en', 'ru-UA': 'ru', 'uk-UA': 'uk' }
+        let locale = 'en-GB'
+        try { locale = locales[localStorage.getItem('selfhandler.locale.v1')] ? localStorage.getItem('selfhandler.locale.v1') : 'en-GB' } catch {}
+        document.documentElement.lang = locales[locale]
+
+        const fallback = { scheme: 'light', accent: 'forest', accent_hex: '#6d5ac4', background: 'paper', background_hex: '#ece9e2', texture: true, mono_numerals: true, motion: 'system' }
         let value = fallback
         try { value = { ...fallback, ...JSON.parse(localStorage.getItem('selfhandler.theme.v1') || 'null') } } catch {}
         const root = document.documentElement
@@ -15,22 +20,55 @@
           ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
           : (value.scheme === 'dark' ? 'dark' : 'light')
         const accents = ['forest', 'slate', 'gold', 'brick', 'custom']
+        const backgrounds = ['paper', 'sand', 'mist', 'sage', 'custom']
         root.dataset.theme = scheme
         root.dataset.accent = accents.includes(value.accent) ? value.accent : fallback.accent
+        root.dataset.background = backgrounds.includes(value.background) ? value.background : fallback.background
         root.dataset.texture = value.texture === false ? 'off' : 'on'
         root.dataset.monoNumerals = value.mono_numerals === false ? 'off' : 'on'
         root.dataset.motion = value.motion === 'reduce' ? 'reduce' : 'system'
 
-        if (root.dataset.accent === 'custom' && /^#[0-9a-f]{6}$/i.test(value.accent_hex)) {
-          const rgb = (hex) => [1, 3, 5].map((index) => parseInt(hex.slice(index, index + 2), 16))
-          const mix = (from, to, amount) => '#' + rgb(from).map((channel, index) =>
+        const rgb = (hex) => [1, 3, 5].map((index) => parseInt(hex.slice(index, index + 2), 16))
+        const mix = (from, to, amount) => '#' + rgb(from).map((channel, index) =>
             Math.round(channel + (rgb(to)[index] - channel) * amount).toString(16).padStart(2, '0')).join('')
+
+        if (root.dataset.accent === 'custom' && /^#[0-9a-f]{6}$/i.test(value.accent_hex)) {
           const surface = scheme === 'dark' ? '#24231f' : '#ffffff'
           const channels = rgb(value.accent_hex)
           root.style.setProperty('--accent', value.accent_hex.toLowerCase())
           root.style.setProperty('--accent-soft', mix(value.accent_hex, surface, scheme === 'dark' ? .82 : .92))
           root.style.setProperty('--accent-border', mix(value.accent_hex, surface, scheme === 'dark' ? .62 : .72))
           root.style.setProperty('--focus-halo', `0 0 0 3px rgba(${channels.join(', ')}, ${scheme === 'dark' ? .28 : .22})`)
+        }
+
+        const preset = {
+          paper: {
+            light: ['#ece9e2','#faf8f4','#ffffff','#fffaf2','#232220','#56524b','#6b645b','#e0dcd2','#c4beb2','#cfcabf','rgba(30, 28, 24, 0.05)'],
+            dark: ['#171613','#1f1e1a','#24231f','#2b2823','#f1eee7','#b9b3a7','#968f83','#35332d','#4b473f','#433f38','rgba(255, 255, 255, 0.055)'],
+          },
+          sand: {
+            light: ['#f2e8d6','#fbf6ed','#fffdfa','#fff6e7','#29231c','#625646','#786955','#e6d7bf','#cdbb9d','#d8c7aa','rgba(62, 45, 24, 0.055)'],
+            dark: ['#1d1812','#251f17','#2b241b','#33291e','#f4eadb','#c2b39e','#9f907b','#3d3327','#574938','#4b3e2f','rgba(255, 239, 213, 0.06)'],
+          },
+          mist: {
+            light: ['#e7edf0','#f5f8f9','#fcfeff','#f5fafb','#20272b','#4e5b62','#63727a','#d4dfe4','#b8c8cf','#c5d3d9','rgba(23, 49, 61, 0.05)'],
+            dark: ['#13191c','#1a2226','#20292e','#253036','#edf2f4','#adb9bf','#89979e','#303c42','#44555d','#3b4a51','rgba(225, 243, 250, 0.055)'],
+          },
+          sage: {
+            light: ['#e7ece4','#f5f8f3','#fcfefb','#f5faf2','#222820','#515c4d','#667261','#d5dfd1','#bac9b5','#c6d4c1','rgba(31, 54, 27, 0.05)'],
+            dark: ['#151a14','#1c231b','#232b21','#293226','#eef2eb','#b0baaa','#8c9987','#333e30','#485844','#3f4d3b','rgba(235, 249, 229, 0.055)'],
+          },
+        }
+        let palette = preset[root.dataset.background]?.[scheme]
+        if (root.dataset.background === 'custom' && /^#[0-9a-f]{6}$/i.test(value.background_hex)) {
+          const hex = value.background_hex.toLowerCase()
+          palette = scheme === 'dark'
+            ? [mix(hex,'#11110f',.84),mix(hex,'#1b1a17',.86),mix(hex,'#262521',.86),mix(hex,'#2d2a24',.87),'#f3f1eb','#bcb7ad','#999288',mix(hex,'#37342e',.84),mix(hex,'#504b42',.82),mix(hex,'#464139',.83),'rgba(255, 255, 255, 0.055)']
+            : [mix(hex,'#ffffff',.86),mix(hex,'#ffffff',.94),mix(hex,'#ffffff',.97),mix(hex,'#fffaf2',.94),'#222220','#55534e','#6b6760',mix(hex,'#dedbd4',.82),mix(hex,'#c2bdb3',.78),mix(hex,'#cdc8be',.8),'rgba(30, 28, 24, 0.05)']
+        }
+        if (palette) {
+          const names = ['--paper','--paper-soft','--surface','--surface-warm','--ink','--muted','--subtle','--border','--border-strong','--field-border','--texture-dot']
+          names.forEach((name, index) => root.style.setProperty(name, palette[index]))
         }
       })()
     </script>

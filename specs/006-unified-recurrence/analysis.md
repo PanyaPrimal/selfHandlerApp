@@ -50,7 +50,7 @@ None.
   unique index, which would silently permit duplicate occurrences. Documented in the data model.
 - **L2 — materialization is not scheduled automatically.** Without a cron entry the window stops
   extending. *Resolution*: acceptable because expansion, not the window, drives every current behaviour.
-  Recorded as a known limitation; the scheduler arrives with feature 010, which is the first consumer
+  Recorded as a known limitation; the scheduler arrives with feature 009, which is the first consumer
   that actually needs a fresh window.
 
 ## Consistency checks

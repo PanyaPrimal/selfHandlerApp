@@ -96,7 +96,7 @@ class PlannerController extends Controller
     {
         if ($occurrence->routine_log_id !== null) {
             throw ValidationException::withMessages([
-                'rescheduled_to' => 'This day already has a result, so it cannot be moved.',
+                'rescheduled_to' => __('messages.move_has_result'),
             ]);
         }
 
@@ -104,7 +104,7 @@ class PlannerController extends Controller
 
         if ($target < $today) {
             throw ValidationException::withMessages([
-                'rescheduled_to' => 'A day can only be moved to today or later.',
+                'rescheduled_to' => __('messages.move_not_past'),
             ]);
         }
 
@@ -112,7 +112,7 @@ class PlannerController extends Controller
 
         if ($until !== null && $target > $until) {
             throw ValidationException::withMessages([
-                'rescheduled_to' => "That day is beyond the planned window, which currently reaches {$until}.",
+                'rescheduled_to' => __('messages.planned_window', ['until' => $until]),
             ]);
         }
     }

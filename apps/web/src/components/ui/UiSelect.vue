@@ -5,6 +5,7 @@ import UiPopoverSurface from './UiPopoverSurface.vue'
 import { useAnchoredSurface } from './useAnchoredSurface'
 import { useFieldIds } from './useFieldIds'
 import type { UiOption } from './types'
+import { useI18n } from '../../i18n'
 
 const props = withDefaults(
   defineProps<{
@@ -27,14 +28,15 @@ const props = withDefaults(
     error: undefined,
     disabled: false,
     required: false,
-    placeholder: 'Select…',
+    placeholder: '',
     nullable: false,
-    nullableLabel: 'Not set',
+    nullableLabel: '',
     wide: false,
   },
 )
 
 const emit = defineEmits<{ 'update:modelValue': [V | null] }>()
+const { t } = useI18n()
 
 const ids = useFieldIds(props.name, () => Boolean(props.helper), () => Boolean(props.error))
 const listId = `${ids.controlId}-listbox`
@@ -49,7 +51,7 @@ const entries = computed<UiOption<V | null>[]>(() => {
   const list: UiOption<V | null>[] = props.options.map((option) => ({ ...option }))
 
   if (props.nullable) {
-    list.unshift({ value: null, label: props.nullableLabel })
+    list.unshift({ value: null, label: props.nullableLabel || t('common.notSet') })
   }
 
   return list
@@ -273,7 +275,7 @@ defineExpose({ focus: () => trigger.value?.focus() })
         @keydown="onKeydown"
       >
         <span :class="['ui-control__value', { 'is-placeholder': selectedIndex < 0 }]">
-          {{ selectedIndex >= 0 ? selectedLabel : placeholder }}
+          {{ selectedIndex >= 0 ? selectedLabel : (placeholder || t('common.select')) }}
         </span>
         <span class="ui-control__chevron" aria-hidden="true"></span>
       </div>

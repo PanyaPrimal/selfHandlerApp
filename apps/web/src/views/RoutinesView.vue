@@ -20,10 +20,10 @@ import {
   UiTimeField,
   UiToggleGroup,
 } from '../components/ui'
-import { useAuthSession } from '../auth/session'
 import type { Routine, RoutineCreatePayload, RoutineUpdatePayload, Weekday } from '../api/types'
 import type { ValidationErrors } from '../api/client'
 import type { UiOption } from '../components/ui'
+import { useI18n } from '../i18n'
 
 type FocusableControl = { focus: () => void }
 
@@ -62,32 +62,33 @@ const endsOnInput = ref<FocusableControl | null>(null)
 const sortOrderInput = ref<FocusableControl | null>(null)
 const activeInput = ref<FocusableControl | null>(null)
 const routineListHeading = ref<HTMLHeadingElement | null>(null)
-const session = useAuthSession()
-const locale = computed(() => session.user?.preferences.locale ?? 'en-GB')
-const weekdayOptions: UiOption<Weekday>[] = [
-  { value: 'MO', label: 'Mon' },
-  { value: 'TU', label: 'Tue' },
-  { value: 'WE', label: 'Wed' },
-  { value: 'TH', label: 'Thu' },
-  { value: 'FR', label: 'Fri' },
-  { value: 'SA', label: 'Sat' },
-  { value: 'SU', label: 'Sun' },
-]
+const i18n = useI18n()
+const locale = i18n.locale
+const weekdayOptions = computed<UiOption<Weekday>[]>(() =>
+  (['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'] as Weekday[]).map((value) => ({
+    value,
+    label: i18n.t(`weekday.${value}` as 'weekday.MO'),
+  })),
+)
 // The schedule locks once a routine has results, so the rule is explained in the
 // editor rather than only surfacing as a rejected save.
 const scheduleHelper = computed(() => (editingId.value === null
-  ? 'Daily runs every day; by weekdays runs only on the days you choose.'
-  : 'Schedule fields lock after the first daily result. If this routine already has results, archive it and create a replacement.'))
+  ? i18n.t('routine.scheduleCreateHelp')
+  : i18n.t('routine.scheduleEditHelp')))
 
-const kindOptions: UiOption<Routine['kind']>[] = [
-  { value: 'routine', label: 'Routine' },
-  { value: 'habit', label: 'Habit' },
-  { value: 'sleep', label: 'Sleep' },
-]
-const scheduleOptions: UiOption<Routine['schedule_type']>[] = [
-  { value: 'daily', label: 'Daily' },
-  { value: 'weekdays', label: 'By weekdays' },
-]
+const kindOptions = computed<UiOption<Routine['kind']>[]>(() => [
+  { value: 'routine', label: i18n.t('today.kind.routine') },
+  { value: 'habit', label: i18n.t('today.kind.habit') },
+  { value: 'sleep', label: i18n.t('today.kind.sleep') },
+])
+const scheduleOptions = computed<UiOption<Routine['schedule_type']>[]>(() => [
+  { value: 'daily', label: i18n.t('routine.daily') },
+  { value: 'weekdays', label: i18n.t('routine.byWeekdays') },
+])
+
+function kindLabel(kind: Routine['kind']): string {
+  return i18n.t(`today.kind.${kind}` as 'today.kind.routine')
+}
 
 function emptyForm(): RoutineForm {
   return {
@@ -112,7 +113,7 @@ async function loadRoutines(focusAfter = false): Promise<void> {
   try {
     routines.value = await getRoutines(archivedView.value)
   } catch (currentError) {
-    loadError.value = currentError instanceof Error ? currentError.message : 'Failed to load routines.'
+    loadError.value = currentError instanceof Error ? currentError.message : i18n.t('routine.loadFailed')
   } finally {
     isLoading.value = false
 
@@ -175,7 +176,7 @@ async function submitRoutine(): Promise<void> {
   fieldErrors.value = {}
 
   if (form.schedule_type === 'weekdays' && form.weekdays.length === 0) {
-    fieldErrors.value = { weekdays: ['Choose at least one weekday.'] }
+    fieldErrors.value = { weekdays: [i18n.t('routine.chooseWeekday')] }
     await focusFirstError()
     return
   }
@@ -187,17 +188,17 @@ async function submitRoutine(): Promise<void> {
 
     if (editingId.value === null) {
       await createRoutine(payload)
-      success.value = 'Routine created.'
+      success.value = i18n.t('routine.created')
     } else {
       await updateRoutine(editingId.value, payload as RoutineUpdatePayload)
-      success.value = 'Routine updated.'
+      success.value = i18n.t('routine.updated')
     }
 
     resetForm()
     await loadRoutines(true)
   } catch (currentError) {
     fieldErrors.value = validationErrors(currentError)
-    error.value = currentError instanceof Error ? currentError.message : 'Failed to save the routine.'
+    error.value = currentError instanceof Error ? currentError.message : i18n.t('routine.saveFailed')
     await focusFirstError()
   } finally {
     isSubmitting.value = false
@@ -258,10 +259,10 @@ async function setArchived(routine: Routine, focusTarget?: HTMLElement | null): 
   try {
     if (routine.is_archived) {
       await restoreRoutine(routine.id)
-      success.value = 'Routine restored.'
+      success.value = i18n.t('routine.restored')
     } else {
       await archiveRoutine(routine.id)
-      success.value = 'Routine archived.'
+      success.value = i18n.t('routine.archivedNotice')
     }
 
     if (editingId.value === routine.id) {
@@ -271,7 +272,7 @@ async function setArchived(routine: Routine, focusTarget?: HTMLElement | null): 
     await loadRoutines(true)
     focusMoved = !loadError.value
   } catch (currentError) {
-    error.value = currentError instanceof Error ? currentError.message : 'Failed to change the archive state.'
+    error.value = currentError instanceof Error ? currentError.message : i18n.t('routine.archiveFailed')
   } finally {
     actionRoutineId.value = null
     await nextTick()
@@ -289,10 +290,10 @@ async function toggleActive(routine: Routine, focusTarget?: HTMLElement | null):
 
   try {
     await updateRoutine(routine.id, { is_active: !routine.is_active })
-    success.value = routine.is_active ? 'Routine paused.' : 'Routine resumed.'
+    success.value = i18n.t(routine.is_active ? 'routine.pausedNotice' : 'routine.resumedNotice')
     await loadRoutines()
   } catch (currentError) {
-    error.value = currentError instanceof Error ? currentError.message : 'Failed to change the routine state.'
+    error.value = currentError instanceof Error ? currentError.message : i18n.t('routine.stateFailed')
   } finally {
     actionRoutineId.value = null
     await nextTick()
@@ -315,8 +316,8 @@ onMounted(loadRoutines)
   <section class="view-stack">
     <header class="view-header">
       <div>
-        <p class="eyebrow">Routines</p>
-        <h1>Repeatable actions</h1>
+        <p class="eyebrow">{{ i18n.t('routine.eyebrow') }}</p>
+        <h1>{{ i18n.t('routine.title') }}</h1>
       </div>
     </header>
 
@@ -327,19 +328,19 @@ onMounted(loadRoutines)
 
     <section class="panel" aria-labelledby="routine-form-heading">
       <div class="section-heading">
-        <h2 id="routine-form-heading">{{ editingId === null ? 'Create routine' : 'Edit routine' }}</h2>
-        <button v-if="editingId !== null" type="button" class="secondary" @click="cancelEdit">Cancel edit</button>
+        <h2 id="routine-form-heading">{{ i18n.t(editingId === null ? 'routine.create' : 'routine.edit') }}</h2>
+        <button v-if="editingId !== null" type="button" class="secondary" @click="cancelEdit">{{ i18n.t('routine.cancelEdit') }}</button>
       </div>
 
-      <form class="form-grid" :aria-label="editingId === null ? 'Create routine' : 'Edit routine'" :aria-busy="isSubmitting" novalidate @submit.prevent="submitRoutine">
+      <form class="form-grid" :aria-label="i18n.t(editingId === null ? 'routine.create' : 'routine.edit')" :aria-busy="isSubmitting" novalidate @submit.prevent="submitRoutine">
         <UiTextInput
           ref="nameInput"
           v-model="form.name"
-          label="Name"
+          :label="i18n.t('routine.name')"
           name="name"
           required
           :maxlength="160"
-          placeholder="Morning walk"
+          :placeholder="i18n.t('routine.namePlaceholder')"
           :error="fieldErrors.name?.[0]"
           @update:model-value="clearFieldError('name')"
         />
@@ -347,7 +348,7 @@ onMounted(loadRoutines)
         <UiSelect
           ref="kindInput"
           v-model="form.kind"
-          label="Kind"
+          :label="i18n.t('routine.kind')"
           name="kind"
           :options="kindOptions"
           :error="fieldErrors.kind?.[0]"
@@ -357,11 +358,11 @@ onMounted(loadRoutines)
         <UiTextarea
           ref="descriptionInput"
           v-model="form.description"
-          label="Description"
+          :label="i18n.t('routine.description')"
           name="description"
           :rows="2"
           :maxlength="2000"
-          placeholder="Optional context"
+          :placeholder="i18n.t('routine.optionalContext')"
           wide
           :error="fieldErrors.description?.[0]"
           @update:model-value="clearFieldError('description')"
@@ -370,7 +371,7 @@ onMounted(loadRoutines)
         <UiSegmented
           ref="scheduleTypeInput"
           v-model="form.schedule_type"
-          label="Schedule"
+          :label="i18n.t('routine.schedule')"
           name="schedule_type"
           :options="scheduleOptions"
           :helper="scheduleHelper"
@@ -380,7 +381,7 @@ onMounted(loadRoutines)
 
         <UiTimeField
           ref="preferredTimeInput"
-          label="Preferred time"
+          :label="i18n.t('routine.preferredTime')"
           name="preferred_time"
           :model-value="form.preferred_time || null"
           :error="fieldErrors.preferred_time?.[0]"
@@ -390,7 +391,7 @@ onMounted(loadRoutines)
         <UiToggleGroup
           v-if="form.schedule_type === 'weekdays'"
           ref="weekdayGroup"
-          label="Weekdays"
+          :label="i18n.t('routine.weekdays')"
           name="weekdays"
           :model-value="form.weekdays"
           :options="weekdayOptions"
@@ -401,7 +402,7 @@ onMounted(loadRoutines)
 
         <UiDatePicker
           ref="startsOnInput"
-          label="Starts on"
+          :label="i18n.t('routine.startsOn')"
           name="starts_on"
           :model-value="form.starts_on || null"
           :locale="locale"
@@ -411,7 +412,7 @@ onMounted(loadRoutines)
 
         <UiDatePicker
           ref="endsOnInput"
-          label="Ends on"
+          :label="i18n.t('routine.endsOn')"
           name="ends_on"
           :model-value="form.ends_on || null"
           :locale="locale"
@@ -421,7 +422,7 @@ onMounted(loadRoutines)
 
         <UiNumberInput
           ref="sortOrderInput"
-          label="Display order"
+          :label="i18n.t('routine.order')"
           name="sort_order"
           :model-value="form.sort_order"
           :min="0"
@@ -433,7 +434,7 @@ onMounted(loadRoutines)
         <UiSwitch
           ref="activeInput"
           v-model="form.is_active"
-          label="Active in planning"
+          :label="i18n.t('routine.active')"
           name="is_active"
           :error="fieldErrors.is_active?.[0]"
           @update:model-value="clearFieldError('is_active')"
@@ -441,7 +442,7 @@ onMounted(loadRoutines)
 
         <div class="form-actions wide-field">
           <button type="submit" :disabled="isSubmitting">
-            {{ isSubmitting ? 'Saving…' : editingId === null ? 'Create routine' : 'Save changes' }}
+            {{ isSubmitting ? i18n.t('common.saving') : i18n.t(editingId === null ? 'routine.create' : 'routine.saveChanges') }}
           </button>
         </div>
       </form>
@@ -454,13 +455,13 @@ onMounted(loadRoutines)
           class="focus-target"
           tabindex="-1"
           :id="archivedView ? 'archived-routines-heading' : 'current-routines-heading'"
-        >{{ archivedView ? 'Archived routines' : 'Current routines' }}</h2>
-        <div class="segmented-list" role="group" aria-label="Routine archive filter">
+        >{{ i18n.t(archivedView ? 'routine.archived' : 'routine.current') }}</h2>
+        <div class="segmented-list" role="group" :aria-label="i18n.t('routine.archiveFilter')">
           <button type="button" class="secondary" :class="{ selected: !archivedView }" :aria-pressed="!archivedView" @click="switchArchiveView(false)">
-            Current
+            {{ i18n.t('common.current') }}
           </button>
           <button type="button" class="secondary" :class="{ selected: archivedView }" :aria-pressed="archivedView" @click="switchArchiveView(true)">
-            Archived
+            {{ i18n.t('common.archived') }}
           </button>
         </div>
       </div>
@@ -469,9 +470,9 @@ onMounted(loadRoutines)
         :loading="isLoading"
         :error="loadError"
         :empty="routines.length === 0"
-        loading-title="Loading routines…"
-        :empty-title="archivedView ? 'No archived routines' : 'No routines yet'"
-        :empty-description="archivedView ? 'Archived routines will remain available here.' : 'Create a routine to start the daily loop.'"
+        :loading-title="i18n.t('routine.loading')"
+        :empty-title="i18n.t(archivedView ? 'routine.emptyArchived' : 'routine.emptyCurrent')"
+        :empty-description="i18n.t(archivedView ? 'routine.emptyArchivedBody' : 'routine.emptyCurrentBody')"
         show-empty-icon
         @retry="loadRoutines(true)"
       >
@@ -480,24 +481,24 @@ onMounted(loadRoutines)
             <div class="management-copy">
               <div class="meta-row">
                 <strong>{{ routine.name }}</strong>
-                <span class="kind-chip">{{ routine.kind }}</span>
-                <span v-if="!routine.is_active" class="kind-chip">paused</span>
+                <span class="kind-chip">{{ kindLabel(routine.kind) }}</span>
+                <span v-if="!routine.is_active" class="kind-chip">{{ i18n.t('routine.paused') }}</span>
               </div>
               <p v-if="routine.description" class="muted">{{ routine.description }}</p>
               <p class="muted">
-                {{ routine.schedule_type === 'daily' ? 'Daily' : routine.weekdays.join(', ') }}
+                {{ routine.schedule_type === 'daily' ? i18n.t('routine.daily') : routine.weekdays.map((day) => i18n.t(`weekday.${day}` as 'weekday.MO')).join(', ') }}
                 <span v-if="routine.preferred_time"> · {{ routine.preferred_time.slice(0, 5) }}</span>
-                · order {{ routine.sort_order }}
+                · {{ i18n.t('routine.orderValue', { order: routine.sort_order }) }}
               </p>
             </div>
 
             <div class="button-row management-actions">
-              <button type="button" class="secondary" :aria-label="`Edit ${routine.name}`" :disabled="actionRoutineId === routine.id" @click="editRoutine(routine)">Edit</button>
-              <button v-if="!routine.is_archived" type="button" class="secondary" :aria-label="`${routine.is_active ? 'Pause' : 'Resume'} ${routine.name}`" :disabled="actionRoutineId === routine.id" @click="toggleActive(routine, $event.currentTarget as HTMLElement)">
-                {{ routine.is_active ? 'Pause' : 'Resume' }}
+              <button type="button" class="secondary" :aria-label="i18n.t('routine.editNamed', { name: routine.name })" :disabled="actionRoutineId === routine.id" @click="editRoutine(routine)">{{ i18n.t('common.edit') }}</button>
+              <button v-if="!routine.is_archived" type="button" class="secondary" :aria-label="i18n.t(routine.is_active ? 'routine.pauseNamed' : 'routine.resumeNamed', { name: routine.name })" :disabled="actionRoutineId === routine.id" @click="toggleActive(routine, $event.currentTarget as HTMLElement)">
+                {{ i18n.t(routine.is_active ? 'routine.pause' : 'routine.resume') }}
               </button>
-              <button type="button" class="secondary" :aria-label="`${routine.is_archived ? 'Restore' : 'Archive'} ${routine.name}`" :disabled="actionRoutineId === routine.id" @click="setArchived(routine, $event.currentTarget as HTMLElement)">
-                {{ routine.is_archived ? 'Restore' : 'Archive' }}
+              <button type="button" class="secondary" :aria-label="i18n.t(routine.is_archived ? 'routine.restoreNamed' : 'routine.archiveNamed', { name: routine.name })" :disabled="actionRoutineId === routine.id" @click="setArchived(routine, $event.currentTarget as HTMLElement)">
+                {{ i18n.t(routine.is_archived ? 'routine.restore' : 'routine.archive') }}
               </button>
             </div>
           </li>

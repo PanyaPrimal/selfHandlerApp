@@ -7,15 +7,20 @@ $speckit-analyze -> $speckit-implement` before application code changes.
 
 > **Roadmap baseline (2026-08-12):** `001-core-daily-loop`, `003-multi-user-auth`,
 > `004-profile-settings`, `005-interface-foundation`, `006-unified-recurrence`,
-> `007-body-measurements` and `008-storage-inbox` are complete.
+> `007-body-measurements`, `008-storage-inbox`, `009-planner-day`, and
+> `010-interface-personalization` are complete.
 > `002-homelab-deployment` stops at T055 by product decision: the current homelab deployment is
 > accepted, and T056-T059 are intentionally excluded from the product queue.
 >
-> **Renumbering (2026-08-12):** the interface foundation and the user-facing changelog were pulled
+> **Renumbering history (2026-08-12):** the interface foundation and the user-facing changelog were pulled
 > forward as feature `005` because every later feature adds forms and every later feature needs a
 > place to announce itself. Everything that previously carried a provisional number from `005` to
 > `024` moved up by one to `006`-`025`; the Android Capacitor shell moved from `010` to `011`. The
 > numbers below are the only valid ones — the pre-renumbering identifiers are retired.
+>
+> **Renumbering (2026-08-13):** complete EN/RU/UK localisation, safe background personalisation,
+> and global locale/theme controls became feature `010` because every later feature must ship into a
+> fully localised interface. The previously provisional `010`-`025` queue moved to `011`-`026`.
 
 ## How to Use This Roadmap
 
@@ -45,6 +50,9 @@ The application already provides:
 - the shared recurrence boundary (`RecurringRule` + `PlannedOccurrence`) with routines as its consumer;
 - dated body measurements with deterministic trends and body-composition goals;
 - a capture inbox with tasks, ideas, projects, Storage-local tags and blocking child items.
+- one Planner day surface spanning routines, dated Storage work and owned time blocks;
+- a fully localised EN/RU/UK interface with profile-owned language and accessible global controls;
+- profile-owned light/dark/system, accent, texture, numeral, motion and contrast-safe background choices.
 
 The shared recurrence boundary now exists and owns every routine schedule. A module that needs
 recurring behaviour uses it; no second scheduling table may be added.
@@ -63,49 +71,52 @@ flowchart TD
     AUTH --> STORAGE[008 Storage inbox]
     RECURRENCE --> PLANNER[009 Planner and day planning]
     STORAGE --> PLANNER
-    PROFILE --> NOTIFY[010 In-app notifications]
+    PROFILE --> PERSONALIZE[010 Interface personalisation + localisation]
+    INTERFACE --> PERSONALIZE
+    PERSONALIZE --> NOTIFY[011 In-app notifications]
+    PROFILE --> NOTIFY
     RECURRENCE --> NOTIFY
     PLANNER --> NOTIFY
-    AUTH --> ANDROID[011 Android Capacitor shell]
+    AUTH --> ANDROID[012 Android Capacitor shell]
     NOTIFY --> ANDROID
 
-    RECURRENCE --> HABITS[012 Habits and anti-habits]
+    RECURRENCE --> HABITS[013 Habits and anti-habits]
     PLANNER --> HABITS
-    RECURRENCE --> SLEEP[013 Sleep and routine templates]
+    RECURRENCE --> SLEEP[014 Sleep and routine templates]
 
-    PROFILE --> WORKOUTS[014 Workouts + training goals]
+    PROFILE --> WORKOUTS[015 Workouts + training goals]
     RECURRENCE --> WORKOUTS
     PLANNER --> WORKOUTS
 
-    PROFILE --> NUTRITION[015 Nutrition]
+    PROFILE --> NUTRITION[016 Nutrition]
     MEASUREMENTS --> NUTRITION
     WORKOUTS --> NUTRITION
 
-    PROFILE --> SUPPLEMENTS[016 Supplements]
+    PROFILE --> SUPPLEMENTS[017 Supplements]
     RECURRENCE --> SUPPLEMENTS
     NOTIFY --> SUPPLEMENTS
 
-    PROFILE --> LEDGER[017 Finance ledger]
-    LEDGER --> FINPLAN[018 Budget + recurring cash flow]
+    PROFILE --> LEDGER[018 Finance ledger]
+    LEDGER --> FINPLAN[019 Budget + recurring cash flow]
     RECURRENCE --> FINPLAN
-    FINPLAN --> FINGOALS[019 Debts + funds + financial goals]
+    FINPLAN --> FINGOALS[020 Debts + funds + financial goals]
     STORAGE --> FINGOALS
 
-    MEASUREMENTS --> ATTACHMENTS[020 Private attachments]
+    MEASUREMENTS --> ATTACHMENTS[021 Private attachments]
     NUTRITION --> ATTACHMENTS
 
-    HABITS --> REVIEW[021 Cross-module and periodic review]
+    HABITS --> REVIEW[022 Cross-module and periodic review]
     SLEEP --> REVIEW
     WORKOUTS --> REVIEW
     NUTRITION --> REVIEW
     SUPPLEMENTS --> REVIEW
     FINGOALS --> REVIEW
 
-    REVIEW --> ANALYTICS[022 Analytics and rollups]
-    ANALYTICS --> PORTABILITY[023 Data portability]
-    RECURRENCE --> CALENDAR[024 Calendar integration]
+    REVIEW --> ANALYTICS[023 Analytics and rollups]
+    ANALYTICS --> PORTABILITY[024 Data portability]
+    RECURRENCE --> CALENDAR[025 Calendar integration]
     PLANNER --> CALENDAR
-    ATTACHMENTS --> AI[025 AI assistant, first scenario]
+    ATTACHMENTS --> AI[026 AI assistant, first scenario]
     ANALYTICS --> AI
 ```
 
@@ -181,7 +192,7 @@ goals.
 Add the measurement log, extensible metrics in canonical base units, body-goal details, milestones,
 safe pace validation, and deterministic trends needed by later Nutrition and Analytics features.
 
-**Prerequisites:** 004 and 005. Recurring measurement reminders wait for 010; photos wait for 020.
+**Prerequisites:** 004 and 005. Recurring measurement reminders wait for 011; photos wait for 021.
 
 ### 008 — Storage Inbox and Quick Capture
 
@@ -214,7 +225,29 @@ existing Today experience.
 
 **Explicitly defer:** reminder delivery and external calendar synchronization.
 
-### 010 — In-App Notifications
+### 010 — Interface Personalisation and Complete Localisation
+
+**Status:** Complete on 2026-08-13 (`36/36` tasks; deployment was explicitly excluded).
+
+**User outcome:** every current screen works completely in English, Russian and Ukrainian; language
+and light/dark scheme can be changed globally; curated or custom backgrounds remain readable and
+follow the signed-in profile across devices.
+
+Complete the existing appearance value with scheme-safe background palettes and custom tint
+derivation. Make Profile locale/theme independently patchable, use a pre-paint cache without letting
+it override authenticated profile truth, and localise every current visible string, API validation or
+domain message, accessibility label, changelog entry, enum label and formatter. Add automated parity,
+used-key and hardcoded-copy gates plus Spec Kit governance for every later feature.
+
+**Why here:** the current appearance work is already present, and every item below adds user-facing
+copy. Finishing the preference/localisation boundary now prevents later partial migrations.
+
+**Prerequisites:** 003-005 and the current 006-009 interface consumers.
+
+**Explicitly defer:** notifications, Android packaging, new domain modules, deployment and a general
+design-system package.
+
+### 011 — In-App Notifications
 
 **User outcome:** the user receives reliable in-app reminders with per-user quiet hours, snooze, and
 a digest without duplicating domain state.
@@ -228,7 +261,7 @@ owning fact is completed.
 **Explicitly defer:** FCM, email, Telegram, and generalized delivery auditing until a concrete channel
 feature needs them.
 
-### 011 — Android Capacitor Shell
+### 012 — Android Capacitor Shell
 
 **User outcome:** the user installs a sideloadable Android APK, signs in safely, and uses the shared
 SelfHandler interface and homelab data on a real phone.
@@ -238,16 +271,16 @@ API connectivity, and resolve mobile authentication explicitly: the browser's cu
 session assumptions cannot be copied unchanged into the app origin. Preserve the existing browser
 security contract, keep mobile credentials out of Web Storage, and verify login/logout/session expiry,
 Android back navigation, keyboard/viewport behavior, icons/splash, and debug/release APK builds. Add
-the first Capacitor local-notification adapter to the notification contract from 010 when its acceptance
+the first Capacitor local-notification adapter to the notification contract from 011 when its acceptance
 journey is included.
 
-**Prerequisites:** 003 and 010. The shared web flows remain the product source; Android-specific code
+**Prerequisites:** 003 and 011. The shared web flows remain the product source; Android-specific code
 is limited to the shell, secure platform boundaries, and native plugins.
 
 **Explicitly defer:** offline data synchronization, Play Store publication, camera/gallery access,
-FCM, and iOS. Camera/gallery arrives with 020; other native capabilities require their own increments.
+FCM, and iOS. Camera/gallery arrives with 021; other native capabilities require their own increments.
 
-### 012 — Habits and Anti-Habits
+### 013 — Habits and Anti-Habits
 
 **User outcome:** the user builds habits, records numeric or yes/no completion, tracks abstinence or a
 stepped limit, and sees deterministic streaks.
@@ -255,9 +288,9 @@ stepped limit, and sees deterministic streaks.
 Reuse recurrence and Planner. Link habit stacking to existing routines without turning a habit and a
 routine into the same entity. Keep anti-habit stepped limits distinct from goal milestones.
 
-**Prerequisites:** 006, 009, and the existing routine/goal baseline. Use 010 only for reminder stories.
+**Prerequisites:** 006, 009, and the existing routine/goal baseline. Use 011 only for reminder stories.
 
-### 013 — Sleep and Rich Routine Templates
+### 014 — Sleep and Rich Routine Templates
 
 **User outcome:** the user plans and records sleep and uses ordered morning/evening routine templates
 with independently completable activities.
@@ -265,9 +298,9 @@ with independently completable activities.
 Extend Module 1 without replacing the occurrence source introduced in 006. Feed sleep and routine
 aggregates into Today/Review through module-owned summaries.
 
-**Prerequisites:** 004 and 006. Use 009 for day placement and 010 for reminder stories.
+**Prerequisites:** 004 and 006. Use 009 for day placement and 011 for reminder stories.
 
-### 014 — Workouts and Training Goals
+### 015 — Workouts and Training Goals
 
 **User outcome:** the user logs strength/cardio/running sessions, follows a simple program, and sees
 progress toward a training goal.
@@ -280,7 +313,7 @@ with the module rather than speculating about every future goal type in advance.
 
 **Explicitly defer:** wearable imports, GPX, advanced training-plan generation, and LLM coaching.
 
-### 015 — Nutrition, Meals, Hydration, and Targets
+### 016 — Nutrition, Meals, Hydration, and Targets
 
 **User outcome:** the user logs meals and beverages and sees calorie, macro, hydration, and food-quality
 progress against a stable daily target.
@@ -289,11 +322,11 @@ Port only the useful product/model evidence from `calorie-tracker`; Laravel/MySQ
 Compute targets from Profile, body goals, and planned workout activity. The target used during the day
 must not drift when actual activity changes; end-of-day refinement is a separate calculation.
 
-**Prerequisites:** 004, 007, and 014.
+**Prerequisites:** 004, 007, and 015.
 
-**Explicitly defer:** photo recognition and receipt-like vision flows until 020 and 025.
+**Explicitly defer:** photo recognition and receipt-like vision flows until 021 and 026.
 
-### 016 — Supplements, Courses, Intake, and Stock
+### 017 — Supplements, Courses, Intake, and Stock
 
 **User outcome:** the user defines a neutral supplement/medication tracker, follows an intake course,
 records actual intake, and sees stock/run-out forecasts.
@@ -301,11 +334,11 @@ records actual intake, and sees stock/run-out forecasts.
 Use shared recurrence for courses and shared notifications for escalation. Stock forecasting remains
 owned by Supplements and produces a one-off restock proposal; it is not a recurring rule.
 
-**Prerequisites:** 004, 006, and 010.
+**Prerequisites:** 004, 006, and 011.
 
 **Explicitly defer:** medical advice, finance transaction creation, and AI regimen generation.
 
-### 017 — Finance Ledger Foundation
+### 018 — Finance Ledger Foundation
 
 **User outcome:** the user manages multi-currency accounts, categories, income/expenses, and transfers
 with trustworthy balances.
@@ -318,7 +351,7 @@ currency comes only from Profile.
 
 **Explicitly defer:** budgets, recurring operations, debts, saving funds, and investments.
 
-### 018 — Budget and Recurring Cash Flow
+### 019 — Budget and Recurring Cash Flow
 
 **User outcome:** the user compares monthly budget limits with actual spending and sees planned income,
 mandatory expenses, and free cash flow.
@@ -326,9 +359,9 @@ mandatory expenses, and free cash flow.
 Build on ledger transactions, shared recurrence, and notifications. Planned occurrences must become
 actual transactions through an explicit idempotent action rather than by duplicating balances.
 
-**Prerequisites:** 006, 010, and 017.
+**Prerequisites:** 006, 011, and 018.
 
-### 019 — Debts, Saving Funds, Financial Goals, and Purchase Links
+### 020 — Debts, Saving Funds, Financial Goals, and Purchase Links
 
 **User outcome:** the user tracks debts in both directions, saving/emergency funds, linked financial
 goals, and purchases that become real expenses or installment debts.
@@ -337,9 +370,9 @@ Add the remaining Finance aggregates and enforce the locked cross-module invaria
 reads progress from its debt/fund, and a bought Storage purchase has a linked transaction or debt.
 Connect Supplement restock proposals without moving stock logic into Finance.
 
-**Prerequisites:** 008, 017, and 018.
+**Prerequisites:** 008, 018, and 019.
 
-### 020 — Private Attachments with First Consumers
+### 021 — Private Attachments with First Consumers
 
 **User outcome:** the user privately stores body-progress and meal photos and can retrieve or delete
 them safely.
@@ -348,11 +381,11 @@ Implement the polymorphic `Attachment` model and `FileStorage` service with user
 streaming/signed access, cleanup semantics, quotas, and at least one real consumer from Measurements
 or Nutrition.
 
-**Prerequisites:** 007 or 015 plus the existing ownership boundary.
+**Prerequisites:** 007 or 016 plus the existing ownership boundary.
 
 **Explicitly defer:** image recognition, receipt parsing, and GPX parsing.
 
-### 021 — Cross-Module and Periodic Review
+### 022 — Cross-Module and Periodic Review
 
 **User outcome:** Daily Review becomes a trustworthy summary of implemented modules, and the user can
 complete weekly/monthly reviews without losing the existing evening ritual.
@@ -361,10 +394,10 @@ Each source module exposes its own daily/period aggregate; Review composes those
 review-specific facts and the composite day score. Do not query every module's raw tables from one
 controller.
 
-**Prerequisites:** enough real sources to make the review useful: at minimum 012-016, with Finance
-included only after 019.
+**Prerequisites:** enough real sources to make the review useful: at minimum 013-017, with Finance
+included only after 020.
 
-### 022 — Analytics and Long-Period Rollups
+### 023 — Analytics and Long-Period Rollups
 
 **User outcome:** the user compares periods and sees deterministic trends and selected correlations
 without slow raw-history scans.
@@ -373,9 +406,9 @@ Introduce rollups only for metrics proven by implemented module aggregates. Anal
 correlates module-owned values; it does not become the owner of nutrition, workout, habit, or finance
 calculations.
 
-**Prerequisites:** 021 and at least two meaningful time-series source modules.
+**Prerequisites:** 022 and at least two meaningful time-series source modules.
 
-### 023 — Data Portability and Reports
+### 024 — Data Portability and Reports
 
 **User outcome:** the user can export useful CSV/PDF reports and a complete machine-readable backup,
 then verify that supported data can be restored without crossing ownership boundaries.
@@ -383,9 +416,9 @@ then verify that supported data can be restored without crossing ownership bound
 Version the export schema and separate human reports from backup/restore. Include attachments by
 manifest rather than embedding unbounded blobs into JSON.
 
-**Prerequisites:** 022 for consolidated reports and stable domain contracts for full backup/restore.
+**Prerequisites:** 023 for consolidated reports and stable domain contracts for full backup/restore.
 
-### 024 — Calendar Integration
+### 025 — Calendar Integration
 
 **User outcome:** the user optionally synchronizes Planner/occurrence events with a calendar while
 keeping local domain facts authoritative.
@@ -399,7 +432,7 @@ stable, but it must not precede them.
 **Explicitly defer:** Strava/Garmin/Apple Health and bank adapters until their owning local modules are
 stable and a separate feature specifies them.
 
-### 025 — AI Assistant Foundation with One Confirmed Scenario
+### 026 — AI Assistant Foundation with One Confirmed Scenario
 
 **User outcome:** the user configures a BYOK provider and uses one useful AI-assisted flow while the
 application remains fully functional without it.
@@ -409,7 +442,7 @@ output validation, tool-call authorization, and confirm-before-write. Select one
 stable deterministic module; do not expose a universal agent over unfinished domains.
 
 **Prerequisites:** stable domain APIs for the chosen scenario. Vision scenarios additionally require
-020; cross-domain insights require 022.
+021; cross-domain insights require 023.
 
 ## Architecture Gates for Every Feature
 
@@ -438,10 +471,10 @@ parallel architecture.
 The following are deliberately not assigned fixed positions yet:
 
 - global tags or templates: extract only after two implemented modules need compatible behavior;
-- push/email/Telegram channels: add one adapter per concrete delivery need after 010;
+- push/email/Telegram channels: add one adapter per concrete delivery need after 011;
 - Strava/Garmin/Apple Health and bank import: add after the corresponding local source of truth is
   stable;
-- receipt/meal/body-photo vision and other AI scenarios: add after 020 and 025;
+- receipt/meal/body-photo vision and other AI scenarios: add after 021 and 026;
 - investments, advanced amortization, collaboration/roles, recovery/2FA, advanced offline behavior,
   Play Store publication, and iOS: each requires its own future Spec Kit increment.
 

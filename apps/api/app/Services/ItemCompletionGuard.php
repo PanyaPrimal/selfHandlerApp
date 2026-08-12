@@ -32,7 +32,7 @@ class ItemCompletionGuard
         $names = implode(', ', $blocking);
 
         throw ValidationException::withMessages([
-            'status' => "Finish or drop what is blocking this first: {$names}.",
+            'status' => __('messages.blocked_item', ['names' => $names]),
         ]);
     }
 

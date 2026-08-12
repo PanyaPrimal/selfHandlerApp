@@ -6,6 +6,7 @@ import type { RegisterPayload } from '../api/types'
 import { safeRedirect } from '../auth/redirect'
 import { register } from '../auth/session'
 import { UiTextInput } from '../components/ui'
+import { useI18n } from '../i18n'
 
 type FocusableControl = { focus: () => void }
 
@@ -26,6 +27,7 @@ const nameInput = ref<FocusableControl | null>(null)
 const emailInput = ref<FocusableControl | null>(null)
 const passwordInput = ref<FocusableControl | null>(null)
 const confirmationInput = ref<FocusableControl | null>(null)
+const { t } = useI18n()
 
 function clearPasswords(): void {
   form.password = ''
@@ -34,32 +36,32 @@ function clearPasswords(): void {
 
 function failureMessage(currentError: unknown): string {
   if (!(currentError instanceof ApiError)) {
-    return 'Something went wrong. Please try again.'
+    return t('common.errorGeneric')
   }
 
   if (currentError.status === 0 || currentError.status >= 500) {
-    return 'SelfHandler could not be reached. Check the service and try again.'
+    return t('common.errorReach')
   }
 
   if (currentError.status === 419) {
-    return 'Your secure form session expired. Please try again.'
+    return t('common.errorCsrf')
   }
 
   if (currentError.status === 429) {
     return currentError.retryAfter
-      ? `Too many attempts. Try again in ${currentError.retryAfter} seconds.`
-      : 'Too many attempts. Please wait and try again.'
+      ? t('common.errorRateSeconds', { seconds: currentError.retryAfter })
+      : t('common.errorRate')
   }
 
   if (currentError.status === 409) {
-    return 'This browser is already signed in. Reload to continue to the workspace.'
+    return t('common.alreadySignedIn')
   }
 
   if (currentError.status === 422) {
-    return 'Please correct the highlighted fields and try again.'
+    return t('auth.registrationInvalid')
   }
 
-  return 'Your account could not be created. Please try again.'
+  return t('auth.registrationFailed')
 }
 
 async function focusFirstError(): Promise<void> {
@@ -109,9 +111,9 @@ async function submitRegistration(): Promise<void> {
       </RouterLink>
 
       <header class="auth-heading">
-        <p class="eyebrow">Independent workspace</p>
-        <h1>Create your account</h1>
-        <p class="muted">Your routines, goals, and reviews stay separate from every other account.</p>
+        <p class="eyebrow">{{ t('auth.independentWorkspace') }}</p>
+        <h1>{{ t('auth.createTitle') }}</h1>
+        <p class="muted">{{ t('auth.createBody') }}</p>
       </header>
 
       <div v-if="error" class="notice error" role="alert" aria-live="assertive">{{ error }}</div>
@@ -120,20 +122,20 @@ async function submitRegistration(): Promise<void> {
         <UiTextInput
           ref="inviteInput"
           v-model="form.invite_code"
-          label="Invite code"
+          :label="t('auth.inviteCode')"
           name="invite_code"
           autocomplete="off"
           :maxlength="64"
           required
           :disabled="isSubmitting"
-          helper="Registration is invite-only. Enter the code you were given."
+          :helper="t('auth.inviteHelper')"
           :error="fieldErrors.invite_code?.[0]"
         />
 
         <UiTextInput
           ref="nameInput"
           v-model="form.name"
-          label="Display name"
+          :label="t('auth.displayName')"
           name="name"
           autocomplete="name"
           :maxlength="100"
@@ -145,7 +147,7 @@ async function submitRegistration(): Promise<void> {
         <UiTextInput
           ref="emailInput"
           v-model="form.email"
-          label="Email"
+          :label="t('auth.email')"
           name="email"
           type="email"
           autocomplete="email"
@@ -158,20 +160,20 @@ async function submitRegistration(): Promise<void> {
         <UiTextInput
           ref="passwordInput"
           v-model="form.password"
-          label="Password"
+          :label="t('auth.password')"
           name="password"
           type="password"
           autocomplete="new-password"
           required
           :disabled="isSubmitting"
-          helper="Use at least 12 characters."
+          :helper="t('auth.passwordHelper')"
           :error="fieldErrors.password?.[0]"
         />
 
         <UiTextInput
           ref="confirmationInput"
           v-model="form.password_confirmation"
-          label="Confirm password"
+          :label="t('auth.confirmPassword')"
           name="password_confirmation"
           type="password"
           autocomplete="new-password"
@@ -181,14 +183,14 @@ async function submitRegistration(): Promise<void> {
         />
 
         <button type="submit" :disabled="isSubmitting">
-          {{ isSubmitting ? 'Creating account...' : 'Create account' }}
+          {{ isSubmitting ? t('auth.creating') : t('auth.createAccount') }}
         </button>
       </form>
 
       <p class="auth-switch muted">
-        Already have an account?
+        {{ t('auth.already') }}
         <RouterLink :to="{ name: 'login', query: route.query.redirect ? { redirect: route.query.redirect } : {} }">
-          Sign in
+          {{ t('auth.signIn') }}
         </RouterLink>
       </p>
     </section>

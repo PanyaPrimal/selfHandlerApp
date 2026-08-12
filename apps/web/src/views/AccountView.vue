@@ -13,6 +13,8 @@ import {
   UiTextInput,
 } from '../components/ui'
 import type { UiOption } from '../components/ui'
+import { useI18n } from '../i18n'
+import type { MessageKey } from '../i18n/locales/en'
 import {
   centimetersToMeters,
   feetInchesToMeters,
@@ -36,15 +38,18 @@ const errors = ref<ValidationErrors>({})
 const options = ref<ProfileOptions | null>(null)
 const acceptedSnapshot = ref('')
 
-const form = reactive<ProfileInput>({
-  name: '', timezone: 'UTC', locale: 'en-GB', unit_system: 'metric', base_currency: 'UAH',
+type AccountDraft = Omit<ProfileInput, 'locale'>
+
+const form = reactive<AccountDraft>({
+  name: '', timezone: 'UTC', unit_system: 'metric', base_currency: 'UAH',
   recommendation_tone: 'neutral', bmr_formula: 'mifflin_st_jeor', date_of_birth: null,
   sex: null, height_meters: null, weight_grams: null, body_fat_percentage: null,
   baseline_activity: null,
 })
 
 const profile = ref<Profile | null>(null)
-const locale = computed(() => form.locale)
+const i18n = useI18n()
+const locale = i18n.locale
 
 /** Finite option lists come from the API so the client never invents a value. */
 function labelled<T extends string>(values: readonly T[], labels?: Record<string, string>): UiOption<T>[] {
@@ -52,31 +57,30 @@ function labelled<T extends string>(values: readonly T[], labels?: Record<string
 }
 
 const timezoneOptions = computed(() => labelled(options.value?.timezones ?? []))
-const localeOptions = computed(() => labelled(options.value?.locales ?? []))
 const unitSystemOptions = computed(() =>
-  labelled(options.value?.unit_systems ?? [], { metric: 'Metric', imperial: 'Imperial' }),
+  labelled(options.value?.unit_systems ?? [], { metric: i18n.t('account.metric'), imperial: i18n.t('account.imperial') }),
 )
 const currencyOptions = computed(() => labelled(options.value?.base_currencies ?? []))
 const toneOptions = computed(() =>
   labelled(options.value?.recommendation_tones ?? [], {
-    neutral: 'Neutral',
-    friendly: 'Friendly',
-    direct: 'Direct',
+    neutral: i18n.t('account.neutral'),
+    friendly: i18n.t('account.friendly'),
+    direct: i18n.t('account.direct'),
   }),
 )
 const sexOptions = computed(() =>
   labelled(options.value?.sexes ?? [], {
-    female: 'Female',
-    male: 'Male',
-    unspecified: 'Unspecified',
+    female: i18n.t('account.female'),
+    male: i18n.t('account.male'),
+    unspecified: i18n.t('account.unspecified'),
   }),
 )
 const activityOptions = computed(() =>
   labelled(options.value?.baseline_activities ?? [], {
-    sedentary: 'Sedentary',
-    light: 'Light',
-    moderate: 'Moderate',
-    high: 'High',
+    sedentary: i18n.t('account.sedentary'),
+    light: i18n.t('account.light'),
+    moderate: i18n.t('account.moderate'),
+    high: i18n.t('account.high'),
   }),
 )
 const formulaOptions = computed(() =>
@@ -112,6 +116,17 @@ const weightLb = computed({
   get: () => gramsToPounds(form.weight_grams),
   set: (value: number | string | null) => { form.weight_grams = poundsToGrams(nullableNumber(value)) },
 })
+const missingFieldKeys: Record<string, MessageKey> = {
+  date_of_birth: 'account.dateOfBirth',
+  sex: 'account.sex',
+  height_meters: 'account.heightCm',
+  weight_grams: 'account.weightKg',
+  body_fat_percentage: 'account.bodyFat',
+  baseline_activity: 'account.activity',
+}
+const missingFields = computed(() => (profile.value?.missing_fields ?? [])
+  .map((field) => i18n.t(missingFieldKeys[field] ?? 'account.unknownField'))
+  .join(', '))
 
 function nullableNumber(value: number | string | null): number | null {
   if (value === null || value === '') return null
@@ -124,7 +139,6 @@ function accept(current: Profile): void {
   Object.assign(form, {
     name: current.user.name,
     timezone: current.timezone,
-    locale: current.locale,
     unit_system: current.unit_system,
     base_currency: current.base_currency,
     recommendation_tone: current.recommendation_tone,
@@ -148,7 +162,7 @@ async function load(): Promise<void> {
     options.value = response.options
     accept(response.data)
   } catch {
-    loadError.value = 'Could not load your profile. Check the service and try again.'
+    loadError.value = i18n.t('account.loadFailed')
   } finally {
     loading.value = false
   }
@@ -162,21 +176,24 @@ async function save(): Promise<void> {
   success.value = null
 
   try {
-    const response = await updateProfile({ ...form })
+    const response = await updateProfile({
+      ...form,
+      locale: session.user?.preferences.locale ?? i18n.locale.value,
+    })
     options.value = response.options
     accept(response.data)
-    success.value = 'Profile saved.'
+    success.value = i18n.t('account.saved')
   } catch (currentError) {
     errors.value = validationErrors(currentError)
     if (Object.keys(errors.value).length > 0) {
-      saveError.value = 'Check the highlighted fields. Nothing was saved.'
+      saveError.value = i18n.t('account.invalid')
       await nextTick()
       const firstField = Object.keys(errors.value)[0]
       document.querySelector<HTMLElement>(`[data-field="${firstField}"]`)?.focus()
     } else if (currentError instanceof ApiError && currentError.status === 401) {
       await router.replace({ name: 'login' })
     } else {
-      saveError.value = 'Could not save your profile. Your draft is still here; please try again.'
+      saveError.value = i18n.t('account.saveFailed')
     }
   } finally {
     saving.value = false
@@ -191,7 +208,7 @@ async function signOut(): Promise<void> {
     await logout()
     await router.replace({ name: 'login' })
   } catch {
-    saveError.value = 'Could not sign out. Check the service and try again.'
+    saveError.value = i18n.t('account.signOutFailed')
   } finally {
     signingOut.value = false
   }
@@ -204,15 +221,15 @@ onMounted(load)
   <section class="view-stack profile-page">
     <header class="view-header">
       <div>
-        <p class="eyebrow">Profile &amp; settings</p>
-        <h1>Your personal baseline</h1>
+        <p class="eyebrow">{{ i18n.t('account.eyebrow') }}</p>
+        <h1>{{ i18n.t('account.title') }}</h1>
       </div>
     </header>
 
-    <div v-if="loading" class="state-block" role="status">Loading profile…</div>
+    <div v-if="loading" class="state-block" role="status">{{ i18n.t('account.loading') }}</div>
     <div v-else-if="loadError" class="state-block error" role="alert">
       <p>{{ loadError }}</p>
-      <button type="button" @click="load">Retry</button>
+      <button type="button" @click="load">{{ i18n.t('common.retry') }}</button>
     </div>
 
     <form v-else-if="options" class="profile-form" novalidate @submit.prevent="save">
@@ -223,13 +240,13 @@ onMounted(load)
         <div class="account-identity">
           <span class="account-avatar" aria-hidden="true">{{ userInitial }}</span>
           <div>
-            <h2 id="identity-heading">Identity</h2>
+            <h2 id="identity-heading">{{ i18n.t('account.identity') }}</h2>
             <p class="muted">{{ session.user?.email }}</p>
           </div>
         </div>
         <UiTextInput
           v-model="form.name"
-          label="Display name"
+          :label="i18n.t('account.displayName')"
           name="name"
           :maxlength="100"
           autocomplete="name"
@@ -239,44 +256,37 @@ onMounted(load)
 
       <section class="panel profile-section" aria-labelledby="regional-heading">
         <div>
-          <h2 id="regional-heading">Regional preferences</h2>
-          <p class="muted">Your timezone defines what “Today” means for this account.</p>
+          <h2 id="regional-heading">{{ i18n.t('account.regional') }}</h2>
+          <p class="muted">{{ i18n.t('account.timezoneMeaning') }}</p>
         </div>
         <div class="form-grid">
           <UiCombobox
             v-model="form.timezone"
-            label="Timezone"
+            :label="i18n.t('account.timezone')"
             name="timezone"
             :options="timezoneOptions"
             wide
-            placeholder="Search time zones"
-            helper="Type a city or region to narrow the list."
+            :placeholder="i18n.t('account.searchTimezones')"
+            :helper="i18n.t('account.searchTimezonesHelp')"
             :error="errors.timezone?.[0]"
           />
           <UiSelect
-            v-model="form.locale"
-            label="Language & date format"
-            name="locale"
-            :options="localeOptions"
-            :error="errors.locale?.[0]"
-          />
-          <UiSelect
             v-model="form.unit_system"
-            label="Units"
+            :label="i18n.t('account.units')"
             name="unit_system"
             :options="unitSystemOptions"
             :error="errors.unit_system?.[0]"
           />
           <UiSelect
             v-model="form.base_currency"
-            label="Base currency"
+            :label="i18n.t('account.currency')"
             name="base_currency"
             :options="currencyOptions"
             :error="errors.base_currency?.[0]"
           />
           <UiSelect
             v-model="form.recommendation_tone"
-            label="Recommendation tone"
+            :label="i18n.t('account.tone')"
             name="recommendation_tone"
             :options="toneOptions"
             :error="errors.recommendation_tone?.[0]"
@@ -287,24 +297,24 @@ onMounted(load)
       <section class="panel profile-section" aria-labelledby="baseline-heading">
         <div class="section-heading">
           <div>
-            <h2 id="baseline-heading">Calculation baseline</h2>
-            <p class="muted">Optional until you want personalised calculations.</p>
+            <h2 id="baseline-heading">{{ i18n.t('account.baseline') }}</h2>
+            <p class="muted">{{ i18n.t('account.baselineHelp') }}</p>
           </div>
           <span class="readiness-badge" :class="{ ready: profile?.calculation_ready }">
-            {{ profile?.calculation_ready ? 'Ready' : 'Incomplete' }}
+            {{ i18n.t(profile?.calculation_ready ? 'account.ready' : 'account.incomplete') }}
           </span>
         </div>
         <div class="form-grid">
           <UiDatePicker
             v-model="form.date_of_birth"
-            label="Date of birth"
+            :label="i18n.t('account.dateOfBirth')"
             name="date_of_birth"
             :locale="locale"
             :error="errors.date_of_birth?.[0]"
           />
           <UiSelect
             v-model="form.sex"
-            label="Sex used by formula"
+            :label="i18n.t('account.sex')"
             name="sex"
             :options="sexOptions"
             nullable
@@ -314,7 +324,7 @@ onMounted(load)
           <UiNumberInput
             v-if="form.unit_system === 'metric'"
             v-model="heightCm"
-            label="Height (cm)"
+            :label="i18n.t('account.heightCm')"
             name="height_meters"
             :min="50"
             :max="300"
@@ -324,7 +334,7 @@ onMounted(load)
           <div v-else class="imperial-height">
             <UiNumberInput
               v-model="heightFeet"
-              label="Height (ft)"
+              :label="i18n.t('account.heightFt')"
               name="height_meters"
               :min="1"
               :max="9"
@@ -332,7 +342,7 @@ onMounted(load)
             />
             <UiNumberInput
               v-model="heightInches"
-              label="Inches"
+              :label="i18n.t('account.inches')"
               name="height_inches"
               :min="0"
               :max="11.9"
@@ -343,7 +353,7 @@ onMounted(load)
           <UiNumberInput
             v-if="form.unit_system === 'metric'"
             v-model="weightKg"
-            label="Weight (kg)"
+            :label="i18n.t('account.weightKg')"
             name="weight_grams"
             :min="20"
             :max="500"
@@ -353,7 +363,7 @@ onMounted(load)
           <UiNumberInput
             v-else
             v-model="weightLb"
-            label="Weight (lb)"
+            :label="i18n.t('account.weightLb')"
             name="weight_grams"
             :min="44"
             :max="1102"
@@ -363,7 +373,7 @@ onMounted(load)
 
           <UiNumberInput
             v-model="form.body_fat_percentage"
-            label="Body fat (%)"
+            :label="i18n.t('account.bodyFat')"
             name="body_fat_percentage"
             :min="2"
             :max="75"
@@ -372,7 +382,7 @@ onMounted(load)
           />
           <UiSelect
             v-model="form.baseline_activity"
-            label="Non-sport activity"
+            :label="i18n.t('account.activity')"
             name="baseline_activity"
             :options="activityOptions"
             nullable
@@ -380,25 +390,25 @@ onMounted(load)
           />
           <UiSelect
             v-model="form.bmr_formula"
-            label="Metabolic formula"
+            :label="i18n.t('account.formula')"
             name="bmr_formula"
             :options="formulaOptions"
             wide
             :error="errors.bmr_formula?.[0]"
           />
         </div>
-        <p v-if="profile && !profile.calculation_ready" class="helper-text">Missing: {{ profile.missing_fields.join(', ') }}. Readiness updates after saving.</p>
+        <p v-if="profile && !profile.calculation_ready" class="helper-text">{{ i18n.t('account.missing', { fields: missingFields }) }}</p>
       </section>
 
       <div class="profile-actions">
-        <span class="muted">{{ dirty ? 'Unsaved changes' : 'All changes saved' }}</span>
-        <button type="submit" :disabled="saving || !dirty">{{ saving ? 'Saving…' : 'Save profile' }}</button>
+        <span class="muted">{{ i18n.t(dirty ? 'account.unsaved' : 'account.allSaved') }}</span>
+        <button type="submit" :disabled="saving || !dirty">{{ i18n.t(saving ? 'account.saving' : 'account.save') }}</button>
       </div>
     </form>
 
     <section v-if="!loading" class="panel danger-zone">
-      <div><h2>Session</h2><p class="muted">Sign out of this browser.</p></div>
-      <button type="button" class="secondary account-signout" :disabled="signingOut" @click="signOut">{{ signingOut ? 'Signing out…' : 'Sign out' }}</button>
+      <div><h2>{{ i18n.t('account.session') }}</h2><p class="muted">{{ i18n.t('account.sessionHelp') }}</p></div>
+      <button type="button" class="secondary account-signout" :disabled="signingOut" @click="signOut">{{ i18n.t(signingOut ? 'account.signingOut' : 'account.signOut') }}</button>
     </section>
   </section>
 </template>

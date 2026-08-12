@@ -5,6 +5,7 @@ import UiPopoverSurface from './UiPopoverSurface.vue'
 import { useAnchoredSurface } from './useAnchoredSurface'
 import { useFieldIds } from './useFieldIds'
 import { addMinutes, buildTimeSlots, parseTimeOfDay, toTimeString } from './calendar'
+import { useI18n } from '../../i18n'
 
 const props = withDefaults(
   defineProps<{
@@ -33,6 +34,7 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{ 'update:modelValue': [string | null] }>()
+const { t } = useI18n()
 
 const ids = useFieldIds(props.name, () => Boolean(props.helper), () => Boolean(props.error))
 const listId = `${ids.controlId}-listbox`
@@ -249,7 +251,7 @@ defineExpose({ focus: () => input.value?.focus() })
         type="button"
         class="ui-control__adornment"
         :disabled="disabled"
-        :aria-label="`Choose a time for ${label}`"
+        :aria-label="t('common.chooseTime', { label })"
         :aria-expanded="surface.isOpen.value"
         :aria-controls="listId"
         tabindex="-1"

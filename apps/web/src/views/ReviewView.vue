@@ -12,8 +12,8 @@ import {
 import type { DailyReview, DailyReviewPayload } from '../api/types'
 import AsyncState from '../components/AsyncState.vue'
 import { formatCalendarDate } from '../lib/format'
-import { useAuthSession } from '../auth/session'
 import { UiTextarea } from '../components/ui'
+import { useI18n } from '../i18n'
 
 type FocusableControl = { focus: () => void }
 
@@ -30,7 +30,7 @@ interface ReviewForm {
 type ReviewField = keyof ReviewForm
 
 const route = useRoute()
-const session = useAuthSession()
+const i18n = useI18n()
 const reviewDate = ref('')
 const isLoading = ref(true)
 const isReady = ref(false)
@@ -89,18 +89,18 @@ function restoreForm(review: DailyReview | null): void {
 
 function loadFailureMessage(currentError: unknown): string {
   if (currentError instanceof ApiError && currentError.status === 422) {
-    return 'This review date is not a valid calendar date.'
+    return i18n.t('review.invalidDate')
   }
 
-  return 'The review could not be loaded. Check the service and try again.'
+  return i18n.t('review.loadFailed')
 }
 
 function saveFailureMessage(currentError: unknown): string {
   if (currentError instanceof ApiError && currentError.status === 422) {
-    return 'Please correct the highlighted fields and try again.'
+    return i18n.t('review.invalid')
   }
 
-  return 'The review could not be saved. Check the service and try again.'
+  return i18n.t('review.saveFailed')
 }
 
 async function loadReview(): Promise<void> {
@@ -250,36 +250,36 @@ watch(
   <section class="view-stack">
     <header class="view-header">
       <div>
-        <p class="eyebrow">Evening review</p>
-        <h1>{{ reviewDate ? formatCalendarDate(reviewDate, session.user?.preferences.locale) : 'Your daily review' }}</h1>
+        <p class="eyebrow">{{ i18n.t('review.eyebrow') }}</p>
+        <h1>{{ reviewDate ? formatCalendarDate(reviewDate, i18n.locale.value) : i18n.t('review.daily') }}</h1>
       </div>
     </header>
 
-    <section class="panel" aria-label="Daily review workspace">
+    <section class="panel" :aria-label="i18n.t('review.workspace')">
       <AsyncState
         :loading="isLoading"
         :error="loadError"
-        loading-title="Loading review…"
-        loading-description="Restoring the reflection saved for this date."
+        :loading-title="i18n.t('review.loading')"
+        :loading-description="i18n.t('review.loadingBody')"
         @retry="retryLoadReview"
       >
         <AsyncState
           :empty="isReady && !hasSavedReview"
-          empty-title="No review saved yet"
-          empty-description="Use the form below to reflect on this date."
+          :empty-title="i18n.t('review.empty')"
+          :empty-description="i18n.t('review.emptyBody')"
         />
 
         <form
         v-if="isReady"
         class="form-grid review-form"
-        aria-label="Daily review"
+        :aria-label="i18n.t('review.form')"
         novalidate
         :aria-busy="isSaving"
         @submit.prevent="submitReview"
         >
         <div class="rating-grid wide-field">
           <label class="field rating-field">
-            <span>Mood</span>
+            <span>{{ i18n.t('review.mood') }}</span>
             <strong class="rating-value">{{ form.mood }}</strong>
             <input
               ref="moodInput"
@@ -288,7 +288,7 @@ watch(
               type="range"
               min="1"
               max="10"
-              aria-label="Mood"
+              :aria-label="i18n.t('review.mood')"
               :disabled="isSaving"
               :aria-invalid="Boolean(fieldErrors.mood?.length)"
               :aria-describedby="fieldErrors.mood?.length ? 'review-mood-error' : undefined"
@@ -300,7 +300,7 @@ watch(
           </label>
 
           <label class="field rating-field">
-            <span>Energy</span>
+            <span>{{ i18n.t('review.energy') }}</span>
             <strong class="rating-value">{{ form.energy }}</strong>
             <input
               ref="energyInput"
@@ -309,7 +309,7 @@ watch(
               type="range"
               min="1"
               max="10"
-              aria-label="Energy"
+              :aria-label="i18n.t('review.energy')"
               :disabled="isSaving"
               :aria-invalid="Boolean(fieldErrors.energy?.length)"
               :aria-describedby="fieldErrors.energy?.length ? 'review-energy-error' : undefined"
@@ -321,7 +321,7 @@ watch(
           </label>
 
           <label class="field rating-field">
-            <span>Stress</span>
+            <span>{{ i18n.t('review.stress') }}</span>
             <strong class="rating-value">{{ form.stress }}</strong>
             <input
               ref="stressInput"
@@ -330,7 +330,7 @@ watch(
               type="range"
               min="1"
               max="10"
-              aria-label="Stress"
+              :aria-label="i18n.t('review.stress')"
               :disabled="isSaving"
               :aria-invalid="Boolean(fieldErrors.stress?.length)"
               :aria-describedby="fieldErrors.stress?.length ? 'review-stress-error' : undefined"
@@ -342,7 +342,7 @@ watch(
           </label>
 
           <label class="field rating-field">
-            <span>Day rating</span>
+            <span>{{ i18n.t('review.dayRating') }}</span>
             <strong class="rating-value">{{ form.day_rating }}</strong>
             <input
               ref="dayRatingInput"
@@ -351,7 +351,7 @@ watch(
               type="range"
               min="1"
               max="10"
-              aria-label="Day rating"
+              :aria-label="i18n.t('review.dayRating')"
               :disabled="isSaving"
               :aria-invalid="Boolean(fieldErrors.day_rating?.length)"
               :aria-describedby="fieldErrors.day_rating?.length ? 'review-day-rating-error' : undefined"
@@ -366,7 +366,7 @@ watch(
         <UiTextarea
           ref="wentWellInput"
           v-model="form.went_well"
-          label="Went well"
+          :label="i18n.t('review.wentWell')"
           name="went_well"
           :rows="3"
           :maxlength="5000"
@@ -379,7 +379,7 @@ watch(
         <UiTextarea
           ref="improveTomorrowInput"
           v-model="form.improve_tomorrow"
-          label="Improve tomorrow"
+          :label="i18n.t('review.improveTomorrow')"
           name="improve_tomorrow"
           :rows="3"
           :maxlength="5000"
@@ -392,7 +392,7 @@ watch(
         <UiTextarea
           ref="notesInput"
           v-model="form.notes"
-          label="Notes"
+          :label="i18n.t('review.notes')"
           name="notes"
           :rows="4"
           :maxlength="10000"
@@ -405,17 +405,17 @@ watch(
         <div v-if="saveError" class="notice error wide-field" role="alert" aria-live="assertive">
           <span>{{ saveError }}</span>
           <button v-if="canRetrySave" ref="retrySaveButton" type="button" class="secondary" :disabled="isSaving" @click="submitReview">
-            Retry
+            {{ i18n.t('common.retry') }}
           </button>
         </div>
 
         <div class="review-actions wide-field">
-          <p v-if="isSaving" class="muted" role="status">Saving review…</p>
-          <p v-else-if="isSaved" class="notice success" role="status">Review saved.</p>
-          <p v-else-if="isDirty" class="muted">Unsaved changes.</p>
+          <p v-if="isSaving" class="muted" role="status">{{ i18n.t('review.saving') }}</p>
+          <p v-else-if="isSaved" class="notice success" role="status">{{ i18n.t('review.saved') }}</p>
+          <p v-else-if="isDirty" class="muted">{{ i18n.t('review.unsaved') }}</p>
           <span v-else></span>
           <button ref="saveButton" type="submit" :disabled="isSaving">
-            {{ isSaving ? 'Saving review…' : 'Save review' }}
+            {{ i18n.t(isSaving ? 'review.saving' : 'review.save') }}
           </button>
         </div>
         </form>

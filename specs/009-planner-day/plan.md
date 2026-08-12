@@ -54,7 +54,7 @@ apps/api/app/
 7. **Contracts**: endpoints, OpenAPI, typed frontend payloads and browser coverage change together.
 8. **Aggregates**: the day is assembled on read; progress and streaks remain owned by their modules.
 9. **Privacy**: `user_id` on the new table; every source scopes to the owner.
-10. **Deferral**: reminders (010), calendar sync (024), further sources with their own features,
+10. **Deferral**: reminders (011), calendar sync (025), further sources with their own features,
     drag-and-drop and recurring blocks until a case exists.
 
 ## Constitution Check

@@ -98,7 +98,7 @@ class ProjectController extends Controller
 
         if ($partial && $data === []) {
             throw ValidationException::withMessages([
-                'request' => 'Provide at least one field to update.',
+                'request' => __('messages.field_required_update'),
             ]);
         }
 

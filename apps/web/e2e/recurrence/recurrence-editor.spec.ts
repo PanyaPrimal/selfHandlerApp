@@ -50,7 +50,7 @@ test('recurrence is edited with the shared controls and saved as one schedule', 
   })
 
   await expect(page.getByRole('status').filter({ hasText: 'Routine created.' })).toBeVisible()
-  await expect(page.getByRole('listitem', { name: 'Weekly recurrence' })).toContainText('TU, FR')
+  await expect(page.getByRole('listitem', { name: 'Weekly recurrence' })).toContainText('Tue, Fri')
   await expectNoHorizontalOverflow(page)
 })
 
@@ -85,5 +85,5 @@ test('a routine reloaded after saving keeps the schedule it was given', async ({
 
   // The schedule now lives on the recurrence rule, but the routine still
   // presents it inline exactly as before.
-  await expect(page.getByRole('listitem', { name: 'Persisted schedule' })).toContainText('WE')
+  await expect(page.getByRole('listitem', { name: 'Persisted schedule' })).toContainText('Wed')
 })

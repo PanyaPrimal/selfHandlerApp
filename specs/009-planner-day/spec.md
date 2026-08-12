@@ -59,7 +59,7 @@ from all modules into a single calendar: a `Schedulable` view/contract".
   user. A scheduler service runs it daily.
 - Q: Do reminders arrive with this?
   A: No. The design puts delivery, channels, escalation and quiet hours in Notifications, which is
-  feature 010. Planner shows what is scheduled; it does not notify.
+  feature 011. Planner shows what is scheduled; it does not notify.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -249,8 +249,8 @@ idempotent, and leaves marked days alone.
 
 ### Out of Scope
 
-Reminders, notifications, escalation and quiet hours (feature 010); external calendar synchronisation
-(024); habits, sleep, workouts, nutrition and supplement sources, each arriving with its own feature;
+Reminders, notifications, escalation and quiet hours (feature 011); external calendar synchronisation
+(025); habits, sleep, workouts, nutrition and supplement sources, each arriving with its own feature;
 drag-and-drop rearranging; recurring time blocks; multi-day or all-day spanning events; and any
 automatic planning or suggestion.
 
