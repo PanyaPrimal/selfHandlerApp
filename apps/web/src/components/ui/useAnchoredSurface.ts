@@ -24,6 +24,8 @@ export interface AnchoredSurface {
   close: (options?: { restoreFocus?: boolean }) => void
   toggle: () => void
   surfaceStyle: Ref<CSSProperties>
+  /** Run a callback once the surface has been placed, for focus moves into it. */
+  whenPositioned: (callback: () => void) => void
 }
 
 /**
@@ -67,7 +69,7 @@ export function useAnchoredSurface(options: AnchoredSurfaceOptions = {}): Anchor
     }),
   ])
 
-  const { floatingStyles } = useFloating(anchorRef, surfaceRef, {
+  const { floatingStyles, isPositioned } = useFloating(anchorRef, surfaceRef, {
     open: isOpen,
     placement: options.placement ?? 'bottom-start',
     strategy: 'fixed',
@@ -77,6 +79,11 @@ export function useAnchoredSurface(options: AnchoredSurfaceOptions = {}): Anchor
 
   const surfaceStyle = computed<CSSProperties>(() => {
     const style: CSSProperties = { ...floatingStyles.value }
+
+    // Until the first measurement lands, the floating styles are the top-left
+    // corner. Painting that frame makes the surface appear in the corner and
+    // then jump to the control, so it stays hidden for it.
+    style.visibility = isPositioned.value ? 'visible' : 'hidden'
     const ceiling = options.maxHeight ?? 320
     const bounded = availableHeight.value === null
       ? ceiling
@@ -179,5 +186,30 @@ export function useAnchoredSurface(options: AnchoredSurfaceOptions = {}): Anchor
     window.removeEventListener('resize', refreshBottomPadding)
   })
 
-  return { anchorRef, surfaceRef, isOpen, open, close, toggle, surfaceStyle }
+  /**
+    * The surface is hidden until it is placed, and a hidden element cannot take
+    * focus. Anything that focuses inside it therefore waits for the placement
+    * instead of the next tick.
+    */
+  function whenPositioned(callback: () => void): void {
+    if (isPositioned.value) {
+      callback()
+
+      return
+    }
+
+    const stop = watch(isPositioned, (positioned) => {
+      if (!positioned) {
+        return
+      }
+
+      stop()
+
+      if (isOpen.value) {
+        callback()
+      }
+    })
+  }
+
+  return { anchorRef, surfaceRef, isOpen, open, close, toggle, surfaceStyle, whenPositioned }
 }

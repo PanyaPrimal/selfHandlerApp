@@ -56,6 +56,38 @@ const locale = computed(() => session.user?.preferences.locale ?? 'en-GB')
 const goalListHeading = ref<HTMLHeadingElement | null>(null)
 const feedbackRetryButton = ref<HTMLButtonElement | null>(null)
 const activeRoutines = computed(() => routines.value.filter((routine) => routine.is_active && !routine.is_archived))
+
+interface RoutineLinkOption {
+  id: number
+  label: string
+  unavailable: boolean
+}
+
+/**
+ * The routines this goal can be linked to or unlinked from.
+ *
+ * Active routines are offered for linking. A routine the goal is already linked
+ * to is always included even once it is paused or archived: the goal card keeps
+ * showing that link, so the control that removes it has to keep existing too.
+ */
+function linkOptionsFor(goal: Goal): RoutineLinkOption[] {
+  const options = new Map<number, RoutineLinkOption>()
+
+  for (const routine of activeRoutines.value) {
+    options.set(routine.id, { id: routine.id, label: routine.name, unavailable: false })
+  }
+
+  for (const routine of goal.routines) {
+    if (options.has(routine.id)) {
+      continue
+    }
+
+    const state = routine.is_archived ? 'archived' : 'paused'
+    options.set(routine.id, { id: routine.id, label: `${routine.name} (${state})`, unavailable: true })
+  }
+
+  return [...options.values()]
+}
 const mutationBusy = computed(() => (
   isSubmitting.value || actionGoalId.value !== null || linkSavingGoalId.value !== null
 ))
@@ -297,7 +329,7 @@ async function saveRoutineLinks(goal: Goal): Promise<void> {
   linkSavingGoalId.value = goal.id
   clearFeedback()
 
-  const editableRoutineIds = new Set(activeRoutines.value.map((routine) => routine.id))
+  const editableRoutineIds = new Set(linkOptionsFor(goal).map((option) => option.id))
   const existingRoutineIds = new Set(
     goal.routines
       .map((routine) => routine.id)
@@ -331,8 +363,8 @@ async function saveRoutineLinks(goal: Goal): Promise<void> {
   }
 }
 
-function toggleRoutineLink(goalId: number, routineId: number, checked: boolean): void {
-  const current = new Set(linkSelections[goalId] ?? [])
+function toggleRoutineLink(goal: Goal, routineId: number, checked: boolean): void {
+  const current = new Set(linkSelections[goal.id] ?? [])
 
   if (checked) {
     current.add(routineId)
@@ -340,10 +372,11 @@ function toggleRoutineLink(goalId: number, routineId: number, checked: boolean):
     current.delete(routineId)
   }
 
-  // Keep the routine order stable so the saved link set does not depend on
-  // the order the user happened to tick the boxes.
-  linkSelections[goalId] = activeRoutines.value
-    .map((routine) => routine.id)
+  // Ordered by the options this goal shows, so the saved set does not depend on
+  // the order the user ticked the boxes and never loses an already-linked
+  // routine that is no longer active.
+  linkSelections[goal.id] = linkOptionsFor(goal)
+    .map((option) => option.id)
     .filter((id) => current.has(id))
 }
 
@@ -545,17 +578,19 @@ onMounted(loadWorkspace)
             >
               <div>
                 <strong>Routine links</strong>
-                <p class="muted">Choose active routines that support this goal.</p>
+                <p class="muted">
+                  Tick an active routine to link it, untick one to unlink it, then save.
+                </p>
               </div>
-              <div v-if="activeRoutines.length > 0" class="routine-link-options">
+              <div v-if="linkOptionsFor(goal).length > 0" class="routine-link-options">
                 <UiCheckbox
-                  v-for="routine in activeRoutines"
-                  :key="routine.id"
-                  :label="routine.name"
-                  :name="`goal-${goal.id}-routine-${routine.id}`"
-                  :model-value="(linkSelections[goal.id] ?? []).includes(routine.id)"
+                  v-for="option in linkOptionsFor(goal)"
+                  :key="option.id"
+                  :label="option.label"
+                  :name="`goal-${goal.id}-routine-${option.id}`"
+                  :model-value="(linkSelections[goal.id] ?? []).includes(option.id)"
                   :disabled="mutationBusy"
-                  @update:model-value="(checked) => toggleRoutineLink(goal.id, routine.id, checked)"
+                  @update:model-value="(checked) => toggleRoutineLink(goal, option.id, checked)"
                 />
               </div>
               <p v-else class="muted">No active routines are available to link.</p>

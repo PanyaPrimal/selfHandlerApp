@@ -103,6 +103,11 @@ function focusCursor(): void {
   })
 }
 
+/** The first focus of an opening calendar has to wait for it to be placed. */
+function focusCursorWhenReady(): void {
+  surface.whenPositioned(focusCursor)
+}
+
 function openCalendar(): void {
   if (props.disabled) {
     return
@@ -110,7 +115,7 @@ function openCalendar(): void {
 
   cursor.value = defaultCursor()
   surface.open()
-  focusCursor()
+  focusCursorWhenReady()
 }
 
 function isSelectable(date: CalendarDate): boolean {
