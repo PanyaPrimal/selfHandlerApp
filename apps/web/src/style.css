@@ -8,6 +8,8 @@
   --subtle: #6b645b;
   --border: #e0dcd2;
   --border-strong: #c4beb2;
+  /* The resting edge of anything the user types or chooses into. */
+  --field-border: #cfcabf;
   --accent: #3d6b4e;
   --accent-soft: #eef3ef;
   --accent-border: #cfe0d3;
@@ -16,6 +18,21 @@
   --error: #9a553f;
   --error-soft: #faf2ef;
   --shadow: 0 18px 50px rgba(38, 34, 28, 0.08);
+  /*
+   * Focus, in two shapes for two kinds of target.
+   *
+   * A field already draws its own 1px edge. Adding an outline on top stacks a
+   * second ring over it and, because an outline is drawn at the radius plus its
+   * offset, that ring has visibly rounder corners than the field it belongs to
+   * — which is what made a focused field look nothing like the field beside it.
+   * So a field keeps its exact geometry and only turns its edge accent, with a
+   * soft halo carrying the visibility. `--focus-halo` is that halo.
+   *
+   * A button or link has no edge of its own to recolour, so it does take a real
+   * outline, held clear of the fill. `--focus-ring-width` is that outline.
+   */
+  --focus-ring-width: 2px;
+  --focus-halo: 0 0 0 3px rgba(61, 107, 78, 0.22);
   --radius: 14px;
   --radius-sm: 8px;
   --font-body: "Hanken Grotesk", "Segoe UI", system-ui, sans-serif;
@@ -772,7 +789,7 @@ input,
 select,
 textarea {
   width: 100%;
-  border: 1px solid #cfcabf;
+  border: 1px solid var(--field-border);
   border-radius: var(--radius-sm);
   padding: 10px 12px;
   color: var(--ink);
@@ -783,15 +800,23 @@ textarea {
   resize: vertical;
 }
 
+/* Fields: same box, accent edge, soft halo. */
 input:focus-visible,
 select:focus-visible,
-textarea:focus-visible,
+textarea:focus-visible {
+  /* Transparent, so Windows high-contrast mode still paints a ring. */
+  outline: var(--focus-ring-width) solid transparent;
+  outline-offset: 0;
+  border-color: var(--accent);
+  box-shadow: var(--focus-halo);
+}
+
+/* Buttons and links: a real ring, held clear of the fill. */
 button:focus-visible,
 a:focus-visible,
 .focus-target:focus {
-  outline: 3px solid var(--accent);
+  outline: var(--focus-ring-width) solid var(--accent);
   outline-offset: 2px;
-  border-color: var(--accent);
 }
 
 [aria-invalid="true"] {
@@ -1046,7 +1071,7 @@ input[type="range"] {
   width: 100%;
   min-height: 42px;
   padding: 10px 12px;
-  border: 1px solid #cfcabf;
+  border: 1px solid var(--field-border);
   border-radius: var(--radius-sm);
   color: var(--ink);
   background: var(--surface);
@@ -1077,10 +1102,16 @@ input[type="range"] {
   background: var(--surface-warm);
 }
 
+/*
+ * Every owned control is a field, including the ones that happen to be buttons
+ * (select and date triggers). They all draw their own edge, so they all get the
+ * field treatment rather than the button ring.
+ */
 .ui-control:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 2px;
+  outline: var(--focus-ring-width) solid transparent;
+  outline-offset: 0;
   border-color: var(--accent);
+  box-shadow: var(--focus-halo);
 }
 
 .ui-control--invalid,
@@ -1405,8 +1436,8 @@ input[type="range"] {
 }
 
 .ui-choice__input:focus-visible + .ui-choice__box {
-  outline: 3px solid var(--accent);
-  outline-offset: 2px;
+  border-color: var(--accent);
+  box-shadow: var(--focus-halo);
 }
 
 .ui-choice__label {
