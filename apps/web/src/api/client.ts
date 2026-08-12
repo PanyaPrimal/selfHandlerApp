@@ -1,4 +1,11 @@
 import type {
+  BodyGoalPayload,
+  BodyGoalResponse,
+  BodyGoalsResponse,
+  BodyMeasurement,
+  BodyMeasurementPayload,
+  BodyMeasurementsResponse,
+  BodyTrend,
   DailyReview,
   DailyReviewPayload,
   Goal,
@@ -132,4 +139,46 @@ export async function saveDailyReview(date: string, payload: DailyReviewPayload)
     payload,
   )
   return response.data
+}
+
+export function getBodyMeasurements(params: { metric?: string, from?: string, to?: string } = {}): Promise<BodyMeasurementsResponse> {
+  const query = new URLSearchParams(
+    Object.entries(params).filter((entry): entry is [string, string] => Boolean(entry[1])),
+  )
+  const suffix = query.toString() ? `?${query.toString()}` : ''
+
+  return request<BodyMeasurementsResponse>(`/body/measurements${suffix}`)
+}
+
+export async function saveBodyMeasurement(payload: BodyMeasurementPayload): Promise<BodyMeasurement> {
+  const response = await jsonRequest<ItemResponse<BodyMeasurement>>('/body/measurements', 'PUT', payload)
+  return response.data
+}
+
+export function deleteBodyMeasurement(measurementId: number): Promise<void> {
+  return request<void>(`/body/measurements/${measurementId}`, { method: 'DELETE' })
+}
+
+export function getBodyTrend(metric: string, params: { from?: string, to?: string } = {}): Promise<BodyTrend> {
+  const query = new URLSearchParams({ metric })
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value) {
+      query.set(key, value)
+    }
+  }
+
+  return request<BodyTrend>(`/body/trend?${query.toString()}`)
+}
+
+export function getBodyGoals(): Promise<BodyGoalsResponse> {
+  return request<BodyGoalsResponse>('/body/goals')
+}
+
+export function createBodyGoal(payload: BodyGoalPayload): Promise<BodyGoalResponse> {
+  return jsonRequest<BodyGoalResponse>('/body/goals', 'POST', payload)
+}
+
+export function updateBodyGoal(goalId: number, payload: Partial<BodyGoalPayload>): Promise<BodyGoalResponse> {
+  return jsonRequest<BodyGoalResponse>(`/body/goals/${goalId}`, 'PATCH', payload)
 }

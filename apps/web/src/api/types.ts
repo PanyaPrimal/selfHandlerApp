@@ -220,3 +220,131 @@ export interface GoalCreatePayload extends GoalInput {
 export type GoalUpdatePayload = AtLeastOne<GoalInput>
 
 export type DailyReviewPayload = AtLeastOne<DailyReviewFields>
+
+/* ------------------------------------------------------------------ */
+/* Body measurements and body goals (feature 007)                      */
+/* ------------------------------------------------------------------ */
+
+export type BodyMetricKey =
+  | 'body_mass'
+  | 'body_fat_percentage'
+  | 'waist'
+  | 'chest'
+  | 'hips'
+  | 'thigh'
+  | 'upper_arm'
+  | 'neck'
+  | 'calf'
+
+export type BodyGoalDirection = 'lose' | 'gain' | 'maintain'
+
+export interface BodyMetricOption {
+  value: BodyMetricKey
+  label: string
+  /** `gram`, `metre` or `percent` — the unit every value crosses the API in. */
+  canonical_unit: 'gram' | 'metre' | 'percent'
+  display_unit: { metric: string, imperial: string }
+  minimum: string
+  maximum: string
+}
+
+export interface BodyMeasurement {
+  id: number
+  metric: BodyMetricKey
+  measured_on: string
+  /** Canonical base unit, as an exact decimal string. */
+  value: string
+  note: string | null
+}
+
+export interface BodyMeasurementsResponse {
+  data: BodyMeasurement[]
+  metrics: BodyMetricOption[]
+  /** The user's current day in their profile time zone. */
+  today: string
+  from: string
+  to: string
+}
+
+export interface BodyMeasurementPayload {
+  metric: BodyMetricKey
+  measured_on: string
+  value: number
+  note?: string | null
+}
+
+export interface BodyTrendPoint {
+  measured_on: string
+  value: string
+}
+
+export interface BodyTrend {
+  metric: BodyMetricKey
+  state: 'empty' | 'insufficient' | 'ready'
+  points: number
+  first: BodyTrendPoint | null
+  last: BodyTrendPoint | null
+  /** Null in the empty and insufficient states — never zero. */
+  change_per_week: string | null
+}
+
+export interface BodyGoalMilestone {
+  id: number
+  target_value: string
+  target_date: string | null
+  achieved: boolean
+}
+
+export interface BodyGoalDetail {
+  metric: BodyMetricKey
+  metric_label: string
+  direction: BodyGoalDirection
+  starting_value: string
+  target_value: string
+  /** Null until the metric has an observation — never zero. */
+  current_value: string | null
+  measured_on: string | null
+  progress: number | null
+  milestones: BodyGoalMilestone[]
+}
+
+export interface BodyGoal {
+  id: number
+  name: string
+  description: string | null
+  type: 'body'
+  status: Goal['status']
+  target_date: string | null
+  completed_at: string | null
+  is_archived: boolean
+  archived_at: string | null
+  body: BodyGoalDetail | null
+}
+
+export interface BodyGoalWarning {
+  field: string
+  code: string
+  message: string
+}
+
+export interface BodyGoalPayload {
+  name: string
+  description?: string | null
+  target_date?: string | null
+  metric: BodyMetricKey
+  direction: BodyGoalDirection
+  starting_value: number
+  target_value: number
+  milestones?: Array<{ target_value: number, target_date?: string | null }>
+}
+
+export interface BodyGoalsResponse {
+  data: BodyGoal[]
+  metrics: BodyMetricOption[]
+  directions: BodyGoalDirection[]
+}
+
+export interface BodyGoalResponse {
+  data: BodyGoal
+  warnings: BodyGoalWarning[]
+}

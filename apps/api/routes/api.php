@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\BodyGoalController;
+use App\Http\Controllers\BodyMeasurementController;
 use App\Http\Controllers\DailyReviewController;
 use App\Http\Controllers\GoalController;
 use App\Http\Controllers\HealthController;
@@ -25,6 +27,15 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/daily-reviews/{date}', [DailyReviewController::class, 'show']);
     Route::put('/daily-reviews/{date}', [DailyReviewController::class, 'upsert']);
+
+    Route::get('/body/measurements', [BodyMeasurementController::class, 'index']);
+    Route::put('/body/measurements', [BodyMeasurementController::class, 'upsert']);
+    Route::delete('/body/measurements/{measurement}', [BodyMeasurementController::class, 'destroy']);
+    Route::get('/body/trend', [BodyMeasurementController::class, 'trend']);
+
+    Route::get('/body/goals', [BodyGoalController::class, 'index']);
+    Route::post('/body/goals', [BodyGoalController::class, 'store']);
+    Route::patch('/body/goals/{goal}', [BodyGoalController::class, 'update']);
 
     Route::get('/goals', [GoalController::class, 'index']);
     Route::post('/goals', [GoalController::class, 'store']);

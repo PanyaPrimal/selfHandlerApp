@@ -815,6 +815,21 @@ input[type="range"] {
   accent-color: var(--accent);
 }
 
+.body-page {
+  max-width: 880px;
+}
+
+.body-goal {
+  display: grid;
+  gap: 10px;
+}
+
+.kind-chip.is-achieved {
+  color: var(--accent);
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+}
+
 .changelog-page {
   max-width: 820px;
 }

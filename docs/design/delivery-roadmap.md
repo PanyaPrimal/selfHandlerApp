@@ -5,8 +5,9 @@ increments. It is a dependency roadmap, not a replacement for feature specificat
 still requires `$speckit-specify -> $speckit-clarify -> $speckit-plan -> $speckit-tasks ->
 $speckit-analyze -> $speckit-implement` before application code changes.
 
-> **Roadmap baseline (2026-08-12):** `001-core-daily-loop`, `003-multi-user-auth`, and
-> `004-profile-settings` are complete.
+> **Roadmap baseline (2026-08-12):** `001-core-daily-loop`, `003-multi-user-auth`,
+> `004-profile-settings`, `005-interface-foundation`, `006-unified-recurrence` and
+> `007-body-measurements` are complete.
 > `002-homelab-deployment` stops at T055 by product decision: the current homelab deployment is
 > accepted, and T056-T059 are intentionally excluded from the product queue.
 >
@@ -37,13 +38,15 @@ The application already provides:
 - a Today checklist with seven-day progress and streaks;
 - goals linked to routines;
 - one daily review per user and date;
-- a working private homelab deployment.
+- a working private homelab deployment;
 - a private per-user profile with regional preferences, canonical anthropometrics, and user-local
-  Today/progress calendar boundaries.
+  Today/progress calendar boundaries;
+- one owned, accessible form-control layer and a user-facing changelog;
+- the shared recurrence boundary (`RecurringRule` + `PlannedOccurrence`) with routines as its consumer;
+- dated body measurements with deterministic trends and body-composition goals.
 
-The current routine schedule is a successful product slice, but it is not the shared recurrence model
-described in [recurrence-engine.md](recurrence-engine.md). No second scheduling implementation may be
-added before that boundary is resolved.
+The shared recurrence boundary now exists and owns every routine schedule. A module that needs
+recurring behaviour uses it; no second scheduling table may be added.
 
 ## Dependency Map
 
@@ -168,6 +171,8 @@ editor is built from.
 complex RRULE fallback unless a routine acceptance scenario needs it.
 
 ### 007 — Body Measurements and Body Goals
+
+**Status:** Complete on 2026-08-12 (`26/26` tasks).
 
 **User outcome:** the user records dated body measurements and follows measurable body-composition
 goals.

@@ -40,9 +40,9 @@ they verify.
 
 ### Tests
 
-- [X] T007 [P] [US1] Write failing pure-expansion unit tests (daily, weekly, bounds, empty weekday set) in `apps/api/tests/Unit/Recurrence/RecurringRuleExpanderTest.php` (FR-008, FR-010)
-- [X] T008 [P] [US1] Write failing routine API compatibility tests asserting the unchanged response key set and values in `apps/api/tests/Feature/Recurrence/RoutineCompatibilityTest.php` (FR-023, FR-024, SC-002)
-- [X] T009 [P] [US2] Write failing rule-ownership, schedule-lock and single-source tests in `apps/api/tests/Feature/Recurrence/RuleLifecycleTest.php` (FR-012, FR-025, FR-026)
+- [X] T007 [P] [US1] Write failing pure-expansion unit tests (daily, weekly, bounds, empty weekday set) in `apps/api/tests/Feature/Recurrence/RecurrenceEngineTest.php` (FR-008, FR-010)
+- [X] T008 [P] [US1] Write failing routine API compatibility tests asserting the unchanged response key set and values in the untouched feature-001 suites plus `apps/api/tests/Feature/Recurrence/RecurrenceEngineTest.php` (FR-023, FR-024, SC-002)
+- [X] T009 [P] [US2] Write failing rule-ownership, schedule-lock and single-source tests in `apps/api/tests/Feature/Recurrence/RecurrenceEngineTest.php` (FR-012, FR-025, FR-026)
 
 ### Implementation
 
@@ -58,7 +58,7 @@ they verify.
 
 ## Phase 4: User Story 3 - Time Zones and Daylight Saving (Priority: P1)
 
-- [X] T015 [P] [US3] Write failing two-user opposite-day, spring-forward and fall-back expansion tests in `apps/api/tests/Feature/Recurrence/RecurrenceTimezoneTest.php` (FR-009, FR-011, SC-005, SC-006)
+- [X] T015 [P] [US3] Write failing two-user opposite-day, spring-forward and fall-back expansion tests in `apps/api/tests/Feature/Recurrence/RecurrenceEngineTest.php` (FR-009, FR-011, SC-005, SC-006)
 - [X] T016 [US3] Make expansion walk calendar days in the rule's zone and seed the rule's zone from the profile (FR-009, FR-011)
 
 ---
@@ -67,9 +67,9 @@ they verify.
 
 ### Tests
 
-- [X] T017 [P] [US4] Write failing window, idempotency, retry, bounds, paused/archived and expansion-equality tests in `apps/api/tests/Feature/Recurrence/MaterializationTest.php` (FR-013-FR-018, SC-003, SC-004)
-- [X] T018 [P] [US4] Write failing fact-linkage and reconciliation tests in `apps/api/tests/Feature/Recurrence/OccurrenceFactTest.php` (FR-020-FR-022)
-- [X] T019 [P] [US4] Write a failing query-count test over 50 routines and a full window in `apps/api/tests/Feature/Recurrence/MaterializationPerformanceTest.php` (FR-019, SC-008)
+- [X] T017 [P] [US4] Write failing window, idempotency, retry, bounds, paused/archived and expansion-equality tests in `apps/api/tests/Feature/Recurrence/RecurrenceEngineTest.php` (FR-013-FR-018, SC-003, SC-004)
+- [X] T018 [P] [US4] Write failing fact-linkage and reconciliation tests in `apps/api/tests/Feature/Recurrence/RecurrenceEngineTest.php` (FR-020-FR-022)
+- [X] T019 [P] [US4] Write a failing query-count test over 50 routines and a full window in `apps/api/tests/Feature/Recurrence/RecurrenceEngineTest.php` (FR-019, SC-008)
 
 ### Implementation
 
@@ -145,6 +145,11 @@ they verify.
   changelog gained a recurrence entry.
 
 ### Refinements against the drafted plan
+
+- **Test files were consolidated.** The drafted task list named seven separate suites; the expansion,
+  time-zone, materialization, fact-linkage, performance and lifecycle scenarios all share the same
+  fixtures, so they live in `RecurrenceEngineTest`, with schema assertions in `RecurrenceMigrationTest`.
+  Every scenario the tasks described exists; the paths above were corrected to match.
 
 - **`recurring_rules` has no `is_active` column.** The draft gave the rule its own pause flag, which
   would have duplicated `routines.is_active` and recreated exactly the competing-source problem this
