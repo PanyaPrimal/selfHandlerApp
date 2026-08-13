@@ -1,0 +1,620 @@
+openapi: 3.1.0
+info:
+  title: SelfHandler Budget and Recurring Cash Flow API
+  version: 0.1.0
+  description: Owner-scoped monthly budgets, recurring Finance plans, outcomes, and cash flow.
+servers:
+  - url: /api
+security:
+  - sanctum: []
+tags:
+  - name: Finance Planning
+paths:
+  /finance/budgets:
+    get:
+      tags: [Finance Planning]
+      operationId: listFinanceBudgets
+      summary: List one owner's monthly budgets with derived ledger actuals
+      parameters:
+        - {$ref: '#/components/parameters/Month'}
+      responses:
+        '200':
+          description: Ordered monthly budget projections
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/BudgetListResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+    post:
+      tags: [Finance Planning]
+      operationId: createFinanceBudget
+      summary: Create one non-overlapping monthly expense-category limit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/BudgetInput'}
+      responses:
+        '201':
+          description: Created budget projection
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/BudgetResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /finance/budgets/{budget}:
+    patch:
+      tags: [Finance Planning]
+      operationId: updateFinanceBudget
+      summary: Edit one owned monthly budget limit or scope
+      parameters:
+        - {$ref: '#/components/parameters/BudgetId'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/BudgetUpdateInput'}
+      responses:
+        '200':
+          description: Updated budget projection
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/BudgetResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+    delete:
+      tags: [Finance Planning]
+      operationId: deleteFinanceBudget
+      summary: Remove one owned limit without touching ledger history
+      parameters:
+        - {$ref: '#/components/parameters/BudgetId'}
+      responses:
+        '204': {description: Budget removed}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /finance/recurring-operations:
+    get:
+      tags: [Finance Planning]
+      operationId: listFinanceRecurringOperations
+      summary: List owned recurring Finance operations
+      parameters:
+        - in: query
+          name: include_archived
+          required: false
+          schema: {type: boolean, default: true}
+      responses:
+        '200':
+          description: Ordered recurring operations
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RecurringOperationListResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+    post:
+      tags: [Finance Planning]
+      operationId: createFinanceRecurringOperation
+      summary: Create an owned operation and its shared monthly rule atomically
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RecurringOperationInput'}
+      responses:
+        '201':
+          description: Created recurring operation
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RecurringOperationResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /finance/recurring-operations/{operation}:
+    patch:
+      tags: [Finance Planning]
+      operationId: updateFinanceRecurringOperation
+      summary: Edit plan semantics, monthly rule, or lifecycle
+      parameters:
+        - {$ref: '#/components/parameters/OperationId'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RecurringOperationUpdateInput'}
+      responses:
+        '200':
+          description: Updated recurring operation
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RecurringOperationResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /finance/cash-flow:
+    get:
+      tags: [Finance Planning]
+      operationId: showFinanceCashFlow
+      summary: Show one current or future month's derived recurring cash flow
+      parameters:
+        - {$ref: '#/components/parameters/Month'}
+      responses:
+        '200':
+          description: Complete or explicitly incomplete cash-flow projection
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CashFlowResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /finance/planned-occurrences:
+    get:
+      tags: [Finance Planning]
+      operationId: listFinancePlannedOccurrences
+      summary: List a bounded range of owned Finance occurrences and snapshots
+      parameters:
+        - {$ref: '#/components/parameters/DateFromRequired'}
+        - {$ref: '#/components/parameters/DateToRequired'}
+      responses:
+        '200':
+          description: Ordered occurrence projections
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PlannedOccurrenceListResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /finance/planned-occurrences/{occurrence}/outcome:
+    put:
+      tags: [Finance Planning]
+      operationId: putFinanceOccurrenceOutcome
+      summary: Idempotently realize or skip one due occurrence
+      parameters:
+        - {$ref: '#/components/parameters/OccurrenceId'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/OccurrenceOutcomeInput'}
+      responses:
+        '200':
+          description: Matching retry or accepted outcome
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PlannedOccurrenceResponse'}
+        '201':
+          description: Newly accepted outcome
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PlannedOccurrenceResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+    delete:
+      tags: [Finance Planning]
+      operationId: clearFinanceOccurrenceOutcome
+      summary: Clear only a skipped outcome
+      parameters:
+        - {$ref: '#/components/parameters/OccurrenceId'}
+      responses:
+        '200':
+          description: Occurrence restored to planned
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PlannedOccurrenceResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+components:
+  securitySchemes:
+    sanctum:
+      type: http
+      scheme: bearer
+      bearerFormat: Sanctum
+  parameters:
+    BudgetId:
+      in: path
+      name: budget
+      required: true
+      schema: {type: integer, minimum: 1}
+    OperationId:
+      in: path
+      name: operation
+      required: true
+      schema: {type: integer, minimum: 1}
+    OccurrenceId:
+      in: path
+      name: occurrence
+      required: true
+      schema: {type: integer, minimum: 1}
+    Month:
+      in: query
+      name: month
+      required: true
+      schema: {$ref: '#/components/schemas/CalendarMonth'}
+    DateFromRequired:
+      in: query
+      name: from
+      required: true
+      schema: {type: string, format: date}
+    DateToRequired:
+      in: query
+      name: to
+      required: true
+      schema: {type: string, format: date}
+  responses:
+    Unauthenticated:
+      description: Authentication required
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/MessageResponse'}
+    NotFound:
+      description: Unknown or foreign owned reference
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/MessageResponse'}
+    Conflict:
+      description: Overlap, lifecycle, or outcome conflict
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/MessageResponse'}
+    ValidationFailed:
+      description: Strict validation failed
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ValidationErrorResponse'}
+  schemas:
+    CalendarMonth:
+      type: string
+      pattern: '^[0-9]{4}-(?:0[1-9]|1[0-2])$'
+      examples: ['2026-08']
+    CurrencyCode:
+      type: string
+      enum: [UAH, USD, EUR]
+    MoneyAmount:
+      type: string
+      pattern: '^-?(?:0|[1-9][0-9]{0,14})(?:\.[0-9]{1,4})?$'
+      examples: ['123.4567']
+    PositiveMoneyAmount:
+      type: string
+      pattern: '^(?:0\.(?:0{0,3}[1-9][0-9]*|[0-9]*[1-9][0-9]*)|[1-9][0-9]{0,14}(?:\.[0-9]{1,4})?)$'
+      examples: ['123.4567']
+    PercentageAmount:
+      type: string
+      pattern: '^(?:0|[1-9][0-9]{0,8})(?:\.[0-9]{1,4})?$'
+      examples: ['80.0000']
+    RateAmount:
+      type: string
+      pattern: '^(?:0\.[0-9]{0,11}[1-9]|[1-9][0-9]{0,10}(?:\.[0-9]{1,12})?)$'
+      examples: ['41.250000000000']
+    CategoryDirection:
+      type: string
+      enum: [income, expense]
+    BudgetState:
+      type: string
+      enum: [within, approaching, exceeded]
+    OccurrenceStatus:
+      type: string
+      enum: [planned, actual, skipped]
+    OutcomeType:
+      type: string
+      enum: [actual, skipped]
+    RateDirection:
+      type: string
+      enum: [identity, direct, inverse]
+    FinanceCategorySummary:
+      type: object
+      additionalProperties: false
+      required: [id, parent_id, label, archived]
+      properties:
+        id: {type: integer, minimum: 1}
+        parent_id: {type: [integer, 'null'], minimum: 1}
+        label: {type: string, minLength: 1, maxLength: 120}
+        archived: {type: boolean}
+    FinanceAccountSummary:
+      type: object
+      additionalProperties: false
+      required: [id, name, archived]
+      properties:
+        id: {type: integer, minimum: 1}
+        name: {type: string, minLength: 1, maxLength: 120}
+        archived: {type: boolean}
+    ConversionEvidence:
+      type: object
+      additionalProperties: false
+      required: [on, from_currency, source_amount, converted_amount, rate, rate_date, rate_direction]
+      properties:
+        on: {type: string, format: date}
+        from_currency: {$ref: '#/components/schemas/CurrencyCode'}
+        source_amount: {$ref: '#/components/schemas/MoneyAmount'}
+        converted_amount: {$ref: '#/components/schemas/MoneyAmount'}
+        rate: {$ref: '#/components/schemas/RateAmount'}
+        rate_date: {type: string, format: date}
+        rate_direction: {$ref: '#/components/schemas/RateDirection'}
+    FinanceBudget:
+      type: object
+      additionalProperties: false
+      required: [id, month, category, limit_amount, currency, complete, actual_amount, remaining_amount, utilization_percent, state, missing_currencies, conversions, created_at, updated_at]
+      properties:
+        id: {type: integer, minimum: 1}
+        month: {$ref: '#/components/schemas/CalendarMonth'}
+        category: {$ref: '#/components/schemas/FinanceCategorySummary'}
+        limit_amount: {$ref: '#/components/schemas/PositiveMoneyAmount'}
+        currency: {$ref: '#/components/schemas/CurrencyCode'}
+        complete: {type: boolean}
+        actual_amount:
+          anyOf: [{$ref: '#/components/schemas/MoneyAmount'}, {type: 'null'}]
+        remaining_amount:
+          anyOf: [{$ref: '#/components/schemas/MoneyAmount'}, {type: 'null'}]
+        utilization_percent:
+          anyOf: [{$ref: '#/components/schemas/PercentageAmount'}, {type: 'null'}]
+        state:
+          anyOf: [{$ref: '#/components/schemas/BudgetState'}, {type: 'null'}]
+        missing_currencies:
+          type: array
+          uniqueItems: true
+          items: {$ref: '#/components/schemas/CurrencyCode'}
+        conversions:
+          type: array
+          items: {$ref: '#/components/schemas/ConversionEvidence'}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+    BudgetInput:
+      type: object
+      additionalProperties: false
+      required: [month, category_id, limit_amount, currency]
+      properties:
+        month: {$ref: '#/components/schemas/CalendarMonth'}
+        category_id: {type: integer, minimum: 1}
+        limit_amount: {$ref: '#/components/schemas/PositiveMoneyAmount'}
+        currency: {$ref: '#/components/schemas/CurrencyCode'}
+    BudgetUpdateInput:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        month: {$ref: '#/components/schemas/CalendarMonth'}
+        category_id: {type: integer, minimum: 1}
+        limit_amount: {$ref: '#/components/schemas/PositiveMoneyAmount'}
+        currency: {$ref: '#/components/schemas/CurrencyCode'}
+    BudgetResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/FinanceBudget'}
+    BudgetListResponse:
+      type: object
+      additionalProperties: false
+      required: [month, data]
+      properties:
+        month: {$ref: '#/components/schemas/CalendarMonth'}
+        data:
+          type: array
+          items: {$ref: '#/components/schemas/FinanceBudget'}
+    MonthlyRule:
+      type: object
+      additionalProperties: false
+      required: [frequency, interval_months, month_days, starts_on, ends_on, reminder_time]
+      properties:
+        frequency: {type: string, const: monthly}
+        interval_months: {type: integer, minimum: 1, maximum: 12}
+        month_days:
+          type: array
+          minItems: 1
+          maxItems: 10
+          uniqueItems: true
+          items: {type: integer, minimum: 1, maximum: 31}
+        starts_on: {type: string, format: date}
+        ends_on:
+          type: [string, 'null']
+          format: date
+          description: Null selects the inclusive ten-year ceiling from starts_on.
+        reminder_time:
+          type: [string, 'null']
+          pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$'
+    RecurringOperation:
+      type: object
+      additionalProperties: false
+      required: [id, name, direction, account, category, amount, currency, mandatory, active, archived, rule, created_at, updated_at]
+      properties:
+        id: {type: integer, minimum: 1}
+        name: {type: string, minLength: 1, maxLength: 160}
+        direction: {$ref: '#/components/schemas/CategoryDirection'}
+        account: {$ref: '#/components/schemas/FinanceAccountSummary'}
+        category: {$ref: '#/components/schemas/FinanceCategorySummary'}
+        amount: {$ref: '#/components/schemas/PositiveMoneyAmount'}
+        currency: {$ref: '#/components/schemas/CurrencyCode'}
+        mandatory: {type: boolean}
+        active: {type: boolean}
+        archived: {type: boolean}
+        rule: {$ref: '#/components/schemas/MonthlyRule'}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+    RecurringOperationInput:
+      type: object
+      additionalProperties: false
+      required: [name, direction, account_id, category_id, amount, mandatory, starts_on, ends_on, interval_months, month_days, reminder_time]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 160}
+        direction: {$ref: '#/components/schemas/CategoryDirection'}
+        account_id: {type: integer, minimum: 1}
+        category_id: {type: integer, minimum: 1}
+        amount: {$ref: '#/components/schemas/PositiveMoneyAmount'}
+        mandatory: {type: boolean}
+        starts_on: {type: string, format: date}
+        ends_on:
+          type: [string, 'null']
+          format: date
+          description: Null selects the inclusive ten-year ceiling from starts_on.
+        interval_months: {type: integer, minimum: 1, maximum: 12}
+        month_days:
+          type: array
+          minItems: 1
+          maxItems: 10
+          uniqueItems: true
+          items: {type: integer, minimum: 1, maximum: 31}
+        reminder_time:
+          type: [string, 'null']
+          pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$'
+    RecurringOperationUpdateInput:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: {type: string, minLength: 1, maxLength: 160}
+        direction: {$ref: '#/components/schemas/CategoryDirection'}
+        account_id: {type: integer, minimum: 1}
+        category_id: {type: integer, minimum: 1}
+        amount: {$ref: '#/components/schemas/PositiveMoneyAmount'}
+        mandatory: {type: boolean}
+        starts_on: {type: string, format: date}
+        ends_on:
+          type: [string, 'null']
+          format: date
+          description: Null selects the inclusive ten-year ceiling from starts_on.
+        interval_months: {type: integer, minimum: 1, maximum: 12}
+        month_days:
+          type: array
+          minItems: 1
+          maxItems: 10
+          uniqueItems: true
+          items: {type: integer, minimum: 1, maximum: 31}
+        reminder_time:
+          type: [string, 'null']
+          pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$'
+        active: {type: boolean}
+        archived: {type: boolean}
+    RecurringOperationResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/RecurringOperation'}
+    RecurringOperationListResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: {$ref: '#/components/schemas/RecurringOperation'}
+    OccurrenceOutcome:
+      type: object
+      additionalProperties: false
+      required: [type, transaction_id, occurred_on, created_at]
+      properties:
+        type: {$ref: '#/components/schemas/OutcomeType'}
+        transaction_id: {type: [string, 'null'], format: uuid}
+        occurred_on: {type: [string, 'null'], format: date}
+        created_at: {type: string, format: date-time}
+    FinancePlannedOccurrence:
+      type: object
+      additionalProperties: false
+      required: [id, operation_id, operation_name, planned_on, effective_on, moved, reminder_time, status, direction, account, category, amount, currency, mandatory, outcome]
+      properties:
+        id: {type: integer, minimum: 1}
+        operation_id: {type: integer, minimum: 1}
+        operation_name: {type: string, minLength: 1, maxLength: 160}
+        planned_on: {type: string, format: date}
+        effective_on: {type: string, format: date}
+        moved: {type: boolean}
+        reminder_time:
+          type: [string, 'null']
+          pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$'
+        status: {$ref: '#/components/schemas/OccurrenceStatus'}
+        direction: {$ref: '#/components/schemas/CategoryDirection'}
+        account: {$ref: '#/components/schemas/FinanceAccountSummary'}
+        category: {$ref: '#/components/schemas/FinanceCategorySummary'}
+        amount: {$ref: '#/components/schemas/PositiveMoneyAmount'}
+        currency: {$ref: '#/components/schemas/CurrencyCode'}
+        mandatory: {type: boolean}
+        outcome:
+          anyOf:
+            - {$ref: '#/components/schemas/OccurrenceOutcome'}
+            - {type: 'null'}
+    OccurrenceOutcomeInput:
+      type: object
+      additionalProperties: false
+      required: [outcome]
+      properties:
+        outcome: {$ref: '#/components/schemas/OutcomeType'}
+    PlannedOccurrenceResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/FinancePlannedOccurrence'}
+    PlannedOccurrenceListResponse:
+      type: object
+      additionalProperties: false
+      required: [from, to, data]
+      properties:
+        from: {type: string, format: date}
+        to: {type: string, format: date}
+        data:
+          type: array
+          items: {$ref: '#/components/schemas/FinancePlannedOccurrence'}
+    CashFlowCounts:
+      type: object
+      additionalProperties: false
+      required: [total, planned, actual, skipped, income, mandatory_expense, discretionary_expense]
+      properties:
+        total: {type: integer, minimum: 0}
+        planned: {type: integer, minimum: 0}
+        actual: {type: integer, minimum: 0}
+        skipped: {type: integer, minimum: 0}
+        income: {type: integer, minimum: 0}
+        mandatory_expense: {type: integer, minimum: 0}
+        discretionary_expense: {type: integer, minimum: 0}
+    CashFlow:
+      type: object
+      additionalProperties: false
+      required: [month, from, to, base_currency, complete, planned_income, mandatory_expense, discretionary_expense, free_cash_flow, missing_currencies, conversions, counts]
+      properties:
+        month: {$ref: '#/components/schemas/CalendarMonth'}
+        from: {type: string, format: date}
+        to: {type: string, format: date}
+        base_currency: {$ref: '#/components/schemas/CurrencyCode'}
+        complete: {type: boolean}
+        planned_income:
+          anyOf: [{$ref: '#/components/schemas/MoneyAmount'}, {type: 'null'}]
+        mandatory_expense:
+          anyOf: [{$ref: '#/components/schemas/MoneyAmount'}, {type: 'null'}]
+        discretionary_expense:
+          anyOf: [{$ref: '#/components/schemas/MoneyAmount'}, {type: 'null'}]
+        free_cash_flow:
+          anyOf: [{$ref: '#/components/schemas/MoneyAmount'}, {type: 'null'}]
+        missing_currencies:
+          type: array
+          uniqueItems: true
+          items: {$ref: '#/components/schemas/CurrencyCode'}
+        conversions:
+          type: array
+          items: {$ref: '#/components/schemas/ConversionEvidence'}
+        counts: {$ref: '#/components/schemas/CashFlowCounts'}
+    CashFlowResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/CashFlow'}
+    MessageResponse:
+      type: object
+      additionalProperties: false
+      required: [message]
+      properties:
+        message: {type: string}
+    ValidationErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [message, errors]
+      properties:
+        message: {type: string}
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items: {type: string}

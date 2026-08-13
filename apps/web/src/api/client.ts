@@ -113,6 +113,14 @@ import type {
   FinanceTransactionGroup,
   FinanceTransactionInput,
   FinanceTransferInput,
+  FinanceBudget,
+  FinanceBudgetInput,
+  FinanceBudgetUpdate,
+  FinanceCashFlow,
+  FinancePlannedOccurrence,
+  FinanceRecurringOperation,
+  FinanceRecurringOperationInput,
+  FinanceRecurringOperationUpdate,
 } from './types'
 
 // The SelfHandler error contract: a message for the user plus the per-field
@@ -193,6 +201,51 @@ export async function reverseFinanceTransaction(id: string, payload: FinanceReve
 export async function getFinanceSummary(from: string, to: string, asOf: string): Promise<FinanceSummary> {
   const query = new URLSearchParams({ from, to, as_of: asOf })
   return (await request<ItemResponse<FinanceSummary>>(`/finance/summary?${query.toString()}`)).data
+}
+
+export async function getFinanceBudgets(month: string): Promise<FinanceBudget[]> {
+  return (await request<{ month: string, data: FinanceBudget[] }>(`/finance/budgets?month=${encodeURIComponent(month)}`)).data
+}
+
+export async function createFinanceBudget(payload: FinanceBudgetInput): Promise<FinanceBudget> {
+  return (await jsonRequest<ItemResponse<FinanceBudget>>('/finance/budgets', 'POST', payload)).data
+}
+
+export async function updateFinanceBudget(id: number, payload: FinanceBudgetUpdate): Promise<FinanceBudget> {
+  return (await jsonRequest<ItemResponse<FinanceBudget>>(`/finance/budgets/${id}`, 'PATCH', payload)).data
+}
+
+export function deleteFinanceBudget(id: number): Promise<void> {
+  return request<void>(`/finance/budgets/${id}`, { method: 'DELETE' })
+}
+
+export async function getFinanceRecurringOperations(includeArchived = true): Promise<FinanceRecurringOperation[]> {
+  return (await request<ListResponse<FinanceRecurringOperation>>(`/finance/recurring-operations?include_archived=${includeArchived ? '1' : '0'}`)).data
+}
+
+export async function createFinanceRecurringOperation(payload: FinanceRecurringOperationInput): Promise<FinanceRecurringOperation> {
+  return (await jsonRequest<ItemResponse<FinanceRecurringOperation>>('/finance/recurring-operations', 'POST', payload)).data
+}
+
+export async function updateFinanceRecurringOperation(id: number, payload: FinanceRecurringOperationUpdate): Promise<FinanceRecurringOperation> {
+  return (await jsonRequest<ItemResponse<FinanceRecurringOperation>>(`/finance/recurring-operations/${id}`, 'PATCH', payload)).data
+}
+
+export async function getFinanceCashFlow(month: string): Promise<FinanceCashFlow> {
+  return (await request<ItemResponse<FinanceCashFlow>>(`/finance/cash-flow?month=${encodeURIComponent(month)}`)).data
+}
+
+export async function getFinancePlannedOccurrences(from: string, to: string): Promise<FinancePlannedOccurrence[]> {
+  const query = new URLSearchParams({ from, to })
+  return (await request<{ from: string, to: string, data: FinancePlannedOccurrence[] }>(`/finance/planned-occurrences?${query.toString()}`)).data
+}
+
+export async function putFinanceOccurrenceOutcome(id: number, outcome: 'actual' | 'skipped'): Promise<FinancePlannedOccurrence> {
+  return (await jsonRequest<ItemResponse<FinancePlannedOccurrence>>(`/finance/planned-occurrences/${id}/outcome`, 'PUT', { outcome })).data
+}
+
+export async function clearFinanceOccurrenceOutcome(id: number): Promise<FinancePlannedOccurrence> {
+  return (await request<ItemResponse<FinancePlannedOccurrence>>(`/finance/planned-occurrences/${id}/outcome`, { method: 'DELETE' })).data
 }
 
 export function getProfile(): Promise<ProfileResponse> {

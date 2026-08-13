@@ -11,7 +11,7 @@ $speckit-analyze -> $speckit-implement` before application code changes.
 > `010-interface-personalization`, `011-in-app-notifications`, `012-android-capacitor-shell`, and
 > `013-habits-anti-habits`, `014-sleep-routine-templates`, `015-workouts-training-goals`, and
 > `016-nutrition-meals-hydration-targets`, `017-supplements-courses-intake-stock`, and
-> `018-finance-ledger-foundation` are complete. Native compilation and device installation evidence for 012 remains externally blocked in
+> `018-finance-ledger-foundation` and `019-budget-recurring-cash-flow` are complete. Native compilation and device installation evidence for 012 remains externally blocked in
 > this workspace because Android Studio, JDK, SDK, Gradle, and `adb` are absent; all repository-owned
 > server, web, configuration, sync, resource, and native-source gates pass.
 > `002-homelab-deployment` stops at T055 by product decision: the current homelab deployment is
@@ -412,6 +412,16 @@ Build on ledger transactions, shared recurrence, and notifications. Planned occu
 actual transactions through an explicit idempotent action rather than by duplicating balances.
 
 **Prerequisites:** 006, 011, and 018.
+
+**Explicitly defer:** debts, saving/emergency funds, Finance goals, purchase/restock links, one-off
+plans, provider rates, investments, imports/exports, integrations, AI, and native offline authority.
+
+Delivered as exact monthly category limits whose actuals come from the append-only ledger, including
+root/child scope, reversals, historical FX evidence, and separate 80%/above-100% warning identities.
+Recurring income and expenses use normalized multi-day monthly rules and immutable occurrence
+snapshots. Explicit actualization posts one ordinary idempotent ledger action; skips are reversible.
+Planner, notifications, the responsive EN/RU/UK client, and Capacitor consume one planned cash-flow
+and occurrence truth.
 
 ### 020 — Debts, Saving Funds, Financial Goals, and Purchase Links
 

@@ -2,6 +2,13 @@
 
 ## [Unreleased](https://github.com/laravel/laravel/compare/v11.6.1...11.x)
 
+### SelfHandler feature 019
+
+* Add monthly category budgets derived from immutable actuals, historical FX evidence, and exact
+  within/approaching/exceeded thresholds without mutable counters.
+* Add shared monthly recurrence, immutable Finance occurrence snapshots, explicit actual/skip facts,
+  planned cash flow, Planner entries, and localized Finance reminders and budget warnings.
+
 ### SelfHandler feature 018
 
 * Add private multi-currency Finance accounts, two-level categories, exact immutable ledger entries,

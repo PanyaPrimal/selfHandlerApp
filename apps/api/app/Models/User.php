@@ -165,6 +165,26 @@ class User extends Authenticatable
         return $this->hasMany(FinanceLedgerEntry::class);
     }
 
+    public function financeBudgetLimits(): HasMany
+    {
+        return $this->hasMany(FinanceBudgetLimit::class);
+    }
+
+    public function financeRecurringOperations(): HasMany
+    {
+        return $this->hasMany(FinanceRecurringOperation::class);
+    }
+
+    public function financeOccurrenceDetails(): HasMany
+    {
+        return $this->hasMany(FinanceOccurrenceDetail::class);
+    }
+
+    public function financeOccurrenceFacts(): HasMany
+    {
+        return $this->hasMany(FinanceOccurrenceFact::class);
+    }
+
     public function profile(): HasOne
     {
         return $this->hasOne(UserProfile::class);

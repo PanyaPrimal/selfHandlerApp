@@ -47,4 +47,9 @@ class FinanceTransactionGroup extends Model
     {
         return $this->hasOne(self::class, 'reverses_group_id');
     }
+
+    public function financeOccurrenceFact(): HasOne
+    {
+        return $this->hasOne(FinanceOccurrenceFact::class, 'transaction_group_id');
+    }
 }

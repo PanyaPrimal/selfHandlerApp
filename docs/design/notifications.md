@@ -213,3 +213,15 @@ Extended by feature 017:
    to the owned Supplements surface, and reuse Android local presentation after inbox delivery.
 4. Course-end reminders, finance actions, provider push, stopped-app wakeup, medical language, and
    coaching remain deferred.
+
+Extended by feature 019:
+
+1. A timed pending Finance occurrence produces `finance_reminder` in the backwards-compatible enabled
+   `finance` category. It uses the planned occurrence identity and closes on actual, skip, lifecycle,
+   reschedule-ineligibility, or category disablement.
+2. Current-month budgets produce distinct approaching and exceeded source identities. Synchronization
+   deduplicates retries, closes an ineligible episode after a correction, and may re-arm a later episode.
+3. Reminder and warning copy is rendered in the current Profile locale at delivery and deep-links only
+   to the validated Finance budget or plan query contract.
+4. Debt/fund/goal/restock notifications, provider push, stopped-app wakeup, and native offline outcome
+   authority remain deferred to their owning features.

@@ -23,6 +23,12 @@ class InAppChannel implements NotificationChannel
         try {
             [$titleKey, $bodyKey] = $this->messageKeys($notification);
             $parameters = $notification->content ?? [];
+            if (in_array($notification->type, [
+                InAppNotification::TYPE_FINANCE_BUDGET_APPROACHING,
+                InAppNotification::TYPE_FINANCE_BUDGET_EXCEEDED,
+            ], true) && filled($parameters['category_builtin_key'] ?? null)) {
+                $parameters['title'] = __('messages.finance_category_'.$parameters['category_builtin_key']);
+            }
 
             $notification->forceFill([
                 'title' => __($titleKey, $parameters),
@@ -54,6 +60,15 @@ class InAppChannel implements NotificationChannel
                 : ['notifications.supplement_intake_title', 'notifications.supplement_intake_body'],
             InAppNotification::TYPE_SUPPLEMENT_RESTOCK => [
                 'notifications.supplement_restock_title', 'notifications.supplement_restock_body',
+            ],
+            InAppNotification::TYPE_FINANCE_REMINDER => [
+                'notifications.finance_reminder_title', 'notifications.finance_reminder_body',
+            ],
+            InAppNotification::TYPE_FINANCE_BUDGET_APPROACHING => [
+                'notifications.finance_budget_approaching_title', 'notifications.finance_budget_approaching_body',
+            ],
+            InAppNotification::TYPE_FINANCE_BUDGET_EXCEEDED => [
+                'notifications.finance_budget_exceeded_title', 'notifications.finance_budget_exceeded_body',
             ],
             InAppNotification::TYPE_STORAGE_DUE => [
                 'notifications.storage_title', 'notifications.storage_body',

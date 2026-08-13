@@ -18,6 +18,7 @@ class SourceRegistry
         private readonly HabitOccurrenceSource $habits,
         private readonly WorkoutOccurrenceSource $workouts,
         private readonly SupplementOccurrenceSource $supplements,
+        private readonly FinanceOccurrenceSource $finance,
         private readonly TrainingGoalSource $trainingGoals,
         private readonly StorageItemSource $storage,
         private readonly TimeBlockSource $blocks,
@@ -29,7 +30,7 @@ class SourceRegistry
     public function all(): array
     {
         return [
-            $this->routines, $this->sleep, $this->habits, $this->workouts, $this->supplements,
+            $this->routines, $this->sleep, $this->habits, $this->workouts, $this->supplements, $this->finance,
             $this->trainingGoals, $this->storage, $this->blocks,
         ];
     }

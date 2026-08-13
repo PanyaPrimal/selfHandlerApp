@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\FinanceOccurrenceFact;
 use App\Models\Habit;
 use App\Models\HabitLog;
 use App\Models\PlannedOccurrence;
@@ -138,6 +139,19 @@ class OccurrenceFactSynchronizer
         ])->save();
     }
 
+    public function syncFromFinanceFact(FinanceOccurrenceFact $fact): void
+    {
+        PlannedOccurrence::query()
+            ->whereKey($fact->planned_occurrence_id)
+            ->where('user_id', $fact->user_id)
+            ->update([
+                'status' => $fact->outcome === FinanceOccurrenceFact::OUTCOME_SKIPPED
+                    ? PlannedOccurrence::STATUS_SKIPPED : PlannedOccurrence::STATUS_DONE,
+                'finance_occurrence_fact_id' => $fact->id,
+                'updated_at' => now(),
+            ]);
+    }
+
     /**
      * Rebuild every derived occurrence status for a user from the logs.
      *
@@ -155,6 +169,7 @@ class OccurrenceFactSynchronizer
                     'sleep_log_id' => null,
                     'workout_session_id' => null,
                     'supplement_intake_id' => null,
+                    'finance_occurrence_fact_id' => null,
                     'updated_at' => now(),
                 ]);
 
@@ -201,6 +216,15 @@ class OccurrenceFactSynchronizer
                 ->chunk(500, function ($intakes): void {
                     foreach ($intakes as $intake) {
                         $this->syncFromSupplementIntake($intake);
+                    }
+                });
+
+            FinanceOccurrenceFact::query()
+                ->ownedBy($user)
+                ->orderBy('id')
+                ->chunk(500, function ($facts): void {
+                    foreach ($facts as $fact) {
+                        $this->syncFromFinanceFact($fact);
                     }
                 });
 

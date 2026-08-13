@@ -34,6 +34,8 @@ class RecurringRuleExpander
             RecurringRule::FREQUENCY_DAILY => $this->dailyIntervalMatches($rule, $date),
             RecurringRule::FREQUENCY_WEEKLY => $this->weeklyIntervalMatches($rule, $date)
                 && in_array($this->weekdayFor($rule, $date), $rule->weekdays, true),
+            RecurringRule::FREQUENCY_MONTHLY => $this->monthlyIntervalMatches($rule, $date)
+                && in_array((int) substr($date, 8, 2), $rule->monthdays, true),
             default => false,
         };
     }
@@ -79,7 +81,15 @@ class RecurringRuleExpander
             return false;
         }
 
-        return ! ($rule->ends_on && $rule->ends_on->format('Y-m-d') < $date);
+        if ($rule->ends_on) {
+            return $rule->ends_on->format('Y-m-d') >= $date;
+        }
+
+        if ($rule->frequency === RecurringRule::FREQUENCY_MONTHLY && $rule->starts_on) {
+            return $rule->starts_on->copy()->addYears(10)->format('Y-m-d') >= $date;
+        }
+
+        return true;
     }
 
     private function weekdayFor(RecurringRule $rule, string $date): string
@@ -111,6 +121,18 @@ class RecurringRuleExpander
         $dateWeek = CarbonImmutable::parse($date, $rule->timezone)->startOfWeek();
 
         return $anchorWeek->diffInWeeks($dateWeek) % $interval === 0;
+    }
+
+    private function monthlyIntervalMatches(RecurringRule $rule, string $date): bool
+    {
+        if (! $rule->starts_on) {
+            return false;
+        }
+        $interval = max(1, (int) ($rule->interval_count ?? 1));
+        $anchor = CarbonImmutable::parse($rule->starts_on->format('Y-m-d'), $rule->timezone)->startOfMonth();
+        $month = CarbonImmutable::parse($date, $rule->timezone)->startOfMonth();
+
+        return $anchor->diffInMonths($month) % $interval === 0;
     }
 
     private function withinCycle(RecurringRule $rule, string $date): bool

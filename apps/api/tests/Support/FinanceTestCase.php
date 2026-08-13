@@ -5,8 +5,10 @@ namespace Tests\Support;
 use App\Models\FinanceAccount;
 use App\Models\FinanceCategory;
 use App\Models\FinanceLedgerEntry;
+use App\Models\FinanceRecurringOperation;
 use App\Models\FinanceTransactionGroup;
 use App\Models\User;
+use App\Services\Finance\FinanceRecurringOperationService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -35,6 +37,40 @@ abstract class FinanceTestCase extends TestCase
     protected function category(User $owner, string $direction = 'expense'): FinanceCategory
     {
         return FinanceCategory::factory()->create(['user_id' => $owner->id, 'direction' => $direction]);
+    }
+
+    protected function childCategory(User $owner, FinanceCategory $parent): FinanceCategory
+    {
+        return FinanceCategory::factory()->create([
+            'user_id' => $owner->id,
+            'direction' => $parent->direction,
+            'parent_id' => $parent->id,
+        ]);
+    }
+
+    /** @param array<string,mixed> $attributes */
+    protected function recurringOperation(
+        User $owner,
+        array $attributes = [],
+        string $direction = 'expense',
+        string $currency = 'UAH',
+    ): FinanceRecurringOperation {
+        $account = $this->account($owner, $currency);
+        $category = $this->category($owner, $direction);
+
+        return app(FinanceRecurringOperationService::class)->create($owner, array_replace([
+            'name' => 'Monthly plan',
+            'direction' => $direction,
+            'account_id' => $account->id,
+            'category_id' => $category->id,
+            'amount' => '100.0000',
+            'mandatory' => $direction === 'expense',
+            'starts_on' => '2026-08-01',
+            'ends_on' => '2027-07-31',
+            'interval_months' => 1,
+            'month_days' => [15],
+            'reminder_time' => null,
+        ], $attributes));
     }
 
     protected function entry(

@@ -3207,13 +3207,210 @@ button.text-button {
 }
 
 .finance-metrics {
+  display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.finance-planning-heading,
+.finance-occurrence-heading {
+  align-items: end;
+}
+
+.finance-month {
+  display: grid;
+  gap: 6px;
+  min-width: 150px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+
+.finance-form--budget {
+  grid-template-columns: minmax(180px, 2fr) minmax(140px, 1fr) minmax(100px, 0.7fr) auto;
+}
+
+.finance-form--plan {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.finance-form__actions {
+  align-self: end;
+}
+
+.finance-checkbox {
+  display: flex !important;
+  align-items: center;
+  min-height: 42px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+}
+
+.finance-checkbox input {
+  width: auto;
+}
+
+.finance-monthdays {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(16, minmax(34px, 1fr));
+  gap: 6px;
+  padding: 10px;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.finance-monthdays legend {
+  padding: 0 4px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+
+.finance-monthdays label {
+  display: grid;
+  place-items: center;
+  min-height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--paper);
+  cursor: pointer;
+}
+
+.finance-monthdays input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.finance-monthdays label:has(input:checked) {
+  color: var(--paper);
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.finance-budget-percent {
+  font-size: 1.45rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.finance-budget-state {
+  display: grid;
+  justify-items: end;
+  gap: 5px;
+}
+
+.finance-budget-progress {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--border);
+}
+
+.finance-budget-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+
+.finance-budget-card.is-approaching,
+.finance-budget-card.is-exceeded {
+  border-color: var(--accent-border);
+}
+
+.finance-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.finance-facts div {
+  display: grid;
+  gap: 3px;
+}
+
+.finance-facts dt {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.finance-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.finance-cash-flow {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+}
+
+.finance-cash-flow__counts {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.finance-evidence {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.finance-evidence summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.finance-evidence ul {
+  display: grid;
+  gap: 5px;
+  padding-left: 20px;
+  overflow-wrap: anywhere;
+}
+
+.finance-occurrence-list {
+  display: grid;
+  gap: 10px;
+}
+
+.finance-occurrence {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.finance-occurrence .form-actions {
+  grid-column: 1 / -1;
+}
+
+.finance-occurrence__outcome {
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
 }
 
 @media (max-width: 900px) {
   .finance-form,
-  .finance-form--account {
+  .finance-form--account,
+  .finance-form--budget,
+  .finance-form--plan {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .finance-monthdays {
+    grid-template-columns: repeat(8, minmax(34px, 1fr));
   }
 
   .finance-metrics {
@@ -3229,12 +3426,39 @@ button.text-button {
 
   .finance-form,
   .finance-form--account,
+  .finance-form--budget,
+  .finance-form--plan,
   .finance-card-grid,
   .finance-category-columns,
   .finance-editor-grid,
   .finance-reconcile,
   .finance-metrics {
     grid-template-columns: 1fr;
+  }
+
+  .finance-planning-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .finance-monthdays {
+    grid-template-columns: repeat(5, minmax(38px, 1fr));
+  }
+
+  .finance-facts {
+    grid-template-columns: 1fr;
+  }
+
+  .finance-occurrence {
+    grid-template-columns: 1fr;
+  }
+
+  .finance-occurrence__outcome {
+    justify-items: start;
+  }
+
+  .finance-budget-state {
+    justify-items: start;
   }
 
   .finance-workspace button,

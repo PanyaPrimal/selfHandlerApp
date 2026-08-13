@@ -1,7 +1,7 @@
 # SelfHandler — Finance: ER Diagram
 
-> Conceptual ER diagram for the complete Module 10. Feature 018 implements the factual ledger subset
-> documented below; budget, recurrence, debt, fund, goal, and purchase relationships remain future
+> Conceptual ER diagram for the complete Module 10. Features 018 and 019 implement the ledger,
+> monthly-budget, and recurring-cash-flow subsets documented below; debt, fund, goal, and purchase relationships remain future
 > scope. The feature contract and migration are authoritative for physical names and constraints.
 >
 > Spec: [Modules Spec](modules.md) · Decisions: [Decisions Log](decisions.md)
@@ -37,6 +37,23 @@ erDiagram
 - Base currency remains on Profile. Missing required FX returns an incomplete projection with no total.
 
 The larger diagram below is a future design map, not a claim that deferred entities exist.
+
+## Implemented planning slice — feature 019 (2026-08-13)
+
+- `finance_budget_limits` stores one exact monthly category limit. Actual, remaining, utilization,
+  state, conversion evidence, and completeness are read-time projections over ledger facts. A root
+  limit includes direct and child expenses; a same-month ancestor/child overlap is rejected.
+- `finance_recurring_operations` owns one shared monthly `recurring_rule`; normalized
+  `recurring_rule_monthdays` holds 1–10 selected days. The interval is anchored to the start month,
+  absent short-month days are skipped, and a null end has a deterministic inclusive ten-year ceiling.
+- Each materialized Finance occurrence owns an immutable `finance_occurrence_detail` snapshot.
+  `finance_occurrence_facts` records either actual or skipped. Actual links exactly one ordinary 018
+  transaction group and cannot be cleared; skipped creates no ledger fact and may be cleared.
+- Planned monthly cash flow includes pending and actual snapshots, excludes skips, and reports income,
+  mandatory expense, discretionary expense, and free cash flow in the current Profile base currency.
+  Any missing historical FX makes all consolidated totals null instead of inventing a partial result.
+- Planner and Notifications are adapters. Finance remains the owner of money, outcome, budget, and
+  snapshot truth. Debts, funds, goals, and purchase/restock links remain feature 020.
 
 ---
 

@@ -43,7 +43,7 @@ const accepted = ref<NotificationSettingsData | null>(null)
 const draft = reactive<NotificationSettingsData>({
   quiet_hours: { enabled: true, starts_at: '23:00', ends_at: '08:00' },
   digest: { enabled: true, time: '08:00' },
-  categories: { routine: true, storage: true, habit: true, sleep: true, workout: true, supplement: true },
+  categories: { routine: true, storage: true, habit: true, sleep: true, workout: true, supplement: true, finance: true },
 })
 
 const snoozeLabelKeys: Record<NotificationSnoozeMinutes, MessageKey> = {
@@ -90,7 +90,8 @@ function sentAt(value: string): string {
 function safeAction(url: string | null): boolean {
   return Boolean(url && (/^\/planner(?:\?date=\d{4}-\d{2}-\d{2})?$/.test(url)
     || /^\/workouts\?date=\d{4}-\d{2}-\d{2}&program=\d+$/.test(url)
-    || /^\/supplements\?(?:date=\d{4}-\d{2}-\d{2}&course=\d+&slot=[a-z0-9_-]+|restock=\d+)$/.test(url)))
+    || /^\/supplements\?(?:date=\d{4}-\d{2}-\d{2}&course=\d+&slot=[a-z0-9_-]+|restock=\d+)$/.test(url)
+    || /^\/finance\?tab=(?:plans&month=\d{4}-\d{2}&occurrence=\d+|budgets&month=\d{4}-\d{2}&budget=\d+)$/.test(url)))
 }
 
 function snoozeLabel(minutes: NotificationSnoozeMinutes): string {
@@ -456,6 +457,12 @@ onMounted(() => {
             name="supplement_notifications"
             :label="t('notifications.supplement')"
             :helper="t('notifications.supplementHelp')"
+          />
+          <UiSwitch
+            v-model="draft.categories.finance"
+            name="finance_notifications"
+            :label="t('notifications.finance')"
+            :helper="t('notifications.financeHelp')"
           />
         </fieldset>
 

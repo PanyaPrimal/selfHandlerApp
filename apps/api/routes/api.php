@@ -5,7 +5,11 @@ use App\Http\Controllers\BodyMeasurementController;
 use App\Http\Controllers\DailyReviewController;
 use App\Http\Controllers\ExerciseController;
 use App\Http\Controllers\Finance\FinanceAccountController;
+use App\Http\Controllers\Finance\FinanceBudgetController;
+use App\Http\Controllers\Finance\FinanceCashFlowController;
 use App\Http\Controllers\Finance\FinanceCategoryController;
+use App\Http\Controllers\Finance\FinanceOccurrenceController;
+use App\Http\Controllers\Finance\FinanceRecurringOperationController;
 use App\Http\Controllers\Finance\FinanceReferenceController;
 use App\Http\Controllers\Finance\FinanceSummaryController;
 use App\Http\Controllers\Finance\FinanceTransactionController;
@@ -63,6 +67,17 @@ Route::middleware(['auth:sanctum', 'mobile.token'])->group(function () {
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/finance/accounts', [FinanceAccountController::class, 'index']);
+    Route::get('/finance/budgets', [FinanceBudgetController::class, 'index']);
+    Route::post('/finance/budgets', [FinanceBudgetController::class, 'store']);
+    Route::patch('/finance/budgets/{budget}', [FinanceBudgetController::class, 'update']);
+    Route::delete('/finance/budgets/{budget}', [FinanceBudgetController::class, 'destroy']);
+    Route::get('/finance/cash-flow', [FinanceCashFlowController::class, 'show']);
+    Route::get('/finance/recurring-operations', [FinanceRecurringOperationController::class, 'index']);
+    Route::post('/finance/recurring-operations', [FinanceRecurringOperationController::class, 'store']);
+    Route::patch('/finance/recurring-operations/{operation}', [FinanceRecurringOperationController::class, 'update']);
+    Route::get('/finance/planned-occurrences', [FinanceOccurrenceController::class, 'index']);
+    Route::put('/finance/planned-occurrences/{occurrence}/outcome', [FinanceOccurrenceController::class, 'put']);
+    Route::delete('/finance/planned-occurrences/{occurrence}/outcome', [FinanceOccurrenceController::class, 'clear']);
     Route::post('/finance/accounts', [FinanceAccountController::class, 'store']);
     Route::patch('/finance/accounts/{account}', [FinanceAccountController::class, 'update']);
     Route::post('/finance/accounts/{account}/reconcile', [FinanceAccountController::class, 'reconcile']);

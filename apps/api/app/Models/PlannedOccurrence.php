@@ -43,6 +43,7 @@ class PlannedOccurrence extends Model
         'sleep_log_id',
         'workout_session_id',
         'supplement_intake_id',
+        'finance_occurrence_fact_id',
         'materialized_at',
     ];
 
@@ -67,6 +68,7 @@ class PlannedOccurrence extends Model
                 $occurrence->sleep_log_id,
                 $occurrence->workout_session_id,
                 $occurrence->supplement_intake_id,
+                $occurrence->finance_occurrence_fact_id,
             ])->filter(fn ($id): bool => $id !== null)->count() > 1) {
                 throw new RuntimeException('An occurrence may link to only one domain fact.');
             }
@@ -82,6 +84,8 @@ class PlannedOccurrence extends Model
                     ->whereKey($occurrence->workout_session_id)->value('user_id'),
                 $occurrence->supplement_intake_id !== null => SupplementIntake::query()
                     ->whereKey($occurrence->supplement_intake_id)->value('user_id'),
+                $occurrence->finance_occurrence_fact_id !== null => FinanceOccurrenceFact::query()
+                    ->whereKey($occurrence->finance_occurrence_fact_id)->value('user_id'),
                 default => $occurrence->user_id,
             };
 
@@ -130,6 +134,16 @@ class PlannedOccurrence extends Model
         return $this->belongsTo(SupplementIntake::class);
     }
 
+    public function financeOccurrenceFact(): BelongsTo
+    {
+        return $this->belongsTo(FinanceOccurrenceFact::class);
+    }
+
+    public function financeDetail(): HasOne
+    {
+        return $this->hasOne(FinanceOccurrenceDetail::class);
+    }
+
     public function sleepDetail(): HasOne
     {
         return $this->hasOne(SleepOccurrenceDetail::class);
@@ -141,6 +155,7 @@ class PlannedOccurrence extends Model
             || $this->habit_log_id !== null
             || $this->sleep_log_id !== null
             || $this->workout_session_id !== null
-            || $this->supplement_intake_id !== null;
+            || $this->supplement_intake_id !== null
+            || $this->finance_occurrence_fact_id !== null;
     }
 }

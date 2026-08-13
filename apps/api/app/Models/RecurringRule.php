@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use RuntimeException;
 
 /**
  * The shared recurrence rule.
@@ -31,9 +32,13 @@ class RecurringRule extends Model
 
     public const OWNER_SUPPLEMENT_COURSE = 'supplement_course';
 
+    public const OWNER_FINANCE_RECURRING_OPERATION = 'finance_recurring_operation';
+
     public const FREQUENCY_DAILY = 'daily';
 
     public const FREQUENCY_WEEKLY = 'weekly';
+
+    public const FREQUENCY_MONTHLY = 'monthly';
 
     protected $fillable = [
         'user_id',
@@ -51,10 +56,23 @@ class RecurringRule extends Model
     ];
 
     /** @var list<string> */
-    protected $appends = ['weekdays'];
+    protected $appends = ['weekdays', 'monthdays'];
 
     /** @var list<string> */
-    protected $hidden = ['ruleWeekdays'];
+    protected $hidden = ['ruleWeekdays', 'ruleMonthdays'];
+
+    protected static function booted(): void
+    {
+        static::saving(function (RecurringRule $rule): void {
+            if ($rule->owner_type !== self::OWNER_FINANCE_RECURRING_OPERATION) {
+                return;
+            }
+            $ownerId = FinanceRecurringOperation::query()->whereKey($rule->owner_id)->value('user_id');
+            if ((int) $ownerId !== (int) $rule->user_id) {
+                throw new RuntimeException('A Finance recurrence rule must have the same owner as its operation.');
+            }
+        });
+    }
 
     protected function casts(): array
     {
@@ -86,6 +104,13 @@ class RecurringRule extends Model
             ->orderBy('id');
     }
 
+    public function ruleMonthdays(): HasMany
+    {
+        return $this->hasMany(RecurringRuleMonthday::class)
+            ->orderBy('monthday')
+            ->orderBy('id');
+    }
+
     /**
      * The selected weekdays as codes in calendar order.
      *
@@ -96,6 +121,13 @@ class RecurringRule extends Model
         return Attribute::get(fn (): array => WeekdayCode::normalizeList(
             $this->ruleWeekdays->pluck('weekday'),
         ));
+    }
+
+    /** @return Attribute<list<int>, never> */
+    protected function monthdays(): Attribute
+    {
+        return Attribute::get(fn (): array => $this->ruleMonthdays
+            ->pluck('monthday')->map(fn ($day): int => (int) $day)->unique()->sort()->values()->all());
     }
 
     /**
@@ -121,6 +153,21 @@ class RecurringRule extends Model
         }
 
         $this->unsetRelation('ruleWeekdays');
+    }
+
+    /** @param iterable<mixed> $days */
+    public function syncMonthdays(iterable $days): void
+    {
+        $monthdays = collect($days)->map(fn ($day): int => (int) $day)
+            ->filter(fn (int $day): bool => $day >= 1 && $day <= 31)
+            ->unique()->sort()->values()->all();
+
+        $this->ruleMonthdays()->whereNotIn('monthday', $monthdays ?: [0])->delete();
+        $stored = $this->ruleMonthdays()->pluck('monthday')->map(fn ($day): int => (int) $day)->all();
+        foreach (array_diff($monthdays, $stored) as $monthday) {
+            $this->ruleMonthdays()->create(['user_id' => $this->user_id, 'monthday' => $monthday]);
+        }
+        $this->unsetRelation('ruleMonthdays');
     }
 
     /** The `daily`/`weekdays` vocabulary the routine API has always used. */

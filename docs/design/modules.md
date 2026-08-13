@@ -660,6 +660,20 @@ actuals, transfers, history, and reversal. Budget limits, recurring operations, 
 emergency funds, purchase/restock links, investments, provider FX, import/export, integrations, and
 AI remain owned by features 019, 020, 024, 025, and 026.
 
+### Feature 019 implementation boundary (2026-08-13)
+
+Feature `019-budget-recurring-cash-flow` implements monthly expense limits, multi-day monthly income
+and expense rules, immutable occurrence snapshots, explicit actual/skip outcomes, and planned cash
+flow. Budget actuals are derived from 018 ledger entries, include one root plus its children, and use
+historical conversion evidence; overlapping root/child limits are refused. Approaching means 80%
+through 100% inclusive and exceeded means above 100%.
+
+Finance is the only owner of plan outcome and money truth. Actualization reuses the ordinary ledger
+boundary with one stable occurrence identity; skipped outcomes create no money. Planner exposes the
+same occurrences and Notifications delivers timed reminders plus distinct approaching/exceeded
+budget episodes. Debts, funds, Finance goals, purchase/restock links, one-off plans, investments,
+provider FX, integrations, export, AI, and native offline authority remain deferred.
+
 ### The "Account" entity (account)
 - Name, type (cash / card / savings / currency — extensible)
 - **The account's currency** (one per account)

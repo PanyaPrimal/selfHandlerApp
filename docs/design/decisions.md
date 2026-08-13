@@ -216,6 +216,21 @@
 - Budgets and recurring cash flow remain feature 019; debts, funds, finance goals, and purchase/restock
   links remain feature 020. Provider rates, investments, integrations, exports, and AI remain deferred.
 
+### Feature 019 — Budget and recurring cash-flow ownership (2026-08-13)
+
+- One monthly limit targets one expense category scope. Root and child scopes cannot overlap in the
+  same month; within is below 80%, approaching is 80% through 100%, and exceeded is above 100%.
+- Monthly recurrence is anchored to its start month, supports 1–10 selected days and a 1–12 month
+  interval, skips absent short-month dates, and treats a null end as an inclusive ten-year ceiling.
+- A planned Finance occurrence freezes name, direction, account, category, exact amount, currency,
+  and mandatory status. Edits may refresh only future, unmoved, unfactored snapshots.
+- Actual and skipped are explicit Finance facts. Actual posts one immutable ledger group with a stable
+  occurrence identity and is corrected by reversal; skipped posts no money and may be cleared.
+- Free cash flow is planned income minus mandatory expense. Discretionary expense is reported
+  separately. Pending and actual plans count, skipped plans do not, and missing FX nulls all totals.
+- Planner and Notifications are read/delivery adapters. Finance owns outcomes and budget eligibility;
+  approaching and exceeded warnings have separate source identities and localized-at-delivery copy.
+
 ## Design status
 
 - ✅ Designed: 0, 1, 2, 2a, 3, 4, 5, 6, 7, 8, 9, 10, 11 — **all modules designed; contradictions cleaned up (2026-06-13)**

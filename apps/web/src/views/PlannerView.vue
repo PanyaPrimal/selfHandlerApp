@@ -51,6 +51,7 @@ const sourceLabels = computed<Record<PlannerSource, string>>(() => ({
   habit: i18n.t('planner.habit'),
   workout: i18n.t('planner.workout'),
   supplement: i18n.t('planner.supplement'),
+  finance: i18n.t('planner.finance'),
   training_goal: i18n.t('planner.trainingGoal'),
   storage: i18n.t('planner.task'),
   time_block: i18n.t('planner.block'),
@@ -327,10 +328,10 @@ void load()
 
             <div v-if="entry.actions.length > 0 || entry.source === 'habit'" class="planner-entry__actions">
               <a
-                v-if="entry.source === 'workout' && typeof entry.meta.action_url === 'string'"
+                v-if="(entry.source === 'workout' || entry.source === 'finance') && typeof entry.meta.action_url === 'string'"
                 class="secondary"
                 :href="entry.meta.action_url"
-              >{{ i18n.t('planner.openWorkout') }}</a>
+              >{{ i18n.t(entry.source === 'finance' ? 'planner.openFinance' : 'planner.openWorkout') }}</a>
               <button
                 v-if="entry.source === 'habit'"
                 type="button"

@@ -216,10 +216,21 @@ erDiagram
 - Stock forecast and restock proposal reconciliation remain outside recurrence: a shortage produces
   one one-off proposal, never a recurring rule.
 
+**Extended by feature `019-budget-recurring-cash-flow` (2026-08-13):**
+
+- `finance_recurring_operation` is the sixth typed owner and the first monthly consumer. Its rule
+  uses a 1–12 month anchored interval and 1–10 normalized `recurring_rule_monthdays` rows.
+- A selected day absent from a short month is skipped, never clamped. Null `ends_on` expands through
+  an inclusive deterministic ten-year ceiling, preserving bounded materialization.
+- One immutable Finance detail snapshot is created atomically per occurrence. Rule edits refresh only
+  future unfactored/unmoved snapshots; fact-bound and moved occurrences retain their accepted meaning.
+- `planned_occurrences.finance_occurrence_fact_id` is a rebuildable mirror of actual/skipped Finance
+  facts. The Finance service owns idempotent outcome semantics and ordinary ledger actualization.
+
 **Still open, each waiting for a consumer:**
 
 3. `payload` (JSON on the rule) vs. storing domain data only in the polymorphic owner. Feature 006 needs
    neither, so it added neither.
 4. The supported subset of `rrule` at launch. Daily/weekly interval, on/off cycles, and multi-slot
-   days are implemented through explicit fields; monthly, month-days, and arbitrary RRULE input remain
-   deferred until a consumer needs them.
+   days, monthly intervals, and normalized month-days are implemented through explicit fields;
+   arbitrary RRULE input and yearly recurrence remain deferred until a consumer needs them.

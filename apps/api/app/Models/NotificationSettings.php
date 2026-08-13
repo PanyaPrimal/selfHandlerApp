@@ -11,7 +11,7 @@ class NotificationSettings extends Model
 {
     use HasFactory, UserOwned;
 
-    public const CATEGORIES = ['routine', 'storage', 'habit', 'sleep', 'workout', 'supplement'];
+    public const CATEGORIES = ['routine', 'storage', 'habit', 'sleep', 'workout', 'supplement', 'finance'];
 
     public const CHANNELS = ['in_app'];
 
@@ -49,6 +49,7 @@ class NotificationSettings extends Model
             'categories' => [
                 'routine' => true, 'storage' => true, 'habit' => true, 'sleep' => true, 'workout' => true,
                 'supplement' => true,
+                'finance' => true,
             ],
         ];
     }
@@ -73,7 +74,7 @@ class NotificationSettings extends Model
         return substr((string) $this->digest_time, 0, 5);
     }
 
-    /** @return array{routine: bool, storage: bool, habit: bool, sleep: bool, workout: bool, supplement: bool} */
+    /** @return array{routine: bool, storage: bool, habit: bool, sleep: bool, workout: bool, supplement: bool, finance: bool} */
     public function categorySettings(): array
     {
         $settings = array_replace(self::defaults()['categories'], $this->categories ?? []);
@@ -85,6 +86,7 @@ class NotificationSettings extends Model
             'sleep' => (bool) $settings['sleep'],
             'workout' => (bool) $settings['workout'],
             'supplement' => (bool) $settings['supplement'],
+            'finance' => (bool) $settings['finance'],
         ];
     }
 

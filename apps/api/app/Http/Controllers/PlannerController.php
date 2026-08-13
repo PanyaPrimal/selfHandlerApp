@@ -6,6 +6,7 @@ use App\Models\PlannedOccurrence;
 use App\Models\RecurringRule;
 use App\Models\Routine;
 use App\Models\WorkoutProgram;
+use App\Services\Finance\FinanceOccurrenceService;
 use App\Services\Planner\DayAssembler;
 use App\Services\Planner\SourceRegistry;
 use App\Services\RoutineActivityLogService;
@@ -32,6 +33,7 @@ class PlannerController extends Controller
         private readonly RoutineActivityLogService $activityLogs,
         private readonly WorkoutSessionService $workoutSessions,
         private readonly SupplementIntakeService $supplementIntakes,
+        private readonly FinanceOccurrenceService $financeOccurrences,
     ) {}
 
     public function day(Request $request): JsonResponse
@@ -91,6 +93,11 @@ class PlannerController extends Controller
 
         $routine = $this->routineFor($occurrence);
         $program = $this->workoutProgramFor($occurrence);
+        if ($occurrence->recurringRule?->owner_type === RecurringRule::OWNER_FINANCE_RECURRING_OPERATION) {
+            $this->financeOccurrences->setOutcome($user, $occurrence, 'skipped');
+
+            return response()->json(['data' => $occurrence->fresh()]);
+        }
         if ($occurrence->recurringRule?->owner_type === RecurringRule::OWNER_SUPPLEMENT_COURSE) {
             $this->supplementIntakes->upsert($occurrence, $user, [
                 'outcome' => 'skipped',
@@ -154,6 +161,7 @@ class PlannerController extends Controller
             RecurringRule::OWNER_HABIT,
             RecurringRule::OWNER_WORKOUT_PROGRAM,
             RecurringRule::OWNER_SUPPLEMENT_COURSE,
+            RecurringRule::OWNER_FINANCE_RECURRING_OPERATION,
         ], true)
             && PlannedOccurrence::query()
                 ->where('recurring_rule_id', $occurrence->recurring_rule_id)

@@ -63,6 +63,12 @@ manual historical exchange rates, and derived exact balances and summaries. Prof
 source of base currency. Budgets, recurring cash flow, debts, funds, purchases, investments,
 integrations, and financial AI remain deferred to their owning increments.
 
+Feature 019 adds monthly category budgets, recurring income and expense plans, explicit actual/skip
+outcomes, and an exact planned cash-flow projection. Monthly recurrence supports up to ten selected
+days and skips dates absent from short months. Planner and in-app notifications consume immutable
+Finance occurrence snapshots; budget warnings use separate approaching/exceeded identities. Debts,
+funds, financial goals, and purchase/restock links remain owned by feature 020.
+
 The Android package in `apps/mobile` wraps the same production Vue bundle with Capacitor 8. Existing
 accounts use a separate 30-day, `mobile`-scoped Sanctum token stored by a custom Android Keystore
 AES-GCM plugin; browser cookie/CSRF auth is unchanged. Android local notifications are an opt-in

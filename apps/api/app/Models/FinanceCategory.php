@@ -67,6 +67,21 @@ class FinanceCategory extends Model
         return $this->hasMany(FinanceLedgerEntry::class, 'category_id');
     }
 
+    public function budgetLimits(): HasMany
+    {
+        return $this->hasMany(FinanceBudgetLimit::class, 'category_id');
+    }
+
+    public function recurringOperations(): HasMany
+    {
+        return $this->hasMany(FinanceRecurringOperation::class, 'category_id');
+    }
+
+    public function occurrenceDetails(): HasMany
+    {
+        return $this->hasMany(FinanceOccurrenceDetail::class, 'category_id');
+    }
+
     public function displayLabel(): string
     {
         return $this->builtin_key

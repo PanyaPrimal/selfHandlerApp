@@ -74,7 +74,10 @@ const dynamicKeys = new Set([
   'supplements.forecast.course_ends_with_stock', 'supplements.forecast.beyond_horizon',
   'supplements.status.planned', 'supplements.status.done', 'supplements.status.skipped',
   'finance.tab.overview', 'finance.tab.accounts', 'finance.tab.categories', 'finance.tab.rates',
-  'finance.tab.activity', 'finance.accountType.cash', 'finance.accountType.card',
+  'finance.tab.activity', 'finance.tab.budgets', 'finance.tab.plans',
+  'finance.status.planned', 'finance.status.actual', 'finance.status.skipped',
+  'finance.budgetState.within', 'finance.budgetState.approaching', 'finance.budgetState.exceeded',
+  'finance.accountType.cash', 'finance.accountType.card',
   'finance.accountType.savings', 'finance.accountType.currency', 'finance.kind.income',
   'finance.kind.expense', 'finance.kind.transfer', 'finance.kind.adjustment',
 ])

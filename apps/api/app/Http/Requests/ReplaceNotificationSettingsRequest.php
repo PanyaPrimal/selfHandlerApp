@@ -23,13 +23,14 @@ class ReplaceNotificationSettingsRequest extends FormRequest
             'digest' => ['required', 'array:enabled,time'],
             'digest.enabled' => ['required', 'boolean'],
             'digest.time' => ['required', 'date_format:H:i'],
-            'categories' => ['required', 'array:routine,storage,habit,sleep,workout,supplement'],
+            'categories' => ['required', 'array:routine,storage,habit,sleep,workout,supplement,finance'],
             'categories.routine' => ['required', 'boolean'],
             'categories.storage' => ['required', 'boolean'],
             'categories.habit' => ['sometimes', 'required', 'boolean'],
             'categories.sleep' => ['sometimes', 'boolean'],
             'categories.workout' => ['sometimes', 'boolean'],
             'categories.supplement' => ['sometimes', 'boolean'],
+            'categories.finance' => ['sometimes', 'boolean'],
         ];
     }
 

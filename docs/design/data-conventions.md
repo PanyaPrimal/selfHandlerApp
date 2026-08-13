@@ -95,6 +95,12 @@ cash-flow totals are exact grouped queries, not mutable balance or rollup column
 looked up at or before the Profile-local date, directly or inversely; missing conversion is an explicit
 incomplete result.
 
+Feature 019 keeps budget and plan aggregates derived. Budget actuals group immutable ledger entries
+by their historical dates and category scope; recurring-plan projections use immutable occurrence
+snapshots so later account/category/rule edits cannot rewrite accepted history. A Finance occurrence
+actualizes through the existing ledger idempotency boundary, while its separate fact mirror can be
+rebuilt from the module fact. Missing FX nulls the complete budget or cash-flow result.
+
 ## 7. Aggregates — "the module computes the totals" — strategy (important for performance)
 
 > Balances/remaining amounts/streaks/actual budget figures are derived. So that the "Today" dashboard and Analytics don't grind to a halt:

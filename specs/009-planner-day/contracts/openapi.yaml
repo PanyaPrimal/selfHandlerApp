@@ -243,14 +243,14 @@ components:
     PlannerSource:
       type: string
       description: Which module a day entry came from. Planner owns only `time_block`.
-      enum: [routine, sleep, habit, workout, supplement, training_goal, storage, time_block]
+      enum: [routine, sleep, habit, workout, supplement, finance, training_goal, storage, time_block]
 
     PlannerAction:
       type: string
       description: |
         What the user may do with an entry from inside the planner. An entry
         that is already settled offers nothing.
-      enum: [skip, reschedule, move, edit, delete]
+      enum: [actualize, skip, reschedule, move, edit, delete]
 
     PlannerEntry:
       type: object

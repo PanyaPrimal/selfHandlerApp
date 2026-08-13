@@ -186,11 +186,11 @@ components:
 
     NotificationCategory:
       type: string
-      enum: [routine, habit, sleep, workout, storage, digest, supplement]
+      enum: [routine, habit, sleep, workout, storage, digest, supplement, finance]
 
     NotificationType:
       type: string
-      enum: [routine_reminder, habit_reminder, sleep_reminder, workout_reminder, storage_due, daily_digest, supplement_intake, supplement_restock]
+      enum: [routine_reminder, habit_reminder, sleep_reminder, workout_reminder, storage_due, daily_digest, supplement_intake, supplement_restock, finance_reminder, finance_budget_approaching, finance_budget_exceeded]
 
     DeliveredNotification:
       type: object
@@ -226,7 +226,7 @@ components:
           minLength: 1
         action_url:
           type: [string, 'null']
-          pattern: '^/(?:planner|supplements)(?:\?.*)?$'
+          pattern: '^/(?:planner|supplements|finance)(?:\?.*)?$'
         status:
           $ref: '#/components/schemas/NotificationStatus'
         channels:
@@ -308,7 +308,7 @@ components:
         categories:
           type: object
           additionalProperties: false
-          required: [routine, storage, habit, sleep, workout, supplement]
+          required: [routine, storage, habit, sleep, workout, supplement, finance]
           properties:
             routine:
               type: boolean
@@ -322,11 +322,44 @@ components:
               type: boolean
             supplement:
               type: boolean
+            finance:
+              type: boolean
 
     NotificationSettingsInput:
-      allOf:
-        - $ref: '#/components/schemas/NotificationSettings'
       description: Complete replacement. Enabled quiet endpoints must differ.
+      type: object
+      additionalProperties: false
+      required: [quiet_hours, digest, categories]
+      properties:
+        quiet_hours:
+          type: object
+          additionalProperties: false
+          required: [enabled, starts_at, ends_at]
+          properties:
+            enabled: { type: boolean }
+            starts_at: { type: string, pattern: '^([01]\d|2[0-3]):[0-5]\d$' }
+            ends_at: { type: string, pattern: '^([01]\d|2[0-3]):[0-5]\d$' }
+        digest:
+          type: object
+          additionalProperties: false
+          required: [enabled, time]
+          properties:
+            enabled: { type: boolean }
+            time: { type: string, pattern: '^([01]\d|2[0-3]):[0-5]\d$' }
+        categories:
+          type: object
+          additionalProperties: false
+          required: [routine, storage, habit, sleep, workout, supplement]
+          properties:
+            routine: { type: boolean }
+            storage: { type: boolean }
+            habit: { type: boolean }
+            sleep: { type: boolean }
+            workout: { type: boolean }
+            supplement: { type: boolean }
+            finance:
+              type: boolean
+              default: true
 
     NotificationSettingsResponse:
       type: object
@@ -342,7 +375,7 @@ components:
           properties:
             categories:
               type: array
-              const: [routine, storage, habit, sleep, workout, supplement]
+              const: [routine, storage, habit, sleep, workout, supplement, finance]
             channels:
               type: array
               const: [in_app]

@@ -25,6 +25,10 @@ class InAppNotification extends Model
 
     public const SOURCE_SUPPLEMENT_RESTOCK_PROPOSAL = 'supplement_restock_proposal';
 
+    public const SOURCE_FINANCE_BUDGET_APPROACHING = 'finance_budget_approaching';
+
+    public const SOURCE_FINANCE_BUDGET_EXCEEDED = 'finance_budget_exceeded';
+
     public const TYPE_ROUTINE_REMINDER = 'routine_reminder';
 
     public const TYPE_HABIT_REMINDER = 'habit_reminder';
@@ -41,6 +45,12 @@ class InAppNotification extends Model
 
     public const TYPE_SUPPLEMENT_RESTOCK = 'supplement_restock';
 
+    public const TYPE_FINANCE_REMINDER = 'finance_reminder';
+
+    public const TYPE_FINANCE_BUDGET_APPROACHING = 'finance_budget_approaching';
+
+    public const TYPE_FINANCE_BUDGET_EXCEEDED = 'finance_budget_exceeded';
+
     public const TYPES = [
         self::TYPE_ROUTINE_REMINDER,
         self::TYPE_HABIT_REMINDER,
@@ -50,6 +60,9 @@ class InAppNotification extends Model
         self::TYPE_DAILY_DIGEST,
         self::TYPE_SUPPLEMENT_INTAKE,
         self::TYPE_SUPPLEMENT_RESTOCK,
+        self::TYPE_FINANCE_REMINDER,
+        self::TYPE_FINANCE_BUDGET_APPROACHING,
+        self::TYPE_FINANCE_BUDGET_EXCEEDED,
     ];
 
     public const CATEGORY_ROUTINE = 'routine';
@@ -66,6 +79,8 @@ class InAppNotification extends Model
 
     public const CATEGORY_SUPPLEMENT = 'supplement';
 
+    public const CATEGORY_FINANCE = 'finance';
+
     public const CATEGORIES = [
         self::CATEGORY_ROUTINE,
         self::CATEGORY_HABIT,
@@ -74,6 +89,7 @@ class InAppNotification extends Model
         self::CATEGORY_STORAGE,
         self::CATEGORY_DIGEST,
         self::CATEGORY_SUPPLEMENT,
+        self::CATEGORY_FINANCE,
     ];
 
     public const STATUS_SCHEDULED = 'scheduled';

@@ -19,6 +19,12 @@ export interface ChangelogEntry {
 
 const entries: readonly ChangelogEntry[] = [
   {
+    id: 'budget-recurring-cash-flow', date: '2026-08-13', feature: '019-budget-recurring-cash-flow',
+    titleKey: 'changelog.entry.financePlanning.title', summaryKey: 'changelog.entry.financePlanning.summary',
+    testKey: 'changelog.entry.financePlanning.test', links: [{ labelKey: 'nav.finance', to: '/finance?tab=plans' }],
+    limitationKeys: ['changelog.entry.financePlanning.limit'],
+  },
+  {
     id: 'finance-ledger-foundation', date: '2026-08-13', feature: '018-finance-ledger-foundation',
     titleKey: 'changelog.entry.finance.title', summaryKey: 'changelog.entry.finance.summary',
     testKey: 'changelog.entry.finance.test', links: [{ labelKey: 'nav.finance', to: '/finance' }],

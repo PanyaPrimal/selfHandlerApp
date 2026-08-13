@@ -40,4 +40,14 @@ class FinanceAccount extends Model
     {
         return $this->hasMany(FinanceLedgerEntry::class, 'account_id');
     }
+
+    public function recurringOperations(): HasMany
+    {
+        return $this->hasMany(FinanceRecurringOperation::class, 'account_id');
+    }
+
+    public function occurrenceDetails(): HasMany
+    {
+        return $this->hasMany(FinanceOccurrenceDetail::class, 'account_id');
+    }
 }

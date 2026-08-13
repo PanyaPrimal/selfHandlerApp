@@ -1504,10 +1504,10 @@ export interface StorageProjectPayload {
 /* ------------------------------------------------------------------ */
 
 /** Which module a day entry came from. Planner owns only `time_block`. */
-export type PlannerSource = 'routine' | 'sleep' | 'habit' | 'workout' | 'supplement' | 'training_goal' | 'storage' | 'time_block'
+export type PlannerSource = 'routine' | 'sleep' | 'habit' | 'workout' | 'supplement' | 'finance' | 'training_goal' | 'storage' | 'time_block'
 
 /** What the user may do with an entry from inside the planner. */
-export type PlannerAction = 'skip' | 'reschedule' | 'move' | 'edit' | 'delete'
+export type PlannerAction = 'actualize' | 'skip' | 'reschedule' | 'move' | 'edit' | 'delete'
 
 export interface PlannerEntry {
   source: PlannerSource
@@ -1557,8 +1557,8 @@ export interface TimeBlockPayload {
 /* In-app notifications                                                */
 /* ------------------------------------------------------------------ */
 
-export type NotificationType = 'routine_reminder' | 'habit_reminder' | 'sleep_reminder' | 'workout_reminder' | 'storage_due' | 'daily_digest' | 'supplement_intake' | 'supplement_restock'
-export type NotificationCategory = 'routine' | 'habit' | 'sleep' | 'workout' | 'storage' | 'digest' | 'supplement'
+export type NotificationType = 'routine_reminder' | 'habit_reminder' | 'sleep_reminder' | 'workout_reminder' | 'storage_due' | 'daily_digest' | 'supplement_intake' | 'supplement_restock' | 'finance_reminder' | 'finance_budget_approaching' | 'finance_budget_exceeded'
+export type NotificationCategory = 'routine' | 'habit' | 'sleep' | 'workout' | 'storage' | 'digest' | 'supplement' | 'finance'
 export type NotificationStatus = 'sent' | 'read'
 export type NotificationView = 'all' | 'unread'
 export type NotificationSnoozeMinutes = 15 | 60 | 240 | 1440
@@ -1602,13 +1602,14 @@ export interface NotificationSettingsData {
     sleep: boolean
     workout: boolean
     supplement: boolean
+    finance: boolean
   }
 }
 
 export interface NotificationSettingsResponse {
   data: NotificationSettingsData
   options: {
-    categories: Array<'routine' | 'storage' | 'habit' | 'sleep' | 'workout' | 'supplement'>
+    categories: Array<'routine' | 'storage' | 'habit' | 'sleep' | 'workout' | 'supplement' | 'finance'>
     channels: ['in_app']
     snooze_minutes: NotificationSnoozeMinutes[]
   }
@@ -1654,3 +1655,21 @@ export interface FinanceExchangeRateInput { from_currency: FinanceCurrencyCode, 
 export interface FinanceTransactionInput { idempotency_key: string, kind: 'income' | 'expense', account_id: number, category_id: number, amount: string, occurred_on: string, note?: string | null, tag?: string | null }
 export interface FinanceTransferInput { idempotency_key: string, source_account_id: number, destination_account_id: number, source_amount: string, destination_amount: string, occurred_on: string, note?: string | null, tag?: string | null }
 export interface FinanceReversalInput { idempotency_key: string, reason: string }
+
+/* Budget and recurring cash flow (feature 019) */
+export type FinanceBudgetState = 'within' | 'approaching' | 'exceeded'
+export type FinanceOccurrenceStatus = 'planned' | 'actual' | 'skipped'
+export interface FinanceCategorySummary { id: number, parent_id: number | null, label: string, archived: boolean }
+export interface FinanceAccountSummary { id: number, name: string, archived: boolean }
+export interface FinancePlanningConversion { on: string, from_currency: FinanceCurrencyCode, source_amount: string, converted_amount: string, rate: string, rate_date: string, rate_direction: 'identity' | 'direct' | 'inverse' }
+export interface FinanceBudget { id: number, month: string, category: FinanceCategorySummary, limit_amount: string, currency: FinanceCurrencyCode, complete: boolean, actual_amount: string | null, remaining_amount: string | null, utilization_percent: string | null, state: FinanceBudgetState | null, missing_currencies: FinanceCurrencyCode[], conversions: FinancePlanningConversion[], created_at: string, updated_at: string }
+export interface FinanceBudgetInput { month: string, category_id: number, limit_amount: string, currency: FinanceCurrencyCode }
+export interface FinanceBudgetUpdate { month?: string, category_id?: number, limit_amount?: string, currency?: FinanceCurrencyCode }
+export interface FinanceMonthlyRule { frequency: 'monthly', interval_months: number, month_days: number[], starts_on: string, ends_on: string | null, reminder_time: string | null }
+export interface FinanceRecurringOperation { id: number, name: string, direction: FinanceCategoryDirection, account: FinanceAccountSummary, category: FinanceCategorySummary, amount: string, currency: FinanceCurrencyCode, mandatory: boolean, active: boolean, archived: boolean, rule: FinanceMonthlyRule, created_at: string, updated_at: string }
+export interface FinanceRecurringOperationInput { name: string, direction: FinanceCategoryDirection, account_id: number, category_id: number, amount: string, mandatory: boolean, starts_on: string, ends_on: string | null, interval_months: number, month_days: number[], reminder_time: string | null }
+export interface FinanceRecurringOperationUpdate { name?: string, direction?: FinanceCategoryDirection, account_id?: number, category_id?: number, amount?: string, mandatory?: boolean, starts_on?: string, ends_on?: string | null, interval_months?: number, month_days?: number[], reminder_time?: string | null, active?: boolean, archived?: boolean }
+export interface FinanceOccurrenceOutcome { type: 'actual' | 'skipped', transaction_id: string | null, occurred_on: string | null, created_at: string }
+export interface FinancePlannedOccurrence { id: number, operation_id: number, operation_name: string, planned_on: string, effective_on: string, moved: boolean, reminder_time: string | null, status: FinanceOccurrenceStatus, direction: FinanceCategoryDirection, account: FinanceAccountSummary, category: FinanceCategorySummary, amount: string, currency: FinanceCurrencyCode, mandatory: boolean, outcome: FinanceOccurrenceOutcome | null }
+export interface FinanceCashFlowCounts { total: number, planned: number, actual: number, skipped: number, income: number, mandatory_expense: number, discretionary_expense: number }
+export interface FinanceCashFlow { month: string, from: string, to: string, base_currency: FinanceCurrencyCode, complete: boolean, planned_income: string | null, mandatory_expense: string | null, discretionary_expense: string | null, free_cash_flow: string | null, missing_currencies: FinanceCurrencyCode[], conversions: FinancePlanningConversion[], counts: FinanceCashFlowCounts }
