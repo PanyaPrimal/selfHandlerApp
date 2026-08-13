@@ -75,11 +75,21 @@ const dynamicKeys = new Set([
   'supplements.status.planned', 'supplements.status.done', 'supplements.status.skipped',
   'finance.tab.overview', 'finance.tab.accounts', 'finance.tab.categories', 'finance.tab.rates',
   'finance.tab.activity', 'finance.tab.budgets', 'finance.tab.plans',
+  'finance.tab.debts', 'finance.tab.funds', 'finance.tab.goals',
   'finance.status.planned', 'finance.status.actual', 'finance.status.skipped',
   'finance.budgetState.within', 'finance.budgetState.approaching', 'finance.budgetState.exceeded',
   'finance.accountType.cash', 'finance.accountType.card',
   'finance.accountType.savings', 'finance.accountType.currency', 'finance.kind.income',
   'finance.kind.expense', 'finance.kind.transfer', 'finance.kind.adjustment',
+  'finance.counterpartyKind.person', 'finance.counterpartyKind.bank', 'finance.counterpartyKind.store',
+  'finance.counterpartyKind.other', 'finance.debtState.active', 'finance.debtState.overdue',
+  'finance.debtState.settled', 'finance.debtOccurrenceState.scheduled',
+  'finance.debtOccurrenceState.paid', 'finance.debtOccurrenceState.overdue',
+  'finance.topUpMode.none', 'finance.topUpMode.fixed', 'finance.topUpMode.income_percent',
+  'finance.topUpMode.expense_months', 'finance.fundState.active', 'finance.fundState.reached',
+  'finance.fundState.under_funded', 'finance.fundState.over_reserved', 'finance.fundState.spent',
+  'finance.fundState.unavailable', 'finance.movement.top_up', 'finance.movement.draw_down',
+  'finance.movement.reverse',
 ])
 
 function isAllowedText(value) {

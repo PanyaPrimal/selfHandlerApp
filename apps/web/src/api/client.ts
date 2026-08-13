@@ -121,6 +121,24 @@ import type {
   FinanceRecurringOperation,
   FinanceRecurringOperationInput,
   FinanceRecurringOperationUpdate,
+  FinanceCounterparty,
+  FinanceCounterpartyInput,
+  FinanceCounterpartyUpdate,
+  FinanceDebt,
+  FinanceDebtInput,
+  FinanceDebtUpdate,
+  FinanceDebtPayment,
+  FinanceDebtPaymentInput,
+  FinanceSavingFund,
+  FinanceSavingFundInput,
+  FinanceSavingFundUpdate,
+  FinanceFundMovement,
+  FinanceFundMovementInput,
+  FinanceGoal,
+  FinanceGoalInput,
+  FinanceGoalUpdate,
+  FinanceSourceExpenseInput,
+  FinanceSourceExpenseResponse,
 } from './types'
 
 // The SelfHandler error contract: a message for the user plus the per-field
@@ -246,6 +264,68 @@ export async function putFinanceOccurrenceOutcome(id: number, outcome: 'actual' 
 
 export async function clearFinanceOccurrenceOutcome(id: number): Promise<FinancePlannedOccurrence> {
   return (await request<ItemResponse<FinancePlannedOccurrence>>(`/finance/planned-occurrences/${id}/outcome`, { method: 'DELETE' })).data
+}
+
+export async function getFinanceCounterparties(archived = false): Promise<FinanceCounterparty[]> {
+  return (await request<{ data: FinanceCounterparty[] }>(`/finance/counterparties?archived=${archived ? '1' : '0'}`)).data
+}
+
+export async function createFinanceCounterparty(payload: FinanceCounterpartyInput): Promise<FinanceCounterparty> {
+  return (await jsonRequest<ItemResponse<FinanceCounterparty>>('/finance/counterparties', 'POST', payload)).data
+}
+
+export async function updateFinanceCounterparty(id: number, payload: FinanceCounterpartyUpdate): Promise<FinanceCounterparty> {
+  return (await jsonRequest<ItemResponse<FinanceCounterparty>>(`/finance/counterparties/${id}`, 'PATCH', payload)).data
+}
+
+export async function getFinanceDebts(archived = false): Promise<FinanceDebt[]> {
+  return (await request<{ data: FinanceDebt[] }>(`/finance/debts?archived=${archived ? '1' : '0'}`)).data
+}
+
+export async function createFinanceDebt(payload: FinanceDebtInput): Promise<FinanceDebt> {
+  return (await jsonRequest<ItemResponse<FinanceDebt>>('/finance/debts', 'POST', payload)).data
+}
+
+export async function updateFinanceDebt(id: number, payload: FinanceDebtUpdate): Promise<FinanceDebt> {
+  return (await jsonRequest<ItemResponse<FinanceDebt>>(`/finance/debts/${id}`, 'PATCH', payload)).data
+}
+
+export async function payFinanceDebt(id: number, payload: FinanceDebtPaymentInput): Promise<{ data: FinanceDebtPayment, debt: FinanceDebt }> {
+  return jsonRequest(`/finance/debts/${id}/payments`, 'POST', payload)
+}
+
+export async function getFinanceSavingFunds(month?: string, archived = false): Promise<FinanceSavingFund[]> {
+  const query = new URLSearchParams({ archived: archived ? '1' : '0' })
+  if (month) query.set('month', month)
+  return (await request<{ data: FinanceSavingFund[] }>(`/finance/saving-funds?${query.toString()}`)).data
+}
+
+export async function createFinanceSavingFund(payload: FinanceSavingFundInput): Promise<FinanceSavingFund> {
+  return (await jsonRequest<ItemResponse<FinanceSavingFund>>('/finance/saving-funds', 'POST', payload)).data
+}
+
+export async function updateFinanceSavingFund(id: number, payload: FinanceSavingFundUpdate): Promise<FinanceSavingFund> {
+  return (await jsonRequest<ItemResponse<FinanceSavingFund>>(`/finance/saving-funds/${id}`, 'PATCH', payload)).data
+}
+
+export async function createFinanceFundMovement(id: number, payload: FinanceFundMovementInput): Promise<{ data: FinanceFundMovement, fund: FinanceSavingFund }> {
+  return jsonRequest(`/finance/saving-funds/${id}/movements`, 'POST', payload)
+}
+
+export async function getFinanceGoals(archived = false): Promise<FinanceGoal[]> {
+  return (await request<{ data: FinanceGoal[] }>(`/finance/goals?archived=${archived ? '1' : '0'}`)).data
+}
+
+export async function createFinanceGoal(payload: FinanceGoalInput): Promise<FinanceGoal> {
+  return (await jsonRequest<ItemResponse<FinanceGoal>>('/finance/goals', 'POST', payload)).data
+}
+
+export async function updateFinanceGoal(id: number, payload: FinanceGoalUpdate): Promise<FinanceGoal> {
+  return (await jsonRequest<ItemResponse<FinanceGoal>>(`/finance/goals/${id}`, 'PATCH', payload)).data
+}
+
+export function createFinanceSourceExpense(payload: FinanceSourceExpenseInput): Promise<FinanceSourceExpenseResponse> {
+  return jsonRequest<FinanceSourceExpenseResponse>('/finance/source-expenses', 'POST', payload)
 }
 
 export function getProfile(): Promise<ProfileResponse> {

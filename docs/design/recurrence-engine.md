@@ -227,6 +227,20 @@ erDiagram
 - `planned_occurrences.finance_occurrence_fact_id` is a rebuildable mirror of actual/skipped Finance
   facts. The Finance service owns idempotent outcome semantics and ordinary ledger actualization.
 
+**Extended by feature `020-debts-funds-financial-goals` (2026-08-13):**
+
+- `finance_debt` and `finance_saving_fund` are the seventh and eighth typed owners. A fixed debt owns
+  one normalized month day and expands exactly its bounded installment count, skipping nonexistent
+  short-month dates rather than clamping them. A scheduled fund owns one monthly rule.
+- Debt and fund occurrence details snapshot the owned aggregate, money, account/category links, and
+  fund calculation evidence. Reconciliation changes only future unfactored/unmoved details.
+- `planned_occurrences.finance_debt_payment_fact_id` and
+  `finance_fund_occurrence_fact_id` extend the mutually exclusive fact mirror. Actual debt payments
+  and fund top-ups are retained and corrected through append-only reversal; skipped outcomes may be
+  cleared and reopen the same occurrence identity.
+- Finance Goals, purchase expenses, and supplement restock expenses are not recurrence owners. Goals
+  project aggregate history; source expenses are one-off ledger facts.
+
 **Still open, each waiting for a consumer:**
 
 3. `payload` (JSON on the rule) vs. storing domain data only in the polymorphic owner. Feature 006 needs

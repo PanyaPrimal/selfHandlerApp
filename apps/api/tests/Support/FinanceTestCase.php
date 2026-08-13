@@ -4,10 +4,15 @@ namespace Tests\Support;
 
 use App\Models\FinanceAccount;
 use App\Models\FinanceCategory;
+use App\Models\FinanceCounterparty;
+use App\Models\FinanceDebt;
 use App\Models\FinanceLedgerEntry;
 use App\Models\FinanceRecurringOperation;
+use App\Models\FinanceSavingFund;
 use App\Models\FinanceTransactionGroup;
 use App\Models\User;
+use App\Services\Finance\FinanceDebtService;
+use App\Services\Finance\FinanceFundService;
 use App\Services\Finance\FinanceRecurringOperationService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -46,6 +51,73 @@ abstract class FinanceTestCase extends TestCase
             'direction' => $parent->direction,
             'parent_id' => $parent->id,
         ]);
+    }
+
+    /** @param array<string,mixed> $attributes */
+    protected function counterparty(User $owner, array $attributes = []): FinanceCounterparty
+    {
+        return FinanceCounterparty::factory()->create($attributes + ['user_id' => $owner->id]);
+    }
+
+    /** @param array<string,mixed> $attributes */
+    protected function flexibleDebt(
+        User $owner,
+        FinanceCounterparty $counterparty,
+        FinanceAccount $account,
+        FinanceCategory $category,
+        array $attributes = [],
+    ): FinanceDebt {
+        return app(FinanceDebtService::class)->create($owner, array_replace([
+            'name' => 'Flexible loan',
+            'counterparty_id' => $counterparty->id,
+            'direction' => 'owe',
+            'repayment_mode' => 'flexible',
+            'original_amount' => '1000.0000',
+            'currency' => $account->currency_code,
+            'originated_on' => '2026-08-01',
+            'deadline' => null,
+            'account_id' => $account->id,
+            'category_id' => $category->id,
+            'purchase_item_id' => null,
+            'schedule' => null,
+            'note' => null,
+        ], $attributes));
+    }
+
+    /** @param array<string,mixed> $attributes */
+    protected function regularFund(
+        User $owner,
+        FinanceAccount $account,
+        array $attributes = [],
+    ): FinanceSavingFund {
+        $defaults = [
+            'name' => 'Reserve',
+            'fund_type' => 'regular',
+            'storage_mode' => 'virtual',
+            'account_id' => $account->id,
+            'funding_account_id' => null,
+            'category_id' => null,
+            'currency' => $account->currency_code,
+            'target_mode' => 'explicit',
+            'target_amount' => '1000.0000',
+            'deadline' => null,
+            'rule' => [
+                'top_up_mode' => 'none',
+                'fixed_amount' => null,
+                'income_percent' => null,
+                'expense_months' => null,
+                'build_months' => null,
+                'starts_on' => null,
+                'monthday' => null,
+                'reminder_time' => null,
+            ],
+            'note' => null,
+        ];
+        if (isset($attributes['rule'])) {
+            $attributes['rule'] = array_replace($defaults['rule'], $attributes['rule']);
+        }
+
+        return app(FinanceFundService::class)->create($owner, array_replace($defaults, $attributes));
     }
 
     /** @param array<string,mixed> $attributes */

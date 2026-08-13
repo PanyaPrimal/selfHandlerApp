@@ -297,7 +297,7 @@ components:
       enum: [within, approaching, exceeded]
     OccurrenceStatus:
       type: string
-      enum: [planned, actual, skipped]
+      enum: [planned, actual, skipped, overdue, unavailable]
     OutcomeType:
       type: string
       enum: [actual, skipped]
@@ -510,12 +510,35 @@ components:
         transaction_id: {type: [string, 'null'], format: uuid}
         occurred_on: {type: [string, 'null'], format: date}
         created_at: {type: string, format: date-time}
+    OccurrenceContext:
+      type: object
+      additionalProperties: false
+      required: [kind, owner_id, name, direction, amount, currency, mandatory, evidence]
+      properties:
+        kind: {type: string, enum: [recurring_operation, debt, fund]}
+        owner_id: {type: integer, minimum: 1}
+        name: {type: string, minLength: 1, maxLength: 160}
+        direction: {type: string, enum: [income, expense, allocation]}
+        amount:
+          anyOf: [{$ref: '#/components/schemas/PositiveMoneyAmount'}, {type: 'null'}]
+        currency: {$ref: '#/components/schemas/CurrencyCode'}
+        mandatory: {type: boolean}
+        evidence: {type: [string, 'null']}
     FinancePlannedOccurrence:
       type: object
       additionalProperties: false
-      required: [id, operation_id, operation_name, planned_on, effective_on, moved, reminder_time, status, direction, account, category, amount, currency, mandatory, outcome]
+      required: [id, original_date, date, time, status, outcome_type, outcome, transaction_public_id, context, action_url]
       properties:
         id: {type: integer, minimum: 1}
+        original_date: {type: string, format: date}
+        date: {type: string, format: date}
+        time:
+          type: [string, 'null']
+          pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$'
+        outcome_type: {type: [string, 'null'], enum: [actual, skipped, null]}
+        transaction_public_id: {type: [string, 'null'], format: uuid}
+        context: {$ref: '#/components/schemas/OccurrenceContext'}
+        action_url: {type: string}
         operation_id: {type: integer, minimum: 1}
         operation_name: {type: string, minLength: 1, maxLength: 160}
         planned_on: {type: string, format: date}
@@ -550,17 +573,33 @@ components:
     PlannedOccurrenceListResponse:
       type: object
       additionalProperties: false
-      required: [from, to, data]
+      required: [from, to, data, counts]
       properties:
         from: {type: string, format: date}
         to: {type: string, format: date}
         data:
           type: array
           items: {$ref: '#/components/schemas/FinancePlannedOccurrence'}
+        counts: {$ref: '#/components/schemas/OccurrenceCounts'}
+    OccurrenceCounts:
+      type: object
+      additionalProperties: false
+      required: [total, planned, actual, skipped, overdue, unavailable, recurring_operation, debt, fund]
+      properties:
+        total: {type: integer, minimum: 0}
+        planned: {type: integer, minimum: 0}
+        actual: {type: integer, minimum: 0}
+        skipped: {type: integer, minimum: 0}
+        overdue: {type: integer, minimum: 0}
+        unavailable: {type: integer, minimum: 0}
+        recurring_operation: {type: integer, minimum: 0}
+        debt: {type: integer, minimum: 0}
+        fund: {type: integer, minimum: 0}
     CashFlowCounts:
       type: object
       additionalProperties: false
-      required: [total, planned, actual, skipped, income, mandatory_expense, discretionary_expense]
+      required: [total, planned, actual, skipped, income, mandatory_expense, discretionary_expense,
+        recurring_operation, debt, emergency_fund]
       properties:
         total: {type: integer, minimum: 0}
         planned: {type: integer, minimum: 0}
@@ -569,6 +608,9 @@ components:
         income: {type: integer, minimum: 0}
         mandatory_expense: {type: integer, minimum: 0}
         discretionary_expense: {type: integer, minimum: 0}
+        recurring_operation: {type: integer, minimum: 0}
+        debt: {type: integer, minimum: 0}
+        emergency_fund: {type: integer, minimum: 0}
     CashFlow:
       type: object
       additionalProperties: false

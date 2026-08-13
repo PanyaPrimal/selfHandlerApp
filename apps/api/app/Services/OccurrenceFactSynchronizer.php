@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\FinanceDebtPaymentFact;
+use App\Models\FinanceFundOccurrenceFact;
 use App\Models\FinanceOccurrenceFact;
 use App\Models\Habit;
 use App\Models\HabitLog;
@@ -152,6 +154,37 @@ class OccurrenceFactSynchronizer
             ]);
     }
 
+    public function syncFromDebtPayment(FinanceDebtPaymentFact $fact): void
+    {
+        if ($fact->planned_occurrence_id === null) {
+            return;
+        }
+        $fact->loadMissing('transactionGroup.reversedBy');
+        PlannedOccurrence::query()->whereKey($fact->planned_occurrence_id)->where('user_id', $fact->user_id)
+            ->update([
+                'status' => $fact->transactionGroup->reversedBy === null
+                    ? PlannedOccurrence::STATUS_DONE : PlannedOccurrence::STATUS_PLANNED,
+                'finance_debt_payment_fact_id' => $fact->id,
+                'updated_at' => now(),
+            ]);
+    }
+
+    public function syncFromFundFact(FinanceFundOccurrenceFact $fact): void
+    {
+        $fact->loadMissing(['movement.reversedBy', 'transactionGroup.reversedBy']);
+        $active = $fact->outcome === FinanceFundOccurrenceFact::OUTCOME_SKIPPED
+            || ($fact->movement && $fact->movement->reversedBy === null)
+            || ($fact->transactionGroup && $fact->transactionGroup->reversedBy === null);
+        PlannedOccurrence::query()->whereKey($fact->planned_occurrence_id)->where('user_id', $fact->user_id)
+            ->update([
+                'status' => ! $active ? PlannedOccurrence::STATUS_PLANNED
+                    : ($fact->outcome === FinanceFundOccurrenceFact::OUTCOME_SKIPPED
+                        ? PlannedOccurrence::STATUS_SKIPPED : PlannedOccurrence::STATUS_DONE),
+                'finance_fund_occurrence_fact_id' => $fact->id,
+                'updated_at' => now(),
+            ]);
+    }
+
     /**
      * Rebuild every derived occurrence status for a user from the logs.
      *
@@ -170,6 +203,8 @@ class OccurrenceFactSynchronizer
                     'workout_session_id' => null,
                     'supplement_intake_id' => null,
                     'finance_occurrence_fact_id' => null,
+                    'finance_debt_payment_fact_id' => null,
+                    'finance_fund_occurrence_fact_id' => null,
                     'updated_at' => now(),
                 ]);
 
@@ -227,6 +262,18 @@ class OccurrenceFactSynchronizer
                         $this->syncFromFinanceFact($fact);
                     }
                 });
+
+            FinanceDebtPaymentFact::query()->ownedBy($user)->orderBy('id')->chunk(500, function ($facts): void {
+                foreach ($facts as $fact) {
+                    $this->syncFromDebtPayment($fact);
+                }
+            });
+
+            FinanceFundOccurrenceFact::query()->ownedBy($user)->orderBy('id')->chunk(500, function ($facts): void {
+                foreach ($facts as $fact) {
+                    $this->syncFromFundFact($fact);
+                }
+            });
 
             return $touched;
         });

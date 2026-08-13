@@ -16,14 +16,40 @@ class FinanceTransactionGroup extends Model
 
     public const KINDS = ['income', 'expense', 'transfer', 'adjustment'];
 
+    public const SOURCE_PURCHASE_ITEM = 'purchase_item';
+
+    public const SOURCE_SUPPLEMENT_RESTOCK_PROPOSAL = 'supplement_restock_proposal';
+
+    public const SOURCE_TYPES = [self::SOURCE_PURCHASE_ITEM, self::SOURCE_SUPPLEMENT_RESTOCK_PROPOSAL];
+
     protected $fillable = [
         'user_id', 'public_id', 'kind', 'occurred_on', 'idempotency_key', 'payload_hash',
         'note', 'tag', 'reverses_group_id', 'reversal_reason', 'fx_from_currency',
         'fx_to_currency', 'effective_rate',
+        'source_type', 'source_id',
     ];
 
     protected static function booted(): void
     {
+        static::creating(function (FinanceTransactionGroup $group): void {
+            $hasType = $group->source_type !== null;
+            $hasId = $group->source_id !== null;
+            if ($hasType !== $hasId || ($hasType && ($group->kind !== 'expense'
+                || $group->reverses_group_id !== null || ! in_array($group->source_type, self::SOURCE_TYPES, true)))) {
+                throw new RuntimeException('A Finance source must be one valid pair on an original expense.');
+            }
+            if (! $hasType) {
+                return;
+            }
+            $ownerId = match ($group->source_type) {
+                self::SOURCE_PURCHASE_ITEM => Item::query()->whereKey($group->source_id)->value('user_id'),
+                self::SOURCE_SUPPLEMENT_RESTOCK_PROPOSAL => SupplementRestockProposal::query()
+                    ->whereKey($group->source_id)->value('user_id'),
+            };
+            if ((int) $ownerId !== (int) $group->user_id) {
+                throw new RuntimeException('A Finance source must have the same owner as its transaction.');
+            }
+        });
         static::updating(fn (): never => throw new RuntimeException('Finance transaction groups are immutable.'));
         static::deleting(fn (): never => throw new RuntimeException('Finance transaction groups cannot be deleted.'));
     }
@@ -51,5 +77,25 @@ class FinanceTransactionGroup extends Model
     public function financeOccurrenceFact(): HasOne
     {
         return $this->hasOne(FinanceOccurrenceFact::class, 'transaction_group_id');
+    }
+
+    public function debtPaymentFact(): HasOne
+    {
+        return $this->hasOne(FinanceDebtPaymentFact::class, 'transaction_group_id');
+    }
+
+    public function fundMovement(): HasOne
+    {
+        return $this->hasOne(FinanceFundMovement::class, 'transaction_group_id');
+    }
+
+    public function sourcePurchaseItem(): BelongsTo
+    {
+        return $this->belongsTo(Item::class, 'source_id');
+    }
+
+    public function sourceRestockProposal(): BelongsTo
+    {
+        return $this->belongsTo(SupplementRestockProposal::class, 'source_id');
     }
 }

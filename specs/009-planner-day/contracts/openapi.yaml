@@ -284,6 +284,37 @@ components:
             Source-specific detail the day surface displays but does not
             interpret, such as a routine's original `occurrence_date` or a
             block's `ends_at`.
+          properties:
+            kind:
+              type: string
+              enum: [recurring_operation, debt, fund]
+              description: Finance occurrence kind when `source` is `finance`.
+            owner_id:
+              type: integer
+              minimum: 1
+            operation_id:
+              type: ['integer', 'null']
+              minimum: 1
+            direction:
+              type: string
+              enum: [income, expense, allocation]
+            amount:
+              type: ['string', 'null']
+              pattern: '^\d+(\.\d{1,4})?$'
+            currency:
+              type: string
+              pattern: '^[A-Z]{3}$'
+            mandatory:
+              type: boolean
+            occurrence_date:
+              type: string
+              format: date
+            rescheduled_to:
+              type: ['string', 'null']
+              format: date
+            action_url:
+              type: string
+              pattern: '^/finance\?tab=(?:plans|debts|funds)&month=\d{4}-\d{2}&occurrence=\d+$'
 
     PlannerWindow:
       type: object

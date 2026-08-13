@@ -15,6 +15,10 @@ class FinanceAccountResource extends JsonResource
             'type' => $this->type,
             'currency' => $this->currency_code,
             'balance' => $this->getAttribute('balance_projection') ?? '0.0000',
+            'reserved_amount' => $this->getAttribute('reserved_amount_projection') ?? '0.0000',
+            'available_balance' => $this->getAttribute('available_balance_projection')
+                ?? ($this->getAttribute('balance_projection') ?? '0.0000'),
+            'over_reserved' => $this->getAttribute('over_reserved_projection') ?? false,
             'archived' => $this->archived_at !== null,
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),

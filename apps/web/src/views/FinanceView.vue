@@ -1,11 +1,16 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   createFinanceAccount,
   createFinanceBudget,
   createFinanceCategory,
+  createFinanceCounterparty,
+  createFinanceDebt,
+  createFinanceFundMovement,
+  createFinanceGoal,
   createFinanceRecurringOperation,
+  createFinanceSavingFund,
   createFinanceTransaction,
   createFinanceTransfer,
   clearFinanceOccurrenceOutcome,
@@ -15,32 +20,46 @@ import {
   getFinanceCashFlow,
   getFinanceCategories,
   getFinanceCurrencies,
+  getFinanceCounterparties,
+  getFinanceDebts,
   getFinanceExchangeRates,
+  getFinanceGoals,
   getFinancePlannedOccurrences,
   getFinanceRecurringOperations,
+  getFinanceSavingFunds,
   getFinanceSummary,
   getFinanceTransactions,
   getToday,
   putFinanceOccurrenceOutcome,
+  payFinanceDebt,
   reconcileFinanceAccount,
   reverseFinanceTransaction,
   updateFinanceAccount,
   updateFinanceBudget,
   updateFinanceCategory,
+  updateFinanceDebt,
+  updateFinanceGoal,
   updateFinanceRecurringOperation,
+  updateFinanceSavingFund,
   upsertFinanceExchangeRate,
 } from '../api/client'
 import type {
   FinanceAccount, FinanceAccountInput, FinanceCategory, FinanceCategoryInput, FinanceCurrency,
   FinanceBudget, FinanceBudgetInput, FinanceBudgetUpdate, FinanceCashFlow,
-  FinanceExchangeRate, FinanceExchangeRateInput, FinancePlannedOccurrence, FinanceReconcileInput,
+  FinanceCounterparty, FinanceCounterpartyInput, FinanceDebt, FinanceDebtInput, FinanceDebtPaymentInput,
+  FinanceDebtUpdate, FinanceExchangeRate, FinanceExchangeRateInput, FinanceFundMovementInput,
+  FinanceGoal, FinanceGoalInput, FinanceGoalUpdate, FinancePlannedOccurrence, FinanceReconcileInput,
   FinanceRecurringOperation, FinanceRecurringOperationInput, FinanceRecurringOperationUpdate,
-  FinanceSummary, FinanceTransactionGroup, FinanceTransactionInput, FinanceTransferInput,
+  FinanceSavingFund, FinanceSavingFundInput, FinanceSavingFundUpdate, FinanceSummary,
+  FinanceTransactionGroup, FinanceTransactionInput, FinanceTransferInput,
 } from '../api/types'
 import AsyncState from '../components/AsyncState.vue'
 import FinanceAccountPanel from '../components/finance/FinanceAccountPanel.vue'
 import FinanceBudgetPanel from '../components/finance/FinanceBudgetPanel.vue'
 import FinanceCategoryPanel from '../components/finance/FinanceCategoryPanel.vue'
+import FinanceDebtPanel from '../components/finance/FinanceDebtPanel.vue'
+import FinanceFundPanel from '../components/finance/FinanceFundPanel.vue'
+import FinanceGoalPanel from '../components/finance/FinanceGoalPanel.vue'
 import FinanceLedgerPanel from '../components/finance/FinanceLedgerPanel.vue'
 import FinancePlanPanel from '../components/finance/FinancePlanPanel.vue'
 import FinanceRatePanel from '../components/finance/FinanceRatePanel.vue'
@@ -48,12 +67,12 @@ import { financeAmount } from '../finance/money'
 import { useI18n } from '../i18n'
 import { useAuthSession } from '../auth/session'
 
-type Tab = 'overview' | 'accounts' | 'categories' | 'rates' | 'activity' | 'budgets' | 'plans'
+type Tab = 'overview' | 'accounts' | 'categories' | 'rates' | 'activity' | 'budgets' | 'plans' | 'debts' | 'funds' | 'goals'
 const i18n = useI18n()
 const session = useAuthSession()
 const route = useRoute()
 const router = useRouter()
-const tabs: Tab[] = ['overview', 'accounts', 'categories', 'rates', 'activity', 'budgets', 'plans']
+const tabs: Tab[] = ['overview', 'accounts', 'categories', 'rates', 'activity', 'budgets', 'plans', 'debts', 'funds', 'goals']
 const requestedTab = typeof route.query.tab === 'string' && tabs.includes(route.query.tab as Tab) ? route.query.tab as Tab : 'overview'
 const tab = ref<Tab>(requestedTab)
 const today = ref('')
@@ -69,6 +88,10 @@ const budgets = ref<FinanceBudget[]>([])
 const operations = ref<FinanceRecurringOperation[]>([])
 const occurrences = ref<FinancePlannedOccurrence[]>([])
 const cashFlow = ref<FinanceCashFlow | null>(null)
+const counterparties = ref<FinanceCounterparty[]>([])
+const debts = ref<FinanceDebt[]>([])
+const funds = ref<FinanceSavingFund[]>([])
+const financeGoals = ref<FinanceGoal[]>([])
 const loading = ref(true)
 const busy = ref(false)
 const loadError = ref<string | null>(null)
@@ -85,6 +108,27 @@ function minusDays(date: string, days: number): string {
 function lastDayOfMonth(value: string): string {
   const [year, monthNumber] = value.split('-').map(Number)
   return new Date(Date.UTC(year, monthNumber, 0)).toISOString().slice(0, 10)
+}
+
+function positiveIntegerQuery(value: unknown): number | null {
+  return typeof value === 'string' && /^\d+$/.test(value) && Number(value) > 0 ? Number(value) : null
+}
+
+function transactionQuery(value: unknown): string | null {
+  return typeof value === 'string'
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+    ? value : null
+}
+
+async function focusDeepLink(): Promise<void> {
+  await nextTick()
+  const target = tab.value === 'activity' ? transactionQuery(route.query.transaction)
+    : ['debts', 'funds'].includes(tab.value) ? positiveIntegerQuery(route.query.occurrence) : null
+  const selector = target === null ? (tab.value === 'goals' && /^#finance-goal-\d+$/.test(route.hash) ? route.hash : null)
+    : tab.value === 'activity' ? `[data-finance-transaction="${target}"]`
+      : `[data-finance-occurrence="${target}"]`
+  if (!selector) return
+  document.querySelector<HTMLElement>(selector)?.scrollIntoView({ block: 'center' })
 }
 
 async function load(): Promise<void> {
@@ -106,12 +150,17 @@ async function load(): Promise<void> {
       getFinanceSummary(from.value, today.value, today.value),
       getFinanceBudgets(month.value), getFinanceRecurringOperations(true),
       getFinancePlannedOccurrences(rangeFrom, rangeTo), getFinanceCashFlow(month.value),
+      getFinanceCounterparties(), getFinanceDebts(), getFinanceSavingFunds(month.value), getFinanceGoals(),
     ])
     ;[currencies.value, accounts.value, categories.value, rates.value, transactions.value, summary.value,
-      budgets.value, operations.value, occurrences.value, cashFlow.value] = data
+      budgets.value, operations.value, occurrences.value, cashFlow.value, counterparties.value, debts.value,
+      funds.value, financeGoals.value] = data
   } catch (current) {
     loadError.value = current instanceof Error ? current.message : i18n.t('finance.loadFailed')
-  } finally { loading.value = false }
+  } finally {
+    loading.value = false
+    await focusDeepLink()
+  }
 }
 
 async function mutate(action: () => Promise<unknown>, message: string): Promise<boolean> {
@@ -144,8 +193,29 @@ function removeBudget(budget: FinanceBudget): Promise<boolean> { return mutate((
 function saveRecurring(payload: FinanceRecurringOperationInput | FinanceRecurringOperationUpdate, id?: number): Promise<boolean> {
   return mutate(() => id === undefined ? createFinanceRecurringOperation(payload as FinanceRecurringOperationInput) : updateFinanceRecurringOperation(id, payload), i18n.t(id === undefined ? 'finance.recurringCreated' : 'finance.recurringUpdated'))
 }
+function saveCounterparty(payload: FinanceCounterpartyInput): Promise<boolean> {
+  return mutate(() => createFinanceCounterparty(payload), i18n.t('finance.counterpartyCreated'))
+}
+function saveDebt(payload: FinanceDebtInput | FinanceDebtUpdate, id?: number): Promise<boolean> {
+  return mutate(() => id === undefined ? createFinanceDebt(payload as FinanceDebtInput) : updateFinanceDebt(id, payload as FinanceDebtUpdate), i18n.t(id === undefined ? 'finance.debtCreated' : 'finance.debtUpdated'))
+}
+function payDebt(debt: FinanceDebt, payload: FinanceDebtPaymentInput): Promise<boolean> {
+  return mutate(() => payFinanceDebt(debt.id, payload), i18n.t('finance.paymentSaved'))
+}
+function saveFund(payload: FinanceSavingFundInput | FinanceSavingFundUpdate, id?: number): Promise<boolean> {
+  return mutate(() => id === undefined ? createFinanceSavingFund(payload as FinanceSavingFundInput) : updateFinanceSavingFund(id, payload), i18n.t(id === undefined ? 'finance.fundCreated' : 'finance.fundUpdated'))
+}
+function moveFund(fund: FinanceSavingFund, payload: FinanceFundMovementInput): Promise<boolean> {
+  return mutate(() => createFinanceFundMovement(fund.id, payload), i18n.t('finance.movementSaved'))
+}
+function saveFinanceGoal(payload: FinanceGoalInput | FinanceGoalUpdate, id?: number): Promise<boolean> {
+  return mutate(() => id === undefined ? createFinanceGoal(payload as FinanceGoalInput) : updateFinanceGoal(id, payload), i18n.t(id === undefined ? 'finance.goalCreated' : 'finance.goalUpdated'))
+}
 function setOutcome(occurrence: FinancePlannedOccurrence, outcome: 'actual' | 'skipped' | null): Promise<boolean> {
-  return mutate(() => outcome === null ? clearFinanceOccurrenceOutcome(occurrence.id) : putFinanceOccurrenceOutcome(occurrence.id, outcome), i18n.t(outcome === 'actual' ? 'finance.actualSaved' : outcome === 'skipped' ? 'finance.skippedSaved' : 'finance.skipCleared'))
+  return setOutcomeById(occurrence.id, outcome)
+}
+function setOutcomeById(id: number, outcome: 'actual' | 'skipped' | null): Promise<boolean> {
+  return mutate(() => outcome === null ? clearFinanceOccurrenceOutcome(id) : putFinanceOccurrenceOutcome(id, outcome), i18n.t(outcome === 'actual' ? 'finance.actualSaved' : outcome === 'skipped' ? 'finance.skippedSaved' : 'finance.skipCleared'))
 }
 function changeMonth(value: string): void {
   if (!/^\d{4}-\d{2}$/.test(value) || value < today.value.slice(0, 7)) return
@@ -163,6 +233,11 @@ onMounted(load)
 watch(tab, (value) => {
   void router.replace({ query: { ...route.query, tab: value === 'overview' ? undefined : value, month: month.value || undefined } })
 })
+watch(() => route.query.tab, (value) => {
+  const requested = typeof value === 'string' && tabs.includes(value as Tab) ? value as Tab : 'overview'
+  if (tab.value !== requested) tab.value = requested
+})
+watch(() => [route.query.occurrence, route.query.transaction, route.hash], () => { void focusDeepLink() })
 watch(() => session.user?.preferences.locale, (locale, previous) => {
   if (locale && locale !== previous && !loading.value) void load()
 })
@@ -188,9 +263,12 @@ watch(() => session.user?.preferences.locale, (locale, previous) => {
       <FinanceAccountPanel v-else-if="tab === 'accounts'" :accounts="accounts" :currencies="currencies" :today="today" :busy="busy" @create="createAccount" @lifecycle="lifecycleAccount" @reconcile="reconcileAccount" />
       <FinanceCategoryPanel v-else-if="tab === 'categories'" :categories="categories" :busy="busy" @create="createCategory" @lifecycle="lifecycleCategory" />
       <FinanceRatePanel v-else-if="tab === 'rates'" :currencies="currencies" :rates="rates" :today="today" :busy="busy" @save="saveRate" />
-      <FinanceLedgerPanel v-else-if="tab === 'activity'" :accounts="accounts" :categories="categories" :transactions="transactions" :today="today" :busy="busy" @actual="saveActual" @transfer="saveTransfer" @reverse="reverse" />
+      <FinanceLedgerPanel v-else-if="tab === 'activity'" :accounts="accounts" :categories="categories" :transactions="transactions" :today="today" :focused-transaction-id="transactionQuery(route.query.transaction)" :busy="busy" @actual="saveActual" @transfer="saveTransfer" @reverse="reverse" />
       <FinanceBudgetPanel v-else-if="tab === 'budgets'" :budgets="budgets" :categories="categories" :currencies="currencies" :month="month" :busy="busy" :save="saveBudget" :remove="removeBudget" @update:month="changeMonth" />
-      <FinancePlanPanel v-else :operations="operations" :occurrences="occurrences" :cash-flow="cashFlow" :accounts="accounts" :categories="categories" :month="month" :today="today" :busy="busy" :save="saveRecurring" :outcome="setOutcome" @update:month="changeMonth" />
+      <FinancePlanPanel v-else-if="tab === 'plans'" :operations="operations" :occurrences="occurrences" :cash-flow="cashFlow" :accounts="accounts" :categories="categories" :month="month" :today="today" :busy="busy" :save="saveRecurring" :outcome="setOutcome" @update:month="changeMonth" />
+      <FinanceDebtPanel v-else-if="tab === 'debts'" :debts="debts" :counterparties="counterparties" :accounts="accounts" :categories="categories" :currencies="currencies" :today="today" :initial-purchase-id="positiveIntegerQuery(route.query.purchase)" :focused-occurrence-id="positiveIntegerQuery(route.query.occurrence)" :busy="busy" :save-counterparty="saveCounterparty" :save-debt="saveDebt" :pay="payDebt" :skip="(id) => setOutcomeById(id, 'skipped')" />
+      <FinanceFundPanel v-else-if="tab === 'funds'" :funds="funds" :occurrences="occurrences" :accounts="accounts" :categories="categories" :currencies="currencies" :month="month" :today="today" :focused-occurrence-id="positiveIntegerQuery(route.query.occurrence)" :busy="busy" :save="saveFund" :move="moveFund" :outcome="setOutcomeById" @update:month="changeMonth" />
+      <FinanceGoalPanel v-else :goals="financeGoals" :debts="debts" :funds="funds" :busy="busy" :save="saveFinanceGoal" />
     </AsyncState>
   </section>
 </template>

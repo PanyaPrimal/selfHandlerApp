@@ -2,9 +2,12 @@
 
 namespace App\Services\Finance;
 
+use App\Models\FinanceFundOccurrenceFact;
 use App\Models\FinanceRecurringOperation;
 use App\Models\PlannedOccurrence;
+use App\Models\RecurringRule;
 use App\Models\User;
+use App\Services\RecurrenceMaterializer;
 use App\Services\RecurringRuleExpander;
 use Carbon\CarbonImmutable;
 use Illuminate\Validation\ValidationException;
@@ -14,6 +17,7 @@ class FinanceCashFlowService
     public function __construct(
         private readonly FinanceExchangeRateService $exchangeRates,
         private readonly RecurringRuleExpander $expander,
+        private readonly RecurrenceMaterializer $materializer,
     ) {}
 
     /** @return array<string,mixed> */
@@ -28,6 +32,7 @@ class FinanceCashFlowService
         $from = $fromDate->toDateString();
         $to = $toDate->toDateString();
         $base = $user->ensureProfile()->base_currency;
+        $this->materializer->materializeForUser($user, $from);
         $operations = FinanceRecurringOperation::query()->ownedBy($user)
             ->where('is_active', true)->where('is_archived', false)
             ->with(['recurringRule.ruleMonthdays'])->orderBy('id')->get();
@@ -65,6 +70,7 @@ class FinanceCashFlowService
                     'currency' => $detail?->currency_code ?? $operation->currency_code,
                     'mandatory' => (bool) ($detail?->is_mandatory ?? $operation->is_mandatory),
                     'status' => $occurrence?->financeOccurrenceFact?->outcome ?? 'planned',
+                    'source_kind' => 'recurring_operation', 'unavailable' => false,
                 ];
             }
         }
@@ -83,22 +89,35 @@ class FinanceCashFlowService
                 'currency' => $detail->currency_code,
                 'mandatory' => (bool) $detail->is_mandatory,
                 'status' => $occurrence->financeOccurrenceFact?->outcome ?? 'planned',
+                'source_kind' => 'recurring_operation', 'unavailable' => false,
             ];
+        }
+
+        foreach ($this->commitmentRows($user, $from, $to) as $row) {
+            $rows[] = $row;
         }
 
         $catalog = $this->exchangeRates->catalog($user, $to);
         $totals = ['planned_income' => '0.0000', 'mandatory_expense' => '0.0000',
             'discretionary_expense' => '0.0000'];
         $counts = ['total' => 0, 'planned' => 0, 'actual' => 0, 'skipped' => 0,
-            'income' => 0, 'mandatory_expense' => 0, 'discretionary_expense' => 0];
+            'income' => 0, 'mandatory_expense' => 0, 'discretionary_expense' => 0,
+            'recurring_operation' => 0, 'debt' => 0, 'emergency_fund' => 0];
         $missing = [];
         $conversions = [];
+        $calculationUnavailable = false;
         foreach ($rows as $row) {
             $bucket = $row['direction'] === 'income' ? 'income'
                 : ($row['mandatory'] ? 'mandatory_expense' : 'discretionary_expense');
             $counts['total']++;
             $counts[$row['status']]++;
             $counts[$bucket]++;
+            $counts[$row['source_kind']]++;
+            if ($row['unavailable']) {
+                $calculationUnavailable = true;
+
+                continue;
+            }
             if ($row['status'] === 'skipped' || bccomp($row['amount'], '0', 4) === 0) {
                 continue;
             }
@@ -123,7 +142,7 @@ class FinanceCashFlowService
         }
         $missing = array_values(array_unique($missing));
         sort($missing);
-        $complete = $missing === [];
+        $complete = $missing === [] && ! $calculationUnavailable;
 
         return [
             'month' => $month,
@@ -140,5 +159,56 @@ class FinanceCashFlowService
             'conversions' => $conversions,
             'counts' => $counts,
         ];
+    }
+
+    /** @return list<array<string,mixed>> */
+    private function commitmentRows(User $user, string $from, string $to): array
+    {
+        $occurrences = PlannedOccurrence::query()->ownedBy($user)
+            ->whereIn('recurring_rule_id', RecurringRule::query()->ownedBy($user)
+                ->whereIn('owner_type', [RecurringRule::OWNER_FINANCE_DEBT, RecurringRule::OWNER_FINANCE_SAVING_FUND])
+                ->select('id'))
+            ->where(function ($query) use ($from, $to): void {
+                $query->whereBetween('occurrence_date', [$from, $to])->orWhereBetween('rescheduled_to', [$from, $to]);
+            })
+            ->with(['recurringRule', 'financeOccurrenceFact', 'financeDebtDetail',
+                'financeDebtPaymentFact.transactionGroup.reversedBy', 'financeFundDetail',
+                'financeFundOccurrenceFact.movement.reversedBy', 'financeFundOccurrenceFact.transactionGroup.reversedBy'])
+            ->get();
+        $rows = [];
+        foreach ($occurrences as $occurrence) {
+            $date = $occurrence->rescheduled_to?->format('Y-m-d') ?? $occurrence->occurrence_date->format('Y-m-d');
+            if ($date < $from || $date > $to) {
+                continue;
+            }
+            if ($occurrence->recurringRule->owner_type === RecurringRule::OWNER_FINANCE_DEBT) {
+                $detail = $occurrence->financeDebtDetail;
+                if (! $detail) {
+                    continue;
+                }
+                $payment = $occurrence->financeDebtPaymentFact;
+                $status = $occurrence->financeOccurrenceFact?->outcome
+                    ?? ($payment && $payment->transactionGroup->reversedBy === null ? 'actual' : 'planned');
+                $rows[] = ['date' => $date, 'direction' => $detail->direction === 'owe' ? 'expense' : 'income',
+                    'amount' => (string) $detail->amount, 'currency' => $detail->currency_code,
+                    'mandatory' => true, 'status' => $status, 'source_kind' => 'debt', 'unavailable' => false];
+
+                continue;
+            }
+            $detail = $occurrence->financeFundDetail;
+            if (! $detail || $detail->fund_type !== 'emergency') {
+                continue;
+            }
+            $fact = $occurrence->financeFundOccurrenceFact;
+            $active = $fact && ($fact->outcome === FinanceFundOccurrenceFact::OUTCOME_SKIPPED
+                || ($fact->movement && $fact->movement->reversedBy === null)
+                || ($fact->transactionGroup && $fact->transactionGroup->reversedBy === null));
+            $status = $active ? $fact->outcome : 'planned';
+            $rows[] = ['date' => $date, 'direction' => 'expense', 'amount' => (string) ($detail->amount ?? '0.0000'),
+                'currency' => $detail->currency_code, 'mandatory' => true, 'status' => $status,
+                'source_kind' => 'emergency_fund', 'unavailable' => ! $detail->complete || $detail->amount === null];
+        }
+
+        return $rows;
     }
 }

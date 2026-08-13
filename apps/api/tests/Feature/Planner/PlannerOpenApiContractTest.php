@@ -113,6 +113,13 @@ class PlannerOpenApiContractTest extends TestCase
             $document['components']['schemas']['PlannerSource']['enum'],
             'The documented sources have drifted from the registry.',
         );
+
+        $financeMeta = $document['components']['schemas']['PlannerEntry']['properties']['meta']['properties'];
+        $this->assertSame(['recurring_operation', 'debt', 'fund'], $financeMeta['kind']['enum']);
+        $this->assertSame(['income', 'expense', 'allocation'], $financeMeta['direction']['enum']);
+        foreach (['owner_id', 'amount', 'currency', 'mandatory', 'occurrence_date', 'action_url'] as $member) {
+            $this->assertArrayHasKey($member, $financeMeta);
+        }
     }
 
     public function test_the_contract_does_not_claim_ownership_of_another_module(): void

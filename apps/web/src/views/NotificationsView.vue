@@ -91,7 +91,7 @@ function safeAction(url: string | null): boolean {
   return Boolean(url && (/^\/planner(?:\?date=\d{4}-\d{2}-\d{2})?$/.test(url)
     || /^\/workouts\?date=\d{4}-\d{2}-\d{2}&program=\d+$/.test(url)
     || /^\/supplements\?(?:date=\d{4}-\d{2}-\d{2}&course=\d+&slot=[a-z0-9_-]+|restock=\d+)$/.test(url)
-    || /^\/finance\?tab=(?:plans&month=\d{4}-\d{2}&occurrence=\d+|budgets&month=\d{4}-\d{2}&budget=\d+)$/.test(url)))
+    || /^\/finance\?tab=(?:plans&month=\d{4}-\d{2}&occurrence=\d+|(?:debts|funds)&(?:month=\d{4}-\d{2}&)?occurrence=\d+|budgets&month=\d{4}-\d{2}&budget=\d+)$/.test(url)))
 }
 
 function snoozeLabel(minutes: NotificationSnoozeMinutes): string {

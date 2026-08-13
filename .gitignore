@@ -65,3 +65,4 @@ ios/Pods/
 # Build artifacts
 bin/
 obj/
+.gitnexus

@@ -34,6 +34,16 @@ class RecurringRule extends Model
 
     public const OWNER_FINANCE_RECURRING_OPERATION = 'finance_recurring_operation';
 
+    public const OWNER_FINANCE_DEBT = 'finance_debt';
+
+    public const OWNER_FINANCE_SAVING_FUND = 'finance_saving_fund';
+
+    public const OWNER_TYPES = [
+        self::OWNER_ROUTINE, self::OWNER_HABIT, self::OWNER_SLEEP_PLAN, self::OWNER_WORKOUT_PROGRAM,
+        self::OWNER_SUPPLEMENT_COURSE, self::OWNER_FINANCE_RECURRING_OPERATION,
+        self::OWNER_FINANCE_DEBT, self::OWNER_FINANCE_SAVING_FUND,
+    ];
+
     public const FREQUENCY_DAILY = 'daily';
 
     public const FREQUENCY_WEEKLY = 'weekly';
@@ -64,12 +74,17 @@ class RecurringRule extends Model
     protected static function booted(): void
     {
         static::saving(function (RecurringRule $rule): void {
-            if ($rule->owner_type !== self::OWNER_FINANCE_RECURRING_OPERATION) {
+            if (! in_array($rule->owner_type, [self::OWNER_FINANCE_RECURRING_OPERATION,
+                self::OWNER_FINANCE_DEBT, self::OWNER_FINANCE_SAVING_FUND], true)) {
                 return;
             }
-            $ownerId = FinanceRecurringOperation::query()->whereKey($rule->owner_id)->value('user_id');
+            $ownerId = match ($rule->owner_type) {
+                self::OWNER_FINANCE_RECURRING_OPERATION => FinanceRecurringOperation::query()->whereKey($rule->owner_id)->value('user_id'),
+                self::OWNER_FINANCE_DEBT => FinanceDebt::query()->whereKey($rule->owner_id)->value('user_id'),
+                self::OWNER_FINANCE_SAVING_FUND => FinanceSavingFund::query()->whereKey($rule->owner_id)->value('user_id'),
+            };
             if ((int) $ownerId !== (int) $rule->user_id) {
-                throw new RuntimeException('A Finance recurrence rule must have the same owner as its operation.');
+                throw new RuntimeException('A Finance recurrence rule must have the same owner as its aggregate.');
             }
         });
     }

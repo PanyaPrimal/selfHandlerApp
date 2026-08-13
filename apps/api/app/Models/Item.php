@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use RuntimeException;
 
 /**
@@ -28,6 +29,8 @@ class Item extends Model
 
     public const TYPE_IDEA = 'idea';
 
+    public const TYPE_PURCHASE = 'purchase';
+
     public const STATUS_INBOX = 'inbox';
 
     public const STATUS_ACTIVE = 'active';
@@ -37,7 +40,7 @@ class Item extends Model
     public const STATUS_DROPPED = 'dropped';
 
     /** @var list<string> */
-    public const TYPES = [self::TYPE_TASK, self::TYPE_IDEA];
+    public const TYPES = [self::TYPE_TASK, self::TYPE_IDEA, self::TYPE_PURCHASE];
 
     /** @var list<string> */
     public const STATUSES = [self::STATUS_INBOX, self::STATUS_ACTIVE, self::STATUS_DONE, self::STATUS_DROPPED];
@@ -55,6 +58,8 @@ class Item extends Model
         'description',
         'status',
         'priority',
+        'estimated_amount',
+        'estimated_currency_code',
         'due_on',
         'project_id',
         'parent_id',
@@ -71,6 +76,7 @@ class Item extends Model
     {
         return [
             'due_on' => 'date:Y-m-d',
+            'estimated_amount' => 'decimal:4',
             'is_blocker' => 'boolean',
             'completed_at' => 'datetime',
             'dropped_at' => 'datetime',
@@ -89,6 +95,14 @@ class Item extends Model
             // trusted to every controller.
             $item->assertSameOwner(Project::class, $item->project_id, 'project');
             $item->assertSameOwner(Item::class, $item->parent_id, 'parent');
+
+            $hasAmount = $item->estimated_amount !== null;
+            $hasCurrency = $item->estimated_currency_code !== null;
+            if ($hasAmount !== $hasCurrency
+                || ($hasAmount && ($item->type !== self::TYPE_PURCHASE
+                    || bccomp((string) $item->estimated_amount, '0', 4) <= 0))) {
+                throw new RuntimeException('A purchase estimate must be one positive Money pair.');
+            }
         });
     }
 
@@ -105,6 +119,17 @@ class Item extends Model
     public function children(): HasMany
     {
         return $this->hasMany(Item::class, 'parent_id');
+    }
+
+    public function purchaseDebt(): HasOne
+    {
+        return $this->hasOne(FinanceDebt::class, 'purchase_item_id');
+    }
+
+    public function purchaseTransactions(): HasMany
+    {
+        return $this->hasMany(FinanceTransactionGroup::class, 'source_id')
+            ->where('source_type', FinanceTransactionGroup::SOURCE_PURCHASE_ITEM);
     }
 
     public function tags(): BelongsToMany

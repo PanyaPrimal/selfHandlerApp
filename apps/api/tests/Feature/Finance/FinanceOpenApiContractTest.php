@@ -101,4 +101,22 @@ class FinanceOpenApiContractTest extends TestCase
         sort($registered);
         $this->assertSame($documented, $registered);
     }
+
+    public function test_account_reservations_and_transaction_sources_are_additive_contract_members(): void
+    {
+        $schemas = $this->document()['components']['schemas'];
+
+        foreach (['reserved_amount', 'available_balance', 'over_reserved'] as $member) {
+            $this->assertContains($member, $schemas['FinanceAccount']['required']);
+            $this->assertArrayHasKey($member, $schemas['FinanceAccount']['properties']);
+        }
+        $this->assertContains('source', $schemas['TransactionGroup']['required']);
+        $this->assertSame(
+            ['purchase_item', 'supplement_restock_proposal'],
+            $schemas['TransactionSourceContext']['properties']['type']['enum'],
+        );
+        foreach (['type', 'id', 'label', 'action_url', 'active'] as $member) {
+            $this->assertContains($member, $schemas['TransactionSourceContext']['required']);
+        }
+    }
 }

@@ -5,6 +5,7 @@ namespace Tests\Unit\Finance;
 use App\Models\FinanceExchangeRate;
 use App\Services\Finance\FinanceLedgerService;
 use App\Services\Finance\FinanceSummaryService;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\FinanceTestCase;
 
@@ -12,6 +13,8 @@ class FinanceSummaryServiceTest extends FinanceTestCase
 {
     public function test_summary_consolidates_historically_and_excludes_transfer_adjustment_cash_flow(): void
     {
+        $this->travelTo(CarbonImmutable::parse('2026-08-13 12:00:00', 'UTC'));
+
         $owner = $this->owner(baseCurrency: 'UAH');
         $uah = $this->account($owner);
         $usd = $this->account($owner, 'USD');
@@ -61,6 +64,8 @@ class FinanceSummaryServiceTest extends FinanceTestCase
 
     public function test_missing_rate_nulls_whole_consolidated_and_actual_projection(): void
     {
+        $this->travelTo(CarbonImmutable::parse('2026-08-13 12:00:00', 'UTC'));
+
         $owner = $this->owner(baseCurrency: 'UAH');
         $eur = $this->account($owner, 'EUR');
         $income = $this->category($owner, 'income');

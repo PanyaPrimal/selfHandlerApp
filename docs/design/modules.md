@@ -377,6 +377,11 @@ comparison bullets above remain future design, not current behavior.
 - ⚠️ The progress source for "save N" is **always the Saving Fund** (it knows itself whether it is virtual or on a real account), NOT the "account balance" directly. Otherwise a virtual Saving Fund without an account has no progress source
 - Milestones are applicable (save 50k → 100k → 150k); rate target amount + deadline ↔ N/month
 
+Feature 020 implements both Finance subtypes as one common `Goal` plus one owned XOR detail. Save
+milestones increase toward the fund target; pay-off milestones decrease toward zero. Achievement and
+progress are recalculated from active fund movements or debt payment/reversal history and clamped for
+presentation; the aggregate cannot be retargeted through the update contract.
+
 ### TODO (goal types — detail when working on the adjacent modules)
 - How "progress" is computed for each type (different sources: body measurements / working weights / **amount saved in the Saving Fund** / debt balance)
 
@@ -509,6 +514,12 @@ targets, so corrections remain consistent on every surface.
 - **Link to "Module 10 — Finance" — the connection point (defined 2026-06-13):** an expense transaction (or an installment plan = a "Debt") references a purchase via a **polymorphic source reference** `TRANSACTION.source` (see [Finance ER](finance-er.md) — the "reference to the source module" field: supplement / **purchase item**). The FK lives on the transaction side (the purchase doesn't know about money, money knows about its source)
 - **Invariant:** a purchase in the "bought" status ⟺ there exists a linked expense transaction or installment-plan debt. Canceling the transaction → the purchase returns to "want"
 - A child blocker purchase is bought → it unblocks the parent idea
+
+Feature 020 implements this boundary without a Finance state copy on the Item. Direct expense and
+installment creation lock the purchase and are mutually exclusive. Reversing the only direct expense
+restores `wanted`; an installment purchase stays `bought` through debt settlement and archival because
+its historical debt remains the accepted source path. Restock expenses use the same one-way source
+shape but never mutate Supplement stock or proposal lifecycle.
 
 ### Type "List item" (list item)
 - Belongs to a **List** (books / movies / TV shows / anything)

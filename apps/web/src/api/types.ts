@@ -10,13 +10,14 @@ export interface Goal {
   id: number
   name: string
   description: string | null
-  type: 'general'
+  type: 'general' | 'finance'
   status: 'active' | 'completed' | 'abandoned'
   target_date: string | null
   completed_at: string | null
   is_archived: boolean
   archived_at: string | null
   routines: RoutineSummary[]
+  finance?: FinanceGoal
 }
 
 export interface GoalSummary extends Pick<Goal, 'id' | 'name' | 'status'> {}
@@ -1431,7 +1432,7 @@ export interface BodyGoalResponse {
 /* Storage inbox (feature 008)                                         */
 /* ------------------------------------------------------------------ */
 
-export type ItemType = 'task' | 'idea'
+export type ItemType = 'task' | 'idea' | 'purchase'
 export type ItemStatus = 'inbox' | 'active' | 'done' | 'dropped'
 export type ItemPriority = 'low' | 'normal' | 'high'
 
@@ -1447,6 +1448,8 @@ export interface StorageItem {
   description: string | null
   status: ItemStatus
   priority: ItemPriority | null
+  estimated_amount: string | null
+  estimated_currency_code: FinanceCurrencyCode | null
   due_on: string | null
   project_id: number | null
   parent_id: number | null
@@ -1472,6 +1475,8 @@ export interface StorageItemPayload {
   description?: string | null
   status?: ItemStatus
   priority?: ItemPriority | null
+  estimated_amount?: string | null
+  estimated_currency_code?: FinanceCurrencyCode | null
   due_on?: string | null
   project_id?: number | null
   parent_id?: number | null
@@ -1638,11 +1643,13 @@ export type FinanceCategoryDirection = 'income' | 'expense'
 export type FinanceTransactionKind = 'income' | 'expense' | 'transfer' | 'adjustment'
 
 export interface FinanceCurrency { code: FinanceCurrencyCode, decimal_places: number, active: boolean }
-export interface FinanceAccount { id: number, name: string, type: FinanceAccountType, currency: FinanceCurrencyCode, balance: string, archived: boolean, created_at: string, updated_at: string }
+export interface FinanceAccount { id: number, name: string, type: FinanceAccountType, currency: FinanceCurrencyCode, balance: string, reserved_amount: string, available_balance: string, over_reserved: boolean, archived: boolean, created_at: string, updated_at: string }
 export interface FinanceCategory { id: number, direction: FinanceCategoryDirection, parent_id: number | null, builtin_key: string | null, name: string | null, label: string, archived: boolean, used: boolean, created_at: string, updated_at: string }
 export interface FinanceExchangeRate { id: number, from_currency: FinanceCurrencyCode, to_currency: FinanceCurrencyCode, rate_date: string, rate: string, source: 'manual', created_at: string, updated_at: string }
 export interface FinanceLedgerEntry { id: number, account_id: number, account_name: string, category_id: number | null, category_label: string | null, role: 'primary' | 'source' | 'destination', delta_amount: string, currency: FinanceCurrencyCode }
-export interface FinanceTransactionGroup { id: string, kind: FinanceTransactionKind, occurred_on: string, note: string | null, tag: string | null, reverses_id: string | null, reversed_by_id: string | null, reversal_reason: string | null, transfer: { from_currency: FinanceCurrencyCode, to_currency: FinanceCurrencyCode, effective_rate: string } | null, entries: FinanceLedgerEntry[], created_at: string }
+export type FinanceSourceType = 'purchase_item' | 'supplement_restock_proposal'
+export interface FinanceSourceContext { type: FinanceSourceType, id: number, label: string, action_url: string, active: boolean }
+export interface FinanceTransactionGroup { id: string, kind: FinanceTransactionKind, occurred_on: string, note: string | null, tag: string | null, source?: FinanceSourceContext | null, reverses_id: string | null, reversed_by_id: string | null, reversal_reason: string | null, transfer: { from_currency: FinanceCurrencyCode, to_currency: FinanceCurrencyCode, effective_rate: string } | null, entries: FinanceLedgerEntry[], created_at: string }
 export interface FinanceConversion { currency: FinanceCurrencyCode, amount: string, converted_amount: string, rate: string, rate_date: string, rate_direction: 'identity' | 'direct' | 'inverse' }
 export interface FinanceSummary { accounts: FinanceAccount[], consolidated: { as_of: string, base_currency: FinanceCurrencyCode, complete: boolean, total: string | null, missing_currencies: FinanceCurrencyCode[], conversions: FinanceConversion[] }, actuals: { from: string, to: string, base_currency: FinanceCurrencyCode, complete: boolean, income: string | null, expense: string | null, net: string | null, missing_currencies: FinanceCurrencyCode[] } }
 
@@ -1658,7 +1665,7 @@ export interface FinanceReversalInput { idempotency_key: string, reason: string 
 
 /* Budget and recurring cash flow (feature 019) */
 export type FinanceBudgetState = 'within' | 'approaching' | 'exceeded'
-export type FinanceOccurrenceStatus = 'planned' | 'actual' | 'skipped'
+export type FinanceOccurrenceStatus = 'planned' | 'actual' | 'skipped' | 'overdue' | 'unavailable'
 export interface FinanceCategorySummary { id: number, parent_id: number | null, label: string, archived: boolean }
 export interface FinanceAccountSummary { id: number, name: string, archived: boolean }
 export interface FinancePlanningConversion { on: string, from_currency: FinanceCurrencyCode, source_amount: string, converted_amount: string, rate: string, rate_date: string, rate_direction: 'identity' | 'direct' | 'inverse' }
@@ -1670,6 +1677,38 @@ export interface FinanceRecurringOperation { id: number, name: string, direction
 export interface FinanceRecurringOperationInput { name: string, direction: FinanceCategoryDirection, account_id: number, category_id: number, amount: string, mandatory: boolean, starts_on: string, ends_on: string | null, interval_months: number, month_days: number[], reminder_time: string | null }
 export interface FinanceRecurringOperationUpdate { name?: string, direction?: FinanceCategoryDirection, account_id?: number, category_id?: number, amount?: string, mandatory?: boolean, starts_on?: string, ends_on?: string | null, interval_months?: number, month_days?: number[], reminder_time?: string | null, active?: boolean, archived?: boolean }
 export interface FinanceOccurrenceOutcome { type: 'actual' | 'skipped', transaction_id: string | null, occurred_on: string | null, created_at: string }
-export interface FinancePlannedOccurrence { id: number, operation_id: number, operation_name: string, planned_on: string, effective_on: string, moved: boolean, reminder_time: string | null, status: FinanceOccurrenceStatus, direction: FinanceCategoryDirection, account: FinanceAccountSummary, category: FinanceCategorySummary, amount: string, currency: FinanceCurrencyCode, mandatory: boolean, outcome: FinanceOccurrenceOutcome | null }
-export interface FinanceCashFlowCounts { total: number, planned: number, actual: number, skipped: number, income: number, mandatory_expense: number, discretionary_expense: number }
+export interface FinanceOccurrenceContext { kind: 'recurring_operation' | 'debt' | 'fund', owner_id: number, name: string, direction: FinanceCategoryDirection | 'allocation', amount: string | null, currency: FinanceCurrencyCode, mandatory: boolean, evidence: string | null }
+export interface FinancePlannedOccurrence { id: number, original_date: string, date: string, time: string | null, status: FinanceOccurrenceStatus, outcome_type: 'actual' | 'skipped' | null, outcome: FinanceOccurrenceOutcome | null, transaction_public_id: string | null, context: FinanceOccurrenceContext, action_url: string, operation_id?: number, operation_name?: string, planned_on?: string, effective_on?: string, moved?: boolean, reminder_time?: string | null, direction?: FinanceCategoryDirection, account?: FinanceAccountSummary, category?: FinanceCategorySummary, amount?: string, currency?: FinanceCurrencyCode, mandatory?: boolean }
+export interface FinanceCashFlowCounts { total: number, planned: number, actual: number, skipped: number, income: number, mandatory_expense: number, discretionary_expense: number, recurring_operation: number, debt: number, emergency_fund: number }
 export interface FinanceCashFlow { month: string, from: string, to: string, base_currency: FinanceCurrencyCode, complete: boolean, planned_income: string | null, mandatory_expense: string | null, discretionary_expense: string | null, free_cash_flow: string | null, missing_currencies: FinanceCurrencyCode[], conversions: FinancePlanningConversion[], counts: FinanceCashFlowCounts }
+
+/* Debts, saving funds, Finance goals, and source links (feature 020) */
+export type FinanceCounterpartyKind = 'person' | 'bank' | 'store' | 'other'
+export interface FinanceCounterparty { id: number, name: string, kind: FinanceCounterpartyKind, note: string | null, archived: boolean, created_at: string | null, updated_at: string | null }
+export interface FinanceCounterpartyInput { name: string, kind: FinanceCounterpartyKind, note: string | null }
+export interface FinanceCounterpartyUpdate { name?: string, kind?: FinanceCounterpartyKind, note?: string | null, archived?: boolean }
+export type FinanceDebtDirection = 'owe' | 'owed_to_me'
+export type FinanceDebtRepaymentMode = 'fixed' | 'flexible'
+export interface FinanceDebtSchedule { installment_amount: string, installment_count: number, interval_months: number, monthday: number, first_due_on: string, reminder_time: string | null }
+export interface FinanceDebtPayment { id: number, planned_occurrence_id: number | null, transaction_public_id: string, principal_amount: string, currency: FinanceCurrencyCode, occurred_on: string, reversed: boolean }
+export interface FinanceDebtOccurrence { id: number, due_on: string, original_due_on: string, amount: string, currency: FinanceCurrencyCode, status: 'scheduled' | 'paid' | 'overdue', reminder_time: string | null, latest_payment: FinanceDebtPayment | null }
+export interface FinanceDebt { id: number, name: string, counterparty: FinanceCounterparty, direction: FinanceDebtDirection, repayment_mode: FinanceDebtRepaymentMode, original_amount: string, paid_amount: string, remaining_amount: string, currency: FinanceCurrencyCode, progress: number, originated_on: string, deadline: string | null, state: 'active' | 'overdue' | 'settled', account_id: number | null, category_id: number | null, purchase_item_id: number | null, active: boolean, archived: boolean, schedule: FinanceDebtSchedule | null, occurrences: FinanceDebtOccurrence[], payments: FinanceDebtPayment[], counts: { scheduled: number, paid: number, overdue: number }, created_at: string | null, updated_at: string | null }
+export interface FinanceDebtInput { name: string, counterparty_id: number, direction: FinanceDebtDirection, repayment_mode: FinanceDebtRepaymentMode, original_amount: string, currency: FinanceCurrencyCode, originated_on: string, deadline: string | null, account_id: number | null, category_id: number | null, purchase_item_id: number | null, schedule: FinanceDebtSchedule | null, note: string | null }
+export interface FinanceDebtUpdate { name?: string, counterparty_id?: number, deadline?: string | null, account_id?: number | null, category_id?: number | null, schedule?: FinanceDebtSchedule, note?: string | null, active?: boolean, archived?: boolean }
+export interface FinanceDebtPaymentInput { planned_occurrence_id: number | null, amount: string, account_id: number, category_id: number, occurred_on: string, idempotency_key: string, note: string | null }
+export type FinanceFundType = 'regular' | 'emergency'
+export type FinanceFundStorageMode = 'virtual' | 'linked_account'
+export type FinanceFundTopUpMode = 'none' | 'fixed' | 'income_percent' | 'expense_months'
+export interface FinanceFundRule { top_up_mode: FinanceFundTopUpMode, fixed_amount: string | null, income_percent: number | null, expense_months: number | null, build_months: number | null, starts_on: string | null, monthday: number | null, reminder_time: string | null }
+export interface FinanceFundProjection { month: string, complete: boolean, saved_amount: string, target_amount: string | null, remaining_amount: string | null, progress: number | null, suggested_top_up: string | null, required_monthly_pace: string | null, state: 'active' | 'reached' | 'under_funded' | 'over_reserved' | 'spent' | 'unavailable', missing_currencies: FinanceCurrencyCode[], missing_history: boolean, calculation_basis: string | null, conversions: FinancePlanningConversion[] }
+export interface FinanceFundMovement { id: number, action: 'top_up' | 'draw_down' | 'reverse', amount: string, currency: FinanceCurrencyCode, occurred_on: string, transaction_public_id: string | null, reversed: boolean }
+export interface FinanceSavingFund { id: number, name: string, fund_type: FinanceFundType, storage_mode: FinanceFundStorageMode, account_id: number, funding_account_id: number | null, category_id: number | null, currency: FinanceCurrencyCode, target_mode: 'explicit' | 'expense_months', deadline: string | null, rule: FinanceFundRule, active: boolean, archived: boolean, spent: boolean, projection: FinanceFundProjection, movements: FinanceFundMovement[], created_at: string | null, updated_at: string | null }
+export interface FinanceSavingFundInput { name: string, fund_type: FinanceFundType, storage_mode: FinanceFundStorageMode, account_id: number, funding_account_id: number | null, category_id: number | null, currency: FinanceCurrencyCode, target_mode: 'explicit' | 'expense_months', target_amount: string | null, deadline: string | null, rule: FinanceFundRule, note: string | null }
+export interface FinanceSavingFundUpdate { name?: string, funding_account_id?: number | null, category_id?: number | null, target_amount?: string | null, deadline?: string | null, rule?: FinanceFundRule, note?: string | null, active?: boolean, archived?: boolean, spent?: boolean }
+export type FinanceFundMovementInput = { action: 'top_up' | 'draw_down', amount: string, counterparty_account_id: number | null, occurred_on: string, idempotency_key: string, note: string | null } | { action: 'reverse', reverses_movement_id: number, idempotency_key: string, note: string | null }
+export interface FinanceGoalMilestone { id: number, target_value: string, target_date: string | null, achieved: boolean }
+export interface FinanceGoal { id: number, name: string, description: string | null, type: 'finance', kind: 'save' | 'pay_off', target_date: string | null, status: 'active' | 'completed' | 'abandoned', archived: boolean, currency: FinanceCurrencyCode, aggregate_id: number, starting_value: string, target_value: string, current_value: string, remaining_value: string, progress: number, milestones: FinanceGoalMilestone[], created_at: string | null, updated_at: string | null }
+export interface FinanceGoalInput { name: string, description: string | null, target_date: string | null, kind: 'save' | 'pay_off', saving_fund_id: number | null, debt_id: number | null, milestones: Array<{ target_value: string, target_date: string | null }> }
+export interface FinanceGoalUpdate { name?: string, description?: string | null, target_date?: string | null, status?: FinanceGoal['status'], archived?: boolean, milestones?: Array<{ target_value: string, target_date: string | null }> }
+export interface FinanceSourceExpenseInput { source_type: FinanceSourceType, source_id: number, account_id: number, category_id: number, amount: string, occurred_on: string, idempotency_key: string, note: string | null }
+export interface FinanceSourceExpenseResponse { transaction_public_id: string, source: FinanceSourceContext, reversed: boolean }

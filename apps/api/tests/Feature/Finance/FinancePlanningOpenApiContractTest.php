@@ -85,4 +85,27 @@ class FinancePlanningOpenApiContractTest extends TestCase
         sort($registered);
         $this->assertSame($documented, $registered);
     }
+
+    public function test_occurrence_and_cash_flow_contracts_include_all_commitment_sources(): void
+    {
+        $schemas = $this->document()['components']['schemas'];
+
+        $this->assertSame(
+            ['planned', 'actual', 'skipped', 'overdue', 'unavailable'],
+            $schemas['OccurrenceStatus']['enum'],
+        );
+        $this->assertSame(
+            ['recurring_operation', 'debt', 'fund'],
+            $schemas['OccurrenceContext']['properties']['kind']['enum'],
+        );
+        foreach (['original_date', 'date', 'time', 'context', 'action_url'] as $member) {
+            $this->assertContains($member, $schemas['FinancePlannedOccurrence']['required']);
+        }
+        foreach (['recurring_operation', 'debt', 'fund'] as $member) {
+            $this->assertContains($member, $schemas['OccurrenceCounts']['required']);
+        }
+        foreach (['recurring_operation', 'debt', 'emergency_fund'] as $member) {
+            $this->assertContains($member, $schemas['CashFlowCounts']['required']);
+        }
+    }
 }

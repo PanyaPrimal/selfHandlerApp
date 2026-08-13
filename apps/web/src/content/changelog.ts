@@ -19,6 +19,16 @@ export interface ChangelogEntry {
 
 const entries: readonly ChangelogEntry[] = [
   {
+    id: 'debts-funds-financial-goals', date: '2026-08-13', feature: '020-debts-funds-financial-goals',
+    titleKey: 'changelog.entry.financeCommitments.title', summaryKey: 'changelog.entry.financeCommitments.summary',
+    testKey: 'changelog.entry.financeCommitments.test', links: [
+      { labelKey: 'nav.finance', to: '/finance?tab=debts' },
+      { labelKey: 'nav.storage', to: '/storage' },
+      { labelKey: 'nav.supplements', to: '/supplements' },
+    ],
+    limitationKeys: ['changelog.entry.financeCommitments.limit'],
+  },
+  {
     id: 'budget-recurring-cash-flow', date: '2026-08-13', feature: '019-budget-recurring-cash-flow',
     titleKey: 'changelog.entry.financePlanning.title', summaryKey: 'changelog.entry.financePlanning.summary',
     testKey: 'changelog.entry.financePlanning.test', links: [{ labelKey: 'nav.finance', to: '/finance?tab=plans' }],

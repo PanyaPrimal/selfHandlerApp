@@ -30,6 +30,7 @@ const draft = reactive({
 })
 const activeAccounts = computed(() => props.accounts.filter((item) => !item.archived))
 const matchingCategories = computed(() => props.categories.filter((item) => item.direction === draft.direction && !item.archived))
+const planOccurrences = computed(() => props.occurrences.filter((item) => item.context.kind === 'recurring_operation'))
 
 watch(() => props.today, (value) => {
   if (!draft.starts_on) draft.starts_on = value
@@ -142,16 +143,16 @@ function money(value: string | null | undefined, currency: string): string {
 
     <div class="section-heading finance-occurrence-heading"><div><h3>{{ i18n.t('finance.monthPlan') }}</h3><p class="muted">{{ i18n.t('finance.monthPlanHelp') }}</p></div></div>
     <div class="finance-occurrence-list">
-      <article v-for="occurrence in occurrences" :key="occurrence.id" class="finance-card finance-occurrence" :class="`is-${occurrence.status}`">
-        <div><span class="token-caption">{{ occurrence.effective_on }}<template v-if="occurrence.reminder_time"> · {{ occurrence.reminder_time }}</template></span><h3>{{ occurrence.operation_name }}</h3><p class="muted">{{ occurrence.category.label }} · {{ occurrence.account.name }}</p></div>
-        <div class="finance-occurrence__outcome"><strong>{{ financeAmount(occurrence.amount, occurrence.currency, i18n.locale.value) }}</strong><span class="kind-chip">{{ i18n.t(`finance.status.${occurrence.status}` as never) }}</span><small v-if="occurrence.outcome?.transaction_id" class="muted">{{ i18n.t('finance.ledgerReference', { id: occurrence.outcome.transaction_id }) }}</small></div>
+      <article v-for="occurrence in planOccurrences" :key="occurrence.id" class="finance-card finance-occurrence" :class="`is-${occurrence.status}`">
+        <div><span class="token-caption">{{ occurrence.date }}<template v-if="occurrence.time"> · {{ occurrence.time }}</template></span><h3>{{ occurrence.context.name }}</h3><p v-if="occurrence.category || occurrence.account" class="muted">{{ occurrence.category?.label }}<template v-if="occurrence.category && occurrence.account"> · </template>{{ occurrence.account?.name }}</p></div>
+        <div class="finance-occurrence__outcome"><strong>{{ financeAmount(occurrence.context.amount ?? '0.0000', occurrence.context.currency, i18n.locale.value) }}</strong><span class="kind-chip">{{ i18n.t(`finance.status.${occurrence.status}` as never) }}</span><small v-if="occurrence.outcome?.transaction_id" class="muted">{{ i18n.t('finance.ledgerReference', { id: occurrence.outcome.transaction_id }) }}</small></div>
         <div class="form-actions">
-          <button v-if="occurrence.status === 'planned'" type="button" :disabled="busy || occurrence.effective_on > today" @click="outcome(occurrence, 'actual')">{{ i18n.t(occurrence.direction === 'income' ? 'finance.markReceived' : 'finance.markPaid') }}</button>
+          <button v-if="occurrence.status === 'planned'" type="button" :disabled="busy || occurrence.date > today" @click="outcome(occurrence, 'actual')">{{ i18n.t(occurrence.context.direction === 'income' ? 'finance.markReceived' : 'finance.markPaid') }}</button>
           <button v-if="occurrence.status === 'planned'" type="button" class="secondary" :disabled="busy" @click="outcome(occurrence, 'skipped')">{{ i18n.t('finance.skip') }}</button>
           <button v-if="occurrence.status === 'skipped'" type="button" class="secondary" :disabled="busy" @click="outcome(occurrence, null)">{{ i18n.t('finance.clearSkip') }}</button>
         </div>
       </article>
     </div>
-    <p v-if="occurrences.length === 0" class="empty-copy">{{ i18n.t('finance.noOccurrences') }}</p>
+    <p v-if="planOccurrences.length === 0" class="empty-copy">{{ i18n.t('finance.noOccurrences') }}</p>
   </section>
 </template>

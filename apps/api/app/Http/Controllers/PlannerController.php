@@ -93,7 +93,10 @@ class PlannerController extends Controller
 
         $routine = $this->routineFor($occurrence);
         $program = $this->workoutProgramFor($occurrence);
-        if ($occurrence->recurringRule?->owner_type === RecurringRule::OWNER_FINANCE_RECURRING_OPERATION) {
+        if (in_array($occurrence->recurringRule?->owner_type, [
+            RecurringRule::OWNER_FINANCE_RECURRING_OPERATION, RecurringRule::OWNER_FINANCE_DEBT,
+            RecurringRule::OWNER_FINANCE_SAVING_FUND,
+        ], true)) {
             $this->financeOccurrences->setOutcome($user, $occurrence, 'skipped');
 
             return response()->json(['data' => $occurrence->fresh()]);
@@ -162,6 +165,8 @@ class PlannerController extends Controller
             RecurringRule::OWNER_WORKOUT_PROGRAM,
             RecurringRule::OWNER_SUPPLEMENT_COURSE,
             RecurringRule::OWNER_FINANCE_RECURRING_OPERATION,
+            RecurringRule::OWNER_FINANCE_DEBT,
+            RecurringRule::OWNER_FINANCE_SAVING_FUND,
         ], true)
             && PlannedOccurrence::query()
                 ->where('recurring_rule_id', $occurrence->recurring_rule_id)

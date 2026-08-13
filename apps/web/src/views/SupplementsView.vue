@@ -1,24 +1,27 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   clearSupplementIntake,
   createSupplement,
   createSupplementCourse,
   createSupplementStockMovement,
+  createFinanceSourceExpense,
   dismissSupplementRestockProposal,
   getSupplementAdherence,
   getSupplementCourses,
   getSupplementDay,
   getSupplements,
   getSupplementStockMovements,
+  getFinanceAccounts,
+  getFinanceCategories,
   getToday,
   updateSupplement,
   updateSupplementCourse,
   upsertSupplementIntake,
   validationErrors,
 } from '../api/client'
-import type { Supplement, SupplementAdherenceRange, SupplementCourse, SupplementCourseInput, SupplementDay, SupplementInput, SupplementStockMovement, SupplementStockMovementInput } from '../api/types'
+import type { FinanceAccount, FinanceCategory, Supplement, SupplementAdherenceRange, SupplementCourse, SupplementCourseInput, SupplementDay, SupplementInput, SupplementStockMovement, SupplementStockMovementInput } from '../api/types'
 import AsyncState from '../components/AsyncState.vue'
 import { UiDatePicker } from '../components/ui'
 import AdherenceCard from '../components/supplements/AdherenceCard.vue'
@@ -52,9 +55,13 @@ const error = ref<string | null>(null)
 const loadError = ref<string | null>(null)
 const feedback = ref<string | null>(null)
 const fieldErrors = ref<Record<string, string[]>>({})
+const financeAccounts = ref<FinanceAccount[]>([])
+const financeCategories = ref<FinanceCategory[]>([])
 
 const activeSupplements = computed(() => supplements.value.filter((item) => !item.is_archived))
 const highlightedCourse = computed(() => Number(route.query.course || 0))
+const highlightedRestock = computed(() => typeof route.query.restock === 'string' && /^\d+$/.test(route.query.restock)
+  ? Number(route.query.restock) : null)
 
 function minusDays(date: string, count: number): string {
   const value = new Date(`${date}T12:00:00Z`)
@@ -68,20 +75,34 @@ async function load(): Promise<void> {
   try {
     if (!today.value) today.value = (await getToday()).date
     if (!selectedDate.value) selectedDate.value = typeof route.query.date === 'string' ? route.query.date : today.value
-    const [referenceResponse, courseResponse, selectedDay, range] = await Promise.all([
+    const [referenceResponse, courseResponse, selectedDay, range, accountList, categoryList] = await Promise.all([
       getSupplements('all'), getSupplementCourses('all'), getSupplementDay(selectedDate.value),
       getSupplementAdherence(minusDays(selectedDate.value, 6), selectedDate.value),
+      getFinanceAccounts(), getFinanceCategories('expense'),
     ])
     supplements.value = referenceResponse.data
     courses.value = courseResponse.data
     day.value = selectedDay
     adherence.value = range
-    const restockId = Number(route.query.restock || 0)
-    if (restockId) activeTab.value = 'stock'
+    financeAccounts.value = accountList.filter((item) => !item.archived)
+    financeCategories.value = categoryList.filter((item) => !item.archived)
+    if (highlightedRestock.value !== null) {
+      activeTab.value = 'stock'
+      const focused = supplements.value.find((item) => item.restock_proposal?.id === highlightedRestock.value)
+      if (focused) {
+        stockSupplement.value = focused
+        movements.value[focused.id] ??= await getSupplementStockMovements(focused.id)
+      }
+    }
   } catch (current) {
     loadError.value = current instanceof Error ? current.message : i18n.t('supplements.loadFailed')
   } finally {
     loading.value = false
+    await nextTick()
+    if (highlightedRestock.value !== null) {
+      document.querySelector<HTMLElement>(`[data-restock-proposal="${highlightedRestock.value}"]`)
+        ?.scrollIntoView({ block: 'center' })
+    }
   }
 }
 
@@ -175,6 +196,17 @@ async function dismissProposal(id: number): Promise<void> {
   finally { busyKey.value = null }
 }
 
+async function postRestockExpense(id: number, payload: { account_id: number, category_id: number, amount: string, occurred_on: string }): Promise<void> {
+  busyKey.value = `proposal-${id}`
+  try {
+    await createFinanceSourceExpense({ source_type: 'supplement_restock_proposal', source_id: id,
+      ...payload, idempotency_key: `restock-${id}-${Date.now()}`, note: null })
+    feedback.value = i18n.t('supplements.expenseSaved')
+    await load()
+  } catch (current) { error.value = current instanceof Error ? current.message : i18n.t('supplements.saveFailed') }
+  finally { busyKey.value = null }
+}
+
 watch(() => route.query.date, (value) => {
   if (typeof value === 'string' && value !== selectedDate.value) void chooseDate(value)
 })
@@ -214,7 +246,7 @@ onMounted(load)
         <div class="supplement-grid">
           <article v-for="item in supplements" :key="item.id" class="supplement-card" :class="{ 'is-muted': item.is_archived }">
             <header><div><span class="token-caption">{{ i18n.t(`supplements.category.${item.category}` as never) }} · {{ i18n.t(`supplements.form.${item.form}` as never) }}</span><h3>{{ item.name }}</h3></div><span class="status-chip">{{ item.is_archived ? i18n.t('common.archived') : i18n.t('common.current') }}</span></header>
-            <ForecastCard :supplement="item" :busy="busyKey === `proposal-${item.restock_proposal?.id}`" @dismiss="dismissProposal" />
+            <ForecastCard :supplement="item" :finance-accounts="financeAccounts" :finance-categories="financeCategories" :today="today" :focused-restock-id="highlightedRestock" :busy="busyKey === `proposal-${item.restock_proposal?.id}`" @dismiss="dismissProposal" @expense="postRestockExpense" />
             <div class="form-actions"><button type="button" class="secondary" @click="editingSupplement = item; showSupplementEditor = true">{{ i18n.t('common.edit') }}</button><button type="button" class="ghost" :disabled="busyKey === `reference-${item.id}`" @click="toggleSupplement(item)">{{ i18n.t(item.is_archived ? 'supplements.restore' : 'supplements.archive') }}</button><button type="button" class="text-button" @click="openStock(item)">{{ i18n.t('supplements.manageStock') }}</button></div>
           </article>
         </div>
@@ -229,7 +261,7 @@ onMounted(load)
       <section v-else class="panel" aria-labelledby="stock-heading">
         <div class="section-heading"><div><h2 id="stock-heading">{{ i18n.t('supplements.stock') }}</h2><p class="muted">{{ i18n.t('supplements.stockHelp') }}</p></div></div>
         <div class="stock-picker"><button v-for="item in activeSupplements" :key="item.id" type="button" class="secondary" :class="{ 'is-active': stockSupplement?.id === item.id }" @click="openStock(item)">{{ item.name }}</button></div>
-        <template v-if="stockSupplement"><ForecastCard :supplement="stockSupplement" :busy="busyKey?.startsWith('proposal')" @dismiss="dismissProposal" /><StockEditor :key="`${stockSupplement.id}-${movements[stockSupplement.id]?.length ?? 0}`" :supplement="stockSupplement" :today="today" :busy="busyKey === 'stock'" @save="saveStock" @cancel="stockSupplement = null" /><div class="movement-list"><article v-for="movement in movements[stockSupplement.id] ?? []" :key="movement.id"><strong>{{ movement.quantity_delta }} {{ i18n.t(`supplements.unit.${movement.stock_unit}` as never) }}</strong><span>{{ i18n.t(`supplements.${movement.kind}` as never) }} · {{ movement.effective_on }}</span><small v-if="movement.reason" class="muted">{{ movement.reason }}</small></article></div></template>
+        <template v-if="stockSupplement"><ForecastCard :supplement="stockSupplement" :finance-accounts="financeAccounts" :finance-categories="financeCategories" :today="today" :focused-restock-id="highlightedRestock" :busy="busyKey?.startsWith('proposal')" @dismiss="dismissProposal" @expense="postRestockExpense" /><StockEditor :key="`${stockSupplement.id}-${movements[stockSupplement.id]?.length ?? 0}`" :supplement="stockSupplement" :today="today" :busy="busyKey === 'stock'" @save="saveStock" @cancel="stockSupplement = null" /><div class="movement-list"><article v-for="movement in movements[stockSupplement.id] ?? []" :key="movement.id"><strong>{{ movement.quantity_delta }} {{ i18n.t(`supplements.unit.${movement.stock_unit}` as never) }}</strong><span>{{ i18n.t(`supplements.${movement.kind}` as never) }} · {{ movement.effective_on }}</span><small v-if="movement.reason" class="muted">{{ movement.reason }}</small></article></div></template>
         <p v-else class="empty-copy">{{ i18n.t('supplements.chooseStockReference') }}</p>
       </section>
     </AsyncState>

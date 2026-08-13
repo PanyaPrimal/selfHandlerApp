@@ -50,4 +50,14 @@ class FinanceAccount extends Model
     {
         return $this->hasMany(FinanceOccurrenceDetail::class, 'account_id');
     }
+
+    public function backedSavingFunds(): HasMany
+    {
+        return $this->hasMany(FinanceSavingFund::class, 'account_id');
+    }
+
+    public function fundedSavingFunds(): HasMany
+    {
+        return $this->hasMany(FinanceSavingFund::class, 'funding_account_id');
+    }
 }

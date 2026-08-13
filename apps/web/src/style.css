@@ -1096,6 +1096,26 @@ h3 {
   gap: 16px;
 }
 
+.goal-finance-summary {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  max-width: 32rem;
+}
+
+.goal-finance-summary p {
+  margin: 0;
+}
+
+.goal-finance-summary .button-link {
+  justify-self: start;
+}
+
+.is-deep-linked {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
 .routine-link-form {
   display: grid;
   gap: 12px;
@@ -3234,6 +3254,14 @@ button.text-button {
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
+.finance-form--compact {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+}
+
+.finance-form--commitment {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .finance-form__actions {
   align-self: end;
 }
@@ -3380,6 +3408,67 @@ button.text-button {
   overflow-wrap: anywhere;
 }
 
+.finance-evidence li {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.finance-evidence li .form-actions,
+.finance-evidence li > button {
+  margin-top: 6px;
+}
+
+.finance-source-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow-wrap: anywhere;
+}
+
+.finance-milestones {
+  display: grid;
+  gap: 6px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.finance-milestones li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border-left: 3px solid var(--border);
+}
+
+.finance-milestones li.achieved {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.purchase-finance {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+}
+
+.purchase-finance .capture-form {
+  align-items: end;
+}
+
+.purchase-finance .form-actions {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .finance-occurrence-list {
   display: grid;
   gap: 10px;
@@ -3405,7 +3494,9 @@ button.text-button {
   .finance-form,
   .finance-form--account,
   .finance-form--budget,
-  .finance-form--plan {
+  .finance-form--plan,
+  .finance-form--compact,
+  .finance-form--commitment {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -3428,6 +3519,8 @@ button.text-button {
   .finance-form--account,
   .finance-form--budget,
   .finance-form--plan,
+  .finance-form--compact,
+  .finance-form--commitment,
   .finance-card-grid,
   .finance-category-columns,
   .finance-editor-grid,
@@ -3476,12 +3569,31 @@ button.text-button {
     flex-direction: column;
   }
 
+  .finance-source-link {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .finance-category-group li {
     grid-template-columns: 1fr auto;
   }
 
   .finance-category-group li small {
     grid-column: 1 / -1;
+  }
+
+  .purchase-finance .form-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .purchase-finance .form-actions > button,
+  .purchase-finance .form-actions > .button {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+    white-space: normal;
   }
 }
 

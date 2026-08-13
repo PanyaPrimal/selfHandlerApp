@@ -110,6 +110,22 @@ erDiagram
 
 ## Entities (logical)
 
+### Feature 020 physical mapping
+
+The delivered schema uses `finance_counterparties`, `finance_debts`,
+`finance_debt_occurrence_details`, `finance_debt_payment_facts`, `finance_saving_funds`,
+`finance_fund_movements`, `finance_fund_occurrence_details`,
+`finance_fund_occurrence_facts`, and `finance_goal_details`. The existing
+`finance_transaction_groups` carries the immutable optional source pair; the existing shared
+`recurring_rules` and `planned_occurrences` own schedule identity. Logical TRANSACTION below maps to
+one immutable transaction group plus its signed ledger entries, not a mutable single-row balance.
+
+Debt remaining, fund saved/reserved/available amounts, emergency targets/top-ups, and Finance Goal
+progress are projections. No remaining balance, accumulated fund balance, or goal-progress counter is
+stored. A virtual fund uses an append-only allocation movement ledger without moving account money; a
+linked fund uses ordinary paired same-currency transfers. Fixed debt/fund occurrence details preserve
+historical snapshots and accepted actuals are corrected only through linked reversal.
+
 ### Money core
 - **USER** — the owner boundary. The related Profile stores the **base currency**.
 - **CURRENCY** — currency reference table (UAH/USD/EUR…). Currency code.
@@ -177,15 +193,19 @@ erDiagram
 
 1. ✅ **Account opening balance:** the first immutable adjustment group; no opening column.
 2. ✅ **Transfer:** one immutable transaction group with two signed ledger entries, one per account.
-3. **Saving fund ↔ emergency fund:** a single SAVING_FUND with flags vs separate tables. ⬜ open (leaning toward a single one with flags).
+3. ✅ **Saving fund ↔ emergency fund:** one `finance_saving_funds` table with explicit `fund_type`,
+   target mode, top-up mode, and evidence fields; no subtype table or opaque JSON.
 4. **Virtual envelope:** ✅ decision — **"available balance" = account balance − Σ envelopes on it**, the envelope does NOT move money physically. Invariant: Σ envelopes ≤ balance. It's a computed value, not separate money.
-5. **Counterparty:** COUNTERPARTY as an entity vs a string in DEBT. ⬜ open (recommendation — an entity from the start, cheaper than deduping later).
+5. ✅ **Counterparty:** an owned normalized `finance_counterparties` entity with archive guards while
+   active debts reference it.
 6. ✅ **Base currency → in the user's profile/settings** (Module 0), not in the Finance settings. Closed by the "Profile is the source of inputs" principle.
 7. ✅ **RECURRING_RULE → RRULE (RFC 5545)** via an off-the-shelf library. A cross-cutting format, see the [Modules Spec](modules.md).
 8. ✅ **PLANNED_OCCURRENCE → materialization with a look-ahead window** (+90 days) + a unique `(rule_id, occurrence_date)` for idempotency. (review recommendation)
 9. ✅ **Money → DECIMAL(19,4)** (or minor units as BIGINT) + a `Money` value object (amount+currency). Globally, not float. Roll-up currency conversion happens **at read time** using the chosen rate (the current one for "now", the historical one for "back then"); don't store the converted value.
 10. **Purchase ↔ transaction (Module 7):** ✅ polymorphic `TRANSACTION.source` + the "bought ⟺ a transaction exists" invariant. FK on the transaction side.
 11. ✅ **Polymorphism by type (cross-cutting)** → a hybrid: class-table for entities with divergent fields (Workouts), single-table + nullable/JSON for similar ones (Goals/Storage/Debts). No STI magic. Pinned down in [Data Conventions](data-conventions.md).
-12. ✅ **Aggregates** → a cached value + event-driven recompute (Observer) for hot derived values + a daily rollup for analytics. See [Data Conventions](data-conventions.md).
+12. ✅ **Aggregates** → bounded grouped source-of-truth projections for balances, remaining principal,
+    funds, and Finance Goals. Rebuildable caches or daily rollups wait for measured analytics demand;
+    they are never authoritative. See [Data Conventions](data-conventions.md).
 
 > Money (#9), transfer (#2), envelope (#4), currencies, user_id, deletion/archival, time zones — consolidated in [Data Conventions](data-conventions.md).

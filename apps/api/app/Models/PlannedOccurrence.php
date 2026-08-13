@@ -44,6 +44,8 @@ class PlannedOccurrence extends Model
         'workout_session_id',
         'supplement_intake_id',
         'finance_occurrence_fact_id',
+        'finance_debt_payment_fact_id',
+        'finance_fund_occurrence_fact_id',
         'materialized_at',
     ];
 
@@ -69,6 +71,8 @@ class PlannedOccurrence extends Model
                 $occurrence->workout_session_id,
                 $occurrence->supplement_intake_id,
                 $occurrence->finance_occurrence_fact_id,
+                $occurrence->finance_debt_payment_fact_id,
+                $occurrence->finance_fund_occurrence_fact_id,
             ])->filter(fn ($id): bool => $id !== null)->count() > 1) {
                 throw new RuntimeException('An occurrence may link to only one domain fact.');
             }
@@ -86,6 +90,10 @@ class PlannedOccurrence extends Model
                     ->whereKey($occurrence->supplement_intake_id)->value('user_id'),
                 $occurrence->finance_occurrence_fact_id !== null => FinanceOccurrenceFact::query()
                     ->whereKey($occurrence->finance_occurrence_fact_id)->value('user_id'),
+                $occurrence->finance_debt_payment_fact_id !== null => FinanceDebtPaymentFact::query()
+                    ->whereKey($occurrence->finance_debt_payment_fact_id)->value('user_id'),
+                $occurrence->finance_fund_occurrence_fact_id !== null => FinanceFundOccurrenceFact::query()
+                    ->whereKey($occurrence->finance_fund_occurrence_fact_id)->value('user_id'),
                 default => $occurrence->user_id,
             };
 
@@ -144,6 +152,26 @@ class PlannedOccurrence extends Model
         return $this->hasOne(FinanceOccurrenceDetail::class);
     }
 
+    public function financeDebtDetail(): HasOne
+    {
+        return $this->hasOne(FinanceDebtOccurrenceDetail::class);
+    }
+
+    public function financeFundDetail(): HasOne
+    {
+        return $this->hasOne(FinanceFundOccurrenceDetail::class);
+    }
+
+    public function financeDebtPaymentFact(): BelongsTo
+    {
+        return $this->belongsTo(FinanceDebtPaymentFact::class);
+    }
+
+    public function financeFundOccurrenceFact(): BelongsTo
+    {
+        return $this->belongsTo(FinanceFundOccurrenceFact::class);
+    }
+
     public function sleepDetail(): HasOne
     {
         return $this->hasOne(SleepOccurrenceDetail::class);
@@ -156,6 +184,8 @@ class PlannedOccurrence extends Model
             || $this->sleep_log_id !== null
             || $this->workout_session_id !== null
             || $this->supplement_intake_id !== null
-            || $this->finance_occurrence_fact_id !== null;
+            || $this->finance_occurrence_fact_id !== null
+            || $this->finance_debt_payment_fact_id !== null
+            || $this->finance_fund_occurrence_fact_id !== null;
     }
 }

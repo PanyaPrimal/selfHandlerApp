@@ -8,9 +8,14 @@ use App\Http\Controllers\Finance\FinanceAccountController;
 use App\Http\Controllers\Finance\FinanceBudgetController;
 use App\Http\Controllers\Finance\FinanceCashFlowController;
 use App\Http\Controllers\Finance\FinanceCategoryController;
+use App\Http\Controllers\Finance\FinanceCounterpartyController;
+use App\Http\Controllers\Finance\FinanceDebtController;
+use App\Http\Controllers\Finance\FinanceGoalController;
 use App\Http\Controllers\Finance\FinanceOccurrenceController;
 use App\Http\Controllers\Finance\FinanceRecurringOperationController;
 use App\Http\Controllers\Finance\FinanceReferenceController;
+use App\Http\Controllers\Finance\FinanceSavingFundController;
+use App\Http\Controllers\Finance\FinanceSourceExpenseController;
 use App\Http\Controllers\Finance\FinanceSummaryController;
 use App\Http\Controllers\Finance\FinanceTransactionController;
 use App\Http\Controllers\Finance\FinanceTransferController;
@@ -66,6 +71,21 @@ Route::middleware(['auth:sanctum', 'mobile.token'])->group(function () {
 });
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/finance/counterparties', [FinanceCounterpartyController::class, 'index']);
+    Route::post('/finance/counterparties', [FinanceCounterpartyController::class, 'store']);
+    Route::patch('/finance/counterparties/{counterparty}', [FinanceCounterpartyController::class, 'update']);
+    Route::get('/finance/debts', [FinanceDebtController::class, 'index']);
+    Route::post('/finance/debts', [FinanceDebtController::class, 'store']);
+    Route::patch('/finance/debts/{debt}', [FinanceDebtController::class, 'update']);
+    Route::post('/finance/debts/{debt}/payments', [FinanceDebtController::class, 'payment']);
+    Route::get('/finance/saving-funds', [FinanceSavingFundController::class, 'index']);
+    Route::post('/finance/saving-funds', [FinanceSavingFundController::class, 'store']);
+    Route::patch('/finance/saving-funds/{fund}', [FinanceSavingFundController::class, 'update']);
+    Route::post('/finance/saving-funds/{fund}/movements', [FinanceSavingFundController::class, 'movement']);
+    Route::get('/finance/goals', [FinanceGoalController::class, 'index']);
+    Route::post('/finance/goals', [FinanceGoalController::class, 'store']);
+    Route::patch('/finance/goals/{goal}', [FinanceGoalController::class, 'update']);
+    Route::post('/finance/source-expenses', [FinanceSourceExpenseController::class, 'store']);
     Route::get('/finance/accounts', [FinanceAccountController::class, 'index']);
     Route::get('/finance/budgets', [FinanceBudgetController::class, 'index']);
     Route::post('/finance/budgets', [FinanceBudgetController::class, 'store']);

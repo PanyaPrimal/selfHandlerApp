@@ -57,5 +57,10 @@ class NotificationOpenApiContractTest extends TestCase
         $this->assertSame(InAppNotification::CATEGORIES, $schemas['NotificationCategory']['enum']);
         $this->assertSame(InAppNotification::TYPES, $schemas['NotificationType']['enum']);
         $this->assertSame(NotificationSettings::SNOOZE_MINUTES, $schemas['NotificationListResponse']['properties']['snooze_options']['const']);
+        $this->assertContains(InAppNotification::CATEGORY_FINANCE, $schemas['NotificationCategory']['enum']);
+        $this->assertContains(InAppNotification::TYPE_FINANCE_REMINDER, $schemas['NotificationType']['enum']);
+        $actionPattern = $schemas['DeliveredNotification']['properties']['action_url']['pattern'];
+        $this->assertMatchesRegularExpression("#{$actionPattern}#", '/finance?tab=debts&occurrence=1');
+        $this->assertMatchesRegularExpression("#{$actionPattern}#", '/finance?tab=funds&occurrence=2');
     }
 }

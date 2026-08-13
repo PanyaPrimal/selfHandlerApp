@@ -36,20 +36,30 @@ class FinanceOccurrenceController extends Controller
         $this->materializer->materializeForUser($request->user(), $from->toDateString());
         $models = PlannedOccurrence::query()->ownedBy($request->user())
             ->whereIn('recurring_rule_id', RecurringRule::query()->ownedBy($request->user())
-                ->where('owner_type', RecurringRule::OWNER_FINANCE_RECURRING_OPERATION)->select('id'))
+                ->whereIn('owner_type', [RecurringRule::OWNER_FINANCE_RECURRING_OPERATION,
+                    RecurringRule::OWNER_FINANCE_DEBT, RecurringRule::OWNER_FINANCE_SAVING_FUND])->select('id'))
             ->where(function ($query) use ($from, $to): void {
                 $query->where(function ($original) use ($from, $to): void {
                     $original->whereNull('rescheduled_to')
                         ->whereBetween('occurrence_date', [$from->toDateString(), $to->toDateString()]);
                 })->orWhereBetween('rescheduled_to', [$from->toDateString(), $to->toDateString()]);
             })
-            ->with(['financeDetail.account', 'financeDetail.category', 'financeOccurrenceFact.transactionGroup'])
+            ->with($this->relations())
             ->orderByRaw('COALESCE(rescheduled_to, occurrence_date)')->orderBy('occurrence_time')->orderBy('id')->get();
+
+        $data = FinancePlannedOccurrenceResource::collection($models)->resolve($request);
+        $counts = ['total' => count($data), 'planned' => 0, 'actual' => 0, 'skipped' => 0,
+            'overdue' => 0, 'unavailable' => 0, 'recurring_operation' => 0, 'debt' => 0, 'fund' => 0];
+        foreach ($data as $row) {
+            $counts[$row['status']]++;
+            $counts[$row['context']['kind']]++;
+        }
 
         return response()->json([
             'from' => $from->toDateString(),
             'to' => $to->toDateString(),
-            'data' => FinancePlannedOccurrenceResource::collection($models)->resolve($request),
+            'data' => $data,
+            'counts' => $counts,
         ]);
     }
 
@@ -71,10 +81,20 @@ class FinanceOccurrenceController extends Controller
 
     private function one(PlannedOccurrence $occurrence, Request $request, int $status = 200): JsonResponse
     {
-        $occurrence->load(['financeDetail.account', 'financeDetail.category', 'financeOccurrenceFact.transactionGroup']);
+        $occurrence->load($this->relations());
 
         return response()->json([
             'data' => FinancePlannedOccurrenceResource::make($occurrence)->resolve($request),
         ], $status);
+    }
+
+    /** @return list<string> */
+    private function relations(): array
+    {
+        return ['recurringRule', 'financeDetail.account', 'financeDetail.category',
+            'financeOccurrenceFact.transactionGroup', 'financeDebtDetail',
+            'financeDebtPaymentFact.transactionGroup.reversedBy', 'financeFundDetail',
+            'financeFundOccurrenceFact.movement.reversedBy', 'financeFundOccurrenceFact.movement.transactionGroup',
+            'financeFundOccurrenceFact.transactionGroup.reversedBy'];
     }
 }

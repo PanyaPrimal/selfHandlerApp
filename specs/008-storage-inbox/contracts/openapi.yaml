@@ -248,8 +248,8 @@ components:
   schemas:
     ItemType:
       type: string
-      description: Purchases and list items arrive with the features that own them.
-      enum: [task, idea]
+      description: Purchases can carry an optional estimate and become finance sources.
+      enum: [task, idea, purchase]
     ItemStatus:
       type: string
       description: |
@@ -277,6 +277,8 @@ components:
         - description
         - status
         - priority
+        - estimated_amount
+        - estimated_currency_code
         - due_on
         - project_id
         - parent_id
@@ -299,6 +301,14 @@ components:
           oneOf:
             - $ref: '#/components/schemas/ItemPriority'
             - type: 'null'
+        estimated_amount:
+          type: [string, 'null']
+          pattern: '^\d+(\.\d{1,4})?$'
+          description: Positive estimate, available only for purchase items and paired with a currency.
+        estimated_currency_code:
+          type: [string, 'null']
+          pattern: '^[A-Z]{3}$'
+          description: Estimate currency, available only for purchase items and paired with an amount.
         due_on:
           type: [string, 'null']
           format: date
@@ -372,6 +382,14 @@ components:
           oneOf:
             - $ref: '#/components/schemas/ItemPriority'
             - type: 'null'
+        estimated_amount:
+          type: [string, 'null']
+          pattern: '^\d+(\.\d{1,4})?$'
+          description: Positive estimate, available only for purchase items and paired with a currency.
+        estimated_currency_code:
+          type: [string, 'null']
+          pattern: '^[A-Z]{3}$'
+          description: Estimate currency, available only for purchase items and paired with an amount.
         due_on:
           type: [string, 'null']
           format: date

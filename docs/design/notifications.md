@@ -225,3 +225,16 @@ Extended by feature 019:
    to the validated Finance budget or plan query contract.
 4. Debt/fund/goal/restock notifications, provider push, stopped-app wakeup, and native offline outcome
    authority remain deferred to their owning features.
+
+Extended by feature 020:
+
+1. Timed pending fixed-debt and eligible saving-fund occurrences reuse `finance_reminder`, the Finance
+   category, planned-occurrence identity, quiet hours, delivery-locale rendering, escalation, snooze,
+   and Android local presentation.
+2. Debt/fund lifecycle, actual, skip, clear, reversal, corrected repayment, and fund target eligibility
+   are reconciled from the Finance-owned occurrence projection; Notifications never reduces principal
+   or moves reserved money.
+3. Safe actions point only to validated owned debt/fund occurrence URLs. Finance Goals and source
+   expenses do not invent reminder families in this increment.
+4. Provider push, stopped-app wakeup, interest notices, investment alerts, and native offline outcome
+   authority remain deferred.

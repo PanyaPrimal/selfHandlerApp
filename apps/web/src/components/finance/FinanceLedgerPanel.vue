@@ -4,7 +4,7 @@ import type { FinanceAccount, FinanceCategory, FinanceTransactionGroup, FinanceT
 import { financeAmount } from '../../finance/money'
 import { useI18n } from '../../i18n'
 
-const props = defineProps<{ accounts: FinanceAccount[], categories: FinanceCategory[], transactions: FinanceTransactionGroup[], today: string, busy?: boolean }>()
+const props = defineProps<{ accounts: FinanceAccount[], categories: FinanceCategory[], transactions: FinanceTransactionGroup[], today: string, focusedTransactionId?: string | null, busy?: boolean }>()
 const emit = defineEmits<{ actual: [FinanceTransactionInput], transfer: [FinanceTransferInput], reverse: [FinanceTransactionGroup] }>()
 const i18n = useI18n()
 const actual = reactive({ kind: 'expense' as 'income' | 'expense', account_id: 0, category_id: 0, amount: '', occurred_on: props.today, note: '', tag: '' })
@@ -65,8 +65,9 @@ function saveTransfer(): void {
       </form>
     </div>
     <div class="finance-history" role="list" :aria-label="i18n.t('finance.history')">
-      <article v-for="group in transactions" :key="group.id" role="listitem" class="finance-history-item">
+      <article v-for="group in transactions" :key="group.id" role="listitem" class="finance-history-item" :class="{ 'is-deep-linked': group.id === focusedTransactionId }" :data-finance-transaction="group.id">
         <header><div><span class="token-caption">{{ group.occurred_on }} · {{ i18n.t(`finance.kind.${group.kind}` as never) }}</span><h3>{{ group.note || i18n.t('finance.noNote') }}</h3></div><span v-if="group.reversed_by_id || group.reverses_id" class="status-chip">{{ i18n.t(group.reverses_id ? 'finance.reversal' : 'finance.reversed') }}</span></header>
+        <a v-if="group.source" class="finance-source-link" :href="group.source.action_url"><span>{{ i18n.t('finance.source') }}: {{ group.source.label }}</span><small>{{ i18n.t(group.source.active ? 'finance.sourceActive' : 'finance.sourceHistorical') }}</small></a>
         <div class="finance-legs"><span v-for="entry in group.entries" :key="entry.id"><span>{{ entry.account_name }}<small v-if="entry.category_label"> · {{ entry.category_label }}</small></span><strong>{{ financeAmount(entry.delta_amount, entry.currency, i18n.locale.value) }}</strong></span></div>
         <button v-if="!group.reversed_by_id && !group.reverses_id" type="button" class="text-button" :disabled="busy" @click="emit('reverse', group)">{{ i18n.t('finance.reverse') }}</button>
       </article>

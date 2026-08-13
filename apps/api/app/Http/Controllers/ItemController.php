@@ -84,6 +84,9 @@ class ItemController extends Controller
         $tags = $this->pullTags($data);
 
         $item = DB::transaction(function () use ($data, $tags, $user): Item {
+            if (($data['type'] ?? Item::TYPE_TASK) === Item::TYPE_PURCHASE && ! array_key_exists('status', $data)) {
+                $data['status'] = Item::STATUS_ACTIVE;
+            }
             $item = new Item(['user_id' => $user->id, ...$data]);
 
             if (array_key_exists('status', $data)) {
@@ -199,6 +202,8 @@ class ItemController extends Controller
             'description' => ['sometimes', 'nullable', 'string', 'max:5000'],
             'status' => ['sometimes', Rule::in(Item::STATUSES)],
             'priority' => ['sometimes', 'nullable', Rule::in(Item::PRIORITIES)],
+            'estimated_amount' => ['sometimes', 'nullable', 'string', 'max:32'],
+            'estimated_currency_code' => ['sometimes', 'nullable', 'string', 'size:3'],
             'due_on' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
             'project_id' => ['sometimes', 'nullable', 'integer'],
             'parent_id' => ['sometimes', 'nullable', 'integer'],
@@ -211,6 +216,16 @@ class ItemController extends Controller
             $this->validateTitle($validator, $request);
             $this->validateProject($validator, $request);
             $this->validateParent($validator, $request, $item);
+            $type = (string) ($request->input('type') ?? $item?->type ?? Item::TYPE_TASK);
+            $amount = $request->has('estimated_amount') ? $request->input('estimated_amount') : $item?->estimated_amount;
+            $currency = $request->has('estimated_currency_code') ? $request->input('estimated_currency_code') : $item?->estimated_currency_code;
+            if (($amount === null) !== ($currency === null) || ($amount !== null && ($type !== Item::TYPE_PURCHASE
+                || ! preg_match('/^\d+(?:\.\d{1,4})?$/', (string) $amount) || bccomp((string) $amount, '0', 4) <= 0))) {
+                $validator->errors()->add('estimated_amount', __('messages.finance_purchase_estimate_invalid'));
+            }
+            if ($type === Item::TYPE_PURCHASE && $request->input('status') === Item::STATUS_DONE) {
+                $validator->errors()->add('status', __('messages.finance_purchase_done_controlled'));
+            }
         });
 
         $data = $validator->validate();

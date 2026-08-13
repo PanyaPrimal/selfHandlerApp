@@ -2,13 +2,18 @@
 
 namespace App\Services;
 
+use App\Models\FinanceDebt;
+use App\Models\FinanceDebtOccurrenceDetail;
+use App\Models\FinanceFundOccurrenceDetail;
 use App\Models\FinanceOccurrenceDetail;
 use App\Models\FinanceRecurringOperation;
+use App\Models\FinanceSavingFund;
 use App\Models\PlannedOccurrence;
 use App\Models\RecurringRule;
 use App\Models\SleepOccurrenceDetail;
 use App\Models\SleepPlan;
 use App\Models\User;
+use App\Services\Finance\FinanceFundProjectionService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -29,7 +34,10 @@ class RecurrenceMaterializer
 {
     public const WINDOW_DAYS = 90;
 
-    public function __construct(private readonly RecurringRuleExpander $expander) {}
+    public function __construct(
+        private readonly RecurringRuleExpander $expander,
+        private readonly FinanceFundProjectionService $fundProjections,
+    ) {}
 
     /**
      * Bring one rule's window up to date.
@@ -73,7 +81,8 @@ class RecurrenceMaterializer
                 ->get([
                     'id', 'occurrence_date', 'rescheduled_to', 'slot', 'routine_log_id', 'habit_log_id',
                     'sleep_log_id', 'workout_session_id', 'supplement_intake_id',
-                    'finance_occurrence_fact_id',
+                    'finance_occurrence_fact_id', 'finance_debt_payment_fact_id',
+                    'finance_fund_occurrence_fact_id',
                 ]);
 
             $known = $existing->map(fn (PlannedOccurrence $occurrence): string => $this->occurrenceKey(
@@ -103,6 +112,8 @@ class RecurrenceMaterializer
                         'workout_session_id' => null,
                         'supplement_intake_id' => null,
                         'finance_occurrence_fact_id' => null,
+                        'finance_debt_payment_fact_id' => null,
+                        'finance_fund_occurrence_fact_id' => null,
                         'materialized_at' => $now,
                         'created_at' => $now,
                         'updated_at' => $now,
@@ -123,6 +134,8 @@ class RecurrenceMaterializer
                     ->whereNull('workout_session_id')
                     ->whereNull('supplement_intake_id')
                     ->whereNull('finance_occurrence_fact_id')
+                    ->whereNull('finance_debt_payment_fact_id')
+                    ->whereNull('finance_fund_occurrence_fact_id')
                     ->update([
                         'occurrence_time' => $slotOccurrences->first()['occurrence_time'],
                         'materialized_at' => now(),
@@ -155,7 +168,17 @@ class RecurrenceMaterializer
                 $this->syncFinanceDetails($rule, $from, $to, $enabled);
             }
 
-            $rule->forceFill(['last_materialized_until' => $to])->save();
+            if ($rule->owner_type === RecurringRule::OWNER_FINANCE_DEBT) {
+                $this->syncDebtDetails($rule, $from, $to, $enabled);
+            }
+
+            if ($rule->owner_type === RecurringRule::OWNER_FINANCE_SAVING_FUND) {
+                $this->syncFundDetails($rule, $from, $to, $enabled);
+            }
+
+            // A disabled owner keeps no coverage marker: if it is enabled again
+            // outside its module service, the next global pass must rebuild it.
+            $rule->forceFill(['last_materialized_until' => $enabled ? $to : null])->save();
 
             return PlannedOccurrence::query()
                 ->where('recurring_rule_id', $rule->id)
@@ -171,20 +194,27 @@ class RecurrenceMaterializer
     {
         $timezone = $user->calendarTimezone();
         $from = $today ?? CarbonImmutable::now($timezone)->toDateString();
+        $until = CarbonImmutable::parse($from, $timezone)->addDays(self::WINDOW_DAYS)->toDateString();
         $written = 0;
 
         RecurringRule::query()
             ->ownedBy($user)
             ->with(['ruleWeekdays', 'ruleSlots', 'ruleMonthdays'])
             ->orderBy('id')
-            ->chunk(100, function ($rules) use (&$written, $from): void {
+            ->chunk(100, function ($rules) use (&$written, $from, $until): void {
                 $enabled = $this->enabledOwners($rules);
 
                 foreach ($rules as $rule) {
+                    $ownerEnabled = $enabled[$this->ownerKey($rule->owner_type, (int) $rule->owner_id)] ?? false;
+                    $covered = $rule->last_materialized_until !== null
+                        && $rule->last_materialized_until->format('Y-m-d') >= $until;
+                    if ($ownerEnabled && $covered) {
+                        continue;
+                    }
                     $written += $this->materialize(
                         $rule,
                         $from,
-                        $enabled[$this->ownerKey($rule->owner_type, (int) $rule->owner_id)] ?? false,
+                        $ownerEnabled,
                     );
                 }
             });
@@ -215,6 +245,8 @@ class RecurrenceMaterializer
                 RecurringRule::OWNER_WORKOUT_PROGRAM => 'workout_programs',
                 RecurringRule::OWNER_SUPPLEMENT_COURSE => 'supplement_courses',
                 RecurringRule::OWNER_FINANCE_RECURRING_OPERATION => 'finance_recurring_operations',
+                RecurringRule::OWNER_FINANCE_DEBT => 'finance_debts',
+                RecurringRule::OWNER_FINANCE_SAVING_FUND => 'finance_saving_funds',
                 default => null,
             };
 
@@ -341,6 +373,78 @@ class RecurrenceMaterializer
                     ->whereNull('finance_occurrence_fact_id')
                     ->pluck('id'))
                 ->update([...$snapshot, 'updated_at' => $now]);
+        }
+    }
+
+    private function syncDebtDetails(RecurringRule $rule, string $from, string $to, bool $updateUnlinked): void
+    {
+        $debt = FinanceDebt::query()->whereKey($rule->owner_id)->where('user_id', $rule->user_id)->first();
+        if (! $debt) {
+            return;
+        }
+        $occurrences = PlannedOccurrence::query()->where('recurring_rule_id', $rule->id)
+            ->whereBetween('occurrence_date', [$from, $to])->get();
+        if ($occurrences->isEmpty()) {
+            return;
+        }
+        $snapshot = [
+            'finance_debt_id' => $debt->id, 'debt_name' => $debt->name, 'direction' => $debt->direction,
+            'account_id' => $debt->account_id, 'category_id' => $debt->category_id,
+            'amount' => $debt->installment_amount, 'currency_code' => $debt->currency_code,
+        ];
+        $now = now();
+        FinanceDebtOccurrenceDetail::query()->insertOrIgnore($occurrences->map(fn ($occurrence): array => [
+            'user_id' => $occurrence->user_id, 'planned_occurrence_id' => $occurrence->id,
+            ...$snapshot, 'created_at' => $now, 'updated_at' => $now,
+        ])->all());
+        if ($updateUnlinked) {
+            FinanceDebtOccurrenceDetail::query()->whereIn('planned_occurrence_id', $occurrences
+                ->whereNull('rescheduled_to')->whereNull('finance_debt_payment_fact_id')->pluck('id'))
+                ->update([...$snapshot, 'updated_at' => $now]);
+        }
+    }
+
+    private function syncFundDetails(RecurringRule $rule, string $from, string $to, bool $updateUnlinked): void
+    {
+        $fund = FinanceSavingFund::query()->whereKey($rule->owner_id)->where('user_id', $rule->user_id)->first();
+        if (! $fund) {
+            return;
+        }
+        $occurrences = PlannedOccurrence::query()->where('recurring_rule_id', $rule->id)
+            ->whereBetween('occurrence_date', [$from, $to])->get();
+        if ($occurrences->isEmpty()) {
+            return;
+        }
+        $base = [
+            'finance_saving_fund_id' => $fund->id, 'fund_name' => $fund->name, 'fund_type' => $fund->fund_type,
+            'storage_mode' => $fund->storage_mode, 'account_id' => $fund->account_id,
+            'funding_account_id' => $fund->funding_account_id, 'category_id' => $fund->category_id,
+            'currency_code' => $fund->currency_code, 'top_up_mode' => $fund->top_up_mode,
+        ];
+        $user = User::query()->find($rule->user_id);
+        $projections = $occurrences->mapWithKeys(function ($occurrence) use ($user, $fund): array {
+            $month = $occurrence->occurrence_date->format('Y-m');
+
+            return [$month => $this->fundProjections->project($user, $fund, $month)];
+        });
+        $now = now();
+        FinanceFundOccurrenceDetail::query()->insertOrIgnore($occurrences->map(function ($occurrence) use ($base, $projections, $now): array {
+            $projection = $projections[$occurrence->occurrence_date->format('Y-m')];
+
+            return ['user_id' => $occurrence->user_id, 'planned_occurrence_id' => $occurrence->id,
+                ...$base, 'amount' => $projection['suggested_top_up'], 'calculation_basis' => $projection['calculation_basis'],
+                'complete' => $projection['complete'], 'missing_currencies' => json_encode($projection['missing_currencies']),
+                'created_at' => $now, 'updated_at' => $now];
+        })->all());
+        if ($updateUnlinked) {
+            foreach ($occurrences->whereNull('rescheduled_to')->whereNull('finance_fund_occurrence_fact_id') as $occurrence) {
+                $projection = $projections[$occurrence->occurrence_date->format('Y-m')];
+                FinanceFundOccurrenceDetail::query()->where('planned_occurrence_id', $occurrence->id)->update([
+                    ...$base, 'amount' => $projection['suggested_top_up'],
+                    'calculation_basis' => $projection['calculation_basis'], 'complete' => $projection['complete'],
+                    'missing_currencies' => json_encode($projection['missing_currencies']), 'updated_at' => $now,
+                ]);
+            }
         }
     }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Goal;
 use App\Models\Routine;
 use App\Models\User;
+use App\Services\Finance\FinanceGoalService;
 use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,6 +15,8 @@ use Illuminate\Validation\ValidationException;
 
 class GoalController extends Controller
 {
+    public function __construct(private readonly FinanceGoalService $financeGoals) {}
+
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -26,8 +29,10 @@ class GoalController extends Controller
             ->orderBy('name')
             ->orderBy('id')
             ->get();
+        $finance = $this->financeGoals->list($user, $request->boolean('archived'))->keyBy('id');
 
-        return response()->json(['data' => $goals]);
+        return response()->json(['data' => $goals->map(fn (Goal $goal) => $goal->type === Goal::TYPE_FINANCE
+            ? $this->unifiedFinanceGoal($user, $goal, $finance->get($goal->id)) : $goal)->values()]);
     }
 
     public function store(Request $request): JsonResponse
@@ -124,8 +129,25 @@ class GoalController extends Controller
         ];
     }
 
-    private function freshFor(Goal $goal, User $user): Goal
+    private function freshFor(Goal $goal, User $user): Goal|array
     {
-        return $goal->fresh()->load($this->relations($user));
+        $fresh = $goal->fresh()->load($this->relations($user));
+
+        return $fresh->type === Goal::TYPE_FINANCE ? $this->unifiedFinanceGoal($user, $fresh) : $fresh;
+    }
+
+    /** @return array<string,mixed> */
+    private function unifiedFinanceGoal(User $user, Goal $goal, ?array $projection = null): array
+    {
+        $projection ??= $this->financeGoals->one($user, $goal);
+
+        return [
+            'id' => $goal->id, 'name' => $goal->name, 'description' => $goal->description,
+            'type' => Goal::TYPE_FINANCE, 'status' => $goal->status,
+            'target_date' => $goal->target_date?->format('Y-m-d'),
+            'completed_at' => $goal->completed_at?->toISOString(),
+            'is_archived' => $goal->is_archived, 'archived_at' => $goal->archived_at?->toISOString(),
+            'routines' => $goal->routines, 'finance' => $projection,
+        ];
     }
 }

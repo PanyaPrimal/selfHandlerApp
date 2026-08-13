@@ -434,6 +434,18 @@ Connect Supplement restock proposals without moving stock logic into Finance.
 
 **Prerequisites:** 008, 018, and 019.
 
+**Explicitly defer:** interest/amortization, investments, provider FX, one-off generic plans,
+imports/exports/reports, external integrations, AI, and native offline authority.
+
+Delivered as owned counterparty, debt, saving-fund, and Finance Goal aggregates on the existing exact
+ledger. Fixed debts and scheduled fund top-ups reuse monthly recurrence, immutable occurrence
+snapshots, Planner, and Notifications; flexible payments and virtual allocations remain idempotent and
+append-only with linked reversals. Fund storage is either a virtual reservation over an account or one
+dedicated linked account, and emergency targets report exact calculation evidence or an explicit
+unavailable state. Purchase direct expenses/installment debts and restock expenses use one safe source
+link without moving Storage or Supplements truth into Finance. The EN/RU/UK shared client is complete
+on desktop, exact 390px mobile, and the synchronized Capacitor bundle.
+
 ### 021 — Private Attachments with First Consumers
 
 **User outcome:** the user privately stores body-progress and meal photos and can retrieve or delete

@@ -145,6 +145,15 @@
 - **Each module computes its own aggregates** (balances, the consolidated total in the base currency, budget actuals, income/expense/net); Analytics is a presentation surface.
 - The AI layer is optional: rules (spending analysis, forecasting mandatory payments) are mandatory; LLM insights/saving advice are optional.
 
+**Feature 020 implementation boundary (2026-08-13):** counterparties are owned normalized references;
+debts store principal only and use flexible payments or one exact bounded fixed schedule (interest and
+amortization remain deferred). Saving funds use either append-only virtual allocation over one backing
+account or one dedicated linked account; emergency target/top-up evidence is derived from the ledger.
+Finance Goals reuse the common Goal lifecycle and milestones but never store progress. Storage owns
+purchase lifecycle, Supplements owns stock/proposals, and Finance alone owns direct expense or
+installment facts through an immutable source pair. Actual corrections are append-only reversals;
+skipped occurrence facts alone may be cleared.
+
 ---
 
 ## Review pass and contradiction fix (2026-06-13)

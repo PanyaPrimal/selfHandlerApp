@@ -4,9 +4,11 @@ namespace App\Services\Finance;
 
 use App\Models\FinanceAccount;
 use App\Models\FinanceCategory;
+use App\Models\FinanceFundOccurrenceFact;
 use App\Models\FinanceLedgerEntry;
 use App\Models\FinanceTransactionGroup;
 use App\Models\User;
+use App\Services\OccurrenceFactSynchronizer;
 use App\ValueObjects\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -16,7 +18,10 @@ use Illuminate\Validation\ValidationException;
 
 class FinanceLedgerService
 {
-    public function __construct(private readonly FinanceIdempotency $idempotency) {}
+    public function __construct(
+        private readonly FinanceIdempotency $idempotency,
+        private readonly OccurrenceFactSynchronizer $occurrences,
+    ) {}
 
     /**
      * @param  array<string, mixed>  $data
@@ -42,6 +47,8 @@ class FinanceLedgerService
                 'occurred_on' => $data['occurred_on'],
                 'note' => $this->nullableTrim($data['note'] ?? null),
                 'tag' => $this->nullableTrim($data['tag'] ?? null),
+                'source_type' => $data['source_type'] ?? null,
+                'source_id' => $data['source_id'] ?? null,
             ];
             $existing = $this->idempotency->existing($user, $data['idempotency_key'], $payload);
             if ($existing) {
@@ -53,6 +60,8 @@ class FinanceLedgerService
                 'occurred_on' => $data['occurred_on'],
                 'note' => $payload['note'],
                 'tag' => $payload['tag'],
+                'source_type' => $payload['source_type'],
+                'source_id' => $payload['source_id'],
             ]);
             $this->entry(
                 $user,
@@ -189,6 +198,15 @@ class FinanceLedgerService
                     $originalEntry->role,
                     Money::of((string) $originalEntry->delta_amount, $originalEntry->currency_code)->negate(),
                 );
+            }
+
+            app(FinanceSourceExpenseService::class)->synchronizePurchaseAfterReversal($user, $locked);
+            if ($payment = $locked->debtPaymentFact()->first()) {
+                $this->occurrences->syncFromDebtPayment($payment);
+            }
+            if ($fact = FinanceFundOccurrenceFact::query()->ownedBy($user)
+                ->where('transaction_group_id', $locked->id)->first()) {
+                $this->occurrences->syncFromFundFact($fact);
             }
 
             return [$this->hydrate($group), true];

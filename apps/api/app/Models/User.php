@@ -185,6 +185,36 @@ class User extends Authenticatable
         return $this->hasMany(FinanceOccurrenceFact::class);
     }
 
+    public function financeCounterparties(): HasMany
+    {
+        return $this->hasMany(FinanceCounterparty::class);
+    }
+
+    public function financeDebts(): HasMany
+    {
+        return $this->hasMany(FinanceDebt::class);
+    }
+
+    public function financeDebtPaymentFacts(): HasMany
+    {
+        return $this->hasMany(FinanceDebtPaymentFact::class);
+    }
+
+    public function financeSavingFunds(): HasMany
+    {
+        return $this->hasMany(FinanceSavingFund::class);
+    }
+
+    public function financeFundMovements(): HasMany
+    {
+        return $this->hasMany(FinanceFundMovement::class);
+    }
+
+    public function financeGoalDetails(): HasMany
+    {
+        return $this->hasMany(FinanceGoalDetail::class);
+    }
+
     public function profile(): HasOne
     {
         return $this->hasOne(UserProfile::class);

@@ -101,6 +101,14 @@ snapshots so later account/category/rule edits cannot rewrite accepted history. 
 actualizes through the existing ledger idempotency boundary, while its separate fact mirror can be
 rebuilt from the module fact. Missing FX nulls the complete budget or cash-flow result.
 
+Feature 020 keeps commitment truth relational and derived. Debt remaining is original principal minus
+active immutable payment groups; fund saved/reserved/available values fold immutable movements or the
+dedicated linked-account ledger; Finance Goal progress reads only those projections. Occurrence detail
+rows are immutable historical snapshots, while rebuildable links on `planned_occurrences` mirror the
+latest active fact. Purchase/restock source pairs live on transaction groups and are immutable together;
+they never create a second money or stock ledger. Emergency expense-month targets require three
+complete prior local months and return an explicit unavailable state when history or FX is incomplete.
+
 ## 7. Aggregates — "the module computes the totals" — strategy (important for performance)
 
 > Balances/remaining amounts/streaks/actual budget figures are derived. So that the "Today" dashboard and Analytics don't grind to a halt:

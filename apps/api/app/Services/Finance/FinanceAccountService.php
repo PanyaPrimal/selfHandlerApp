@@ -3,11 +3,14 @@
 namespace App\Services\Finance;
 
 use App\Models\FinanceAccount;
+use App\Models\FinanceFundMovement;
 use App\Models\FinanceLedgerEntry;
+use App\Models\FinanceSavingFund;
 use App\Models\FinanceTransactionGroup;
 use App\Models\User;
 use App\ValueObjects\Money;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -18,6 +21,31 @@ class FinanceAccountService
         private readonly FinanceBalanceService $balances,
         private readonly FinanceIdempotency $idempotency,
     ) {}
+
+    /** @return Collection<int, FinanceAccount> */
+    public function list(User $user, bool $archived = false): Collection
+    {
+        $accounts = FinanceAccount::query()->ownedBy($user)
+            ->when(! $archived, fn ($query) => $query->whereNull('archived_at'))
+            ->orderBy('id')->get();
+        $balances = $this->balances->forAccounts($accounts);
+        $reserved = FinanceFundMovement::query()
+            ->join('finance_saving_funds', 'finance_saving_funds.id', '=', 'finance_fund_movements.finance_saving_fund_id')
+            ->where('finance_fund_movements.user_id', $user->id)
+            ->where('finance_saving_funds.storage_mode', 'virtual')
+            ->whereIn('finance_saving_funds.account_id', $accounts->pluck('id'))
+            ->selectRaw('finance_saving_funds.account_id AS account_id, SUM(finance_fund_movements.delta_amount) AS reserved')
+            ->groupBy('finance_saving_funds.account_id')->pluck('reserved', 'account_id');
+
+        return $accounts->each(function (FinanceAccount $account) use ($balances, $reserved): void {
+            $balance = $balances[$account->id] ?? '0.0000';
+            $reserve = bcadd('0', (string) ($reserved[$account->id] ?? '0'), 4);
+            $account->setAttribute('balance_projection', $balance);
+            $account->setAttribute('reserved_amount_projection', $reserve);
+            $account->setAttribute('available_balance_projection', bcsub($balance, $reserve, 4));
+            $account->setAttribute('over_reserved_projection', bccomp($reserve, $balance, 4) > 0);
+        });
+    }
 
     /** @param array<string, mixed> $data */
     public function create(User $user, array $data): FinanceAccount
@@ -63,7 +91,16 @@ class FinanceAccountService
 
         return DB::transaction(function () use ($account, $data): FinanceAccount {
             $locked = FinanceAccount::query()->whereKey($account->id)->lockForUpdate()->firstOrFail();
+            $referencedByFund = FinanceSavingFund::query()
+                ->where(function ($query) use ($locked): void {
+                    $query->where('account_id', $locked->id)->orWhere('funding_account_id', $locked->id);
+                })->where('is_archived', false)->exists();
             if (array_key_exists('currency', $data)) {
+                if ($data['currency'] !== $locked->currency_code && $referencedByFund) {
+                    throw ValidationException::withMessages([
+                        'currency' => __('messages.finance_account_fund_reference'),
+                    ]);
+                }
                 if ($data['currency'] !== $locked->currency_code && $locked->entries()->exists()) {
                     throw ValidationException::withMessages([
                         'currency' => __('messages.finance_account_currency_locked'),
@@ -72,6 +109,11 @@ class FinanceAccountService
                 $locked->currency_code = $data['currency'];
             }
             if (array_key_exists('archived', $data)) {
+                if ($data['archived'] && ! $locked->archived_at && $referencedByFund) {
+                    throw ValidationException::withMessages([
+                        'archived' => __('messages.finance_account_fund_reference'),
+                    ]);
+                }
                 if ($data['archived'] && ! $locked->archived_at
                     && bccomp($this->balances->forAccount($locked, true), '0', 4) !== 0) {
                     throw ValidationException::withMessages([

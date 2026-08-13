@@ -2,6 +2,14 @@
 
 ## [Unreleased](https://github.com/laravel/laravel/compare/v11.6.1...11.x)
 
+### SelfHandler feature 020
+
+* Add owner-scoped counterparties, bidirectional flexible/fixed debts, immutable principal payments,
+  virtual/linked saving funds, emergency-fund projections, scheduled top-ups, and derived Finance Goals.
+* Link Storage purchases and Supplement restock proposals to ordinary Finance expenses without
+  duplicating ledger or stock truth; expose safe source/occurrence context to history, Planner, and
+  Notifications through closed authenticated contracts.
+
 ### SelfHandler feature 019
 
 * Add monthly category budgets derived from immutable actuals, historical FX evidence, and exact

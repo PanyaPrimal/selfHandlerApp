@@ -69,6 +69,16 @@ days and skips dates absent from short months. Planner and in-app notifications 
 Finance occurrence snapshots; budget warnings use separate approaching/exceeded identities. Debts,
 funds, financial goals, and purchase/restock links remain owned by feature 020.
 
+Feature 020 completes the first Finance commitment slice: owner-scoped counterparties, debts in both
+directions, fixed or flexible principal-only repayment, virtual or linked-account saving funds,
+emergency-fund targets/top-ups, and Finance Goals whose progress is derived from those aggregates.
+Debt and fund occurrences reuse recurrence, Planner, notifications, immutable ledger transactions,
+and append-only correction. Storage purchases become bought only through an active direct expense or
+installment debt; Supplement restock expenses retain their source link without changing stock or the
+proposal. The responsive EN/RU/UK web client and the synchronized Android bundle expose the same
+closed contracts. Interest/amortization, investments, provider rates, imports/exports, integrations,
+AI, and native offline authority remain deferred.
+
 The Android package in `apps/mobile` wraps the same production Vue bundle with Capacitor 8. Existing
 accounts use a separate 30-day, `mobile`-scoped Sanctum token stored by a custom Android Keystore
 AES-GCM plugin; browser cookie/CSRF auth is unchanged. Android local notifications are an opt-in

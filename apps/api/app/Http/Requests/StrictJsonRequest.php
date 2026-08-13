@@ -21,6 +21,12 @@ abstract class StrictJsonRequest extends FormRequest
         return [];
     }
 
+    /** @return array<string, list<string>> */
+    protected function objectAllowedKeys(): array
+    {
+        return [];
+    }
+
     /** @return list<callable(Validator): void> */
     public function after(): array
     {
@@ -35,6 +41,14 @@ abstract class StrictJsonRequest extends FormRequest
                         $validator->errors()->add('request', __('messages.unknown_fields'));
                         $validator->errors()->add("{$field}.{$index}", __('messages.unknown_fields'));
                     }
+                }
+            }
+
+            foreach ($this->objectAllowedKeys() as $field => $allowed) {
+                $item = $this->input($field);
+                if (is_array($item) && array_diff(array_keys($item), $allowed) !== []) {
+                    $validator->errors()->add('request', __('messages.unknown_fields'));
+                    $validator->errors()->add($field, __('messages.unknown_fields'));
                 }
             }
         }];

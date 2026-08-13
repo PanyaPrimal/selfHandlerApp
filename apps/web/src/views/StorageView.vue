@@ -1,26 +1,36 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, reactive, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import {
   createStorageItem,
+  createFinanceSourceExpense,
   createStorageProject,
   deleteStorageItem,
   deleteStorageProject,
   getStorageItems,
   getStorageProjects,
+  getFinanceAccounts,
+  getFinanceCategories,
+  getFinanceCurrencies,
   updateStorageItem,
   validationErrors,
   type ValidationErrors,
 } from '../api/client'
 import AsyncState from '../components/AsyncState.vue'
-import { UiSelect, UiTextInput } from '../components/ui'
+import { UiDatePicker, UiSelect, UiTextInput } from '../components/ui'
 import type { UiOption } from '../components/ui'
 import type {
   ItemStatus,
   ItemType,
+  FinanceAccount,
+  FinanceCategory,
+  FinanceCurrency,
+  FinanceCurrencyCode,
   StorageItem,
   StorageProject,
 } from '../api/types'
 import { useI18n } from '../i18n'
+import { financeAmount } from '../finance/money'
 
 const isLoading = ref(true)
 const loadError = ref<string | null>(null)
@@ -29,16 +39,28 @@ const error = ref<string | null>(null)
 const feedback = ref<string | null>(null)
 const fieldErrors = ref<ValidationErrors>({})
 const i18n = useI18n()
+const route = useRoute()
 
 const items = ref<StorageItem[]>([])
 const projects = ref<StorageProject[]>([])
 const inboxCount = ref(0)
 
 const captureTitle = ref('')
+const captureType = ref<ItemType>('task')
+const captureEstimate = ref('')
+const captureCurrency = ref<FinanceCurrencyCode>('UAH')
 const captureInput = ref<{ focus: () => void } | null>(null)
 
 const newProjectName = ref('')
 const showProjectForm = ref(false)
+const financeAccounts = ref<FinanceAccount[]>([])
+const financeCategories = ref<FinanceCategory[]>([])
+const financeCurrencies = ref<FinanceCurrency[]>([])
+const financing = ref<number | null>(null)
+const purchaseDrafts = reactive<Record<number, { amount: string, currency: FinanceCurrencyCode }>>({})
+const sourceDraft = reactive({ account_id: 0, category_id: 0, amount: '', occurred_on: '' })
+const highlightedItem = computed(() => typeof route.query.item === 'string' && /^\d+$/.test(route.query.item)
+  ? Number(route.query.item) : null)
 
 /** One in-progress child title per parent, so the drafts cannot collide. */
 const childDrafts = reactive<Record<number, string>>({})
@@ -46,8 +68,22 @@ const childDrafts = reactive<Record<number, string>>({})
 const typeOptions = computed<UiOption<ItemType>[]>(() => [
   { value: 'task', label: i18n.t('storage.task') },
   { value: 'idea', label: i18n.t('storage.idea') },
+  { value: 'purchase', label: i18n.t('storage.purchase') },
 ])
 const typeLabel = (type: ItemType): string => typeOptions.value.find((option) => option.value === type)?.label ?? type
+
+const currencyOptions = computed<UiOption<FinanceCurrencyCode>[]>(() =>
+  financeCurrencies.value.map((currency) => ({ value: currency.code, label: currency.code })),
+)
+const expenseCategoryOptions = computed<UiOption<number>[]>(() =>
+  financeCategories.value.map((category) => ({ value: category.id, label: category.label })),
+)
+
+function expenseAccountOptions(item: StorageItem): UiOption<number>[] {
+  return financeAccounts.value
+    .filter((account) => account.currency === purchaseDrafts[item.id]?.currency)
+    .map((account) => ({ value: account.id, label: account.name }))
+}
 
 const projectOptions = computed<UiOption<number>[]>(() =>
   projects.value
@@ -74,14 +110,27 @@ async function load(): Promise<void> {
   loadError.value = null
 
   try {
-    const [itemList, projectList] = await Promise.all([getStorageItems(), getStorageProjects()])
+    const [itemList, projectList, accountList, categoryList, currencyList] = await Promise.all([
+      getStorageItems(), getStorageProjects(), getFinanceAccounts(), getFinanceCategories(), getFinanceCurrencies(),
+    ])
     items.value = itemList.data
     inboxCount.value = itemList.inbox_count
     projects.value = projectList.data
+    financeAccounts.value = accountList.filter((item) => !item.archived)
+    financeCategories.value = categoryList.filter((item) => !item.archived && item.direction === 'expense')
+    financeCurrencies.value = currencyList.filter((item) => item.active)
+    for (const item of items.value.filter((row) => row.type === 'purchase')) {
+      purchaseDrafts[item.id] ??= { amount: item.estimated_amount ?? '', currency: item.estimated_currency_code ?? 'UAH' }
+    }
   } catch {
     loadError.value = i18n.t('storage.loadFailed')
   } finally {
     isLoading.value = false
+    await nextTick()
+    if (highlightedItem.value !== null) {
+      document.querySelector<HTMLElement>(`[data-storage-item="${highlightedItem.value}"]`)
+        ?.scrollIntoView({ block: 'center' })
+    }
   }
 }
 
@@ -97,8 +146,12 @@ async function capture(): Promise<void> {
   feedback.value = null
 
   try {
-    await createStorageItem({ title: captureTitle.value })
+    await createStorageItem({ title: captureTitle.value, type: captureType.value,
+      ...(captureType.value === 'purchase' && captureEstimate.value ? {
+        estimated_amount: captureEstimate.value, estimated_currency_code: captureCurrency.value,
+      } : {}) })
     captureTitle.value = ''
+    captureEstimate.value = ''
     feedback.value = i18n.t('storage.captured')
     await load()
   } catch (currentError) {
@@ -200,6 +253,40 @@ function statusLabel(status: ItemStatus): string {
   return i18n.t(status === 'done' ? 'storage.done' : status === 'dropped' ? 'storage.dropped' : status === 'inbox' ? 'storage.inboxStatus' : 'storage.activeStatus')
 }
 
+function purchaseStatus(item: StorageItem): string {
+  return i18n.t(item.status === 'done' ? 'storage.bought' : item.status === 'dropped' ? 'storage.canceled' : 'storage.wanted')
+}
+
+async function saveEstimate(item: StorageItem): Promise<void> {
+  const value = purchaseDrafts[item.id]
+  if (!value) return
+  await patch(item, { estimated_amount: value.amount || null,
+    estimated_currency_code: value.amount ? value.currency : null })
+}
+
+function startExpense(item: StorageItem): void {
+  financing.value = item.id
+  const estimate = purchaseDrafts[item.id]
+  sourceDraft.account_id = financeAccounts.value.find((row) => row.currency === estimate?.currency)?.id ?? 0
+  sourceDraft.category_id = financeCategories.value[0]?.id ?? 0
+  sourceDraft.amount = estimate?.amount ?? ''
+  sourceDraft.occurred_on = new Date().toISOString().slice(0, 10)
+}
+
+async function postExpense(item: StorageItem): Promise<void> {
+  error.value = null
+  try {
+    await createFinanceSourceExpense({ source_type: 'purchase_item', source_id: item.id,
+      account_id: sourceDraft.account_id, category_id: sourceDraft.category_id, amount: sourceDraft.amount,
+      occurred_on: sourceDraft.occurred_on, idempotency_key: `purchase-${item.id}-${Date.now()}`, note: null })
+    financing.value = null
+    feedback.value = i18n.t('storage.expenseCreated')
+    await load()
+  } catch (currentError) {
+    error.value = validationErrors(currentError).source_id?.[0] ?? i18n.t('storage.expenseFailed')
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -229,6 +316,8 @@ onMounted(load)
           :disabled="isSubmitting"
           :error="fieldErrors.title?.[0]"
         />
+        <UiSelect v-model="captureType" name="capture-type" :label="i18n.t('storage.type')" :options="typeOptions" required />
+        <template v-if="captureType === 'purchase'"><label class="field"><span>{{ i18n.t('storage.estimate') }}</span><input v-model="captureEstimate" inputmode="decimal" placeholder="0.0000"></label><UiSelect v-model="captureCurrency" name="capture-currency" :label="i18n.t('finance.currency')" :options="currencyOptions" required /></template>
         <div class="form-actions">
           <button type="submit" :disabled="isSubmitting">{{ i18n.t(isSubmitting ? 'common.saving' : 'storage.captureAction') }}</button>
         </div>
@@ -252,7 +341,7 @@ onMounted(load)
           {{ i18n.t('storage.inboxEmpty') }}
         </p>
         <ul v-else class="item-list">
-          <li v-for="item in inbox" :key="item.id" class="management-row" :aria-label="item.title">
+          <li v-for="item in inbox" :key="item.id" class="management-row" :class="{ 'is-deep-linked': item.id === highlightedItem }" :data-storage-item="item.id" :aria-label="item.title">
             <div class="management-copy">
               <strong>{{ item.title }}</strong>
               <p class="muted">{{ typeLabel(item.type) }}</p>
@@ -272,12 +361,13 @@ onMounted(load)
 
         <p v-if="active.length === 0" class="muted">{{ i18n.t('storage.activeEmpty') }}</p>
         <ul v-else class="item-list">
-          <li v-for="item in active" :key="item.id" class="storage-item" :aria-label="item.title">
+          <li v-for="item in active" :key="item.id" class="storage-item" :class="{ 'is-deep-linked': item.id === highlightedItem }" :data-storage-item="item.id" :aria-label="item.title">
             <div class="management-row">
               <div class="management-copy">
                 <strong>{{ item.title }}</strong>
                 <p class="routine-meta">
                   <span class="kind-chip">{{ typeLabel(item.type) }}</span>
+                  <span v-if="item.type === 'purchase'" class="kind-chip">{{ purchaseStatus(item) }}</span>
                   <span v-if="projectName(item)" class="kind-chip">{{ projectName(item) }}</span>
                   <span v-for="tag in item.tags" :key="tag.id" class="kind-chip">{{ tag.name }}</span>
                 </p>
@@ -300,10 +390,15 @@ onMounted(load)
                   :placeholder="i18n.t('storage.noProject')"
                   @update:model-value="(value) => patch(item, { project_id: value })"
                 />
-                <button type="button" class="secondary" :aria-label="i18n.t('storage.completeNamed', { name: item.title })" @click="patch(item, { status: 'done' })">{{ i18n.t('storage.complete') }}</button>
+                <button v-if="item.type !== 'purchase'" type="button" class="secondary" :aria-label="i18n.t('storage.completeNamed', { name: item.title })" @click="patch(item, { status: 'done' })">{{ i18n.t('storage.complete') }}</button>
                 <button type="button" class="secondary" :aria-label="i18n.t('storage.deleteNamed', { name: item.title })" @click="remove(item)">{{ i18n.t('common.delete') }}</button>
               </div>
             </div>
+
+            <section v-if="item.type === 'purchase'" class="purchase-finance" :aria-label="i18n.t('storage.purchaseFinanceNamed', { name: item.title })">
+              <form class="capture-form" @submit.prevent="saveEstimate(item)"><label class="field"><span>{{ i18n.t('storage.estimate') }}</span><input v-model="purchaseDrafts[item.id]!.amount" inputmode="decimal" placeholder="0.0000"></label><UiSelect v-model="purchaseDrafts[item.id]!.currency" :name="`purchase-currency-${item.id}`" :label="i18n.t('finance.currency')" :options="currencyOptions" required /><div class="form-actions"><button type="submit" class="secondary">{{ i18n.t('storage.saveEstimate') }}</button><button type="button" :disabled="!financeAccounts.length || !financeCategories.length" @click="startExpense(item)">{{ i18n.t('storage.buyDirect') }}</button><a class="button secondary" :href="`/finance?tab=debts&purchase=${item.id}`">{{ i18n.t('storage.buyInstallments') }}</a></div></form>
+              <form v-if="financing === item.id" class="capture-form" :aria-label="i18n.t('storage.expenseEditor')" @submit.prevent="postExpense(item)"><UiSelect v-model="sourceDraft.account_id" :name="`purchase-account-${item.id}`" :label="i18n.t('finance.account')" :options="expenseAccountOptions(item)" required /><UiSelect v-model="sourceDraft.category_id" :name="`purchase-category-${item.id}`" :label="i18n.t('finance.expenseCategory')" :options="expenseCategoryOptions" required /><label class="field"><span>{{ i18n.t('finance.amount') }}</span><input v-model="sourceDraft.amount" inputmode="decimal" required></label><UiDatePicker :model-value="sourceDraft.occurred_on" :name="`purchase-date-${item.id}`" :label="i18n.t('finance.date')" :locale="i18n.locale.value" :today="sourceDraft.occurred_on" :max="sourceDraft.occurred_on" :clearable="false" required @update:model-value="(value) => { if (value) sourceDraft.occurred_on = value }" /><div class="form-actions"><button type="submit" :disabled="!sourceDraft.account_id || !sourceDraft.category_id">{{ i18n.t('storage.postExpense') }}</button><button type="button" class="ghost" @click="financing = null">{{ i18n.t('common.cancel') }}</button></div></form>
+            </section>
 
             <div class="storage-children">
               <p v-if="childrenOf(item).length === 0" class="muted">
@@ -398,13 +493,13 @@ onMounted(load)
       <section v-if="closed.length > 0" class="panel" aria-labelledby="closed-heading">
         <h2 id="closed-heading">{{ i18n.t('storage.closed') }}</h2>
         <ul class="item-list">
-          <li v-for="item in closed" :key="item.id" class="management-row" :aria-label="item.title">
+          <li v-for="item in closed" :key="item.id" class="management-row" :class="{ 'is-deep-linked': item.id === highlightedItem }" :data-storage-item="item.id" :aria-label="item.title">
             <div class="management-copy">
               <strong>{{ item.title }}</strong>
-              <p class="muted">{{ statusLabel(item.status) }}</p>
+              <p class="muted">{{ item.type === 'purchase' ? purchaseStatus(item) : statusLabel(item.status) }}<template v-if="item.estimated_amount"> · {{ financeAmount(item.estimated_amount, item.estimated_currency_code!, i18n.locale.value) }}</template></p>
             </div>
             <div class="button-row management-actions">
-              <button type="button" class="secondary" :aria-label="i18n.t('storage.reopenNamed', { name: item.title })" @click="patch(item, { status: 'active' })">{{ i18n.t('storage.reopen') }}</button>
+              <button v-if="item.type !== 'purchase' || item.status === 'dropped'" type="button" class="secondary" :aria-label="i18n.t('storage.reopenNamed', { name: item.title })" @click="patch(item, { status: 'active' })">{{ i18n.t('storage.reopen') }}</button>
             </div>
           </li>
         </ul>

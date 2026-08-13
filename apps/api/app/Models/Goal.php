@@ -22,6 +22,9 @@ class Goal extends Model
     /** A workout-derived training goal with a typed detail attached. */
     public const TYPE_TRAINING = 'training';
 
+    /** A Finance-owned goal whose progress comes from a debt or saving fund. */
+    public const TYPE_FINANCE = 'finance';
+
     protected $attributes = [
         'type' => 'general',
         'status' => 'active',
@@ -58,6 +61,11 @@ class Goal extends Model
     public function trainingDetail(): HasOne
     {
         return $this->hasOne(TrainingGoalDetail::class);
+    }
+
+    public function financeDetail(): HasOne
+    {
+        return $this->hasOne(FinanceGoalDetail::class);
     }
 
     public function milestones(): HasMany

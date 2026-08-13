@@ -480,13 +480,17 @@ components:
     FinanceAccount:
       type: object
       additionalProperties: false
-      required: [id, name, type, currency, balance, archived, created_at, updated_at]
+      required: [id, name, type, currency, balance, reserved_amount, available_balance, over_reserved,
+        archived, created_at, updated_at]
       properties:
         id: {type: integer, minimum: 1}
         name: {type: string, maxLength: 120}
         type: {$ref: '#/components/schemas/AccountType'}
         currency: {$ref: '#/components/schemas/CurrencyCode'}
         balance: {$ref: '#/components/schemas/MoneyAmount'}
+        reserved_amount: {$ref: '#/components/schemas/MoneyAmount'}
+        available_balance: {$ref: '#/components/schemas/MoneyAmount'}
+        over_reserved: {type: boolean}
         archived: {type: boolean}
         created_at: {type: string, format: date-time}
         updated_at: {type: string, format: date-time}
@@ -585,13 +589,18 @@ components:
     TransactionGroup:
       type: object
       additionalProperties: false
-      required: [id, kind, occurred_on, note, tag, reverses_id, reversed_by_id, reversal_reason, transfer, entries, created_at]
+      required: [id, kind, occurred_on, note, tag, source, reverses_id, reversed_by_id, reversal_reason,
+        transfer, entries, created_at]
       properties:
         id: {type: string, format: uuid}
         kind: {$ref: '#/components/schemas/TransactionKind'}
         occurred_on: {type: string, format: date}
         note: {type: [string, 'null'], maxLength: 1000}
         tag: {type: [string, 'null'], maxLength: 80}
+        source:
+          anyOf:
+            - {$ref: '#/components/schemas/TransactionSourceContext'}
+            - {type: 'null'}
         reverses_id: {type: [string, 'null'], format: uuid}
         reversed_by_id: {type: [string, 'null'], format: uuid}
         reversal_reason: {type: [string, 'null'], maxLength: 500}
@@ -605,6 +614,16 @@ components:
           maxItems: 2
           items: {$ref: '#/components/schemas/LedgerEntry'}
         created_at: {type: string, format: date-time}
+    TransactionSourceContext:
+      type: object
+      additionalProperties: false
+      required: [type, id, label, action_url, active]
+      properties:
+        type: {type: string, enum: [purchase_item, supplement_restock_proposal]}
+        id: {type: integer, minimum: 1}
+        label: {type: string}
+        action_url: {type: string}
+        active: {type: boolean}
     TransferSnapshot:
       type: object
       additionalProperties: false

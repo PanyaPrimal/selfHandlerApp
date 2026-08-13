@@ -20,6 +20,7 @@ import type { Goal, GoalCreatePayload, Routine } from '../api/types'
 import AsyncState from '../components/AsyncState.vue'
 import { UiCheckbox, UiDatePicker, UiTextInput, UiTextarea } from '../components/ui'
 import { formatCalendarDate } from '../lib/format'
+import { financeAmount } from '../finance/money'
 import { useI18n } from '../i18n'
 
 type FocusableControl = { focus: () => void }
@@ -512,11 +513,24 @@ onMounted(loadWorkspace)
                 <p class="routine-meta">
                   <span>{{ i18n.t(`goal.status.${goal.status}` as 'goal.status.active') }}</span>
                   <span v-if="goal.target_date">{{ i18n.t('goal.byDate', { date: formatCalendarDate(goal.target_date, locale) }) }}</span>
-                  <span v-if="goal.routines.length > 0">
+                  <span v-if="goal.type !== 'finance' && goal.routines.length > 0">
                     {{ i18n.t('goal.linked', { names: goal.routines.map((routine) => routine.name).join(', ') }) }}
                   </span>
-                  <span v-else>{{ i18n.t('goal.noLinks') }}</span>
+                  <span v-else-if="goal.type !== 'finance'">{{ i18n.t('goal.noLinks') }}</span>
                 </p>
+                <div v-if="goal.type === 'finance' && goal.finance" class="goal-finance-summary">
+                  <div class="finance-budget-progress" aria-hidden="true">
+                    <span :style="{ width: `${Math.min(100, goal.finance.progress * 100)}%` }"></span>
+                  </div>
+                  <p class="muted">
+                    {{ i18n.t(`finance.goalKind.${goal.finance.kind}` as never) }} ·
+                    {{ financeAmount(goal.finance.current_value, goal.finance.currency, locale) }} /
+                    {{ financeAmount(goal.finance.target_value, goal.finance.currency, locale) }}
+                  </p>
+                  <a :href="`/finance?tab=goals#finance-goal-${goal.id}`" class="button-link">
+                    {{ i18n.t('goal.openFinance') }}
+                  </a>
+                </div>
               </div>
 
               <div class="button-row management-actions">
@@ -571,7 +585,7 @@ onMounted(loadWorkspace)
             </div>
 
             <form
-              v-if="!goal.is_archived"
+              v-if="!goal.is_archived && goal.type !== 'finance'"
               class="routine-link-form"
               :aria-label="i18n.t('goal.routineLinksNamed', { name: goal.name })"
               @submit.prevent="saveRoutineLinks(goal)"

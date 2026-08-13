@@ -3,7 +3,9 @@
 namespace App\Services\Notifications;
 
 use App\Models\FinanceBudgetLimit;
+use App\Models\FinanceDebt;
 use App\Models\FinanceRecurringOperation;
+use App\Models\FinanceSavingFund;
 use App\Models\Habit;
 use App\Models\InAppNotification;
 use App\Models\Item;
@@ -60,13 +62,17 @@ class NotificationSourceSynchronizer
             ->with('supplement')->get()->keyBy('id');
         $financeOperations = FinanceRecurringOperation::query()->ownedBy($user)
             ->where('is_active', true)->where('is_archived', false)->get()->keyBy('id');
+        $financeDebts = FinanceDebt::query()->ownedBy($user)
+            ->where('is_active', true)->where('is_archived', false)->get()->keyBy('id');
+        $financeFunds = FinanceSavingFund::query()->ownedBy($user)
+            ->where('is_active', true)->where('is_archived', false)->whereNull('spent_at')->get()->keyBy('id');
         $budgetModels = FinanceBudgetLimit::query()->ownedBy($user)
             ->whereDate('budget_month', substr($today, 0, 7).'-01')
             ->with('category')->get()->keyBy('id');
         $budgetProjections = $this->financeBudgets->forMonth($user, substr($today, 0, 7))->keyBy('id');
         $occurrences = PlannedOccurrence::query()
             ->ownedBy($user)
-            ->with(['recurringRule', 'financeDetail'])
+            ->with(['recurringRule', 'financeDetail', 'financeDebtDetail', 'financeFundDetail'])
             ->get();
         $items = Item::query()->ownedBy($user)->get()->keyBy('id');
 
@@ -81,6 +87,8 @@ class NotificationSourceSynchronizer
             $supplementCourses,
             $restockProposals,
             $financeOperations,
+            $financeDebts,
+            $financeFunds,
             $budgetProjections,
             $today,
         );
@@ -268,11 +276,13 @@ class NotificationSourceSynchronizer
 
         if ($settings->categoryEnabled(InAppNotification::CATEGORY_FINANCE)) {
             foreach ($occurrences as $occurrence) {
-                $operation = $this->financeOperationForOccurrence($occurrence, $financeOperations);
+                $owner = $this->financeOwnerForOccurrence($occurrence, $financeOperations, $financeDebts, $financeFunds);
                 $effectiveDate = $this->effectiveDate($occurrence);
-                if (! $operation
+                if (! $owner
                     || $occurrence->status !== PlannedOccurrence::STATUS_PLANNED
                     || blank($occurrence->occurrence_time)
+                    || ($occurrence->recurringRule->owner_type === RecurringRule::OWNER_FINANCE_SAVING_FUND
+                        && ! $occurrence->financeFundDetail?->complete)
                     || $effectiveDate !== $today) {
                     continue;
                 }
@@ -285,9 +295,14 @@ class NotificationSourceSynchronizer
                     'source_id' => $occurrence->id,
                     'type' => InAppNotification::TYPE_FINANCE_REMINDER,
                     'category' => InAppNotification::CATEGORY_FINANCE,
-                    'content' => ['title' => $occurrence->financeDetail?->operation_name ?? $operation->name,
+                    'content' => ['title' => $occurrence->financeDetail?->operation_name
+                        ?? $occurrence->financeDebtDetail?->debt_name ?? $occurrence->financeFundDetail?->fund_name
+                        ?? $owner->name,
                         'date' => $effectiveDate],
-                    'action_url' => '/finance?tab=plans&month='.substr($effectiveDate, 0, 7)."&occurrence={$occurrence->id}",
+                    'action_url' => '/finance?tab='.match ($occurrence->recurringRule->owner_type) {
+                        RecurringRule::OWNER_FINANCE_DEBT => 'debts',
+                        RecurringRule::OWNER_FINANCE_SAVING_FUND => 'funds', default => 'plans',
+                    }.'&month='.substr($effectiveDate, 0, 7)."&occurrence={$occurrence->id}",
                     'scheduled_at' => $scheduledAt,
                     'max_escalations' => 0,
                 ]);
@@ -392,6 +407,12 @@ class NotificationSourceSynchronizer
                     ->where('is_active', true)
                     ->where('is_archived', false)
                     ->exists(),
+                RecurringRule::OWNER_FINANCE_DEBT => FinanceDebt::query()->ownedBy($user)
+                    ->whereKey($occurrence->recurringRule->owner_id)->where('is_active', true)
+                    ->where('is_archived', false)->exists(),
+                RecurringRule::OWNER_FINANCE_SAVING_FUND => FinanceSavingFund::query()->ownedBy($user)
+                    ->whereKey($occurrence->recurringRule->owner_id)->where('is_active', true)
+                    ->where('is_archived', false)->whereNull('spent_at')->exists(),
                 default => false,
             };
 
@@ -522,6 +543,22 @@ class NotificationSourceSynchronizer
             : null;
     }
 
+    private function financeOwnerForOccurrence(
+        PlannedOccurrence $occurrence,
+        Collection $operations,
+        Collection $debts,
+        Collection $funds,
+    ): FinanceRecurringOperation|FinanceDebt|FinanceSavingFund|null {
+        $rule = $occurrence->recurringRule;
+
+        return match ($rule?->owner_type) {
+            RecurringRule::OWNER_FINANCE_RECURRING_OPERATION => $operations->get($rule->owner_id),
+            RecurringRule::OWNER_FINANCE_DEBT => $debts->get($rule->owner_id),
+            RecurringRule::OWNER_FINANCE_SAVING_FUND => $funds->get($rule->owner_id),
+            default => null,
+        };
+    }
+
     public function effectiveDate(PlannedOccurrence $occurrence): string
     {
         return ($occurrence->rescheduled_to ?? $occurrence->occurrence_date)->format('Y-m-d');
@@ -607,6 +644,8 @@ class NotificationSourceSynchronizer
         Collection $supplementCourses,
         Collection $restockProposals,
         Collection $financeOperations,
+        Collection $financeDebts,
+        Collection $financeFunds,
         Collection $budgetProjections,
         string $today,
     ): void {
@@ -634,6 +673,8 @@ class NotificationSourceSynchronizer
                 $supplementCourses,
                 $restockProposals,
                 $financeOperations,
+                $financeDebts,
+                $financeFunds,
                 $budgetProjections,
                 $today,
             ): void {
@@ -653,7 +694,7 @@ class NotificationSourceSynchronizer
                             && ! $this->sleepPlanForOccurrence($occurrence, $sleepPlans)
                             && ! $this->workoutProgramForOccurrence($occurrence, $workoutPrograms)
                             && ! $this->supplementCourseForOccurrence($occurrence, $supplementCourses)
-                            && ! $this->financeOperationForOccurrence($occurrence, $financeOperations))
+                            && ! $this->financeOwnerForOccurrence($occurrence, $financeOperations, $financeDebts, $financeFunds))
                         || blank($occurrence->occurrence_time)
                         || $this->effectiveDate($occurrence) !== $today) {
                         $terminal = InAppNotification::STATUS_CANCELLED;

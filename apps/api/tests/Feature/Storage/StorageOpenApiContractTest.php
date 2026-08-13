@@ -96,5 +96,11 @@ class StorageOpenApiContractTest extends TestCase
         $this->assertSame(Item::TYPES, $schemas['ItemType']['enum'], 'The documented types have drifted.');
         $this->assertSame(Item::STATUSES, $schemas['ItemStatus']['enum'], 'The documented statuses have drifted.');
         $this->assertSame(Item::PRIORITIES, $schemas['ItemPriority']['enum'], 'The documented priorities have drifted.');
+        $this->assertContains(Item::TYPE_PURCHASE, $schemas['ItemType']['enum']);
+        foreach (['estimated_amount', 'estimated_currency_code'] as $member) {
+            $this->assertContains($member, $schemas['Item']['required']);
+            $this->assertArrayHasKey($member, $schemas['Item']['properties']);
+            $this->assertArrayHasKey($member, $schemas['ItemInput']['properties']);
+        }
     }
 }

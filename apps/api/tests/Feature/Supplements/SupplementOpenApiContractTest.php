@@ -97,4 +97,15 @@ class SupplementOpenApiContractTest extends SupplementTestCase
         sort($registered);
         $this->assertSame($documented, $registered);
     }
+
+    public function test_restock_proposal_keeps_the_identity_and_lifecycle_needed_by_finance_sources(): void
+    {
+        $proposal = $this->document()['components']['schemas']['RestockProposal'];
+
+        foreach (['id', 'supplement_id', 'suggested_quantity', 'stock_unit', 'status', 'resolved_at'] as $member) {
+            $this->assertContains($member, $proposal['required']);
+            $this->assertArrayHasKey($member, $proposal['properties']);
+        }
+        $this->assertSame(['open', 'dismissed', 'resolved'], $proposal['properties']['status']['enum']);
+    }
 }
