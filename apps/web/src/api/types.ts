@@ -433,6 +433,229 @@ export interface ModuleDaySummaries {
   sleep: SleepStatistics & { selected_night: SleepNight | null }
   routine_activities: RoutineActivitySummary
   workouts: WorkoutSummary
+  nutrition: NutritionSummary
+}
+
+/* ------------------------------------------------------------------ */
+/* Nutrition, meals, hydration, and targets (feature 016)             */
+/* ------------------------------------------------------------------ */
+
+export type FoodBasis = 'gram' | 'millilitre'
+export type NutritionLifecycleState = 'active' | 'archived' | 'all'
+export type MealCategory = 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'custom'
+
+export interface FoodItem {
+  id: number
+  system_key: string | null
+  name: string
+  basis_unit: FoodBasis
+  is_beverage: boolean
+  calories_per_100: string
+  protein_per_100: string
+  fat_per_100: string
+  carbs_per_100: string
+  quality_score: string | null
+  hydration_ratio: string
+  is_archived: boolean
+  is_public: boolean
+}
+
+export interface FoodItemInput {
+  name: string
+  basis_unit: FoodBasis
+  is_beverage: boolean
+  calories_per_100: number
+  protein_per_100: number
+  fat_per_100: number
+  carbs_per_100: number
+  quality_score: number | null
+  hydration_ratio: number
+}
+
+export interface RecipeComponent {
+  id: number
+  sort_order: number
+  quantity_grams: string
+  food: FoodItem
+}
+
+export interface RecipeNutrition {
+  total_weight_grams: string
+  calories: string
+  protein_grams: string
+  fat_grams: string
+  carbs_grams: string
+  quality_score: string | null
+}
+
+export interface Recipe {
+  id: number
+  name: string
+  description: string | null
+  is_archived: boolean
+  components: RecipeComponent[]
+  nutrition_per_100: RecipeNutrition
+}
+
+export interface RecipeInput {
+  name: string
+  description: string | null
+  components: Array<{ food_item_id: number, quantity_grams: number }>
+}
+
+export interface NutritionSettings {
+  body_goal_id: number | null
+  protein_percent: string
+  fat_percent: string
+  carbs_percent: string
+  water_override_ml: number | null
+}
+
+export interface NutritionSettingsInput {
+  body_goal_id: number | null
+  protein_percent: number
+  fat_percent: number
+  carbs_percent: number
+  water_override_ml: number | null
+}
+
+export interface MealEntry {
+  id: number
+  food_item_id: number | null
+  recipe_id: number | null
+  sort_order: number
+  reference_name: string
+  basis_unit: FoodBasis
+  quantity: string
+  calories: string
+  protein_grams: string
+  fat_grams: string
+  carbs_grams: string
+  hydration_ml: string
+  quality_numerator: string | null
+  quality_denominator: string
+}
+
+export interface Meal {
+  id: number
+  consumed_on: string
+  name: string
+  category: MealCategory | null
+  consumed_at_local: string | null
+  note: string | null
+  submission_key: string
+  entries: MealEntry[]
+}
+
+export interface MealInput {
+  consumed_on: string
+  name: string
+  category: MealCategory | null
+  consumed_at_local: string | null
+  note: string | null
+  submission_key?: string
+  entries: Array<{ food_item_id: number | null, recipe_id: number | null, quantity: number }>
+}
+
+export interface NutritionSettingsBasis extends NutritionSettings {}
+
+export interface NutritionTargetBasis {
+  missing_fields: string[]
+  profile_updated_at: string | null
+  profile_inputs: {
+    weight_kg: string | null
+    height_cm: string | null
+    age_years: number | null
+    sex: string | null
+    body_fat_percent: string | null
+  }
+  activity_coefficient: string | null
+  settings: NutritionSettingsBasis
+  goal: {
+    id: number | null
+    start_weight_kg: string | null
+    target_weight_kg: string | null
+    deadline: string | null
+    raw_adjustment_kcal: string | null
+    applied_adjustment_kcal: number
+    status_code: string
+  }
+  planned_occurrence_ids: number[]
+  planned_energy_missing_count: number
+  water_rule: {
+    source: 'estimate' | 'override' | 'unavailable'
+    base_ml: number | null
+    planned_duration_seconds: number
+    workout_addition_ml: number
+    applied_ml: number | null
+  }
+  limitation_codes: string[]
+}
+
+export interface NutritionTarget {
+  date: string
+  status: 'ready' | 'incomplete'
+  formula: BmrFormula
+  bmr_kcal: string | null
+  baseline_kcal: string | null
+  goal_adjustment_kcal: number
+  planned_workout_kcal: number
+  calorie_target: number | null
+  protein_target_grams: string | null
+  fat_target_grams: string | null
+  carbs_target_grams: string | null
+  water_target_ml: number | null
+  quality_target: string
+  calculation_basis: NutritionTargetBasis
+}
+
+export interface NutritionRefinement {
+  status: 'available' | 'incomplete_target' | 'no_completed_workouts' | 'missing_energy'
+  reference_calorie_target: number | null
+  planned_workout_kcal: number
+  actual_workout_kcal: number
+  refined_calorie_target: number | null
+  missing_actual_energy_count: number
+}
+
+export interface NutritionProgressValue {
+  consumed: string
+  target: string | null
+  percent: string | null
+}
+
+export interface NutritionSummary {
+  date: string
+  meal_count: number
+  entry_count: number
+  calories: string
+  protein_grams: string
+  fat_grams: string
+  carbs_grams: string
+  hydration_ml: string
+  quality_score: string | null
+  progress: {
+    calories: NutritionProgressValue
+    protein: NutritionProgressValue
+    fat: NutritionProgressValue
+    carbs: NutritionProgressValue
+    hydration: NutritionProgressValue
+    quality: { consumed: string | null, target: string, percent: string | null }
+  }
+}
+
+export interface NutritionDay {
+  date: string
+  meals: Meal[]
+  target: NutritionTarget
+  refinement: NutritionRefinement
+  summary: NutritionSummary
+}
+
+export interface NutritionSummaryRange {
+  from: string
+  to: string
+  days: NutritionSummary[]
 }
 
 /* ------------------------------------------------------------------ */
@@ -508,6 +731,7 @@ export interface WorkoutProgram {
   workout_type: WorkoutType
   intensity: WorkoutIntensity
   planned_duration_seconds: number | null
+  planned_energy_kcal: number | null
   is_active: boolean
   is_archived: boolean
   archived_at: string | null
@@ -548,6 +772,7 @@ export interface WorkoutProgramInput {
   workout_type: WorkoutType
   intensity: WorkoutIntensity
   planned_duration_seconds?: number | null
+  planned_energy_kcal?: number | null
   schedule_type: 'daily' | 'weekdays'
   weekdays?: Weekday[]
   preferred_time?: string | null

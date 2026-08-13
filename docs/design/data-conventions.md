@@ -73,6 +73,13 @@ distance uses integer metres and duration uses integer seconds. Display conversi
 Workout polymorphism is an explicit `workout_sessions` root plus one strength/endurance/timed detail,
 with relational exercises and sets rather than JSON.
 
+Feature 016 stores food nutrients and consumed quantities as fixed-scale decimals in their canonical
+gram or millilitre basis. Calculations use shared decimal-string arithmetic with one half-up rounding
+at the persistence/response boundary. A meal entry is an immutable accepted snapshot; Nutrition day
+and bounded range totals are set-query projections over those snapshots, not mutable rollup columns.
+Daily targets are separate immutable user/date estimate snapshots, so changing a Profile, goal, or
+Workout plan never rewrites the reference used to assess an existing day.
+
 ## 7. Aggregates — "the module computes the totals" — strategy (important for performance)
 
 > Balances/remaining amounts/streaks/actual budget figures are derived. So that the "Today" dashboard and Analytics don't grind to a halt:

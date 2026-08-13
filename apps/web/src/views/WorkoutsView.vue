@@ -92,12 +92,14 @@ const programForm = reactive({
   name: '', type: 'strength' as WorkoutType, intensity: 'moderate' as WorkoutIntensity,
   preferredTime: null as string | null, scheduleType: 'daily' as 'daily' | 'weekdays',
   weekdays: [] as Weekday[], plannedDurationMinutes: null as number | null,
+  plannedEnergyKcal: null as number | null,
   activity: 'running', runType: 'easy', targetDistanceKm: null as number | null, activityName: '',
 })
 const programDraft = reactive({
   name: '', intensity: 'moderate' as WorkoutIntensity, preferredTime: null as string | null,
   scheduleType: 'daily' as 'daily' | 'weekdays', weekdays: [] as Weekday[],
   plannedDurationMinutes: null as number | null, activity: 'running', runType: 'easy',
+  plannedEnergyKcal: null as number | null,
   targetDistanceKm: null as number | null, activityName: '',
 })
 const manualForm = reactive({
@@ -312,6 +314,7 @@ async function submitProgram(): Promise<void> {
       workout_type: programForm.type,
       intensity: programForm.intensity,
       planned_duration_seconds: programForm.plannedDurationMinutes ? programForm.plannedDurationMinutes * 60 : null,
+      planned_energy_kcal: programForm.plannedEnergyKcal,
       schedule_type: programForm.scheduleType,
       ...(programForm.scheduleType === 'weekdays' ? { weekdays: programForm.weekdays } : {}),
       preferred_time: programForm.preferredTime,
@@ -336,6 +339,7 @@ function editProgramDetails(program: WorkoutProgram): void {
   programDraft.scheduleType = program.recurring_rule.schedule_type
   programDraft.weekdays = [...program.recurring_rule.weekdays]
   programDraft.plannedDurationMinutes = program.planned_duration_seconds ? program.planned_duration_seconds / 60 : null
+  programDraft.plannedEnergyKcal = program.planned_energy_kcal
   programDraft.activity = program.endurance?.activity ?? 'running'
   programDraft.runType = program.endurance?.run_type ?? 'easy'
   programDraft.targetDistanceKm = program.endurance?.target_distance_m ? program.endurance.target_distance_m / 1000 : null
@@ -352,6 +356,7 @@ async function saveProgramDetails(program: WorkoutProgram): Promise<void> {
       name: programDraft.name,
       intensity: programDraft.intensity,
       planned_duration_seconds: programDraft.plannedDurationMinutes ? programDraft.plannedDurationMinutes * 60 : null,
+      planned_energy_kcal: programDraft.plannedEnergyKcal,
       schedule_type: programDraft.scheduleType,
       ...(programDraft.scheduleType === 'weekdays' ? { weekdays: programDraft.weekdays } : { weekdays: [] }),
       preferred_time: programDraft.preferredTime,
@@ -657,6 +662,7 @@ onMounted(loadAll)
             <UiSelect v-model="programForm.type" :label="i18n.t('workouts.workoutType')" name="program-type" :options="workoutTypeOptions" />
             <UiSelect v-model="programForm.intensity" :label="i18n.t('workouts.intensity')" name="program-intensity" :options="intensityOptions" />
             <UiNumberInput v-model="programForm.plannedDurationMinutes" :label="i18n.t('workouts.plannedDuration')" name="program-duration" :min="1" :step="1" />
+            <UiNumberInput v-model="programForm.plannedEnergyKcal" :label="i18n.t('workouts.plannedEnergy')" name="program-energy" :min="1" :max="100000" :step="1" />
             <UiSelect v-if="programForm.type === 'cardio'" v-model="programForm.activity" :label="i18n.t('workouts.activity')" name="program-activity" :options="activityOptions" />
             <UiSelect v-if="programForm.type === 'cardio' && programForm.activity === 'running'" v-model="programForm.runType" :label="i18n.t('workouts.runType')" name="program-run-type" :options="runTypeOptions" />
             <UiNumberInput v-if="programForm.type === 'cardio'" v-model="programForm.targetDistanceKm" :label="i18n.t('workouts.targetDistance')" name="program-target-distance" :min="0.001" :step="0.001" />
@@ -695,6 +701,7 @@ onMounted(loadAll)
               <UiTextInput v-model="programDraft.name" :label="i18n.t('workouts.programName')" :name="`edit-program-name-${program.id}`" required />
               <UiSelect v-model="programDraft.intensity" :label="i18n.t('workouts.intensity')" :name="`edit-program-intensity-${program.id}`" :options="intensityOptions" />
               <UiNumberInput v-model="programDraft.plannedDurationMinutes" :label="i18n.t('workouts.plannedDuration')" :name="`edit-program-duration-${program.id}`" :min="1" :step="1" />
+              <UiNumberInput v-model="programDraft.plannedEnergyKcal" :label="i18n.t('workouts.plannedEnergy')" :name="`edit-program-energy-${program.id}`" :min="1" :max="100000" :step="1" />
               <UiSelect v-if="program.workout_type === 'cardio'" v-model="programDraft.activity" :label="i18n.t('workouts.activity')" :name="`edit-program-activity-${program.id}`" :options="activityOptions" />
               <UiSelect v-if="program.workout_type === 'cardio' && programDraft.activity === 'running'" v-model="programDraft.runType" :label="i18n.t('workouts.runType')" :name="`edit-program-run-type-${program.id}`" :options="runTypeOptions" />
               <UiNumberInput v-if="program.workout_type === 'cardio'" v-model="programDraft.targetDistanceKm" :label="i18n.t('workouts.targetDistance')" :name="`edit-program-distance-${program.id}`" :min="0.001" :step="0.001" />

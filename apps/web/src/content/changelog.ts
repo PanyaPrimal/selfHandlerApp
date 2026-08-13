@@ -19,6 +19,12 @@ export interface ChangelogEntry {
 
 const entries: readonly ChangelogEntry[] = [
   {
+    id: 'nutrition-meals-hydration-targets', date: '2026-08-13', feature: '016-nutrition-meals-hydration-targets',
+    titleKey: 'changelog.entry.nutrition.title', summaryKey: 'changelog.entry.nutrition.summary',
+    testKey: 'changelog.entry.nutrition.test', links: [{ labelKey: 'nav.nutrition', to: '/nutrition' }],
+    limitationKeys: ['changelog.entry.nutrition.limit'],
+  },
+  {
     id: 'workouts-and-training-goals', date: '2026-08-13', feature: '015-workouts-training-goals',
     titleKey: 'changelog.entry.workouts.title', summaryKey: 'changelog.entry.workouts.summary',
     testKey: 'changelog.entry.workouts.test', links: [{ labelKey: 'nav.workouts', to: '/workouts' }],

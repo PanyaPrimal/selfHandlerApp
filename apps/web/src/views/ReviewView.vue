@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, reactive, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import {
   ApiError,
   getDailyReview,
@@ -310,6 +310,12 @@ watch(
             <span>{{ i18n.t('review.workoutSummary') }}</span>
             <strong>{{ i18n.t('today.workoutPlanned', { count: moduleSummaries.workouts.planned }) }}</strong>
             <p class="muted">{{ i18n.t('workouts.completed') }}: {{ moduleSummaries.workouts.completed }} · {{ i18n.number(moduleSummaries.workouts.distance_m / 1000) }} km</p>
+          </section>
+          <section class="metric" :aria-label="i18n.t('review.nutritionSummary')">
+            <span>{{ i18n.t('review.nutritionSummary') }}</span>
+            <strong>{{ i18n.number(Number(moduleSummaries.nutrition.calories)) }} kcal</strong>
+            <p class="muted">{{ i18n.t('nutrition.hydration') }}: {{ i18n.number(Number(moduleSummaries.nutrition.hydration_ml)) }} ml</p>
+            <RouterLink :to="`/nutrition?date=${reviewDate}`">{{ i18n.t('today.openNutrition') }}</RouterLink>
           </section>
         </div>
 

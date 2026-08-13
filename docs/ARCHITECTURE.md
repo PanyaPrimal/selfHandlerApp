@@ -41,6 +41,14 @@ Planner and Notifications are adapters over the same occurrence; Today and Revie
 Workout summary rather than persisting copies. Training-specific detail extends the existing `Goal`
 lifecycle instead of creating a second goal aggregate.
 
+Nutrition owns its reference, fact, estimate, and aggregate boundaries. Public immutable plain water
+and private foods feed private ordered solid recipes; accepted `MealEntry` rows snapshot every exact
+nutrition, hydration, quality, label, and basis value so later catalogue corrections cannot rewrite
+history. `NutritionDailyTarget` is a concurrency-safe immutable user/date snapshot derived once from
+Profile, selected body goal, and effective Workout occurrences with explicit planned energy. Actual
+Workout energy only refines the read-time comparison. Nutrition computes selected-day and bounded
+range summaries; Today transports that DTO and Review presents it without persisting a second copy.
+
 ### `apps/web`
 
 Vue 3 SPA for desktop and mobile web usage.

@@ -376,6 +376,15 @@ onMounted(() => loadToday())
         <p class="muted">{{ i18n.t('workouts.completed') }}: {{ data.module_summaries.workouts.completed }} · {{ i18n.t('workouts.distanceTotal') }}: {{ i18n.number(data.module_summaries.workouts.distance_m / 1000) }} km</p>
       </section>
 
+      <section class="panel" :aria-label="i18n.t('today.nutritionSummary')">
+        <div class="section-heading">
+          <h2>{{ i18n.t('today.nutritionSummary') }}</h2>
+          <RouterLink :to="`/nutrition?date=${selectedDate}`">{{ i18n.t('today.openNutrition') }}</RouterLink>
+        </div>
+        <p class="summary-value">{{ i18n.number(Number(data.module_summaries.nutrition.calories)) }} kcal</p>
+        <p class="muted">{{ i18n.t('nutrition.hydration') }}: {{ i18n.number(Number(data.module_summaries.nutrition.hydration_ml)) }} ml · {{ i18n.t('nutrition.meals') }}: {{ data.module_summaries.nutrition.meal_count }}</p>
+      </section>
+
       <section class="panel">
         <div class="section-heading">
           <h2>{{ i18n.t('today.routines') }}</h2>

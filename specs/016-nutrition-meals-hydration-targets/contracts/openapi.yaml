@@ -1,0 +1,723 @@
+openapi: 3.1.0
+info:
+  title: SelfHandler Nutrition API
+  version: 0.1.0
+  description: >-
+    Authenticated, owner-scoped feature 016 contract. Nutrients are exact per-100 facts in canonical
+    grams or millilitres; meal snapshots and daily targets do not drift after acceptance.
+servers:
+  - url: /
+security:
+  - sanctum: []
+tags:
+  - name: Nutrition foods
+  - name: Nutrition recipes
+  - name: Nutrition settings
+  - name: Nutrition days
+  - name: Nutrition meals
+paths:
+  /api/nutrition/foods:
+    get:
+      tags: [Nutrition foods]
+      operationId: listNutritionFoods
+      parameters:
+        - $ref: '#/components/parameters/LifecycleState'
+      responses:
+        '200':
+          description: Accessible public and private foods
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/FoodCollectionResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+    post:
+      tags: [Nutrition foods]
+      operationId: createNutritionFood
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/FoodWriteRequest'}
+      responses:
+        '201':
+          description: Private food created
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/FoodResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/nutrition/foods/{food}:
+    parameters:
+      - $ref: '#/components/parameters/FoodId'
+    patch:
+      tags: [Nutrition foods]
+      operationId: updateNutritionFood
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/FoodUpdateRequest'}
+      responses:
+        '200':
+          description: Private food updated, archived, or restored
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/FoodResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/nutrition/recipes:
+    get:
+      tags: [Nutrition recipes]
+      operationId: listNutritionRecipes
+      parameters:
+        - $ref: '#/components/parameters/LifecycleState'
+      responses:
+        '200':
+          description: Owned recipes with derived nutrition
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RecipeCollectionResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+    post:
+      tags: [Nutrition recipes]
+      operationId: createNutritionRecipe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RecipeWriteRequest'}
+      responses:
+        '201':
+          description: Recipe created
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RecipeResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/nutrition/recipes/{recipe}:
+    parameters:
+      - $ref: '#/components/parameters/RecipeId'
+    patch:
+      tags: [Nutrition recipes]
+      operationId: updateNutritionRecipe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RecipeUpdateRequest'}
+      responses:
+        '200':
+          description: Recipe updated, archived, or restored
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RecipeResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/nutrition/settings:
+    get:
+      tags: [Nutrition settings]
+      operationId: getNutritionSettings
+      responses:
+        '200':
+          description: Current settings or defaults
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SettingsResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+    put:
+      tags: [Nutrition settings]
+      operationId: updateNutritionSettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SettingsWriteRequest'}
+      responses:
+        '200':
+          description: Settings replaced
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SettingsResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/nutrition/days/{date}:
+    parameters:
+      - $ref: '#/components/parameters/LocalDate'
+    get:
+      tags: [Nutrition days]
+      operationId: getNutritionDay
+      responses:
+        '200':
+          description: Meals, stable target, refinement, and Nutrition-owned summary for one day
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NutritionDayResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/nutrition/summary:
+    get:
+      tags: [Nutrition days]
+      operationId: getNutritionSummaryRange
+      parameters:
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+      responses:
+        '200':
+          description: Ordered inclusive Nutrition-owned aggregates for no more than 366 dates
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SummaryRangeResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/nutrition/meals:
+    post:
+      tags: [Nutrition meals]
+      operationId: createNutritionMeal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/MealWriteRequest'}
+      responses:
+        '201':
+          description: Meal created, or existing retry identity returned
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/MealResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/nutrition/meals/{meal}:
+    parameters:
+      - $ref: '#/components/parameters/MealId'
+    patch:
+      tags: [Nutrition meals]
+      operationId: updateNutritionMeal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/MealUpdateRequest'}
+      responses:
+        '200':
+          description: Meal and snapshots atomically replaced
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/MealResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+    delete:
+      tags: [Nutrition meals]
+      operationId: deleteNutritionMeal
+      responses:
+        '204': {description: Meal and entry facts deleted}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/NotFound'}
+components:
+  securitySchemes:
+    sanctum:
+      type: http
+      scheme: bearer
+  parameters:
+    FoodId:
+      name: food
+      in: path
+      required: true
+      schema: {type: integer, minimum: 1}
+    RecipeId:
+      name: recipe
+      in: path
+      required: true
+      schema: {type: integer, minimum: 1}
+    MealId:
+      name: meal
+      in: path
+      required: true
+      schema: {type: integer, minimum: 1}
+    LocalDate:
+      name: date
+      in: path
+      required: true
+      schema: {type: string, format: date}
+    FromDate:
+      name: from
+      in: query
+      required: true
+      schema: {type: string, format: date}
+    ToDate:
+      name: to
+      in: query
+      required: true
+      schema: {type: string, format: date}
+    LifecycleState:
+      name: state
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [active, archived, all]
+        default: active
+  responses:
+    Unauthenticated:
+      description: Authentication required
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/MessageResponse'}
+    NotFound:
+      description: Owned resource not found
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/MessageResponse'}
+    ValidationFailed:
+      description: Strict validation failed
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ValidationErrorResponse'}
+  schemas:
+    Decimal:
+      type: string
+      pattern: '^-?[0-9]+(?:\.[0-9]+)?$'
+      examples: ['12.500']
+    NullableDecimal:
+      anyOf:
+        - {$ref: '#/components/schemas/Decimal'}
+        - {type: 'null'}
+    NullableString:
+      type: [string, 'null']
+    NullableInteger:
+      type: [integer, 'null']
+    MessageResponse:
+      type: object
+      additionalProperties: false
+      required: [message]
+      properties:
+        message: {type: string}
+    ValidationErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [message, errors]
+      properties:
+        message: {type: string}
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items: {type: string}
+    Food:
+      type: object
+      additionalProperties: false
+      required: [id, system_key, name, basis_unit, is_beverage, calories_per_100,
+        protein_per_100, fat_per_100, carbs_per_100, quality_score, hydration_ratio,
+        is_archived, is_public]
+      properties:
+        id: {type: integer}
+        system_key: {$ref: '#/components/schemas/NullableString'}
+        name: {type: string}
+        basis_unit: {type: string, enum: [gram, millilitre]}
+        is_beverage: {type: boolean}
+        calories_per_100: {$ref: '#/components/schemas/Decimal'}
+        protein_per_100: {$ref: '#/components/schemas/Decimal'}
+        fat_per_100: {$ref: '#/components/schemas/Decimal'}
+        carbs_per_100: {$ref: '#/components/schemas/Decimal'}
+        quality_score: {$ref: '#/components/schemas/NullableDecimal'}
+        hydration_ratio: {$ref: '#/components/schemas/Decimal'}
+        is_archived: {type: boolean}
+        is_public: {type: boolean}
+    FoodResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/Food'}
+    FoodCollectionResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: {$ref: '#/components/schemas/Food'}
+    FoodWriteRequest:
+      type: object
+      additionalProperties: false
+      required: [name, basis_unit, is_beverage, calories_per_100, protein_per_100,
+        fat_per_100, carbs_per_100, quality_score, hydration_ratio]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 160}
+        basis_unit: {type: string, enum: [gram, millilitre]}
+        is_beverage: {type: boolean}
+        calories_per_100: {type: number, minimum: 0, maximum: 1000000}
+        protein_per_100: {type: number, minimum: 0, maximum: 1000000}
+        fat_per_100: {type: number, minimum: 0, maximum: 1000000}
+        carbs_per_100: {type: number, minimum: 0, maximum: 1000000}
+        quality_score: {type: [number, 'null'], minimum: 0, maximum: 100}
+        hydration_ratio: {type: number, minimum: 0, maximum: 1}
+    FoodUpdateRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: {type: string, minLength: 1, maxLength: 160}
+        basis_unit: {type: string, enum: [gram, millilitre]}
+        is_beverage: {type: boolean}
+        calories_per_100: {type: number, minimum: 0, maximum: 1000000}
+        protein_per_100: {type: number, minimum: 0, maximum: 1000000}
+        fat_per_100: {type: number, minimum: 0, maximum: 1000000}
+        carbs_per_100: {type: number, minimum: 0, maximum: 1000000}
+        quality_score: {type: [number, 'null'], minimum: 0, maximum: 100}
+        hydration_ratio: {type: number, minimum: 0, maximum: 1}
+        is_archived: {type: boolean}
+    RecipeComponentWrite:
+      type: object
+      additionalProperties: false
+      required: [food_item_id, quantity_grams]
+      properties:
+        food_item_id: {type: integer, minimum: 1}
+        quantity_grams: {type: number, exclusiveMinimum: 0, maximum: 1000000}
+    RecipeComponent:
+      type: object
+      additionalProperties: false
+      required: [id, sort_order, quantity_grams, food]
+      properties:
+        id: {type: integer}
+        sort_order: {type: integer, minimum: 0}
+        quantity_grams: {$ref: '#/components/schemas/Decimal'}
+        food: {$ref: '#/components/schemas/Food'}
+    NutritionPer100:
+      type: object
+      additionalProperties: false
+      required: [total_weight_grams, calories, protein_grams, fat_grams, carbs_grams, quality_score]
+      properties:
+        total_weight_grams: {$ref: '#/components/schemas/Decimal'}
+        calories: {$ref: '#/components/schemas/Decimal'}
+        protein_grams: {$ref: '#/components/schemas/Decimal'}
+        fat_grams: {$ref: '#/components/schemas/Decimal'}
+        carbs_grams: {$ref: '#/components/schemas/Decimal'}
+        quality_score: {$ref: '#/components/schemas/NullableDecimal'}
+    Recipe:
+      type: object
+      additionalProperties: false
+      required: [id, name, description, is_archived, components, nutrition_per_100]
+      properties:
+        id: {type: integer}
+        name: {type: string}
+        description: {$ref: '#/components/schemas/NullableString'}
+        is_archived: {type: boolean}
+        components:
+          type: array
+          items: {$ref: '#/components/schemas/RecipeComponent'}
+        nutrition_per_100: {$ref: '#/components/schemas/NutritionPer100'}
+    RecipeResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/Recipe'}
+    RecipeCollectionResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: {$ref: '#/components/schemas/Recipe'}
+    RecipeWriteRequest:
+      type: object
+      additionalProperties: false
+      required: [name, description, components]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 160}
+        description: {type: [string, 'null'], maxLength: 1000}
+        components:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items: {$ref: '#/components/schemas/RecipeComponentWrite'}
+    RecipeUpdateRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: {type: string, minLength: 1, maxLength: 160}
+        description: {type: [string, 'null'], maxLength: 1000}
+        components:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items: {$ref: '#/components/schemas/RecipeComponentWrite'}
+        is_archived: {type: boolean}
+    NutritionSettings:
+      type: object
+      additionalProperties: false
+      required: [body_goal_id, protein_percent, fat_percent, carbs_percent, water_override_ml]
+      properties:
+        body_goal_id: {$ref: '#/components/schemas/NullableInteger'}
+        protein_percent: {$ref: '#/components/schemas/Decimal'}
+        fat_percent: {$ref: '#/components/schemas/Decimal'}
+        carbs_percent: {$ref: '#/components/schemas/Decimal'}
+        water_override_ml: {$ref: '#/components/schemas/NullableInteger'}
+    SettingsResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/NutritionSettings'}
+    SettingsWriteRequest:
+      type: object
+      additionalProperties: false
+      required: [body_goal_id, protein_percent, fat_percent, carbs_percent, water_override_ml]
+      properties:
+        body_goal_id: {type: [integer, 'null'], minimum: 1}
+        protein_percent: {type: number, minimum: 10, maximum: 35}
+        fat_percent: {type: number, minimum: 20, maximum: 35}
+        carbs_percent: {type: number, minimum: 45, maximum: 65}
+        water_override_ml: {type: [integer, 'null'], minimum: 1000, maximum: 6000}
+    MealEntryWrite:
+      type: object
+      additionalProperties: false
+      required: [food_item_id, recipe_id, quantity]
+      properties:
+        food_item_id: {type: [integer, 'null'], minimum: 1}
+        recipe_id: {type: [integer, 'null'], minimum: 1}
+        quantity: {type: number, exclusiveMinimum: 0, maximum: 1000000}
+    MealWriteRequest:
+      type: object
+      additionalProperties: false
+      required: [consumed_on, name, category, consumed_at_local, note, submission_key, entries]
+      properties:
+        consumed_on: {type: string, format: date}
+        name: {type: string, minLength: 1, maxLength: 160}
+        category: {type: [string, 'null'], enum: [breakfast, lunch, dinner, snack, custom, null]}
+        consumed_at_local: {type: [string, 'null'], pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$'}
+        note: {type: [string, 'null'], maxLength: 1000}
+        submission_key: {type: string, format: uuid}
+        entries:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items: {$ref: '#/components/schemas/MealEntryWrite'}
+    MealUpdateRequest:
+      type: object
+      additionalProperties: false
+      required: [consumed_on, name, category, consumed_at_local, note, entries]
+      properties:
+        consumed_on: {type: string, format: date}
+        name: {type: string, minLength: 1, maxLength: 160}
+        category: {type: [string, 'null'], enum: [breakfast, lunch, dinner, snack, custom, null]}
+        consumed_at_local: {type: [string, 'null'], pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$'}
+        note: {type: [string, 'null'], maxLength: 1000}
+        entries:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items: {$ref: '#/components/schemas/MealEntryWrite'}
+    MealEntry:
+      type: object
+      additionalProperties: false
+      required: [id, food_item_id, recipe_id, sort_order, reference_name, basis_unit, quantity,
+        calories, protein_grams, fat_grams, carbs_grams, hydration_ml, quality_numerator,
+        quality_denominator]
+      properties:
+        id: {type: integer}
+        food_item_id: {$ref: '#/components/schemas/NullableInteger'}
+        recipe_id: {$ref: '#/components/schemas/NullableInteger'}
+        sort_order: {type: integer, minimum: 0}
+        reference_name: {type: string}
+        basis_unit: {type: string, enum: [gram, millilitre]}
+        quantity: {$ref: '#/components/schemas/Decimal'}
+        calories: {$ref: '#/components/schemas/Decimal'}
+        protein_grams: {$ref: '#/components/schemas/Decimal'}
+        fat_grams: {$ref: '#/components/schemas/Decimal'}
+        carbs_grams: {$ref: '#/components/schemas/Decimal'}
+        hydration_ml: {$ref: '#/components/schemas/Decimal'}
+        quality_numerator: {$ref: '#/components/schemas/NullableDecimal'}
+        quality_denominator: {$ref: '#/components/schemas/Decimal'}
+    Meal:
+      type: object
+      additionalProperties: false
+      required: [id, consumed_on, name, category, consumed_at_local, note, submission_key, entries]
+      properties:
+        id: {type: integer}
+        consumed_on: {type: string, format: date}
+        name: {type: string}
+        category: {$ref: '#/components/schemas/NullableString'}
+        consumed_at_local: {$ref: '#/components/schemas/NullableString'}
+        note: {$ref: '#/components/schemas/NullableString'}
+        submission_key: {type: string, format: uuid}
+        entries:
+          type: array
+          items: {$ref: '#/components/schemas/MealEntry'}
+    MealResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/Meal'}
+    TargetBasis:
+      type: object
+      additionalProperties: false
+      required: [missing_fields, profile_updated_at, profile_inputs, activity_coefficient,
+        settings, goal, planned_occurrence_ids, planned_energy_missing_count, water_rule,
+        limitation_codes]
+      properties:
+        missing_fields:
+          type: array
+          items: {type: string}
+        profile_updated_at: {$ref: '#/components/schemas/NullableString'}
+        profile_inputs:
+          type: object
+          additionalProperties: false
+          required: [weight_kg, height_cm, age_years, sex, body_fat_percent]
+          properties:
+            weight_kg: {$ref: '#/components/schemas/NullableDecimal'}
+            height_cm: {$ref: '#/components/schemas/NullableDecimal'}
+            age_years: {$ref: '#/components/schemas/NullableInteger'}
+            sex: {$ref: '#/components/schemas/NullableString'}
+            body_fat_percent: {$ref: '#/components/schemas/NullableDecimal'}
+        activity_coefficient: {$ref: '#/components/schemas/NullableDecimal'}
+        settings: {$ref: '#/components/schemas/NutritionSettings'}
+        goal:
+          type: object
+          additionalProperties: false
+          required: [id, start_weight_kg, target_weight_kg, deadline, raw_adjustment_kcal,
+            applied_adjustment_kcal, status_code]
+          properties:
+            id: {$ref: '#/components/schemas/NullableInteger'}
+            start_weight_kg: {$ref: '#/components/schemas/NullableDecimal'}
+            target_weight_kg: {$ref: '#/components/schemas/NullableDecimal'}
+            deadline: {$ref: '#/components/schemas/NullableString'}
+            raw_adjustment_kcal: {$ref: '#/components/schemas/NullableDecimal'}
+            applied_adjustment_kcal: {type: integer}
+            status_code: {type: string}
+        planned_occurrence_ids:
+          type: array
+          items: {type: integer}
+        planned_energy_missing_count: {type: integer, minimum: 0}
+        water_rule:
+          type: object
+          additionalProperties: false
+          required: [source, base_ml, planned_duration_seconds, workout_addition_ml, applied_ml]
+          properties:
+            source: {type: string, enum: [estimate, override, unavailable]}
+            base_ml: {$ref: '#/components/schemas/NullableInteger'}
+            planned_duration_seconds: {type: integer, minimum: 0}
+            workout_addition_ml: {type: integer, minimum: 0}
+            applied_ml: {$ref: '#/components/schemas/NullableInteger'}
+        limitation_codes:
+          type: array
+          items: {type: string}
+    NutritionTarget:
+      type: object
+      additionalProperties: false
+      required: [date, status, formula, bmr_kcal, baseline_kcal, goal_adjustment_kcal,
+        planned_workout_kcal, calorie_target, protein_target_grams, fat_target_grams,
+        carbs_target_grams, water_target_ml, quality_target, calculation_basis]
+      properties:
+        date: {type: string, format: date}
+        status: {type: string, enum: [ready, incomplete]}
+        formula: {type: string, enum: [mifflin_st_jeor, katch_mcardle]}
+        bmr_kcal: {$ref: '#/components/schemas/NullableDecimal'}
+        baseline_kcal: {$ref: '#/components/schemas/NullableDecimal'}
+        goal_adjustment_kcal: {type: integer}
+        planned_workout_kcal: {type: integer, minimum: 0}
+        calorie_target: {$ref: '#/components/schemas/NullableInteger'}
+        protein_target_grams: {$ref: '#/components/schemas/NullableDecimal'}
+        fat_target_grams: {$ref: '#/components/schemas/NullableDecimal'}
+        carbs_target_grams: {$ref: '#/components/schemas/NullableDecimal'}
+        water_target_ml: {$ref: '#/components/schemas/NullableInteger'}
+        quality_target: {$ref: '#/components/schemas/Decimal'}
+        calculation_basis: {$ref: '#/components/schemas/TargetBasis'}
+    NutritionRefinement:
+      type: object
+      additionalProperties: false
+      required: [status, reference_calorie_target, planned_workout_kcal, actual_workout_kcal,
+        refined_calorie_target, missing_actual_energy_count]
+      properties:
+        status: {type: string, enum: [available, incomplete_target, no_completed_workouts, missing_energy]}
+        reference_calorie_target: {$ref: '#/components/schemas/NullableInteger'}
+        planned_workout_kcal: {type: integer, minimum: 0}
+        actual_workout_kcal: {type: integer, minimum: 0}
+        refined_calorie_target: {$ref: '#/components/schemas/NullableInteger'}
+        missing_actual_energy_count: {type: integer, minimum: 0}
+    ProgressValue:
+      type: object
+      additionalProperties: false
+      required: [consumed, target, percent]
+      properties:
+        consumed: {$ref: '#/components/schemas/Decimal'}
+        target: {$ref: '#/components/schemas/NullableDecimal'}
+        percent: {$ref: '#/components/schemas/NullableDecimal'}
+    NutritionProgress:
+      type: object
+      additionalProperties: false
+      required: [calories, protein, fat, carbs, hydration, quality]
+      properties:
+        calories: {$ref: '#/components/schemas/ProgressValue'}
+        protein: {$ref: '#/components/schemas/ProgressValue'}
+        fat: {$ref: '#/components/schemas/ProgressValue'}
+        carbs: {$ref: '#/components/schemas/ProgressValue'}
+        hydration: {$ref: '#/components/schemas/ProgressValue'}
+        quality:
+          type: object
+          additionalProperties: false
+          required: [consumed, target, percent]
+          properties:
+            consumed: {$ref: '#/components/schemas/NullableDecimal'}
+            target: {$ref: '#/components/schemas/Decimal'}
+            percent: {$ref: '#/components/schemas/NullableDecimal'}
+    NutritionSummary:
+      type: object
+      additionalProperties: false
+      required: [date, meal_count, entry_count, calories, protein_grams, fat_grams,
+        carbs_grams, hydration_ml, quality_score, progress]
+      properties:
+        date: {type: string, format: date}
+        meal_count: {type: integer, minimum: 0}
+        entry_count: {type: integer, minimum: 0}
+        calories: {$ref: '#/components/schemas/Decimal'}
+        protein_grams: {$ref: '#/components/schemas/Decimal'}
+        fat_grams: {$ref: '#/components/schemas/Decimal'}
+        carbs_grams: {$ref: '#/components/schemas/Decimal'}
+        hydration_ml: {$ref: '#/components/schemas/Decimal'}
+        quality_score: {$ref: '#/components/schemas/NullableDecimal'}
+        progress: {$ref: '#/components/schemas/NutritionProgress'}
+    NutritionDay:
+      type: object
+      additionalProperties: false
+      required: [date, meals, target, refinement, summary]
+      properties:
+        date: {type: string, format: date}
+        meals:
+          type: array
+          items: {$ref: '#/components/schemas/Meal'}
+        target: {$ref: '#/components/schemas/NutritionTarget'}
+        refinement: {$ref: '#/components/schemas/NutritionRefinement'}
+        summary: {$ref: '#/components/schemas/NutritionSummary'}
+    NutritionDayResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/NutritionDay'}
+    SummaryRange:
+      type: object
+      additionalProperties: false
+      required: [from, to, days]
+      properties:
+        from: {type: string, format: date}
+        to: {type: string, format: date}
+        days:
+          type: array
+          items: {$ref: '#/components/schemas/NutritionSummary'}
+    SummaryRangeResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/SummaryRange'}

@@ -33,6 +33,7 @@ class WorkoutProgram extends Model
 
     protected $fillable = [
         'user_id', 'name', 'description', 'workout_type', 'intensity', 'planned_duration_seconds',
+        'planned_energy_kcal',
         'is_active', 'is_archived', 'archived_at',
     ];
 
@@ -51,6 +52,7 @@ class WorkoutProgram extends Model
     {
         return [
             'planned_duration_seconds' => 'integer',
+            'planned_energy_kcal' => 'integer',
             'is_active' => 'boolean',
             'is_archived' => 'boolean',
             'archived_at' => 'datetime',

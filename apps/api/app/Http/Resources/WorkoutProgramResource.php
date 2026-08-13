@@ -20,6 +20,7 @@ class WorkoutProgramResource extends JsonResource
             'workout_type' => $this->workout_type,
             'intensity' => $this->intensity,
             'planned_duration_seconds' => $this->planned_duration_seconds,
+            'planned_energy_kcal' => $this->planned_energy_kcal,
             'is_active' => $this->is_active,
             'is_archived' => $this->is_archived,
             'archived_at' => $this->archived_at?->toISOString(),

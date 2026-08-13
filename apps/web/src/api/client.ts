@@ -69,6 +69,17 @@ import type {
   WorkoutSession,
   WorkoutSessionInput,
   WorkoutState,
+  FoodItem,
+  FoodItemInput,
+  Meal,
+  MealInput,
+  NutritionDay,
+  NutritionLifecycleState,
+  NutritionSettings,
+  NutritionSettingsInput,
+  NutritionSummaryRange,
+  Recipe,
+  RecipeInput,
 } from './types'
 import { jsonRequest, request } from './http'
 
@@ -96,6 +107,71 @@ export function updateThemePreferences(theme: NonNullable<PreferencesPayload['pr
 export function getToday(date?: string): Promise<TodayResponse> {
   const query = date ? `?date=${encodeURIComponent(date)}` : ''
   return request<TodayResponse>(`/today${query}`)
+}
+
+export async function getNutritionFoods(state: NutritionLifecycleState = 'active'): Promise<FoodItem[]> {
+  const response = await request<ListResponse<FoodItem>>(`/nutrition/foods?state=${encodeURIComponent(state)}`)
+  return response.data
+}
+
+export async function createNutritionFood(payload: FoodItemInput): Promise<FoodItem> {
+  const response = await jsonRequest<ItemResponse<FoodItem>>('/nutrition/foods', 'POST', payload)
+  return response.data
+}
+
+export async function updateNutritionFood(foodId: number, payload: Partial<FoodItemInput> & { is_archived?: boolean }): Promise<FoodItem> {
+  const response = await jsonRequest<ItemResponse<FoodItem>>(`/nutrition/foods/${foodId}`, 'PATCH', payload)
+  return response.data
+}
+
+export async function getNutritionRecipes(state: NutritionLifecycleState = 'active'): Promise<Recipe[]> {
+  const response = await request<ListResponse<Recipe>>(`/nutrition/recipes?state=${encodeURIComponent(state)}`)
+  return response.data
+}
+
+export async function createNutritionRecipe(payload: RecipeInput): Promise<Recipe> {
+  const response = await jsonRequest<ItemResponse<Recipe>>('/nutrition/recipes', 'POST', payload)
+  return response.data
+}
+
+export async function updateNutritionRecipe(recipeId: number, payload: Partial<RecipeInput> & { is_archived?: boolean }): Promise<Recipe> {
+  const response = await jsonRequest<ItemResponse<Recipe>>(`/nutrition/recipes/${recipeId}`, 'PATCH', payload)
+  return response.data
+}
+
+export async function getNutritionSettings(): Promise<NutritionSettings> {
+  const response = await request<ItemResponse<NutritionSettings>>('/nutrition/settings')
+  return response.data
+}
+
+export async function updateNutritionSettings(payload: NutritionSettingsInput): Promise<NutritionSettings> {
+  const response = await jsonRequest<ItemResponse<NutritionSettings>>('/nutrition/settings', 'PUT', payload)
+  return response.data
+}
+
+export async function getNutritionDay(date: string): Promise<NutritionDay> {
+  const response = await request<ItemResponse<NutritionDay>>(`/nutrition/days/${encodeURIComponent(date)}`)
+  return response.data
+}
+
+export async function getNutritionSummary(from: string, to: string): Promise<NutritionSummaryRange> {
+  const query = new URLSearchParams({ from, to })
+  const response = await request<ItemResponse<NutritionSummaryRange>>(`/nutrition/summary?${query.toString()}`)
+  return response.data
+}
+
+export async function createNutritionMeal(payload: MealInput & { submission_key: string }): Promise<Meal> {
+  const response = await jsonRequest<ItemResponse<Meal>>('/nutrition/meals', 'POST', payload)
+  return response.data
+}
+
+export async function updateNutritionMeal(mealId: number, payload: Omit<MealInput, 'submission_key'>): Promise<Meal> {
+  const response = await jsonRequest<ItemResponse<Meal>>(`/nutrition/meals/${mealId}`, 'PATCH', payload)
+  return response.data
+}
+
+export function deleteNutritionMeal(mealId: number): Promise<void> {
+  return request<void>(`/nutrition/meals/${mealId}`, { method: 'DELETE' })
 }
 
 export function getExercises(state: 'active' | 'archived' | 'all' = 'active'): Promise<ExerciseCatalogueResponse> {

@@ -874,6 +874,52 @@ components:
           minimum: 0
           maximum: 100
 
+    NutritionProgressValue:
+      type: object
+      additionalProperties: false
+      required: [consumed, target, percent]
+      properties:
+        consumed: { type: string }
+        target: { type: [string, 'null'] }
+        percent: { type: [string, 'null'] }
+
+    NutritionQualityProgress:
+      type: object
+      additionalProperties: false
+      required: [consumed, target, percent]
+      properties:
+        consumed: { type: [string, 'null'] }
+        target: { type: string }
+        percent: { type: [string, 'null'] }
+
+    NutritionDayProgress:
+      type: object
+      additionalProperties: false
+      required: [calories, protein, fat, carbs, hydration, quality]
+      properties:
+        calories: { $ref: '#/components/schemas/NutritionProgressValue' }
+        protein: { $ref: '#/components/schemas/NutritionProgressValue' }
+        fat: { $ref: '#/components/schemas/NutritionProgressValue' }
+        carbs: { $ref: '#/components/schemas/NutritionProgressValue' }
+        hydration: { $ref: '#/components/schemas/NutritionProgressValue' }
+        quality: { $ref: '#/components/schemas/NutritionQualityProgress' }
+
+    NutritionDaySummary:
+      type: object
+      additionalProperties: false
+      required: [date, meal_count, entry_count, calories, protein_grams, fat_grams, carbs_grams, hydration_ml, quality_score, progress]
+      properties:
+        date: { type: string, format: date }
+        meal_count: { type: integer, minimum: 0 }
+        entry_count: { type: integer, minimum: 0 }
+        calories: { type: string }
+        protein_grams: { type: string }
+        fat_grams: { type: string }
+        carbs_grams: { type: string }
+        hydration_ml: { type: string }
+        quality_score: { type: [string, 'null'] }
+        progress: { $ref: '#/components/schemas/NutritionDayProgress' }
+
     TodayResponse:
       type: object
       required: [date, summary, routines, goals, review, progress, routine_day, module_summaries]
@@ -916,7 +962,7 @@ components:
           additionalProperties: true
         module_summaries:
           type: object
-          required: [sleep, routine_activities, workouts]
+          required: [sleep, routine_activities, workouts, nutrition]
           properties:
             sleep:
               type: object
@@ -936,6 +982,8 @@ components:
                 duration_seconds: { type: integer, minimum: 0 }
                 distance_m: { type: integer, minimum: 0 }
                 strength_volume_kg: { type: string }
+            nutrition:
+              $ref: '#/components/schemas/NutritionDaySummary'
 
     RoutineItemResponse:
       type: object

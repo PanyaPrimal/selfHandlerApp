@@ -18,6 +18,7 @@ class WorkoutProgramMutationRequest extends StrictJsonRequest
             'workout_type' => [$required, Rule::in(WorkoutProgram::TYPES)],
             'intensity' => [$required, Rule::in(WorkoutProgram::INTENSITIES)],
             'planned_duration_seconds' => ['sometimes', 'nullable', 'integer', 'between:60,86400'],
+            'planned_energy_kcal' => ['sometimes', 'nullable', 'integer', 'between:1,100000'],
             'schedule_type' => [$required, Rule::in(['daily', 'weekdays'])],
             'weekdays' => ['sometimes', 'array', 'max:7'],
             'weekdays.*' => ['distinct', Rule::in(WeekdayCode::values())],
@@ -38,7 +39,8 @@ class WorkoutProgramMutationRequest extends StrictJsonRequest
     protected function allowedKeys(): array
     {
         $keys = [
-            'name', 'description', 'intensity', 'planned_duration_seconds', 'schedule_type', 'weekdays',
+            'name', 'description', 'intensity', 'planned_duration_seconds', 'planned_energy_kcal',
+            'schedule_type', 'weekdays',
             'preferred_time', 'starts_on', 'ends_on', 'endurance', 'timed', 'is_active', 'is_archived',
         ];
         if ($this->isMethod('post')) {

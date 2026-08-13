@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\DailyReview;
 use App\Models\Routine;
 use App\Models\RoutineLog;
+use App\Services\NutritionSummaryService;
 use App\Services\RoutineDayProjectionService;
 use App\Services\RoutineProgressService;
 use App\Services\RoutineScheduleService;
@@ -22,6 +23,7 @@ class TodayController extends Controller
         private readonly RoutineScheduleService $scheduleService,
         private readonly SleepStatisticsService $sleepStatistics,
         private readonly WorkoutStatisticsService $workoutStatistics,
+        private readonly NutritionSummaryService $nutritionSummary,
     ) {}
 
     public function __invoke(Request $request): JsonResponse
@@ -171,6 +173,7 @@ class TodayController extends Controller
                 'sleep' => $this->sleepStatistics->summarize($user, $dateValue, $dateValue, $dateValue),
                 'routine_activities' => $projection['activity_summary'],
                 'workouts' => $workouts['summary'],
+                'nutrition' => $this->nutritionSummary->forDay($user, $dateValue),
             ],
         ]);
     }

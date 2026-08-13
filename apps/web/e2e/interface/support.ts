@@ -76,8 +76,11 @@ export async function pickDate(page: Page, label: string, iso: string): Promise<
   for (let attempt = 0; attempt < 400 && (await cell.count()) === 0; attempt += 1) {
     const cursor = await dialog.locator('[role="gridcell"][tabindex="0"]').getAttribute('id')
     const currentIso = cursor?.slice(-10) ?? iso
-    const forward = currentIso < iso
-    await dialog.getByRole('button', { name: forward ? 'Next month' : 'Previous month' }).click()
+    const currentYear = Number(currentIso.slice(0, 4))
+    const targetYear = Number(iso.slice(0, 4))
+    const direction = currentIso < iso ? 'Next' : 'Previous'
+    const interval = currentYear === targetYear ? 'month' : 'year'
+    await dialog.getByRole('button', { name: `${direction} ${interval}` }).click()
   }
 
   await cell.first().click()

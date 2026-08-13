@@ -4,6 +4,7 @@ use App\Http\Controllers\BodyGoalController;
 use App\Http\Controllers\BodyMeasurementController;
 use App\Http\Controllers\DailyReviewController;
 use App\Http\Controllers\ExerciseController;
+use App\Http\Controllers\FoodItemController;
 use App\Http\Controllers\GoalController;
 use App\Http\Controllers\HabitController;
 use App\Http\Controllers\HabitLimitController;
@@ -11,13 +12,17 @@ use App\Http\Controllers\HabitLogController;
 use App\Http\Controllers\HabitStatisticsController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\ItemController;
+use App\Http\Controllers\MealController;
 use App\Http\Controllers\MobileNotificationController;
 use App\Http\Controllers\MobileSessionController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\NotificationSettingsController;
+use App\Http\Controllers\NutritionDayController;
+use App\Http\Controllers\NutritionSettingsController;
 use App\Http\Controllers\PlannerController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\RecipeController;
 use App\Http\Controllers\RoutineActivityController;
 use App\Http\Controllers\RoutineActivityLogController;
 use App\Http\Controllers\RoutineController;
@@ -57,6 +62,20 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/notifications/{notification}/snooze', [NotificationController::class, 'snooze']);
 
     Route::get('/today', TodayController::class);
+
+    Route::get('/nutrition/foods', [FoodItemController::class, 'index']);
+    Route::post('/nutrition/foods', [FoodItemController::class, 'store']);
+    Route::patch('/nutrition/foods/{food}', [FoodItemController::class, 'update']);
+    Route::get('/nutrition/recipes', [RecipeController::class, 'index']);
+    Route::post('/nutrition/recipes', [RecipeController::class, 'store']);
+    Route::patch('/nutrition/recipes/{recipe}', [RecipeController::class, 'update']);
+    Route::get('/nutrition/settings', [NutritionSettingsController::class, 'show']);
+    Route::put('/nutrition/settings', [NutritionSettingsController::class, 'replace']);
+    Route::get('/nutrition/days/{date}', [NutritionDayController::class, 'show']);
+    Route::get('/nutrition/summary', [NutritionDayController::class, 'summary']);
+    Route::post('/nutrition/meals', [MealController::class, 'store']);
+    Route::patch('/nutrition/meals/{meal}', [MealController::class, 'update']);
+    Route::delete('/nutrition/meals/{meal}', [MealController::class, 'destroy']);
 
     Route::get('/exercises', [ExerciseController::class, 'index']);
     Route::post('/exercises', [ExerciseController::class, 'store']);

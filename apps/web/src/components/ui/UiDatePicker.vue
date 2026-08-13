@@ -79,7 +79,13 @@ const headers = computed(() => weekdayLabels(props.locale, weekStart.value))
 const cursor = ref<CalendarDate>({ year: 2000, month: 1, day: 1 })
 
 function defaultCursor(): CalendarDate {
-  const start = selected.value ?? todayDate.value ?? { year: 2000, month: 1, day: 1 }
+  // `today` remains the authoritative product-calendar day when the caller has
+  // one. Older optional-date callers do not, so use the browser date only as a
+  // navigation cursor instead of making people page forward from January 2000.
+  // Opening the calendar still emits nothing and keeps the field empty.
+  const now = new Date()
+  const navigationFallback = { year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate() }
+  const start = selected.value ?? todayDate.value ?? navigationFallback
 
   return clampToRange(start, minDate.value, maxDate.value)
 }
@@ -285,6 +291,12 @@ defineExpose({ focus: () => trigger.value?.focus() })
           <button
             type="button"
             class="ui-calendar__nav"
+            :aria-label="t('common.previousYear')"
+            @click="shiftMonth(-12)"
+          >«</button>
+          <button
+            type="button"
+            class="ui-calendar__nav"
             :aria-label="t('common.previousMonth')"
             @click="shiftMonth(-1)"
           >‹</button>
@@ -295,6 +307,12 @@ defineExpose({ focus: () => trigger.value?.focus() })
             :aria-label="t('common.nextMonth')"
             @click="shiftMonth(1)"
           >›</button>
+          <button
+            type="button"
+            class="ui-calendar__nav"
+            :aria-label="t('common.nextYear')"
+            @click="shiftMonth(12)"
+          >»</button>
         </div>
 
         <div class="ui-calendar__grid" role="grid" :aria-labelledby="gridLabelId">

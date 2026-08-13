@@ -43,6 +43,13 @@ workouts reuse notification quiet hours and delivery; Today and Review present o
 summary. Canonical facts remain kilograms/metres/seconds, and wearable imports, GPS/GPX, licensed
 program content, advanced periodisation, and AI coaching remain deferred.
 
+Feature 016 adds the Nutrition workspace: private foods and solid recipes, exact immutable meal
+snapshots, beverage-derived hydration, and correction-safe day/range progress. One transparent daily
+target is materialized from Profile, an optional body goal, and explicit planned Workout energy; it
+never drifts, while completed-workout refinement remains a separate read-only comparison. Today and
+Review display the same Nutrition-owned DTO. Photo recognition, provider catalogues, medical advice,
+long-period rollups, and AI assessment remain deferred.
+
 The Android package in `apps/mobile` wraps the same production Vue bundle with Capacitor 8. Existing
 accounts use a separate 30-day, `mobile`-scoped Sanctum token stored by a custom Android Keystore
 AES-GCM plugin; browser cookie/CSRF auth is unchanged. Android local notifications are an opt-in

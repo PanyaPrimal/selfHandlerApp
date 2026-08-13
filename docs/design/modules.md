@@ -103,10 +103,13 @@ Back to the plan: [Vision & Plan](vision.md)
 
 ## Module 2 — Nutrition
 
-> Status: in design (2026-06-07)
+> Deterministic Level-1 slice implemented by feature `016-nutrition-meals-hydration-targets`
+> (2026-08-13).
 
 ### Decisions
-- **Foundation:** we take the work from a friend's app — [calorie-tracker](https://github.com/Podvodila/calorie-tracker) (Vue 3 + TS + Vite + Tailwind + Dexie/IndexedDB). It has no backend/MySQL — we reuse the frontend and the product data model, porting storage to Laravel + MySQL. We will adapt it to our needs later.
+- **Foundation:** [calorie-tracker](https://github.com/Podvodila/calorie-tracker) informed generic
+  product concepts only. SelfHandler independently owns the Laravel/MySQL schema, exact contracts,
+  calculations, and Vue interface; no source or schema was ported.
 - **Food selection:** from a list of food items (food item reference).
 
 ### Entities and behavior
@@ -152,7 +155,10 @@ Back to the plan: [Vision & Plan](vision.md)
 - **The goal accounts for the desired result, not just the type.** Example: an 80 kg man who wants to gain +10 kg → the target must provide a sufficient surplus (2000 kcal won't be enough). That is, the goal's magnitude (how many kg and over what timeframe) affects the size of the surplus/deficit in calories. → detailed in "Module 4 — Goals"
 - ✅ **Dynamic TDEE — the target accounts for load and activity.** Calorie expenditure from workouts ("Module 3 — Workouts") is added to the target: on training/high-activity days the calorie target is higher. Target = base (BMR × activity) + expenditure from workouts.
   - ⚠️ **Avoid double-counting activity.** With dynamic TDEE, the "activity level" multiplier in the profile is taken as **baseline/sedentary** (BMR × ~1.2), and workouts are added **on top** as a separate line. Otherwise workouts get counted twice (the standard Mifflin multipliers already include "3–5 workouts/week"). Decision: the profile stores "baseline non-sport activity," sport comes from Module 3.
-  - ⚠️ **The target does not "drift" retroactively.** The target daily figure used to assess the day is computed from the **day's planned activity** (planned workouts from "Module 5 — Planner"), not recomputed every time an actual entry is added. Otherwise "hitting the target" becomes an unattainable moving target (ate → then worked out → target grew → "shortfall"). Actual workout data refines the target **at the end of the day** (for the evening review/analytics), while during the day the reference is the planned target. ❓ finalize the exact policy (plan vs evening recompute) at implementation time
+  - ⚠️ **The target does not "drift" retroactively.** Feature 016 materializes it once per user/date
+    from the effective plan and explicit optional `WorkoutProgram.planned_energy_kcal`. Later changes
+    never mutate it. A separate nonpersisted comparison replaces planned energy with explicit energy
+    from completed Workout facts and reports missing values; Nutrition never infers MET expenditure.
 - Involves three blocks: **Nutrition** (target + actual), **Module 4 — Goals** (goal type), and **anthropometrics** (a new data source)
 - ✅ Anthropometrics live in the **user's profile** (see "Module 0 — User Profile") — relied on by both nutrition and training
 
@@ -170,9 +176,12 @@ Back to the plan: [Vision & Plan](vision.md)
 - Calories — from macros
 - Assessing the healthiness of the dish
 
-### TODO (to design)
-- Entities: food item (reference), meal / daily record (log), portions
-- Food item fields: name, macros per 100 g, calories, **quality/healthiness**, etc. (cross-check against the calorie-tracker model)
+### Implemented boundary and deferrals
+- Food items, ordered solid recipes, flexible meals, immutable entry snapshots, caloric beverages,
+  hydration, target settings, stable estimates, refinement, and max-366-day summaries are implemented.
+- Today and Review display the Nutrition-owned selected-day summary; neither persists or recomputes it.
+- Provider catalogues, photos/attachments, recognition, medical inference, long-period rollups,
+  adaptive recommendations, export, and AI assessment remain deferred to their owning features.
 
 ---
 
@@ -308,7 +317,9 @@ Back to the plan: [Vision & Plan](vision.md)
 
 ### Workout calorie expenditure → nutrition
 - ✅ Workouts **add expenditure** to the daily nutrition target (dynamic TDEE, see "Macro/calorie targets (where they come from)")
-- Expenditure is computed by type/duration/intensity (MET coefficients or per-type formulas)
+- Feature 016 consumes only optional explicit `planned_energy_kcal` on an effective program and
+  explicit `energy_kcal` on a completed endurance fact. Automatic MET/per-type inference is deferred;
+  missing explicit values remain visible instead of becoming invented calories.
 
 ### TODO / open questions
 - The rule-based progression model — which schemes (linear, double progression, etc.)
@@ -421,6 +432,10 @@ Back to the plan: [Vision & Plan](vision.md)
 - Habits/anti-habits: marks, streaks
 - Planner: which scheduled items were done/skipped
 - (each module provides ready-made totals — the aggregation principle)
+
+Feature 016 implements this boundary for Nutrition: Today transports the exact selected-day DTO and
+Review presents it beside its own saved journal fields. `DailyReview` stores no Nutrition totals or
+targets, so corrections remain consistent on every surface.
 
 ### Manual input (all options)
 - **Day self-rating** (1–10 / emoji)

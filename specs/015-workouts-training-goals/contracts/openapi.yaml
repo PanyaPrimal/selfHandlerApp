@@ -650,7 +650,7 @@ components:
     WorkoutProgram:
       type: object
       additionalProperties: false
-      required: [id, name, description, workout_type, intensity, planned_duration_seconds, is_active, is_archived, archived_at, recurring_rule, exercises, endurance, timed, selected_date, occurrence]
+      required: [id, name, description, workout_type, intensity, planned_duration_seconds, planned_energy_kcal, is_active, is_archived, archived_at, recurring_rule, exercises, endurance, timed, selected_date, occurrence]
       properties:
         id: { type: integer }
         name: { type: string }
@@ -658,6 +658,7 @@ components:
         workout_type: { $ref: '#/components/schemas/WorkoutType' }
         intensity: { $ref: '#/components/schemas/Intensity' }
         planned_duration_seconds: { $ref: '#/components/schemas/NullableInteger' }
+        planned_energy_kcal: { $ref: '#/components/schemas/NullableInteger' }
         is_active: { type: boolean }
         is_archived: { type: boolean }
         archived_at: { $ref: '#/components/schemas/NullableString' }
@@ -741,6 +742,12 @@ components:
               minimum: 60
               maximum: 86400
             - type: 'null'
+        planned_energy_kcal:
+          anyOf:
+            - type: integer
+              minimum: 1
+              maximum: 100000
+            - type: 'null'
         schedule_type: { type: string, enum: [daily, weekdays] }
         weekdays:
           type: array
@@ -771,6 +778,12 @@ components:
             - type: integer
               minimum: 60
               maximum: 86400
+            - type: 'null'
+        planned_energy_kcal:
+          anyOf:
+            - type: integer
+              minimum: 1
+              maximum: 100000
             - type: 'null'
         schedule_type: { type: string, enum: [daily, weekdays] }
         weekdays:

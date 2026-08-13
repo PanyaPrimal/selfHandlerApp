@@ -40,13 +40,19 @@
 - **Outcome marker:** closes the loop goal → nutrition + workouts → body changes → conclusions → adjustment.
 
 ### Module 2 — Nutrition
-- Built on a friend's app, [calorie-tracker](https://github.com/Podvodila/calorie-tracker) (Vue/TS/Dexie, no backend). We reuse the frontend and the product model, and port the storage to Laravel + MySQL. We adapt it ourselves.
+- [calorie-tracker](https://github.com/Podvodila/calorie-tracker) supplied generic product concepts only; no source, schema, or UI was copied. SelfHandler's Laravel/MySQL owner model and Vue client are independent.
 - Meals are **dynamic** (categories, or free-form by time of day).
 - An entry is a whole dish + weight OR by components + weight (atomic/composite = a recipe).
 - Drinks: water + tea/coffee/energy drinks/cola (with calories and hydration). Water target comes from the profile.
 - Macro/calorie targets: Mifflin (default) plus Katch-McArdle as an option. The goal acts as a modifier (surplus/deficit, within a range). **Dynamic TDEE** — accounts for energy burned in workouts.
 - Diet scoring = calories + macros + food "quality" (a product attribute).
 - Photo recognition (future): components → macros → calories + healthiness.
+- **Feature 016 implementation boundary (2026-08-13):** food/recipe references stay separate from
+  immutable accepted meal snapshots; beverages contribute their own nutrients and explicit hydration
+  in the same fact. One user/date target records formula inputs, a bounded goal approximation, explicit
+  planned Workout energy, macro split, and water rule exactly once. Completed explicit Workout energy
+  produces a nonpersisted refinement; no MET inference, recurrence ownership, mutable rollup, provider,
+  photo recognition, medical advice, or AI assessment is introduced.
 
 ### Module 2a — Supplements and vitamins
 - Reference catalog: name, category (vitamin/sports nutrition/nootropic/**anabolic**/other), form (incl. injection), dose, volume + price.

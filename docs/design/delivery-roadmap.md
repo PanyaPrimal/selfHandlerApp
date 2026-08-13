@@ -9,7 +9,8 @@ $speckit-analyze -> $speckit-implement` before application code changes.
 > `004-profile-settings`, `005-interface-foundation`, `006-unified-recurrence`,
 > `007-body-measurements`, `008-storage-inbox`, `009-planner-day`,
 > `010-interface-personalization`, `011-in-app-notifications`, `012-android-capacitor-shell`, and
-> `013-habits-anti-habits` are complete. Native compilation and device installation evidence for 012 remains externally blocked in
+> `013-habits-anti-habits`, `014-sleep-routine-templates`, `015-workouts-training-goals`, and
+> `016-nutrition-meals-hydration-targets` are complete. Native compilation and device installation evidence for 012 remains externally blocked in
 > this workspace because Android Studio, JDK, SDK, Gradle, and `adb` are absent; all repository-owned
 > server, web, configuration, sync, resource, and native-source gates pass.
 > `002-homelab-deployment` stops at T055 by product decision: the current homelab deployment is
@@ -349,6 +350,13 @@ must not drift when actual activity changes; end-of-day refinement is a separate
 **Prerequisites:** 004, 007, and 015.
 
 **Explicitly defer:** photo recognition and receipt-like vision flows until 021 and 026.
+
+Delivered as private exact food/recipe references and immutable correctable meal snapshots, with
+beverage-derived hydration and Nutrition-owned selected-day/bounded-range totals. A transparent
+immutable target consumes Profile, one selected body goal, and explicit energy on effective Workout
+occurrences; actual completed energy is a separate refinement. Today, Review, EN/RU/UK responsive web,
+and the Capacitor bundle consume the same DTO. Providers, medical inference, rollups, photos, and AI
+remain deferred.
 
 ### 017 — Supplements, Courses, Intake, and Stock
 

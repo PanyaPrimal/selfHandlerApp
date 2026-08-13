@@ -75,4 +75,13 @@ return [
     'routine_activity_not_selected' => 'This routine is not selected and scheduled for that date.',
     'routine_activity_progress' => 'Progress must match a completed activity and stay within its configured total.',
     'routine_parent_derived' => 'Complete or skip the individual activities of this routine.',
+    'nutrition_basis_mismatch' => 'Choose grams for solid food or millilitres for a beverage.',
+    'nutrition_solid_hydration' => 'Solid food cannot have a hydration ratio.',
+    'nutrition_beverage_quality' => 'Food quality applies to solid food only.',
+    'nutrition_reference_unavailable' => 'Choose an active accessible solid food.',
+    'nutrition_macro_sum' => 'Protein, fat, and carbohydrate percentages must total 100.',
+    'nutrition_goal_unavailable' => 'Choose an active owned body-mass goal.',
+    'nutrition_future_meal' => 'Consumed meals cannot be recorded in the future.',
+    'nutrition_entry_reference' => 'Choose exactly one food or recipe for this entry.',
+    'nutrition_range_invalid' => 'Choose an ordered date range of no more than 366 days.',
 ];
