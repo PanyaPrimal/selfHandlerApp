@@ -43,7 +43,7 @@ const accepted = ref<NotificationSettingsData | null>(null)
 const draft = reactive<NotificationSettingsData>({
   quiet_hours: { enabled: true, starts_at: '23:00', ends_at: '08:00' },
   digest: { enabled: true, time: '08:00' },
-  categories: { routine: true, storage: true },
+  categories: { routine: true, storage: true, habit: true },
 })
 
 const snoozeLabelKeys: Record<NotificationSnoozeMinutes, MessageKey> = {
@@ -430,6 +430,12 @@ onMounted(() => {
             name="storage_notifications"
             :label="t('notifications.storage')"
             :helper="t('notifications.storageHelp')"
+          />
+          <UiSwitch
+            v-model="draft.categories.habit"
+            name="habit_notifications"
+            :label="t('notifications.habit')"
+            :helper="t('notifications.habitHelp')"
           />
         </fieldset>
 

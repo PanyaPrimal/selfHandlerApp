@@ -246,6 +246,145 @@ export type RoutineCreatePayload = RoutineCreateFields & (
 
 export type RoutineUpdatePayload = AtLeastOne<RoutineInput>
 
+/* ------------------------------------------------------------------ */
+/* Habits and anti-habits (feature 013)                                */
+/* ------------------------------------------------------------------ */
+
+export type HabitKind = 'habit' | 'anti_habit'
+export type HabitMode = 'yes_no' | 'numeric' | 'abstinence' | 'stepped_limit'
+export type HabitOutcome = 'done' | 'not_done' | 'recorded' | 'protected' | 'relapse' | 'skipped'
+export type HabitState = 'active' | 'paused' | 'archived'
+export type HabitLimitPeriod = 'day' | 'week'
+
+export interface HabitLog {
+  id: number
+  log_date: string
+  outcome: HabitOutcome
+  value: number | null
+  occurred_at: string | null
+  note: string | null
+  successful: boolean
+}
+
+export interface HabitStatistics {
+  from: string
+  to: string
+  opportunities: number
+  successes: number
+  completion_percentage: number
+  current_streak: number
+  best_streak: number
+  numeric_total: number | null
+}
+
+export interface HabitLimitStep {
+  id: number
+  effective_on: string
+  limit_value: number
+  period: HabitLimitPeriod
+  status: 'completed' | 'current' | 'upcoming'
+}
+
+export interface HabitLimitStepInput {
+  effective_on: string
+  limit_value: number
+  period: HabitLimitPeriod
+}
+
+export interface HabitLimitStatus {
+  state: 'no_active_step' | 'within' | 'exceeded'
+  step: HabitLimitStep | null
+  period_from: string | null
+  period_to: string | null
+  consumed: number
+  remaining: number | null
+  within_limit: boolean | null
+}
+
+export interface Habit {
+  id: number
+  name: string
+  description: string | null
+  kind: HabitKind
+  mode: HabitMode
+  target_value: number | null
+  unit: string | null
+  schedule: {
+    schedule_type: 'daily' | 'weekdays'
+    weekdays: Weekday[]
+    preferred_time: string | null
+    starts_on: string | null
+    ends_on: string | null
+    timezone: string
+    materialized_until: string | null
+  }
+  routine: { id: number, name: string } | null
+  goal: { id: number, name: string } | null
+  intention_place: string | null
+  two_minute_starter: string | null
+  is_active: boolean
+  is_archived: boolean
+  archived_at: string | null
+  limit_steps: HabitLimitStep[]
+  selected_day: {
+    date: string
+    occurrence_id: number | null
+    is_scheduled: boolean
+    is_open: boolean
+    log: HabitLog | null
+  }
+  statistics: HabitStatistics
+  limit_status: HabitLimitStatus | null
+}
+
+export interface HabitInput {
+  name?: string
+  description?: string | null
+  target_value?: number | null
+  unit?: string | null
+  schedule_type?: 'daily' | 'weekdays'
+  weekdays?: Weekday[]
+  preferred_time?: string | null
+  starts_on?: string | null
+  ends_on?: string | null
+  routine_id?: number | null
+  goal_id?: number | null
+  intention_place?: string | null
+  two_minute_starter?: string | null
+  is_active?: boolean
+  is_archived?: boolean
+}
+
+export interface HabitCreatePayload extends HabitInput {
+  name: string
+  kind: HabitKind
+  mode: HabitMode
+  schedule_type: 'daily' | 'weekdays'
+  limit_steps?: HabitLimitStepInput[]
+}
+
+export type HabitUpdatePayload = AtLeastOne<HabitInput>
+
+export interface HabitsResponse {
+  date: string
+  today: string
+  data: Habit[]
+  options: {
+    kinds: HabitKind[]
+    modes: HabitMode[]
+    outcomes: HabitOutcome[]
+    periods: HabitLimitPeriod[]
+    weekdays: Weekday[]
+  }
+}
+
+export interface HabitLogPayload {
+  outcome: HabitOutcome
+  value?: number | null
+  occurred_time?: string | null
+  note?: string | null
+}
+
 export interface GoalInput {
   name?: string
   description?: string | null
@@ -467,7 +606,7 @@ export interface StorageProjectPayload {
 /* ------------------------------------------------------------------ */
 
 /** Which module a day entry came from. Planner owns only `time_block`. */
-export type PlannerSource = 'routine' | 'storage' | 'time_block'
+export type PlannerSource = 'routine' | 'habit' | 'storage' | 'time_block'
 
 /** What the user may do with an entry from inside the planner. */
 export type PlannerAction = 'skip' | 'reschedule' | 'move' | 'edit' | 'delete'
@@ -520,8 +659,8 @@ export interface TimeBlockPayload {
 /* In-app notifications                                                */
 /* ------------------------------------------------------------------ */
 
-export type NotificationType = 'routine_reminder' | 'storage_due' | 'daily_digest'
-export type NotificationCategory = 'routine' | 'storage' | 'digest'
+export type NotificationType = 'routine_reminder' | 'habit_reminder' | 'storage_due' | 'daily_digest'
+export type NotificationCategory = 'routine' | 'habit' | 'storage' | 'digest'
 export type NotificationStatus = 'sent' | 'read'
 export type NotificationView = 'all' | 'unread'
 export type NotificationSnoozeMinutes = 15 | 60 | 240 | 1440
@@ -561,13 +700,14 @@ export interface NotificationSettingsData {
   categories: {
     routine: boolean
     storage: boolean
+    habit: boolean
   }
 }
 
 export interface NotificationSettingsResponse {
   data: NotificationSettingsData
   options: {
-    categories: Array<'routine' | 'storage'>
+    categories: Array<'routine' | 'storage' | 'habit'>
     channels: ['in_app']
     snooze_minutes: NotificationSnoozeMinutes[]
   }

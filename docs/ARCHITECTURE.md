@@ -14,11 +14,18 @@ Laravel API for:
 
 - auth
 - routines
+- habits and anti-habits
 - goals
 - tasks
 - ideas
 - daily reviews
 - analytics
+
+Habits are distinct from routines. A `Habit` owns its mode, context links, lifecycle and exactly one
+shared `RecurringRule`; `HabitLog` owns one result per effective local date, and `HabitLimitStep` owns
+stepped anti-habit ceilings. `PlannedOccurrence.habit_log_id` is a derived fact link beside the existing
+routine link. Planner reads habits through `SchedulableSource`, while notifications reuse the same
+occurrence identity, quiet hours, localization and delivery state.
 
 ### `apps/web`
 

@@ -15,6 +15,7 @@ test('quiet hours digest and categories save atomically and survive reload', asy
   await setTime(page, 'Digest time', '09:00')
   await setSwitch(page, 'Routine reminders', true)
   await setSwitch(page, 'Storage reminders', false)
+  await setSwitch(page, 'Habit reminders', true)
   await page.getByRole('button', { name: 'Save notification settings' }).click()
   await expect(page.getByText('Notification settings saved.')).toBeVisible()
 
@@ -33,7 +34,7 @@ test('quiet hours digest and categories save atomically and survive reload', asy
   expect(response.body.data).toEqual({
     quiet_hours: { enabled: true, starts_at: '22:30', ends_at: '07:15' },
     digest: { enabled: false, time: '09:00' },
-    categories: { routine: true, storage: false },
+    categories: { routine: true, storage: false, habit: true },
   })
 })
 

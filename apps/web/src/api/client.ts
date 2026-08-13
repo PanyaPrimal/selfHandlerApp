@@ -11,6 +11,14 @@ import type {
   Goal,
   GoalCreatePayload,
   GoalUpdatePayload,
+  Habit,
+  HabitCreatePayload,
+  HabitLimitStepInput,
+  HabitLogPayload,
+  HabitStatistics,
+  HabitsResponse,
+  HabitState,
+  HabitUpdatePayload,
   ItemResponse,
   ListResponse,
   PlannerDayResponse,
@@ -104,6 +112,58 @@ export async function updateRoutineLog(
 
 export function clearRoutineLog(routineId: number, date: string): Promise<void> {
   return request<void>(`/routines/${routineId}/logs/${date}`, { method: 'DELETE' })
+}
+
+export function getHabits(state: HabitState = 'active', date?: string): Promise<HabitsResponse> {
+  const query = new URLSearchParams({ state })
+  if (date) query.set('date', date)
+
+  return request<HabitsResponse>(`/habits?${query.toString()}`)
+}
+
+export async function createHabit(payload: HabitCreatePayload): Promise<Habit> {
+  const response = await jsonRequest<ItemResponse<Habit>>('/habits', 'POST', payload)
+  return response.data
+}
+
+export async function updateHabit(habitId: number, payload: HabitUpdatePayload): Promise<Habit> {
+  const response = await jsonRequest<ItemResponse<Habit>>(`/habits/${habitId}`, 'PATCH', payload)
+  return response.data
+}
+
+export async function upsertHabitLog(
+  habitId: number,
+  date: string,
+  payload: HabitLogPayload,
+): Promise<Habit> {
+  const response = await jsonRequest<ItemResponse<Habit>>(
+    `/habits/${habitId}/logs/${encodeURIComponent(date)}`,
+    'PUT',
+    payload,
+  )
+  return response.data
+}
+
+export function clearHabitLog(habitId: number, date: string): Promise<void> {
+  return request<void>(`/habits/${habitId}/logs/${encodeURIComponent(date)}`, { method: 'DELETE' })
+}
+
+export async function replaceHabitLimitSteps(
+  habitId: number,
+  steps: HabitLimitStepInput[],
+): Promise<Habit> {
+  const response = await jsonRequest<ItemResponse<Habit>>(`/habits/${habitId}/limit-steps`, 'PUT', { steps })
+  return response.data
+}
+
+export async function getHabitStatistics(
+  habitId: number,
+  from: string,
+  to: string,
+): Promise<HabitStatistics> {
+  const query = new URLSearchParams({ from, to })
+  const response = await request<ItemResponse<HabitStatistics>>(`/habits/${habitId}/statistics?${query.toString()}`)
+  return response.data
 }
 
 export async function getGoals(archived = false): Promise<Goal[]> {

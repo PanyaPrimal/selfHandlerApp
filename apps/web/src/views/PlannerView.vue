@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   createTimeBlock,
   deleteTimeBlock,
@@ -17,6 +18,7 @@ import type { PlannerEntry, PlannerSource } from '../api/types'
 import { useI18n } from '../i18n'
 
 const i18n = useI18n()
+const router = useRouter()
 const locale = i18n.locale
 
 const isLoading = ref(true)
@@ -45,6 +47,7 @@ const blockErrors = ref<ValidationErrors>({})
 
 const sourceLabels = computed<Record<PlannerSource, string>>(() => ({
   routine: i18n.t('planner.routine'),
+  habit: i18n.t('planner.habit'),
   storage: i18n.t('planner.task'),
   time_block: i18n.t('planner.block'),
 }))
@@ -77,7 +80,7 @@ function metaText(entry: PlannerEntry): string | null {
 
   // A day that arrived here from another date should say so, or it looks like
   // the schedule itself changed.
-  if (entry.source === 'routine' && typeof entry.meta.occurrence_date === 'string') {
+  if ((entry.source === 'routine' || entry.source === 'habit') && typeof entry.meta.occurrence_date === 'string') {
     return entry.meta.occurrence_date === date.value ? null : i18n.t('planner.movedFrom', { date: entry.meta.occurrence_date })
   }
 
@@ -137,7 +140,7 @@ async function confirmMove(entry: PlannerEntry): Promise<void> {
   error.value = null
 
   try {
-    if (entry.source === 'routine') {
+    if (entry.source === 'routine' || entry.source === 'habit') {
       await reschedulePlannerOccurrence(entry.source_id, moveTarget.value)
     } else {
       // A task's date belongs to Storage, so the move goes through Storage.
@@ -185,6 +188,10 @@ async function skip(entry: PlannerEntry): Promise<void> {
   } finally {
     isSubmitting.value = false
   }
+}
+
+async function openHabit(): Promise<void> {
+  if (date.value) await router.push({ path: '/habits', query: { date: date.value } })
 }
 
 async function addBlock(): Promise<void> {
@@ -311,7 +318,15 @@ void load()
               </div>
             </div>
 
-            <div v-if="entry.actions.length > 0" class="planner-entry__actions">
+            <div v-if="entry.actions.length > 0 || entry.source === 'habit'" class="planner-entry__actions">
+              <button
+                v-if="entry.source === 'habit'"
+                type="button"
+                class="secondary"
+                @click="openHabit"
+              >
+                {{ i18n.t('planner.checkIn') }}
+              </button>
               <button
                 v-if="entry.actions.includes('skip')"
                 type="button"
@@ -333,7 +348,7 @@ void load()
                 {{ i18n.t('planner.move') }}
               </button>
               <button
-                v-if="entry.source === 'routine' && entry.meta.rescheduled_to"
+                v-if="(entry.source === 'routine' || entry.source === 'habit') && entry.meta.rescheduled_to"
                 type="button"
                 class="secondary"
                 :aria-label="i18n.t('planner.putBackNamed', { name: entry.title })"

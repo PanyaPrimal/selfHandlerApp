@@ -162,6 +162,17 @@ erDiagram
    Only Planner reads through the contract. A module adding itself to a day implements the interface and
    registers; nothing about the recurrence engine changes.
 
+**Extended by feature `013-habits-anti-habits` (2026-08-13):**
+
+- `habit` is the second `owner_type`; owner ids are always interpreted with their type, so numeric id
+  collisions with routines are harmless.
+- An occurrence may link to either `routine_log_id` or `habit_log_id`, never both. Materialization and
+  reconcile preserve/rebuild both fact kinds while the owning module decides whether its fact succeeded.
+- Habits implement a separate read-only Planner source. Generic rescheduling refuses fact-bound days;
+  habit moves also refuse an effective-date collision because Habits owns one fact per local date.
+- This increment supports daily and exact selected weekdays. Floating N-per-week quotas, multi-slot
+  days, interval/monthly rules and arbitrary RRULE input remain deferred.
+
 **Still open, each waiting for a consumer:**
 
 3. `payload` (JSON on the rule) vs. storing domain data only in the polymorphic owner. Feature 006 needs

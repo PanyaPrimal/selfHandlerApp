@@ -38,6 +38,7 @@ class PlannedOccurrence extends Model
         'occurrence_time',
         'status',
         'routine_log_id',
+        'habit_log_id',
         'materialized_at',
     ];
 
@@ -54,6 +55,22 @@ class PlannedOccurrence extends Model
 
             if ((int) $ruleOwnerId !== (int) $occurrence->user_id) {
                 throw new RuntimeException('An occurrence must have the same owner as its rule.');
+            }
+
+            if ($occurrence->routine_log_id !== null && $occurrence->habit_log_id !== null) {
+                throw new RuntimeException('An occurrence may link to only one domain fact.');
+            }
+
+            $factOwnerId = match (true) {
+                $occurrence->routine_log_id !== null => RoutineLog::query()
+                    ->whereKey($occurrence->routine_log_id)->value('user_id'),
+                $occurrence->habit_log_id !== null => HabitLog::query()
+                    ->whereKey($occurrence->habit_log_id)->value('user_id'),
+                default => $occurrence->user_id,
+            };
+
+            if ((int) $factOwnerId !== (int) $occurrence->user_id) {
+                throw new RuntimeException('An occurrence must have the same owner as its fact.');
             }
         });
     }
@@ -75,5 +92,15 @@ class PlannedOccurrence extends Model
     public function routineLog(): BelongsTo
     {
         return $this->belongsTo(RoutineLog::class);
+    }
+
+    public function habitLog(): BelongsTo
+    {
+        return $this->belongsTo(HabitLog::class);
+    }
+
+    public function hasFact(): bool
+    {
+        return $this->routine_log_id !== null || $this->habit_log_id !== null;
     }
 }

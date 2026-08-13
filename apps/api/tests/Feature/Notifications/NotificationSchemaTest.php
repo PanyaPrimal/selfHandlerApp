@@ -42,7 +42,10 @@ class NotificationSchemaTest extends NotificationTestCase
         $this->assertSame('08:00', $settings->quietEndsAt());
         $this->assertTrue($settings->digest_enabled);
         $this->assertSame('08:00', $settings->digestTime());
-        $this->assertSame(['routine' => true, 'storage' => true], $settings->categorySettings());
+        $this->assertSame(
+            ['routine' => true, 'storage' => true, 'habit' => true],
+            $settings->categorySettings(),
+        );
         $this->assertSame($settings->id, $user->ensureNotificationSettings()->id);
     }
 

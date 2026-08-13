@@ -6,6 +6,7 @@ use App\Models\PlannedOccurrence;
 use App\Models\RecurringRule;
 use App\Models\User;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -47,7 +48,7 @@ class RecurrenceMaterializer
             $existing = PlannedOccurrence::query()
                 ->where('recurring_rule_id', $rule->id)
                 ->whereBetween('occurrence_date', [$from, $to])
-                ->get(['id', 'occurrence_date', 'rescheduled_to', 'routine_log_id']);
+                ->get(['id', 'occurrence_date', 'rescheduled_to', 'routine_log_id', 'habit_log_id']);
 
             $known = $existing->pluck('occurrence_date')
                 ->map(fn ($date): string => $date->format('Y-m-d'))
@@ -67,6 +68,7 @@ class RecurrenceMaterializer
                         'occurrence_time' => $rule->slot_time,
                         'status' => PlannedOccurrence::STATUS_PLANNED,
                         'routine_log_id' => null,
+                        'habit_log_id' => null,
                         'materialized_at' => $now,
                         'created_at' => $now,
                         'updated_at' => $now,
@@ -81,7 +83,7 @@ class RecurrenceMaterializer
             // evidence, and a reschedule is a decision they made about a
             // specific day. Neither is a prediction this run may overwrite.
             $stale = $existing
-                ->filter(fn (PlannedOccurrence $occurrence): bool => $occurrence->routine_log_id === null
+                ->filter(fn (PlannedOccurrence $occurrence): bool => ! $occurrence->hasFact()
                     && $occurrence->rescheduled_to === null
                     && ! in_array($occurrence->occurrence_date->format('Y-m-d'), $wanted, true))
                 ->modelKeys();
@@ -113,13 +115,13 @@ class RecurrenceMaterializer
             ->with('ruleWeekdays')
             ->orderBy('id')
             ->chunk(100, function ($rules) use (&$written, $from): void {
-                $enabled = $this->enabledOwners($rules->pluck('owner_id')->all());
+                $enabled = $this->enabledOwners($rules);
 
                 foreach ($rules as $rule) {
                     $written += $this->materialize(
                         $rule,
                         $from,
-                        $enabled[$rule->owner_id] ?? false,
+                        $enabled[$this->ownerKey($rule->owner_type, (int) $rule->owner_id)] ?? false,
                     );
                 }
             });
@@ -128,26 +130,50 @@ class RecurrenceMaterializer
     }
 
     /**
-     * Which routine owners currently want their schedule live.
+     * Which polymorphic owners currently want their schedule live.
      *
      * Resolved in one query so `materializeForUser` stays bounded.
      *
-     * @param  list<int>  $ownerIds
      * @return array<int, bool>
      */
-    private function enabledOwners(array $ownerIds): array
+    private function enabledOwners(Collection $rules): array
     {
-        if ($ownerIds === []) {
+        if ($rules->isEmpty()) {
             return [];
         }
 
-        return DB::table('routines')
-            ->whereIn('id', $ownerIds)
-            ->whereNull('deleted_at')
-            ->where('is_active', true)
-            ->where('is_archived', false)
-            ->pluck('id')
-            ->mapWithKeys(fn ($id): array => [(int) $id => true])
-            ->all();
+        $enabled = [];
+
+        foreach ($rules->groupBy('owner_type') as $ownerType => $ownerRules) {
+            $table = match ($ownerType) {
+                RecurringRule::OWNER_ROUTINE => 'routines',
+                RecurringRule::OWNER_HABIT => 'habits',
+                default => null,
+            };
+
+            if ($table === null) {
+                continue;
+            }
+
+            $query = DB::table($table)
+                ->whereIn('id', $ownerRules->pluck('owner_id')->all())
+                ->where('is_active', true)
+                ->where('is_archived', false);
+
+            if ($ownerType === RecurringRule::OWNER_ROUTINE) {
+                $query->whereNull('deleted_at');
+            }
+
+            foreach ($query->pluck('id') as $ownerId) {
+                $enabled[$this->ownerKey((string) $ownerType, (int) $ownerId)] = true;
+            }
+        }
+
+        return $enabled;
+    }
+
+    private function ownerKey(string $ownerType, int $ownerId): string
+    {
+        return $ownerType.':'.$ownerId;
     }
 }

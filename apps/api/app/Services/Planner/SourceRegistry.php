@@ -14,6 +14,7 @@ class SourceRegistry
 {
     public function __construct(
         private readonly RoutineOccurrenceSource $routines,
+        private readonly HabitOccurrenceSource $habits,
         private readonly StorageItemSource $storage,
         private readonly TimeBlockSource $blocks,
     ) {}
@@ -23,7 +24,7 @@ class SourceRegistry
      */
     public function all(): array
     {
-        return [$this->routines, $this->storage, $this->blocks];
+        return [$this->routines, $this->habits, $this->storage, $this->blocks];
     }
 
     /**

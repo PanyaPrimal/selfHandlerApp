@@ -168,3 +168,14 @@ Resolved by feature 012:
    best-effort basis. Any invalid action opens the inbox.
 5. This adapter cannot wake a stopped app. FCM, background push, exact alarms, and generalized delivery
    audit rows remain deferred until a feature needs them.
+
+Extended by feature 013:
+
+1. A timed planned habit occurrence produces the `habit_reminder` type in the independently configurable
+   `habit` category. Existing users and older settings rows receive an enabled default on read.
+2. The notification keeps the planned occurrence as its source identity, so repeated synchronisation
+   deduplicates it and a habit fact closes it through the existing disposition path.
+3. Untimed habits create no direct reminder and are not guessed into a time. Habit reminders do not
+   enter the routine/task daily digest in this increment.
+4. EN/RU/UK rendering, quiet hours, escalation and Android local presentation are unchanged shared
+   delivery concerns; push and stopped-app wakeup remain deferred.

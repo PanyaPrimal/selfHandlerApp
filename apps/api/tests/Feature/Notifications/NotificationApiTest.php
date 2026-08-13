@@ -48,7 +48,7 @@ class NotificationApiTest extends NotificationTestCase
         $payload = [
             'quiet_hours' => ['enabled' => true, 'starts_at' => '22:30', 'ends_at' => '07:15'],
             'digest' => ['enabled' => false, 'time' => '09:00'],
-            'categories' => ['routine' => true, 'storage' => false],
+            'categories' => ['routine' => true, 'storage' => false, 'habit' => true],
         ];
 
         $this->putJson('/api/notifications/settings', $payload)

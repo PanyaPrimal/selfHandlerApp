@@ -2,6 +2,7 @@
 
 namespace App\Services\Notifications;
 
+use App\Models\Habit;
 use App\Models\InAppNotification;
 use App\Models\Item;
 use App\Models\PlannedOccurrence;
@@ -27,13 +28,21 @@ class NotificationSourceSynchronizer
         $written = 0;
 
         $routines = $this->activeRoutines($user);
+        $habits = $this->activeHabits($user);
         $occurrences = PlannedOccurrence::query()
             ->ownedBy($user)
             ->with('recurringRule')
             ->get();
         $items = Item::query()->ownedBy($user)->get()->keyBy('id');
 
-        $this->closeInvalidExisting($user, $occurrences->keyBy('id'), $items, $routines, $today);
+        $this->closeInvalidExisting(
+            $user,
+            $occurrences->keyBy('id'),
+            $items,
+            $routines,
+            $habits,
+            $today,
+        );
 
         if ($settings->categoryEnabled(InAppNotification::CATEGORY_ROUTINE)) {
             foreach ($occurrences as $occurrence) {
@@ -61,6 +70,36 @@ class NotificationSourceSynchronizer
                     'action_url' => "/planner?date={$effectiveDate}",
                     'scheduled_at' => $scheduledAt,
                     'max_escalations' => (int) config('selfhandler.notifications.routine.max_escalations', 2),
+                ]);
+            }
+        }
+
+        if ($settings->categoryEnabled(InAppNotification::CATEGORY_HABIT)) {
+            foreach ($occurrences as $occurrence) {
+                $habit = $this->habitForOccurrence($occurrence, $habits);
+                $effectiveDate = $this->effectiveDate($occurrence);
+
+                if (! $habit
+                    || $occurrence->status !== PlannedOccurrence::STATUS_PLANNED
+                    || blank($occurrence->occurrence_time)
+                    || $effectiveDate !== $today) {
+                    continue;
+                }
+
+                $scheduledAt = CarbonImmutable::parse(
+                    "{$effectiveDate} ".substr((string) $occurrence->occurrence_time, 0, 8),
+                    $timezone,
+                )->utc();
+
+                $written += $this->upsertInitial($user, [
+                    'source_type' => InAppNotification::SOURCE_PLANNED_OCCURRENCE,
+                    'source_id' => $occurrence->id,
+                    'type' => InAppNotification::TYPE_HABIT_REMINDER,
+                    'category' => InAppNotification::CATEGORY_HABIT,
+                    'content' => ['title' => $habit->name, 'date' => $effectiveDate],
+                    'action_url' => "/planner?date={$effectiveDate}",
+                    'scheduled_at' => $scheduledAt,
+                    'max_escalations' => (int) config('selfhandler.notifications.habit.max_escalations', 2),
                 ]);
             }
         }
@@ -108,17 +147,24 @@ class NotificationSourceSynchronizer
                 return InAppNotification::STATUS_ACTIONED;
             }
 
-            $routine = $occurrence->recurringRule
-                ? Routine::query()
+            $activeOwner = match ($occurrence->recurringRule?->owner_type) {
+                RecurringRule::OWNER_ROUTINE => Routine::query()
                     ->ownedBy($user)
                     ->whereKey($occurrence->recurringRule->owner_id)
                     ->where('is_active', true)
                     ->where('is_archived', false)
-                    ->first()
-                : null;
+                    ->exists(),
+                RecurringRule::OWNER_HABIT => Habit::query()
+                    ->ownedBy($user)
+                    ->whereKey($occurrence->recurringRule->owner_id)
+                    ->where('is_active', true)
+                    ->where('is_archived', false)
+                    ->exists(),
+                default => false,
+            };
 
             return $occurrence->status === PlannedOccurrence::STATUS_PLANNED
-                && $routine
+                && $activeOwner
                 && filled($occurrence->occurrence_time)
                 && $this->effectiveDate($occurrence) === $today
                     ? 'pending'
@@ -160,6 +206,28 @@ class NotificationSourceSynchronizer
         }
 
         return $routines->get($rule->owner_id);
+    }
+
+    /** @return Collection<int, Habit> */
+    public function activeHabits(User $user): Collection
+    {
+        return Habit::query()
+            ->ownedBy($user)
+            ->where('is_active', true)
+            ->where('is_archived', false)
+            ->get()
+            ->keyBy('id');
+    }
+
+    public function habitForOccurrence(PlannedOccurrence $occurrence, Collection $habits): ?Habit
+    {
+        $rule = $occurrence->recurringRule;
+
+        if (! $rule || $rule->owner_type !== RecurringRule::OWNER_HABIT) {
+            return null;
+        }
+
+        return $habits->get($rule->owner_id);
     }
 
     public function effectiveDate(PlannedOccurrence $occurrence): string
@@ -228,12 +296,14 @@ class NotificationSourceSynchronizer
      * @param  Collection<int, PlannedOccurrence>  $occurrences
      * @param  Collection<int, Item>  $items
      * @param  Collection<int, Routine>  $routines
+     * @param  Collection<int, Habit>  $habits
      */
     private function closeInvalidExisting(
         User $user,
         Collection $occurrences,
         Collection $items,
         Collection $routines,
+        Collection $habits,
         string $today,
     ): void {
         $settings = $user->ensureNotificationSettings();
@@ -251,6 +321,7 @@ class NotificationSourceSynchronizer
                 $occurrences,
                 $items,
                 $routines,
+                $habits,
                 $today,
             ): void {
                 $terminal = null;
@@ -264,7 +335,8 @@ class NotificationSourceSynchronizer
                         $terminal = InAppNotification::STATUS_ACTIONED;
                     } elseif (! $occurrence
                         || $occurrence->status !== PlannedOccurrence::STATUS_PLANNED
-                        || ! $this->routineForOccurrence($occurrence, $routines)
+                        || (! $this->routineForOccurrence($occurrence, $routines)
+                            && ! $this->habitForOccurrence($occurrence, $habits))
                         || blank($occurrence->occurrence_time)
                         || $this->effectiveDate($occurrence) !== $today) {
                         $terminal = InAppNotification::STATUS_CANCELLED;

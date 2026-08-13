@@ -174,7 +174,8 @@ Back to the plan: [Vision & Plan](vision.md)
 ## Module 2a — Supplements & Vitamins
 
 > Split out of "Nutrition" into a separate module (2026-06-07): supplements have a different nature — intake courses, dosages, an intake schedule, different purposes.
-> In design (2026-06-07).
+> Implemented by feature `013-habits-anti-habits` (2026-08-13) for daily and exact selected-weekday
+> schedules, yes/no and numeric habits, explicit abstinence, and separate stepped day/week ceilings.
 
 ### The "Supplement/medication" entity (reference)
 - Name
@@ -548,8 +549,12 @@ Back to the plan: [Vision & Plan](vision.md)
 - ✅ Streak / % completion / metric sums are computed by the module itself (the aggregation principle)
 
 ### TODO / open questions
-- A reference for the methodology: "Atomic Habits" — exactly which mechanics in the MVP
-- The model for a "limit that changes over time" — a separate "stepped scale" entity (value+deadline+status), do NOT reuse a goal milestone blindly (different semantics: a constraint vs an achievement). ❓ whether a shared abstraction is needed at all, or two independent models
+- The implemented methodology surface is habit stacking to one routine, implementation time/place,
+  a two-minute starter, and module-owned chains. Four-laws coaching remains deferred.
+- A changing limit is implemented as independent `habit_limit_steps`; goal milestones are not read or
+  mutated. A shared abstraction remains unjustified.
+- Flexible "any N days per week", multi-slot schedules, offline writes, aggregate rollups and AI
+  coaching remain deferred until a consumer defines their semantics.
 
 ---
 

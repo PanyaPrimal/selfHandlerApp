@@ -4,6 +4,10 @@ use App\Http\Controllers\BodyGoalController;
 use App\Http\Controllers\BodyMeasurementController;
 use App\Http\Controllers\DailyReviewController;
 use App\Http\Controllers\GoalController;
+use App\Http\Controllers\HabitController;
+use App\Http\Controllers\HabitLimitController;
+use App\Http\Controllers\HabitLogController;
+use App\Http\Controllers\HabitStatisticsController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\MobileNotificationController;
@@ -42,6 +46,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/notifications/{notification}/snooze', [NotificationController::class, 'snooze']);
 
     Route::get('/today', TodayController::class);
+
+    Route::get('/habits', [HabitController::class, 'index']);
+    Route::post('/habits', [HabitController::class, 'store']);
+    Route::patch('/habits/{habit}', [HabitController::class, 'update']);
+    Route::put('/habits/{habit}/logs/{date}', [HabitLogController::class, 'upsert']);
+    Route::delete('/habits/{habit}/logs/{date}', [HabitLogController::class, 'clear']);
+    Route::get('/habits/{habit}/statistics', [HabitStatisticsController::class, 'show']);
+    Route::put('/habits/{habit}/limit-steps', [HabitLimitController::class, 'replace']);
 
     Route::get('/routines', [RoutineController::class, 'index']);
     Route::post('/routines', [RoutineController::class, 'store']);

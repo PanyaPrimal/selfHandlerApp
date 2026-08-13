@@ -94,7 +94,7 @@ class PlannerController extends Controller
 
     private function assertMovable(mixed $user, PlannedOccurrence $occurrence, string $target): void
     {
-        if ($occurrence->routine_log_id !== null) {
+        if ($occurrence->hasFact()) {
             throw ValidationException::withMessages([
                 'rescheduled_to' => __('messages.move_has_result'),
             ]);
@@ -113,6 +113,21 @@ class PlannerController extends Controller
         if ($until !== null && $target > $until) {
             throw ValidationException::withMessages([
                 'rescheduled_to' => __('messages.planned_window', ['until' => $until]),
+            ]);
+        }
+
+        if ($occurrence->recurringRule?->owner_type === RecurringRule::OWNER_HABIT
+            && PlannedOccurrence::query()
+                ->where('recurring_rule_id', $occurrence->recurring_rule_id)
+                ->whereKeyNot($occurrence->id)
+                ->where(function ($query) use ($target): void {
+                    $query->where(function ($original) use ($target): void {
+                        $original->where('occurrence_date', $target)->whereNull('rescheduled_to');
+                    })->orWhere('rescheduled_to', $target);
+                })
+                ->exists()) {
+            throw ValidationException::withMessages([
+                'rescheduled_to' => __('messages.habit_move_collision'),
             ]);
         }
     }

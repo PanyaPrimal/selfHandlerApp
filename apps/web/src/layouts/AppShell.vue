@@ -15,13 +15,14 @@ interface Destination {
 }
 
 /**
- * Four primary destinations are the daily loop and stay as tabs on a phone; the
- * rest live behind "More". Squeezing every destination into one 390px row would
- * drop each tab below a comfortable touch target and truncate its label.
+ * Three daily-loop destinations stay direct on a phone and "More" is the fourth
+ * tab. Squeezing every destination into one 390px row would drop each tab below
+ * a comfortable touch target and truncate its label.
  */
 const desktopDestinations: Destination[] = [
   { name: 'today', to: '/', label: 'nav.today' },
   { name: 'routines', to: '/routines', label: 'nav.routines' },
+  { name: 'habits', to: '/habits', label: 'nav.habits' },
   { name: 'goals', to: '/goals', label: 'nav.goals' },
   { name: 'review', to: '/review', label: 'nav.review' },
   { name: 'planner', to: '/planner', label: 'nav.planner' },

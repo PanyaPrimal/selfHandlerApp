@@ -7,6 +7,7 @@ import BodyView from './views/BodyView.vue'
 import StorageView from './views/StorageView.vue'
 import ChangelogView from './views/ChangelogView.vue'
 import GoalsView from './views/GoalsView.vue'
+import HabitsView from './views/HabitsView.vue'
 import LoginView from './views/LoginView.vue'
 import PlannerView from './views/PlannerView.vue'
 import RegisterView from './views/RegisterView.vue'
@@ -53,6 +54,11 @@ export const router = createRouter({
           path: 'routines',
           name: 'routines',
           component: RoutinesView,
+        },
+        {
+          path: 'habits',
+          name: 'habits',
+          component: HabitsView,
         },
         {
           path: 'goals',

@@ -21,8 +21,14 @@ mounts to avoid a wrong-language or wrong-theme first frame. New UI copy must pa
 localisation gate with `npm --prefix apps/web run check:i18n`.
 
 Authenticated users also have one in-app notification inbox for timed routine occurrences, important
-dated Storage tasks, and a daily digest. Per-user quiet hours, category settings, snooze, retry-safe
-processing, and routine escalation are owned by feature 011; external delivery channels remain deferred.
+dated Storage tasks, timed habit occurrences, and a daily digest. Per-user quiet hours, category
+settings, snooze, retry-safe processing, and occurrence escalation are owned by feature 011 and its
+feature 013 adapter; external delivery channels remain deferred.
+
+Feature 013 provides a first-class Habits surface for recurring yes/no and numeric habits, explicit
+abstinence, and stepped day/week reduction ceilings. Check-ins are module-owned facts; streaks,
+completion, numeric totals, and limit state are calculated on read. Planner and notifications consume
+the shared occurrences without copying habit state.
 
 The Android package in `apps/mobile` wraps the same production Vue bundle with Capacitor 8. Existing
 accounts use a separate 30-day, `mobile`-scoped Sanctum token stored by a custom Android Keystore

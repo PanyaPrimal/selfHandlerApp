@@ -2,9 +2,32 @@ import { expect, test } from '@playwright/test'
 import { registerViaUi, uniqueCredentials } from '../support/auth'
 import { expectNoHorizontalOverflow, expectSurfaceWithinViewport } from './support'
 
-const desktopDestinations = ['Today', 'Routines', 'Goals', 'Review', 'Settings', 'Account', 'Changelog']
-const mobilePrimary = ['Today', 'Routines', 'Goals']
-const mobileMore = ['Review', 'Settings', 'Account', 'Changelog']
+const desktopDestinations = [
+  'Today',
+  'Routines',
+  'Habits',
+  'Goals',
+  'Review',
+  'Planner',
+  'Storage',
+  'Body',
+  'Notifications',
+  'Settings',
+  'Account',
+  'Changelog',
+]
+const mobilePrimary = ['Today', 'Routines', 'Habits']
+const mobileMore = [
+  'Goals',
+  'Review',
+  'Planner',
+  'Storage',
+  'Body',
+  'Notifications',
+  'Settings',
+  'Account',
+  'Changelog',
+]
 
 test('the desktop sidebar lists every destination directly', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'Desktop sidebar layout')
@@ -74,13 +97,18 @@ test('every destination is reachable at 390px', async ({ page }, testInfo) => {
 
   const bar = page.locator('.nav-list--compact')
 
-  for (const [label, url] of [['Routines', '/routines'], ['Goals', '/goals']] as const) {
+  for (const [label, url] of [['Routines', '/routines'], ['Habits', '/habits']] as const) {
     await bar.getByRole('link', { name: label, exact: true }).click()
     await expect(page).toHaveURL(new RegExp(`^.*${url}`))
   }
 
   for (const [label, url] of [
+    ['Goals', '/goals'],
     ['Review', '/review'],
+    ['Planner', '/planner'],
+    ['Storage', '/storage'],
+    ['Body', '/body'],
+    ['Notifications', '/notifications'],
     ['Settings', '/settings/appearance'],
     ['Account', '/account'],
     ['Changelog', '/changelog'],

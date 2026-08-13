@@ -19,6 +19,12 @@ export interface ChangelogEntry {
 
 const entries: readonly ChangelogEntry[] = [
   {
+    id: 'habits-and-anti-habits', date: '2026-08-13', feature: '013-habits-anti-habits',
+    titleKey: 'changelog.entry.habits.title', summaryKey: 'changelog.entry.habits.summary',
+    testKey: 'changelog.entry.habits.test', links: [{ labelKey: 'nav.habits', to: '/habits' }],
+    limitationKeys: ['changelog.entry.habits.limit'],
+  },
+  {
     id: 'android-capacitor-shell', date: '2026-08-13', feature: '012-android-capacitor-shell',
     titleKey: 'changelog.entry.android.title', summaryKey: 'changelog.entry.android.summary',
     testKey: 'changelog.entry.android.test', links: [{ labelKey: 'nav.notifications', to: '/notifications' }],

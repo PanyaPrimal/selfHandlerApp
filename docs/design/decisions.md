@@ -95,7 +95,9 @@
 
 ### Module 8 — Habits and anti-habits
 - Habits: completion fact + numeric metrics + time. **A builder based on "Atomic Habits"** (habit stacking → routines; implementation intention → Planner; the two-minute rule; don't break the chain).
-- Anti-habits, 2 modes: full abstinence (a streak) OR a **stepped limit** (energy drinks 1/day → 5/week → 3/week, tied to milestones).
+- Anti-habits, 2 modes: full abstinence (an explicit protected/relapse streak) OR a **stepped limit**
+  (energy drinks 1/day → 5/week → 3/week). Feature 013 implements the limit as its own ordered
+  constraint plan; it is not tied to or shared with goal milestones.
 - Gamification: streaks + statistics.
 
 ### Module 9 — Analytics
@@ -141,6 +143,9 @@
 - **The purchase ↔ transaction link** is defined: a polymorphic `TRANSACTION.source` (the FK on the money side) plus the invariant "bought ⟺ a transaction/installment plan exists". PURCHASE was added to the ER diagram.
 - **Dynamic TDEE:** the target doesn't "drift" retroactively — it's computed from the day's **planned** activity; actuals refine it at end of day. The profile's activity level is the **baseline/non-exercise** level (to avoid double-counting workouts).
 - **An anti-habit's stepped limit ≠ a milestone** (an achievement vs. a constraint with a changing unit). Don't blindly model them as one entity.
+- **Feature 013 implementation boundary (2026-08-13):** habits are not routine rows. They are a second
+  `RecurringRule` owner with one Habits-owned fact per effective local date. Planner is a read adapter,
+  notifications reuse occurrence identity, and routine/goal context links point outward from Habits.
 - **A single recurrence engine** is canonized: `RecurringRule` + `PlannedOccurrence`. It used to be named differently in 2a/5/8/10 — it is ONE AND THE SAME. The canonical definition is in the Modules Spec, the Module 5 section. **Full spec (2026-06-13): [Recurrence Engine](recurrence-engine.md).**
   - Rule format: **a custom field set** (freq/interval/by_weekday/by_monthday/times_per_day + `cycle_on`/`cycle_off` for "on-week/off-week") plus an optional **`rrule` string as a fallback**.
   - Expansion: **materialization with a forward window** (+90d) + a unique `(rule_id, date, slot)` (idempotency).

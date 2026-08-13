@@ -243,7 +243,7 @@ components:
     PlannerSource:
       type: string
       description: Which module a day entry came from. Planner owns only `time_block`.
-      enum: [routine, storage, time_block]
+      enum: [routine, habit, storage, time_block]
 
     PlannerAction:
       type: string

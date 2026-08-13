@@ -40,6 +40,9 @@ class InAppChannel implements NotificationChannel
             InAppNotification::TYPE_ROUTINE_REMINDER => $notification->escalation_count > 0
                 ? ['notifications.routine_escalation_title', 'notifications.routine_escalation_body']
                 : ['notifications.routine_title', 'notifications.routine_body'],
+            InAppNotification::TYPE_HABIT_REMINDER => $notification->escalation_count > 0
+                ? ['notifications.habit_escalation_title', 'notifications.habit_escalation_body']
+                : ['notifications.habit_title', 'notifications.habit_body'],
             InAppNotification::TYPE_STORAGE_DUE => [
                 'notifications.storage_title', 'notifications.storage_body',
             ],

@@ -8,8 +8,8 @@ $speckit-analyze -> $speckit-implement` before application code changes.
 > **Roadmap baseline (2026-08-13):** `001-core-daily-loop`, `003-multi-user-auth`,
 > `004-profile-settings`, `005-interface-foundation`, `006-unified-recurrence`,
 > `007-body-measurements`, `008-storage-inbox`, `009-planner-day`,
-> `010-interface-personalization`, `011-in-app-notifications`, and `012-android-capacitor-shell` are
-> complete. Native compilation and device installation evidence for 012 remains externally blocked in
+> `010-interface-personalization`, `011-in-app-notifications`, `012-android-capacitor-shell`, and
+> `013-habits-anti-habits` are complete. Native compilation and device installation evidence for 012 remains externally blocked in
 > this workspace because Android Studio, JDK, SDK, Gradle, and `adb` are absent; all repository-owned
 > server, web, configuration, sync, resource, and native-source gates pass.
 > `002-homelab-deployment` stops at T055 by product decision: the current homelab deployment is
@@ -56,6 +56,8 @@ The application already provides:
 - one Planner day surface spanning routines, dated Storage work and owned time blocks;
 - a fully localised EN/RU/UK interface with profile-owned language and accessible global controls;
 - profile-owned light/dark/system, accent, texture, numeral, motion and contrast-safe background choices.
+- first-class habits and anti-habits with ordinary/numeric facts, explicit abstinence, stepped limits,
+  deterministic chains, Planner projection and timed in-app reminders.
 
 The shared recurrence boundary now exists and owns every routine schedule. A module that needs
 recurring behaviour uses it; no second scheduling table may be added.
@@ -290,6 +292,8 @@ is limited to the shell, secure platform boundaries, and native plugins.
 FCM, and iOS. Camera/gallery arrives with 021; other native capabilities require their own increments.
 
 ### 013 — Habits and Anti-Habits
+
+**Status:** complete (2026-08-13). Feature 014 is the next delivery increment.
 
 **User outcome:** the user builds habits, records numeric or yes/no completion, tracks abstinence or a
 stepped limit, and sees deterministic streaks.

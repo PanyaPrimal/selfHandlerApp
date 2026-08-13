@@ -1,0 +1,514 @@
+openapi: 3.1.0
+info:
+  title: SelfHandler Habits and Anti-Habits API
+  version: 0.1.0
+  description: Authenticated owner-scoped contract introduced by feature 013.
+servers:
+  - url: /api
+security:
+  - sanctum: []
+paths:
+  /habits:
+    get:
+      operationId: listHabits
+      summary: List one lifecycle segment with selected-day facts and module aggregates
+      parameters:
+        - $ref: '#/components/parameters/SelectedDate'
+        - name: state
+          in: query
+          schema:
+            type: string
+            enum: [active, paused, archived]
+            default: active
+      responses:
+        '200':
+          description: Owned habits
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [date, today, data, options]
+                properties:
+                  date: { $ref: '#/components/schemas/Date' }
+                  today: { $ref: '#/components/schemas/Date' }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Habit' }
+                  options: { $ref: '#/components/schemas/HabitOptions' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    post:
+      operationId: createHabit
+      summary: Create a habit and its shared recurring rule atomically
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateHabitRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HabitEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /habits/{habit}:
+    patch:
+      operationId: updateHabit
+      summary: Update editable configuration, links, schedule, or lifecycle
+      parameters:
+        - $ref: '#/components/parameters/HabitId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateHabitRequest' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HabitEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /habits/{habit}/logs/{date}:
+    put:
+      operationId: upsertHabitLog
+      summary: Create or correct the explicit result for one effective occurrence date
+      parameters:
+        - $ref: '#/components/parameters/HabitId'
+        - $ref: '#/components/parameters/PathDate'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HabitLogRequest' }
+      responses:
+        '200':
+          description: Result and recalculated projections
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HabitEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      operationId: clearHabitLog
+      summary: Clear one result and return its occurrence to planned
+      parameters:
+        - $ref: '#/components/parameters/HabitId'
+        - $ref: '#/components/parameters/PathDate'
+      responses:
+        '204': { description: Cleared or already absent }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /habits/{habit}/statistics:
+    get:
+      operationId: showHabitStatistics
+      summary: Calculate one inclusive period from Habits-owned facts and opportunities
+      parameters:
+        - $ref: '#/components/parameters/HabitId'
+        - name: from
+          in: query
+          required: true
+          schema: { $ref: '#/components/schemas/Date' }
+        - name: to
+          in: query
+          required: true
+          schema: { $ref: '#/components/schemas/Date' }
+      responses:
+        '200':
+          description: Deterministic period statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/HabitStatistics' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /habits/{habit}/limit-steps:
+    put:
+      operationId: replaceHabitLimitSteps
+      summary: Atomically replace a stepped-limit ceiling plan
+      parameters:
+        - $ref: '#/components/parameters/HabitId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [steps]
+              properties:
+                steps:
+                  type: array
+                  minItems: 1
+                  maxItems: 52
+                  items: { $ref: '#/components/schemas/LimitStepInput' }
+      responses:
+        '200':
+          description: Replaced
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HabitEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+components:
+  securitySchemes:
+    sanctum:
+      type: apiKey
+      in: cookie
+      name: selfhandler_session
+      description: Stateful browser session or valid scoped mobile Bearer token through auth:sanctum.
+  parameters:
+    HabitId:
+      name: habit
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+    PathDate:
+      name: date
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/Date' }
+    SelectedDate:
+      name: date
+      in: query
+      schema: { $ref: '#/components/schemas/Date' }
+      description: Defaults to today in the authenticated user's profile timezone.
+  responses:
+    Unauthenticated:
+      description: Authentication required
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Owned resource was not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ValidationError:
+      description: Exact payload, domain, or date validation failed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ValidationError' }
+  schemas:
+    Date:
+      type: string
+      format: date
+      pattern: '^\d{4}-\d{2}-\d{2}$'
+    Time:
+      type: [string, 'null']
+      pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+    Decimal:
+      type: number
+      minimum: 0
+      multipleOf: 0.001
+      maximum: 999999999.999
+    HabitKind:
+      type: string
+      enum: [habit, anti_habit]
+    HabitMode:
+      type: string
+      enum: [yes_no, numeric, abstinence, stepped_limit]
+    ScheduleFields:
+      type: object
+      properties:
+        schedule_type: { type: string, enum: [daily, weekdays] }
+        weekdays:
+          type: array
+          uniqueItems: true
+          items: { type: string, enum: [MO, TU, WE, TH, FR, SA, SU] }
+        preferred_time: { $ref: '#/components/schemas/Time' }
+        starts_on:
+          oneOf:
+            - { $ref: '#/components/schemas/Date' }
+            - { type: 'null' }
+        ends_on:
+          oneOf:
+            - { $ref: '#/components/schemas/Date' }
+            - { type: 'null' }
+    CreateHabitRequest:
+      type: object
+      additionalProperties: false
+      required: [name, kind, mode, schedule_type]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 160 }
+        description: { type: [string, 'null'], maxLength: 2000 }
+        kind: { $ref: '#/components/schemas/HabitKind' }
+        mode: { $ref: '#/components/schemas/HabitMode' }
+        target_value:
+          oneOf:
+            - { $ref: '#/components/schemas/Decimal' }
+            - { type: 'null' }
+        unit: { type: [string, 'null'], maxLength: 32 }
+        schedule_type: { type: string, enum: [daily, weekdays] }
+        weekdays:
+          type: array
+          uniqueItems: true
+          items: { type: string, enum: [MO, TU, WE, TH, FR, SA, SU] }
+        preferred_time: { $ref: '#/components/schemas/Time' }
+        starts_on:
+          oneOf:
+            - { $ref: '#/components/schemas/Date' }
+            - { type: 'null' }
+        ends_on:
+          oneOf:
+            - { $ref: '#/components/schemas/Date' }
+            - { type: 'null' }
+        routine_id: { type: [integer, 'null'], minimum: 1 }
+        goal_id: { type: [integer, 'null'], minimum: 1 }
+        intention_place: { type: [string, 'null'], maxLength: 160 }
+        two_minute_starter: { type: [string, 'null'], maxLength: 300 }
+        limit_steps:
+          type: array
+          minItems: 1
+          maxItems: 52
+          items: { $ref: '#/components/schemas/LimitStepInput' }
+    UpdateHabitRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 160 }
+        description: { type: [string, 'null'], maxLength: 2000 }
+        target_value:
+          oneOf:
+            - { $ref: '#/components/schemas/Decimal' }
+            - { type: 'null' }
+        unit: { type: [string, 'null'], maxLength: 32 }
+        schedule_type: { type: string, enum: [daily, weekdays] }
+        weekdays:
+          type: array
+          uniqueItems: true
+          items: { type: string, enum: [MO, TU, WE, TH, FR, SA, SU] }
+        preferred_time: { $ref: '#/components/schemas/Time' }
+        starts_on:
+          oneOf:
+            - { $ref: '#/components/schemas/Date' }
+            - { type: 'null' }
+        ends_on:
+          oneOf:
+            - { $ref: '#/components/schemas/Date' }
+            - { type: 'null' }
+        routine_id: { type: [integer, 'null'], minimum: 1 }
+        goal_id: { type: [integer, 'null'], minimum: 1 }
+        intention_place: { type: [string, 'null'], maxLength: 160 }
+        two_minute_starter: { type: [string, 'null'], maxLength: 300 }
+        is_active: { type: boolean }
+        is_archived: { type: boolean }
+    HabitLogRequest:
+      type: object
+      additionalProperties: false
+      required: [outcome]
+      properties:
+        outcome:
+          type: string
+          enum: [done, not_done, recorded, protected, relapse, skipped]
+        value:
+          oneOf:
+            - { $ref: '#/components/schemas/Decimal' }
+            - { type: 'null' }
+        occurred_time: { $ref: '#/components/schemas/Time' }
+        note: { type: [string, 'null'], maxLength: 1000 }
+    LimitStepInput:
+      type: object
+      additionalProperties: false
+      required: [effective_on, limit_value, period]
+      properties:
+        effective_on: { $ref: '#/components/schemas/Date' }
+        limit_value:
+          allOf:
+            - { $ref: '#/components/schemas/Decimal' }
+            - { exclusiveMinimum: 0 }
+        period: { type: string, enum: [day, week] }
+    HabitEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/Habit' }
+    Habit:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - description
+        - kind
+        - mode
+        - target_value
+        - unit
+        - schedule
+        - routine
+        - goal
+        - intention_place
+        - two_minute_starter
+        - is_active
+        - is_archived
+        - archived_at
+        - limit_steps
+        - selected_day
+        - statistics
+        - limit_status
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        description: { type: [string, 'null'] }
+        kind: { $ref: '#/components/schemas/HabitKind' }
+        mode: { $ref: '#/components/schemas/HabitMode' }
+        target_value: { type: [number, 'null'] }
+        unit: { type: [string, 'null'] }
+        schedule: { $ref: '#/components/schemas/HabitSchedule' }
+        routine:
+          oneOf:
+            - { $ref: '#/components/schemas/LinkedRecord' }
+            - { type: 'null' }
+        goal:
+          oneOf:
+            - { $ref: '#/components/schemas/LinkedRecord' }
+            - { type: 'null' }
+        intention_place: { type: [string, 'null'] }
+        two_minute_starter: { type: [string, 'null'] }
+        is_active: { type: boolean }
+        is_archived: { type: boolean }
+        archived_at: { type: [string, 'null'], format: date-time }
+        limit_steps:
+          type: array
+          items: { $ref: '#/components/schemas/LimitStep' }
+        selected_day: { $ref: '#/components/schemas/SelectedDay' }
+        statistics: { $ref: '#/components/schemas/HabitStatistics' }
+        limit_status:
+          oneOf:
+            - { $ref: '#/components/schemas/LimitStatus' }
+            - { type: 'null' }
+    LinkedRecord:
+      type: object
+      additionalProperties: false
+      required: [id, name]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+    HabitSchedule:
+      type: object
+      additionalProperties: false
+      required: [schedule_type, weekdays, preferred_time, starts_on, ends_on, timezone, materialized_until]
+      properties:
+        schedule_type: { type: string, enum: [daily, weekdays] }
+        weekdays:
+          type: array
+          items: { type: string, enum: [MO, TU, WE, TH, FR, SA, SU] }
+        preferred_time: { $ref: '#/components/schemas/Time' }
+        starts_on: { type: [string, 'null'], format: date }
+        ends_on: { type: [string, 'null'], format: date }
+        timezone: { type: string }
+        materialized_until: { type: [string, 'null'], format: date }
+    SelectedDay:
+      type: object
+      additionalProperties: false
+      required: [date, occurrence_id, is_scheduled, is_open, log]
+      properties:
+        date: { $ref: '#/components/schemas/Date' }
+        occurrence_id: { type: [integer, 'null'] }
+        is_scheduled: { type: boolean }
+        is_open: { type: boolean }
+        log:
+          oneOf:
+            - { $ref: '#/components/schemas/HabitLog' }
+            - { type: 'null' }
+    HabitLog:
+      type: object
+      additionalProperties: false
+      required: [id, log_date, outcome, value, occurred_at, note, successful]
+      properties:
+        id: { type: integer }
+        log_date: { $ref: '#/components/schemas/Date' }
+        outcome: { type: string, enum: [done, not_done, recorded, protected, relapse, skipped] }
+        value: { type: [number, 'null'] }
+        occurred_at: { type: [string, 'null'], format: date-time }
+        note: { type: [string, 'null'] }
+        successful: { type: boolean }
+    HabitStatistics:
+      type: object
+      additionalProperties: false
+      required: [from, to, opportunities, successes, completion_percentage, current_streak, best_streak, numeric_total]
+      properties:
+        from: { $ref: '#/components/schemas/Date' }
+        to: { $ref: '#/components/schemas/Date' }
+        opportunities: { type: integer, minimum: 0 }
+        successes: { type: integer, minimum: 0 }
+        completion_percentage: { type: number, minimum: 0, maximum: 100 }
+        current_streak: { type: integer, minimum: 0 }
+        best_streak: { type: integer, minimum: 0 }
+        numeric_total: { type: [number, 'null'], minimum: 0 }
+    LimitStep:
+      type: object
+      additionalProperties: false
+      required: [id, effective_on, limit_value, period, status]
+      properties:
+        id: { type: integer }
+        effective_on: { $ref: '#/components/schemas/Date' }
+        limit_value: { type: number, exclusiveMinimum: 0 }
+        period: { type: string, enum: [day, week] }
+        status: { type: string, enum: [completed, current, upcoming] }
+    LimitStatus:
+      type: object
+      additionalProperties: false
+      required: [state, step, period_from, period_to, consumed, remaining, within_limit]
+      properties:
+        state: { type: string, enum: [no_active_step, within, exceeded] }
+        step:
+          oneOf:
+            - { $ref: '#/components/schemas/LimitStep' }
+            - { type: 'null' }
+        period_from: { type: [string, 'null'], format: date }
+        period_to: { type: [string, 'null'], format: date }
+        consumed: { type: number, minimum: 0 }
+        remaining: { type: [number, 'null'], minimum: 0 }
+        within_limit: { type: [boolean, 'null'] }
+    HabitOptions:
+      type: object
+      additionalProperties: false
+      required: [kinds, modes, outcomes, periods, weekdays]
+      properties:
+        kinds:
+          type: array
+          items: { $ref: '#/components/schemas/HabitKind' }
+        modes:
+          type: array
+          items: { $ref: '#/components/schemas/HabitMode' }
+        outcomes:
+          type: array
+          items: { type: string }
+        periods:
+          type: array
+          items: { type: string, enum: [day, week] }
+        weekdays:
+          type: array
+          items: { type: string, enum: [MO, TU, WE, TH, FR, SA, SU] }
+    Error:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string }
+    ValidationError:
+      allOf:
+        - { $ref: '#/components/schemas/Error' }
+        - type: object
+          required: [errors]
+          properties:
+            errors:
+              type: object
+              additionalProperties:
+                type: array
+                items: { type: string }

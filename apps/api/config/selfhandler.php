@@ -40,6 +40,10 @@ return [
             'escalation_interval_minutes' => 30,
             'max_escalations' => 2,
         ],
+        'habit' => [
+            'escalation_interval_minutes' => 30,
+            'max_escalations' => 2,
+        ],
     ],
 
     'mobile' => [

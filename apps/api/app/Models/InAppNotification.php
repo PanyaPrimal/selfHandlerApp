@@ -25,19 +25,33 @@ class InAppNotification extends Model
 
     public const TYPE_ROUTINE_REMINDER = 'routine_reminder';
 
+    public const TYPE_HABIT_REMINDER = 'habit_reminder';
+
     public const TYPE_STORAGE_DUE = 'storage_due';
 
     public const TYPE_DAILY_DIGEST = 'daily_digest';
 
-    public const TYPES = [self::TYPE_ROUTINE_REMINDER, self::TYPE_STORAGE_DUE, self::TYPE_DAILY_DIGEST];
+    public const TYPES = [
+        self::TYPE_ROUTINE_REMINDER,
+        self::TYPE_HABIT_REMINDER,
+        self::TYPE_STORAGE_DUE,
+        self::TYPE_DAILY_DIGEST,
+    ];
 
     public const CATEGORY_ROUTINE = 'routine';
 
     public const CATEGORY_STORAGE = 'storage';
 
+    public const CATEGORY_HABIT = 'habit';
+
     public const CATEGORY_DIGEST = 'digest';
 
-    public const CATEGORIES = [self::CATEGORY_ROUTINE, self::CATEGORY_STORAGE, self::CATEGORY_DIGEST];
+    public const CATEGORIES = [
+        self::CATEGORY_ROUTINE,
+        self::CATEGORY_HABIT,
+        self::CATEGORY_STORAGE,
+        self::CATEGORY_DIGEST,
+    ];
 
     public const STATUS_SCHEDULED = 'scheduled';
 

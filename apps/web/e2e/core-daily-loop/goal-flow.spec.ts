@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page, type Response, type TestInfo } from '@playwright/test'
 import { collectRuntimeIssues, expectNoRuntimeIssues } from './support'
 import { registerViaUi, uniqueCredentials } from '../support/auth'
-import { chooseSegment, dateTrigger, pickDate } from '../interface/support'
+import { chooseSegment, dateTrigger, gotoDestination, pickDate } from '../interface/support'
 
 const TODAY_DATE = '2026-08-06'
 
@@ -101,7 +101,7 @@ async function updateGoalLifecycle(
 }
 
 async function openGoals(page: Page): Promise<void> {
-  await page.getByRole('link', { name: 'Goals', exact: true }).click()
+  await gotoDestination(page, 'Goals')
   await expect(page.getByRole('form', { name: 'Create goal' })).toBeVisible()
 }
 
@@ -230,7 +230,7 @@ test('goal loading retries and create validation preserves the draft', async ({ 
     await route.continue()
   })
 
-  await page.getByRole('link', { name: 'Goals', exact: true }).click()
+  await gotoDestination(page, 'Goals')
   await expect(page.getByRole('alert')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Retry' })).toBeVisible()
   await page.getByRole('button', { name: 'Retry' }).click()
