@@ -173,6 +173,17 @@ erDiagram
 - This increment supports daily and exact selected weekdays. Floating N-per-week quotas, multi-slot
   days, interval/monthly rules and arbitrary RRULE input remain deferred.
 
+**Extended by feature `014-sleep-routine-templates` (2026-08-13):**
+
+- `sleep_plan` is the third typed owner. Its occurrence time is planned bedtime and a one-to-one
+  `SleepOccurrenceDetail` snapshots planned wake time atomically on plan-specific and global paths.
+- `planned_occurrences.sleep_log_id` is the third mutually exclusive derived fact link. Reconcile
+  rebuilds it without changing sleep facts or planned wake snapshots.
+- Routine occurrences keep their existing source identity. A shared day projection filters morning
+  and evening templates, passes anytime routines through, and preserves safe rescheduling semantics.
+- Sleep Planner entries expose wake context and reschedule only; facts close all actions. Alarms,
+  interval/monthly sleep rules, and wearable schedule imports remain deferred.
+
 **Still open, each waiting for a consumer:**
 
 3. `payload` (JSON on the rule) vs. storing domain data only in the polymorphic owner. Feature 006 needs

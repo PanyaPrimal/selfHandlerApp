@@ -1,0 +1,674 @@
+openapi: 3.1.0
+info:
+  title: SelfHandler Sleep and Rich Routine Templates API
+  version: 0.1.0
+  description: Authenticated owner-scoped operations introduced by feature 014.
+servers:
+  - url: /api
+security:
+  - sanctum: []
+paths:
+  /sleep:
+    get:
+      operationId: listSleepPlans
+      summary: List one sleep-plan lifecycle segment with selected-night facts
+      parameters:
+        - $ref: '#/components/parameters/SelectedDate'
+        - name: state
+          in: query
+          schema:
+            type: string
+            enum: [active, paused, archived]
+            default: active
+      responses:
+        '200':
+          description: Sleep workspace
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SleepWorkspace' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /sleep/plans:
+    post:
+      operationId: createSleepPlan
+      summary: Create a sleep plan and its recurring bedtime rule atomically
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateSleepPlanRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SleepPlanEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /sleep/plans/{sleepPlan}:
+    patch:
+      operationId: updateSleepPlan
+      summary: Update editable plan, schedule, or lifecycle fields
+      parameters:
+        - $ref: '#/components/parameters/SleepPlanId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateSleepPlanRequest' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SleepPlanEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /sleep/plans/{sleepPlan}/logs/{date}:
+    put:
+      operationId: upsertSleepLog
+      summary: Record or correct one scheduled night's actual sleep fact
+      parameters:
+        - $ref: '#/components/parameters/SleepPlanId'
+        - $ref: '#/components/parameters/PathDate'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpsertSleepLogRequest' }
+      responses:
+        '200':
+          description: Recorded or corrected
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SleepPlanEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      operationId: clearSleepLog
+      summary: Clear one scheduled night's actual sleep fact
+      parameters:
+        - $ref: '#/components/parameters/SleepPlanId'
+        - $ref: '#/components/parameters/PathDate'
+      responses:
+        '204': { description: Cleared }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /sleep/statistics:
+    get:
+      operationId: showSleepStatistics
+      summary: Compute bounded sleep facts and averages for an inclusive range
+      parameters:
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+      responses:
+        '200':
+          description: Module-owned sleep statistics
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SleepStatisticsEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /routines/{routine}/activities:
+    put:
+      operationId: replaceRoutineActivities
+      summary: Replace or cosmetically update a routine's ordered activities atomically
+      parameters:
+        - $ref: '#/components/parameters/RoutineId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReplaceRoutineActivitiesRequest' }
+      responses:
+        '200':
+          description: Updated routine template
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoutineTemplateEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /routines/{routine}/activities/{activity}/logs/{date}:
+    put:
+      operationId: upsertRoutineActivityLog
+      summary: Record or correct one selected template activity fact
+      parameters:
+        - $ref: '#/components/parameters/RoutineId'
+        - $ref: '#/components/parameters/ActivityId'
+        - $ref: '#/components/parameters/PathDate'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpsertRoutineActivityLogRequest' }
+      responses:
+        '200':
+          description: Activity and derived parent state updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoutineTemplateEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      operationId: clearRoutineActivityLog
+      summary: Clear one activity fact and recompute the parent occurrence
+      parameters:
+        - $ref: '#/components/parameters/RoutineId'
+        - $ref: '#/components/parameters/ActivityId'
+        - $ref: '#/components/parameters/PathDate'
+      responses:
+        '200':
+          description: Activity cleared and parent recomputed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoutineTemplateEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /routine-selections/{date}:
+    put:
+      operationId: replaceRoutineDaySelections
+      summary: Choose morning and evening templates or explicit none atomically
+      parameters:
+        - $ref: '#/components/parameters/PathDate'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReplaceRoutineDaySelectionsRequest' }
+      responses:
+        '200':
+          description: Accepted day projection
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoutineDayProjectionEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+components:
+  securitySchemes:
+    sanctum:
+      type: http
+      scheme: bearer
+  parameters:
+    SleepPlanId:
+      name: sleepPlan
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+    RoutineId:
+      name: routine
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+    ActivityId:
+      name: activity
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+    PathDate:
+      name: date
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/Date' }
+    SelectedDate:
+      name: date
+      in: query
+      required: false
+      schema: { $ref: '#/components/schemas/Date' }
+    FromDate:
+      name: from
+      in: query
+      required: true
+      schema: { $ref: '#/components/schemas/Date' }
+    ToDate:
+      name: to
+      in: query
+      required: true
+      schema: { $ref: '#/components/schemas/Date' }
+  responses:
+    Unauthenticated:
+      description: Authentication required
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/MessageError' }
+    NotFound:
+      description: Resource absent or not owned by the authenticated user
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/MessageError' }
+    ValidationError:
+      description: Exact payload, field, domain, or calendar validation failed atomically
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ValidationError' }
+  schemas:
+    Date:
+      type: string
+      format: date
+      pattern: '^\d{4}-\d{2}-\d{2}$'
+    Time:
+      type: string
+      pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+    NullableTime:
+      oneOf:
+        - $ref: '#/components/schemas/Time'
+        - type: 'null'
+    NullableDate:
+      oneOf:
+        - $ref: '#/components/schemas/Date'
+        - type: 'null'
+    NullableInteger:
+      oneOf:
+        - type: integer
+          minimum: 1
+        - type: 'null'
+    Weekday:
+      type: string
+      enum: [MO, TU, WE, TH, FR, SA, SU]
+    Schedule:
+      type: object
+      additionalProperties: false
+      required: [schedule_type, weekdays, planned_bed_time, starts_on, ends_on]
+      properties:
+        schedule_type: { type: string, enum: [daily, weekdays] }
+        weekdays:
+          type: array
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/Weekday' }
+        planned_bed_time: { $ref: '#/components/schemas/Time' }
+        starts_on: { $ref: '#/components/schemas/NullableDate' }
+        ends_on: { $ref: '#/components/schemas/NullableDate' }
+    SleepLog:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - sleep_plan_id
+        - sleep_date
+        - actual_bed_at
+        - actual_wake_at
+        - actual_bed_date
+        - actual_bed_time
+        - actual_wake_date
+        - actual_wake_time
+        - duration_minutes
+        - quality
+        - note
+      properties:
+        id: { type: integer }
+        sleep_plan_id: { type: integer }
+        sleep_date: { $ref: '#/components/schemas/Date' }
+        actual_bed_at: { type: string, format: date-time }
+        actual_wake_at: { type: string, format: date-time }
+        actual_bed_date: { $ref: '#/components/schemas/Date' }
+        actual_bed_time: { $ref: '#/components/schemas/Time' }
+        actual_wake_date: { $ref: '#/components/schemas/Date' }
+        actual_wake_time: { $ref: '#/components/schemas/Time' }
+        duration_minutes: { type: integer, minimum: 1, maximum: 1440 }
+        quality: { type: integer, minimum: 1, maximum: 10 }
+        note:
+          oneOf:
+            - type: string
+            - type: 'null'
+    SleepNight:
+      type: object
+      additionalProperties: false
+      required:
+        - date
+        - occurrence_id
+        - planned_bed_time
+        - planned_wake_date
+        - planned_wake_time
+        - state
+        - rescheduled_from
+        - log
+      properties:
+        date: { $ref: '#/components/schemas/Date' }
+        occurrence_id: { type: integer }
+        planned_bed_time: { $ref: '#/components/schemas/Time' }
+        planned_wake_date: { $ref: '#/components/schemas/Date' }
+        planned_wake_time: { $ref: '#/components/schemas/Time' }
+        state: { type: string, enum: [planned, recorded] }
+        rescheduled_from: { $ref: '#/components/schemas/NullableDate' }
+        log:
+          oneOf:
+            - $ref: '#/components/schemas/SleepLog'
+            - type: 'null'
+    SleepPlan:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - planned_wake_time
+        - is_active
+        - is_archived
+        - archived_at
+        - schedule
+        - selected_night
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        planned_wake_time: { $ref: '#/components/schemas/Time' }
+        is_active: { type: boolean }
+        is_archived: { type: boolean }
+        archived_at:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        schedule: { $ref: '#/components/schemas/Schedule' }
+        selected_night:
+          oneOf:
+            - $ref: '#/components/schemas/SleepNight'
+            - type: 'null'
+    SleepPlanEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/SleepPlan' }
+    SleepStatistics:
+      type: object
+      additionalProperties: false
+      required:
+        - period_start
+        - period_end
+        - planned_nights
+        - recorded_nights
+        - average_duration_minutes
+        - average_quality
+      properties:
+        period_start: { $ref: '#/components/schemas/Date' }
+        period_end: { $ref: '#/components/schemas/Date' }
+        planned_nights: { type: integer, minimum: 0 }
+        recorded_nights: { type: integer, minimum: 0 }
+        average_duration_minutes:
+          oneOf:
+            - type: number
+              minimum: 0
+            - type: 'null'
+        average_quality:
+          oneOf:
+            - type: number
+              minimum: 1
+              maximum: 10
+            - type: 'null'
+    SleepStatisticsEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/SleepStatistics' }
+    SleepWorkspace:
+      type: object
+      additionalProperties: false
+      required: [date, today, data, statistics]
+      properties:
+        date: { $ref: '#/components/schemas/Date' }
+        today: { $ref: '#/components/schemas/Date' }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/SleepPlan' }
+        statistics: { $ref: '#/components/schemas/SleepStatistics' }
+    CreateSleepPlanRequest:
+      type: object
+      additionalProperties: false
+      required: [name, planned_bed_time, planned_wake_time, schedule_type]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 160 }
+        planned_bed_time: { $ref: '#/components/schemas/Time' }
+        planned_wake_time: { $ref: '#/components/schemas/Time' }
+        schedule_type: { type: string, enum: [daily, weekdays] }
+        weekdays:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/Weekday' }
+        starts_on: { $ref: '#/components/schemas/NullableDate' }
+        ends_on: { $ref: '#/components/schemas/NullableDate' }
+        is_active: { type: boolean }
+    UpdateSleepPlanRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 160 }
+        planned_bed_time: { $ref: '#/components/schemas/Time' }
+        planned_wake_time: { $ref: '#/components/schemas/Time' }
+        schedule_type: { type: string, enum: [daily, weekdays] }
+        weekdays:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/Weekday' }
+        starts_on: { $ref: '#/components/schemas/NullableDate' }
+        ends_on: { $ref: '#/components/schemas/NullableDate' }
+        is_active: { type: boolean }
+        is_archived: { type: boolean }
+    UpsertSleepLogRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - actual_bed_date
+        - actual_bed_time
+        - actual_wake_date
+        - actual_wake_time
+        - quality
+      properties:
+        actual_bed_date: { $ref: '#/components/schemas/Date' }
+        actual_bed_time: { $ref: '#/components/schemas/Time' }
+        actual_wake_date: { $ref: '#/components/schemas/Date' }
+        actual_wake_time: { $ref: '#/components/schemas/Time' }
+        quality: { type: integer, minimum: 1, maximum: 10 }
+        note:
+          oneOf:
+            - type: string
+              maxLength: 5000
+            - type: 'null'
+    ActivityLog:
+      type: object
+      additionalProperties: false
+      required: [id, routine_activity_id, log_date, status, progress_value, note, completed_at]
+      properties:
+        id: { type: integer }
+        routine_activity_id: { type: integer }
+        log_date: { $ref: '#/components/schemas/Date' }
+        status: { type: string, enum: [done, skipped] }
+        progress_value:
+          oneOf:
+            - type: number
+              minimum: 0
+            - type: 'null'
+        note:
+          oneOf:
+            - type: string
+            - type: 'null'
+        completed_at:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+    RoutineActivity:
+      type: object
+      additionalProperties: false
+      required: [id, name, sort_order, preferred_time, progress_total, has_facts, selected_day_log]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        sort_order: { type: integer, minimum: 0 }
+        preferred_time: { $ref: '#/components/schemas/NullableTime' }
+        progress_total:
+          oneOf:
+            - type: number
+              exclusiveMinimum: 0
+            - type: 'null'
+        has_facts: { type: boolean }
+        selected_day_log:
+          oneOf:
+            - $ref: '#/components/schemas/ActivityLog'
+            - type: 'null'
+    RoutineTemplate:
+      type: object
+      additionalProperties: false
+      required: [id, name, day_period, activities, parent_state]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        day_period: { type: string, enum: [morning, evening, anytime] }
+        activities:
+          type: array
+          items: { $ref: '#/components/schemas/RoutineActivity' }
+        parent_state: { type: string, enum: [pending, done, skipped] }
+    RoutineTemplateEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/RoutineTemplate' }
+    RoutineActivityInput:
+      type: object
+      additionalProperties: false
+      required: [name, sort_order]
+      properties:
+        id: { type: integer, minimum: 1 }
+        name: { type: string, minLength: 1, maxLength: 160 }
+        sort_order: { type: integer, minimum: 0 }
+        preferred_time: { $ref: '#/components/schemas/NullableTime' }
+        progress_total:
+          oneOf:
+            - type: number
+              exclusiveMinimum: 0
+              maximum: 9999999.999
+            - type: 'null'
+    ReplaceRoutineActivitiesRequest:
+      type: object
+      additionalProperties: false
+      required: [activities]
+      properties:
+        activities:
+          type: array
+          maxItems: 100
+          items: { $ref: '#/components/schemas/RoutineActivityInput' }
+    UpsertRoutineActivityLogRequest:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: { type: string, enum: [done, skipped] }
+        progress_value:
+          oneOf:
+            - type: number
+              minimum: 0
+              maximum: 9999999.999
+            - type: 'null'
+        note:
+          oneOf:
+            - type: string
+              maxLength: 2000
+            - type: 'null'
+    RoutineCandidate:
+      type: object
+      additionalProperties: false
+      required: [routine_id, occurrence_id, name, day_period, preferred_time, sort_order]
+      properties:
+        routine_id: { type: integer }
+        occurrence_id: { type: integer }
+        name: { type: string }
+        day_period: { type: string, enum: [morning, evening] }
+        preferred_time: { $ref: '#/components/schemas/NullableTime' }
+        sort_order: { type: integer, minimum: 0 }
+    PeriodProjection:
+      type: object
+      additionalProperties: false
+      required: [period, source, selected, candidates]
+      properties:
+        period: { type: string, enum: [morning, evening] }
+        source: { type: string, enum: [default, explicit] }
+        selected:
+          oneOf:
+            - $ref: '#/components/schemas/RoutineCandidate'
+            - type: 'null'
+        candidates:
+          type: array
+          items: { $ref: '#/components/schemas/RoutineCandidate' }
+    RoutineActivitySummary:
+      type: object
+      additionalProperties: false
+      required: [scheduled, done, skipped, pending, completion_rate, templates]
+      properties:
+        scheduled: { type: integer, minimum: 0 }
+        done: { type: integer, minimum: 0 }
+        skipped: { type: integer, minimum: 0 }
+        pending: { type: integer, minimum: 0 }
+        completion_rate:
+          oneOf:
+            - type: number
+              minimum: 0
+              maximum: 100
+            - type: 'null'
+        templates:
+          type: array
+          items: { $ref: '#/components/schemas/RoutineTemplateActivitySummary' }
+    RoutineTemplateActivitySummary:
+      type: object
+      additionalProperties: false
+      required: [routine_id, name, scheduled, done, skipped, pending, completion_rate]
+      properties:
+        routine_id: { type: integer }
+        name: { type: string }
+        scheduled: { type: integer, minimum: 0 }
+        done: { type: integer, minimum: 0 }
+        skipped: { type: integer, minimum: 0 }
+        pending: { type: integer, minimum: 0 }
+        completion_rate:
+          oneOf:
+            - type: number
+              minimum: 0
+              maximum: 100
+            - type: 'null'
+    RoutineDayProjection:
+      type: object
+      additionalProperties: false
+      required: [date, morning, evening, activity_summary]
+      properties:
+        date: { $ref: '#/components/schemas/Date' }
+        morning: { $ref: '#/components/schemas/PeriodProjection' }
+        evening: { $ref: '#/components/schemas/PeriodProjection' }
+        activity_summary: { $ref: '#/components/schemas/RoutineActivitySummary' }
+    RoutineDayProjectionEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/RoutineDayProjection' }
+    ReplaceRoutineDaySelectionsRequest:
+      type: object
+      additionalProperties: false
+      required: [morning_routine_id, evening_routine_id]
+      properties:
+        morning_routine_id: { $ref: '#/components/schemas/NullableInteger' }
+        evening_routine_id: { $ref: '#/components/schemas/NullableInteger' }
+    MessageError:
+      type: object
+      additionalProperties: true
+      required: [message]
+      properties:
+        message: { type: string }
+    ValidationError:
+      type: object
+      additionalProperties: false
+      required: [message, errors]
+      properties:
+        message: { type: string }
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }

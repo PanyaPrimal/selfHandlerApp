@@ -56,7 +56,7 @@ test('choice, search, calendar and time controls render owned surfaces that fit 
   await expect(dialog).toBeHidden()
 
   await page.goto('/routines')
-  await expect(page.getByRole('heading', { name: 'Repeatable actions' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Routines & sleep' })).toBeVisible()
 
   const form = page.getByRole('form', { name: 'Create routine' })
   await chooseSegment(form, 'Schedule', 'By weekdays')

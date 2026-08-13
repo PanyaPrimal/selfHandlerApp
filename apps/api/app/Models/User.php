@@ -80,6 +80,16 @@ class User extends Authenticatable
         return $this->hasMany(RoutineLog::class);
     }
 
+    public function sleepPlans(): HasMany
+    {
+        return $this->hasMany(SleepPlan::class);
+    }
+
+    public function sleepLogs(): HasMany
+    {
+        return $this->hasMany(SleepLog::class);
+    }
+
     public function dailyReviews(): HasMany
     {
         return $this->hasMany(DailyReview::class);

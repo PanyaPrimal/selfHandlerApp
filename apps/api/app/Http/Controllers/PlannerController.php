@@ -7,6 +7,7 @@ use App\Models\RecurringRule;
 use App\Models\Routine;
 use App\Services\Planner\DayAssembler;
 use App\Services\Planner\SourceRegistry;
+use App\Services\RoutineActivityLogService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -25,6 +26,7 @@ class PlannerController extends Controller
         private readonly DayAssembler $assembler,
         private readonly SourceRegistry $sources,
         private readonly RoutineLogController $logs,
+        private readonly RoutineActivityLogService $activityLogs,
     ) {}
 
     public function day(Request $request): JsonResponse
@@ -86,6 +88,12 @@ class PlannerController extends Controller
         abort_unless($routine && $routine->isOwnedBy($user), 404);
 
         $date = ($occurrence->rescheduled_to ?? $occurrence->occurrence_date)->format('Y-m-d');
+
+        if ($routine->activities()->exists()) {
+            $this->activityLogs->skipRemaining($routine, $user, $date);
+
+            return response()->json(['data' => $occurrence->fresh()]);
+        }
 
         $request->merge(['status' => 'skipped']);
 

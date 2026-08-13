@@ -27,6 +27,12 @@ stepped anti-habit ceilings. `PlannedOccurrence.habit_log_id` is a derived fact 
 routine link. Planner reads habits through `SchedulableSource`, while notifications reuse the same
 occurrence identity, quiet hours, localization and delivery state.
 
+Sleep is a third recurrence owner rather than a special routine kind. `SleepPlan` owns its rule and
+planned wake snapshots; `SleepLog` owns actual UTC instants. Rich routines remain `Routine` records
+and own ordered `RoutineActivity` definitions and per-day facts. One `RoutineDayProjectionService`
+selects morning/evening templates for Today, Planner, validation, and notification synchronization,
+while parent `RoutineLog` rows remain derived compatibility facts.
+
 ### `apps/web`
 
 Vue 3 SPA for desktop and mobile web usage.

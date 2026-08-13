@@ -30,6 +30,12 @@ abstinence, and stepped day/week reduction ceilings. Check-ins are module-owned 
 completion, numeric totals, and limit state are calculated on read. Planner and notifications consume
 the shared occurrences without copying habit state.
 
+Feature 014 completes the first Sleep and rich-routine slice. The combined Routines & Sleep workspace
+owns recurring sleep plans, actual cross-midnight records, ordered routine activities, and explicit
+morning/evening choices. Today, Review, Planner, and notifications consume the same owner-scoped
+occurrences and module summaries; alarms, wearable imports, offline writes, and advanced sleep
+analytics remain deferred.
+
 The Android package in `apps/mobile` wraps the same production Vue bundle with Capacitor 8. Existing
 accounts use a separate 30-day, `mobile`-scoped Sanctum token stored by a custom Android Keystore
 AES-GCM plugin; browser cookie/CSRF auth is unchanged. Android local notifications are an opt-in

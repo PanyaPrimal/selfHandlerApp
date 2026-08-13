@@ -47,6 +47,7 @@ const blockErrors = ref<ValidationErrors>({})
 
 const sourceLabels = computed<Record<PlannerSource, string>>(() => ({
   routine: i18n.t('planner.routine'),
+  sleep: i18n.t('planner.sleep'),
   habit: i18n.t('planner.habit'),
   storage: i18n.t('planner.task'),
   time_block: i18n.t('planner.block'),
@@ -74,6 +75,9 @@ function keyFor(entry: PlannerEntry): string {
 }
 
 function metaText(entry: PlannerEntry): string | null {
+  if (entry.source === 'sleep' && typeof entry.meta.planned_wake_time === 'string') {
+    return i18n.t('planner.wakeAt', { time: entry.meta.planned_wake_time })
+  }
   if (entry.source === 'time_block' && typeof entry.meta.ends_at === 'string') {
     return i18n.t('planner.until', { time: entry.meta.ends_at })
   }
@@ -348,7 +352,7 @@ void load()
                 {{ i18n.t('planner.move') }}
               </button>
               <button
-                v-if="(entry.source === 'routine' || entry.source === 'habit') && entry.meta.rescheduled_to"
+                v-if="(entry.source === 'routine' || entry.source === 'habit' || entry.source === 'sleep') && entry.meta.rescheduled_to"
                 type="button"
                 class="secondary"
                 :aria-label="i18n.t('planner.putBackNamed', { name: entry.title })"

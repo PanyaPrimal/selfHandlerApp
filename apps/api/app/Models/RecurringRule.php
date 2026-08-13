@@ -25,6 +25,8 @@ class RecurringRule extends Model
 
     public const OWNER_HABIT = 'habit';
 
+    public const OWNER_SLEEP_PLAN = 'sleep_plan';
+
     public const FREQUENCY_DAILY = 'daily';
 
     public const FREQUENCY_WEEKLY = 'weekly';

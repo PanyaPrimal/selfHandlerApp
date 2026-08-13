@@ -6,7 +6,7 @@ test('every control pattern is operable from the keyboard alone', async ({ page 
   await registerViaUi(page, uniqueCredentials(testInfo, 'Keyboard'))
 
   await page.goto('/routines')
-  await expect(page.getByRole('heading', { name: 'Repeatable actions' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Routines & sleep' })).toBeVisible()
 
   const form = page.getByRole('form', { name: 'Create routine' })
 

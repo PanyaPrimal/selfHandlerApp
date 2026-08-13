@@ -17,8 +17,15 @@ use App\Http\Controllers\NotificationSettingsController;
 use App\Http\Controllers\PlannerController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\RoutineActivityController;
+use App\Http\Controllers\RoutineActivityLogController;
 use App\Http\Controllers\RoutineController;
+use App\Http\Controllers\RoutineDaySelectionController;
 use App\Http\Controllers\RoutineLogController;
+use App\Http\Controllers\SleepController;
+use App\Http\Controllers\SleepLogController;
+use App\Http\Controllers\SleepPlanController;
+use App\Http\Controllers\SleepStatisticsController;
 use App\Http\Controllers\TimeBlockController;
 use App\Http\Controllers\TodayController;
 use Illuminate\Support\Facades\Route;
@@ -60,6 +67,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/routines/{routine}', [RoutineController::class, 'update']);
     Route::put('/routines/{routine}/logs/{date}', [RoutineLogController::class, 'upsert']);
     Route::delete('/routines/{routine}/logs/{date}', [RoutineLogController::class, 'clear']);
+    Route::put('/routines/{routine}/activities', [RoutineActivityController::class, 'replace']);
+    Route::put('/routines/{routine}/activities/{activity}/logs/{date}', [RoutineActivityLogController::class, 'upsert']);
+    Route::delete('/routines/{routine}/activities/{activity}/logs/{date}', [RoutineActivityLogController::class, 'clear']);
+    Route::put('/routine-selections/{date}', [RoutineDaySelectionController::class, 'replace']);
+
+    Route::get('/sleep', SleepController::class);
+    Route::post('/sleep/plans', [SleepPlanController::class, 'store']);
+    Route::patch('/sleep/plans/{sleepPlan}', [SleepPlanController::class, 'update']);
+    Route::put('/sleep/plans/{sleepPlan}/logs/{date}', [SleepLogController::class, 'upsert']);
+    Route::delete('/sleep/plans/{sleepPlan}/logs/{date}', [SleepLogController::class, 'clear']);
+    Route::get('/sleep/statistics', SleepStatisticsController::class);
 
     Route::get('/daily-reviews/{date}', [DailyReviewController::class, 'show']);
     Route::put('/daily-reviews/{date}', [DailyReviewController::class, 'upsert']);

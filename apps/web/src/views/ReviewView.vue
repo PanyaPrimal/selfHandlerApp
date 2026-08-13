@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, reactive, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   ApiError,
   getDailyReview,
@@ -9,10 +9,10 @@ import {
   validationErrors,
   type ValidationErrors,
 } from '../api/client'
-import type { DailyReview, DailyReviewPayload } from '../api/types'
+import type { DailyReview, DailyReviewPayload, ModuleDaySummaries } from '../api/types'
 import AsyncState from '../components/AsyncState.vue'
 import { formatCalendarDate } from '../lib/format'
-import { UiTextarea } from '../components/ui'
+import { UiDatePicker, UiTextarea } from '../components/ui'
 import { useI18n } from '../i18n'
 
 type FocusableControl = { focus: () => void }
@@ -30,7 +30,9 @@ interface ReviewForm {
 type ReviewField = keyof ReviewForm
 
 const route = useRoute()
+const router = useRouter()
 const i18n = useI18n()
+const locale = i18n.locale
 const reviewDate = ref('')
 const isLoading = ref(true)
 const isReady = ref(false)
@@ -42,6 +44,7 @@ const saveError = ref<string | null>(null)
 const canRetrySave = ref(false)
 const fieldErrors = ref<ValidationErrors>({})
 const form = reactive<ReviewForm>(emptyForm())
+const moduleSummaries = ref<ModuleDaySummaries | null>(null)
 const savedSnapshot = ref(snapshot())
 const moodInput = ref<HTMLInputElement | null>(null)
 const energyInput = ref<HTMLInputElement | null>(null)
@@ -126,11 +129,14 @@ async function loadReview(): Promise<void> {
 
     if (routeDate) {
       date = routeDate
-      review = await getDailyReview(date)
+      const [savedReview, today] = await Promise.all([getDailyReview(date), getToday(date)])
+      review = savedReview
+      moduleSummaries.value = today.module_summaries
     } else {
       const today = await getToday()
       date = today.date
       review = today.review
+      moduleSummaries.value = today.module_summaries
     }
 
     if (sequence !== loadSequence) {
@@ -237,6 +243,12 @@ function markChanged(field: ReviewField): void {
   fieldErrors.value = remainingErrors
 }
 
+function selectReviewDate(value: string | null): void {
+  if (value && value !== reviewDate.value) {
+    void router.push(`/review/${value}`)
+  }
+}
+
 watch(
   () => route.params.date,
   () => {
@@ -253,6 +265,16 @@ watch(
         <p class="eyebrow">{{ i18n.t('review.eyebrow') }}</p>
         <h1>{{ reviewDate ? formatCalendarDate(reviewDate, i18n.locale.value) : i18n.t('review.daily') }}</h1>
       </div>
+      <div class="compact-field">
+        <UiDatePicker
+          :model-value="reviewDate || null"
+          :label="i18n.t('review.date')"
+          name="review-date"
+          :locale="locale"
+          :clearable="false"
+          @update:model-value="selectReviewDate"
+        />
+      </div>
     </header>
 
     <section class="panel" :aria-label="i18n.t('review.workspace')">
@@ -268,6 +290,23 @@ watch(
           :empty-title="i18n.t('review.empty')"
           :empty-description="i18n.t('review.emptyBody')"
         />
+
+        <div v-if="isReady && moduleSummaries" class="summary-grid wide-field review-module-summaries">
+          <section class="metric" :aria-label="i18n.t('review.sleepSummary')">
+            <span>{{ i18n.t('review.sleepSummary') }}</span>
+            <strong>{{ moduleSummaries.sleep.selected_night?.log ? i18n.t('review.sleepRecorded') : i18n.t('review.sleepNotRecorded') }}</strong>
+            <p v-if="moduleSummaries.sleep.selected_night?.log" class="muted">
+              {{ i18n.t('review.sleepQuality', { quality: i18n.number(moduleSummaries.sleep.selected_night.log.quality) }) }}
+            </p>
+          </section>
+          <section class="metric" :aria-label="i18n.t('review.routineActivitySummary')">
+            <span>{{ i18n.t('review.routineActivitySummary') }}</span>
+            <strong>{{ moduleSummaries.routine_activities.completion_rate === null ? i18n.t('review.noActivities') : `${i18n.number(moduleSummaries.routine_activities.completion_rate)}%` }}</strong>
+            <p v-for="template in moduleSummaries.routine_activities.templates" :key="template.routine_id" class="muted">
+              {{ template.name }} · {{ i18n.t('today.activitiesResolved', { resolved: template.done + template.skipped, total: template.scheduled }) }}
+            </p>
+          </section>
+        </div>
 
         <form
         v-if="isReady"

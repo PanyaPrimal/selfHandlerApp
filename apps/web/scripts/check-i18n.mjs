@@ -51,6 +51,9 @@ const dynamicKeys = new Set([
   'today.state.skipped', 'today.state.pending',
   'weekday.TU', 'weekday.WE', 'weekday.TH', 'weekday.FR', 'weekday.SA', 'weekday.SU',
   'goal.status.completed', 'goal.status.abandoned',
+  'sleep.empty.active', 'sleep.empty.paused', 'sleep.empty.archived',
+  'sleep.paused', 'sleep.resumed', 'sleep.archived', 'sleep.restored',
+  'today.parentState.done', 'today.parentState.skipped',
 ])
 
 function isAllowedText(value) {

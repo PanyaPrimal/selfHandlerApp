@@ -6,6 +6,7 @@ use App\Support\UserOwned;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use RuntimeException;
 
 /**
@@ -39,6 +40,7 @@ class PlannedOccurrence extends Model
         'status',
         'routine_log_id',
         'habit_log_id',
+        'sleep_log_id',
         'materialized_at',
     ];
 
@@ -57,7 +59,11 @@ class PlannedOccurrence extends Model
                 throw new RuntimeException('An occurrence must have the same owner as its rule.');
             }
 
-            if ($occurrence->routine_log_id !== null && $occurrence->habit_log_id !== null) {
+            if (collect([
+                $occurrence->routine_log_id,
+                $occurrence->habit_log_id,
+                $occurrence->sleep_log_id,
+            ])->filter(fn ($id): bool => $id !== null)->count() > 1) {
                 throw new RuntimeException('An occurrence may link to only one domain fact.');
             }
 
@@ -66,6 +72,8 @@ class PlannedOccurrence extends Model
                     ->whereKey($occurrence->routine_log_id)->value('user_id'),
                 $occurrence->habit_log_id !== null => HabitLog::query()
                     ->whereKey($occurrence->habit_log_id)->value('user_id'),
+                $occurrence->sleep_log_id !== null => SleepLog::query()
+                    ->whereKey($occurrence->sleep_log_id)->value('user_id'),
                 default => $occurrence->user_id,
             };
 
@@ -99,8 +107,20 @@ class PlannedOccurrence extends Model
         return $this->belongsTo(HabitLog::class);
     }
 
+    public function sleepLog(): BelongsTo
+    {
+        return $this->belongsTo(SleepLog::class);
+    }
+
+    public function sleepDetail(): HasOne
+    {
+        return $this->hasOne(SleepOccurrenceDetail::class);
+    }
+
     public function hasFact(): bool
     {
-        return $this->routine_log_id !== null || $this->habit_log_id !== null;
+        return $this->routine_log_id !== null
+            || $this->habit_log_id !== null
+            || $this->sleep_log_id !== null;
     }
 }

@@ -33,6 +33,7 @@ test('routine create sends the same body the native controls produced', async ({
     name: 'Parity routine',
     description: 'Same body as before.',
     kind: 'habit',
+    day_period: 'anytime',
     preferred_time: '07:30',
     sort_order: 3,
     is_active: true,

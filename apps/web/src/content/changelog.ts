@@ -19,6 +19,12 @@ export interface ChangelogEntry {
 
 const entries: readonly ChangelogEntry[] = [
   {
+    id: 'sleep-and-rich-routines', date: '2026-08-13', feature: '014-sleep-routine-templates',
+    titleKey: 'changelog.entry.sleepRoutines.title', summaryKey: 'changelog.entry.sleepRoutines.summary',
+    testKey: 'changelog.entry.sleepRoutines.test', links: [{ labelKey: 'nav.routines', to: '/routines' }],
+    limitationKeys: ['changelog.entry.sleepRoutines.limit'],
+  },
+  {
     id: 'habits-and-anti-habits', date: '2026-08-13', feature: '013-habits-anti-habits',
     titleKey: 'changelog.entry.habits.title', summaryKey: 'changelog.entry.habits.summary',
     testKey: 'changelog.entry.habits.test', links: [{ labelKey: 'nav.habits', to: '/habits' }],

@@ -180,6 +180,15 @@
 - A shared mechanism for **tags** and **templates** (day/workout/diet) — to be factored out.
 - The MVP slice is out of sync with the concept (see docs/MVP.md) — a product risk.
 
+### Feature 014 — Sleep and rich routine ownership (2026-08-13)
+
+- Sleep is a separate `SleepPlan` recurrence owner with module-owned wake snapshots and actual facts;
+  it is not encoded as a Routine subtype.
+- A rich routine keeps the existing Routine and parent RoutineLog contract. Ordered activity facts
+  derive that parent, so legacy progress and recurrence consumers do not receive a second truth.
+- No day-selection row means a deterministic default; an explicit nullable row means none. One shared
+  projection is authoritative for Today, Planner, activity writes, and reminders.
+
 ## Design status
 
 - ✅ Designed: 0, 1, 2, 2a, 3, 4, 5, 6, 7, 8, 9, 10, 11 — **all modules designed; contradictions cleaned up (2026-06-13)**

@@ -24,6 +24,8 @@ import type { Routine, RoutineCreatePayload, RoutineUpdatePayload, Weekday } fro
 import type { ValidationErrors } from '../api/client'
 import type { UiOption } from '../components/ui'
 import { useI18n } from '../i18n'
+import SleepWorkspace from '../components/sleep/SleepWorkspace.vue'
+import RoutineActivityEditor from '../components/routines/RoutineActivityEditor.vue'
 
 type FocusableControl = { focus: () => void }
 
@@ -31,6 +33,7 @@ interface RoutineForm {
   name: string
   description: string
   kind: Routine['kind']
+  day_period: Routine['day_period']
   schedule_type: Routine['schedule_type']
   weekdays: Weekday[]
   preferred_time: string
@@ -53,6 +56,7 @@ const fieldErrors = ref<ValidationErrors>({})
 const form = reactive<RoutineForm>(emptyForm())
 const nameInput = ref<FocusableControl | null>(null)
 const kindInput = ref<FocusableControl | null>(null)
+const dayPeriodInput = ref<FocusableControl | null>(null)
 const descriptionInput = ref<FocusableControl | null>(null)
 const scheduleTypeInput = ref<FocusableControl | null>(null)
 const preferredTimeInput = ref<FocusableControl | null>(null)
@@ -85,6 +89,11 @@ const scheduleOptions = computed<UiOption<Routine['schedule_type']>[]>(() => [
   { value: 'daily', label: i18n.t('routine.daily') },
   { value: 'weekdays', label: i18n.t('routine.byWeekdays') },
 ])
+const dayPeriodOptions = computed<UiOption<Routine['day_period']>[]>(() => [
+  { value: 'morning', label: i18n.t('routine.period.morning') },
+  { value: 'evening', label: i18n.t('routine.period.evening') },
+  { value: 'anytime', label: i18n.t('routine.period.anytime') },
+])
 
 function kindLabel(kind: Routine['kind']): string {
   return i18n.t(`today.kind.${kind}` as 'today.kind.routine')
@@ -95,6 +104,7 @@ function emptyForm(): RoutineForm {
     name: '',
     description: '',
     kind: 'routine',
+    day_period: 'anytime',
     schedule_type: 'daily',
     weekdays: [],
     preferred_time: '',
@@ -129,6 +139,7 @@ function routinePayload(): RoutineCreatePayload {
     name: form.name,
     description: form.description || null,
     kind: form.kind,
+    day_period: form.day_period,
     preferred_time: form.preferred_time || null,
     sort_order: form.sort_order,
     is_active: form.is_active,
@@ -147,6 +158,7 @@ async function focusFirstError(): Promise<void> {
   const inputs: Array<[keyof RoutineForm, FocusableControl | null]> = [
     ['name', nameInput.value],
     ['kind', kindInput.value],
+    ['day_period', dayPeriodInput.value],
     ['description', descriptionInput.value],
     ['schedule_type', scheduleTypeInput.value],
     ['preferred_time', preferredTimeInput.value],
@@ -211,6 +223,7 @@ async function editRoutine(routine: Routine): Promise<void> {
     name: routine.name,
     description: routine.description ?? '',
     kind: routine.kind,
+    day_period: routine.day_period,
     schedule_type: routine.schedule_type,
     weekdays: [...routine.weekdays],
     preferred_time: routine.preferred_time?.slice(0, 5) ?? '',
@@ -309,6 +322,11 @@ function setWeekdays(days: Weekday[]): void {
   clearFieldError('weekdays')
 }
 
+async function activitiesSaved(): Promise<void> {
+  success.value = i18n.t('routine.activitiesSaved')
+  await loadRoutines()
+}
+
 onMounted(loadRoutines)
 </script>
 
@@ -317,7 +335,8 @@ onMounted(loadRoutines)
     <header class="view-header">
       <div>
         <p class="eyebrow">{{ i18n.t('routine.eyebrow') }}</p>
-        <h1>{{ i18n.t('routine.title') }}</h1>
+        <h1>{{ i18n.t('routine.workspaceTitle') }}</h1>
+        <p class="muted">{{ i18n.t('routine.workspaceSubtitle') }}</p>
       </div>
     </header>
 
@@ -325,6 +344,8 @@ onMounted(loadRoutines)
       {{ error }}
     </div>
     <div v-if="success" class="notice success" role="status">{{ success }}</div>
+
+    <SleepWorkspace />
 
     <section class="panel" aria-labelledby="routine-form-heading">
       <div class="section-heading">
@@ -353,6 +374,16 @@ onMounted(loadRoutines)
           :options="kindOptions"
           :error="fieldErrors.kind?.[0]"
           @update:model-value="clearFieldError('kind')"
+        />
+
+        <UiSelect
+          ref="dayPeriodInput"
+          v-model="form.day_period"
+          :label="i18n.t('routine.dayPeriod')"
+          name="day_period"
+          :options="dayPeriodOptions"
+          :error="fieldErrors.day_period?.[0]"
+          @update:model-value="clearFieldError('day_period')"
         />
 
         <UiTextarea
@@ -482,6 +513,7 @@ onMounted(loadRoutines)
               <div class="meta-row">
                 <strong>{{ routine.name }}</strong>
                 <span class="kind-chip">{{ kindLabel(routine.kind) }}</span>
+                <span class="kind-chip">{{ i18n.t(`routine.period.${routine.day_period}` as 'routine.period.morning') }}</span>
                 <span v-if="!routine.is_active" class="kind-chip">{{ i18n.t('routine.paused') }}</span>
               </div>
               <p v-if="routine.description" class="muted">{{ routine.description }}</p>
@@ -493,6 +525,7 @@ onMounted(loadRoutines)
             </div>
 
             <div class="button-row management-actions">
+              <RoutineActivityEditor v-if="!routine.is_archived" :routine="routine" @saved="activitiesSaved" />
               <button type="button" class="secondary" :aria-label="i18n.t('routine.editNamed', { name: routine.name })" :disabled="actionRoutineId === routine.id" @click="editRoutine(routine)">{{ i18n.t('common.edit') }}</button>
               <button v-if="!routine.is_archived" type="button" class="secondary" :aria-label="i18n.t(routine.is_active ? 'routine.pauseNamed' : 'routine.resumeNamed', { name: routine.name })" :disabled="actionRoutineId === routine.id" @click="toggleActive(routine, $event.currentTarget as HTMLElement)">
                 {{ i18n.t(routine.is_active ? 'routine.pause' : 'routine.resume') }}

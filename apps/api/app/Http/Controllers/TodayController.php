@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\DailyReview;
 use App\Models\Routine;
 use App\Models\RoutineLog;
+use App\Services\RoutineDayProjectionService;
 use App\Services\RoutineProgressService;
 use App\Services\RoutineScheduleService;
+use App\Services\SleepStatisticsService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,8 +16,10 @@ use Illuminate\Http\Request;
 class TodayController extends Controller
 {
     public function __construct(
-        private readonly RoutineScheduleService $scheduleService,
+        private readonly RoutineDayProjectionService $routineDays,
         private readonly RoutineProgressService $progressService,
+        private readonly RoutineScheduleService $scheduleService,
+        private readonly SleepStatisticsService $sleepStatistics,
     ) {}
 
     public function __invoke(Request $request): JsonResponse
@@ -29,10 +33,17 @@ class TodayController extends Controller
             ? CarbonImmutable::parse($validated['date'], $timezone)->startOfDay()
             : CarbonImmutable::now($timezone)->startOfDay();
         $isHistoricalDate = $date->isBefore(CarbonImmutable::now($timezone)->startOfDay());
+        $dateValue = $date->toDateString();
+        $projection = $this->routineDays->project($user, $dateValue);
+        $selectedRoutineIds = collect([
+            $projection['morning']['selected']['routine_id'] ?? null,
+            $projection['evening']['selected']['routine_id'] ?? null,
+            ...array_column($projection['anytime'], 'routine_id'),
+        ])->filter()->unique();
 
         $logs = RoutineLog::query()
             ->ownedBy($user)
-            ->where('log_date', $date->toDateString())
+            ->where('log_date', $dateValue)
             ->get()
             ->keyBy('routine_id');
 
@@ -46,13 +57,30 @@ class TodayController extends Controller
                     ->orderBy('goals.name')
                     ->orderBy('goals.id'),
                 'recurringRule.ruleWeekdays',
+                'activities' => fn ($query) => $query
+                    ->withCount('logs')
+                    ->with(['logs' => fn ($activityLogs) => $activityLogs->whereDate('log_date', $dateValue)]),
             ])
             ->orderBy('sort_order')
             ->orderBy('name')
             ->orderBy('id')
             ->get()
-            ->filter(fn (Routine $routine): bool => $this->scheduleService->isScheduledFor($routine, $date, $timezone)
-                || ($isHistoricalDate && $logs->has($routine->id)))
+            ->filter(function (Routine $routine) use ($selectedRoutineIds, $isHistoricalDate, $logs, $date, $timezone): bool {
+                if ($selectedRoutineIds->contains($routine->id)) {
+                    return true;
+                }
+
+                // Feature 001 supports arbitrary calendar reads, including days
+                // outside the durable recurrence window. Existing routines were
+                // migrated to anytime, so retain that read contract without
+                // making the new morning/evening selection rules diverge.
+                if ($routine->day_period === Routine::DAY_PERIOD_ANYTIME
+                    && $this->scheduleService->isScheduledFor($routine, $date, $timezone)) {
+                    return true;
+                }
+
+                return $isHistoricalDate && $logs->has($routine->id);
+            })
             ->values();
 
         $routineIds = $routines->pluck('id');
@@ -84,11 +112,34 @@ class TodayController extends Controller
                 'name' => $routine->name,
                 'description' => $routine->description,
                 'kind' => $routine->kind,
+                'day_period' => $routine->day_period,
                 'preferred_time' => $routine->preferred_time,
                 'sort_order' => $routine->sort_order,
                 'is_active' => $routine->is_active,
                 'is_archived' => $routine->is_archived,
                 'log' => $logs->get($routine->id),
+                'parent_state' => $logs->get($routine->id)?->status ?? 'pending',
+                'activities' => $routine->activities->map(function ($activity): array {
+                    $log = $activity->logs->first();
+
+                    return [
+                        'id' => $activity->id,
+                        'name' => $activity->name,
+                        'sort_order' => $activity->sort_order,
+                        'preferred_time' => $activity->preferred_time ? substr((string) $activity->preferred_time, 0, 5) : null,
+                        'progress_total' => $activity->progress_total === null ? null : (float) $activity->progress_total,
+                        'has_facts' => $activity->logs_count > 0,
+                        'selected_day_log' => $log ? [
+                            'id' => $log->id,
+                            'routine_activity_id' => $log->routine_activity_id,
+                            'log_date' => $log->log_date->format('Y-m-d'),
+                            'status' => $log->status,
+                            'progress_value' => $log->progress_value === null ? null : (float) $log->progress_value,
+                            'note' => $log->note,
+                            'completed_at' => $log->completed_at?->toISOString(),
+                        ] : null,
+                    ];
+                })->values(),
                 'current_streak' => $progress['routine_streaks'][$routine->id] ?? 0,
                 'goals' => $routine->goals->map(fn ($goal): array => [
                     'id' => $goal->id,
@@ -111,6 +162,11 @@ class TodayController extends Controller
                 'period_start' => $progress['period_start'],
                 'period_end' => $progress['period_end'],
                 'seven_day' => $progress['seven_day'],
+            ],
+            'routine_day' => $projection,
+            'module_summaries' => [
+                'sleep' => $this->sleepStatistics->summarize($user, $dateValue, $dateValue, $dateValue),
+                'routine_activities' => $projection['activity_summary'],
             ],
         ]);
     }

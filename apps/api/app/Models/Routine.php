@@ -15,11 +15,18 @@ class Routine extends Model
 {
     use HasFactory, SoftDeletes, UserOwned;
 
+    public const DAY_PERIOD_MORNING = 'morning';
+
+    public const DAY_PERIOD_EVENING = 'evening';
+
+    public const DAY_PERIOD_ANYTIME = 'anytime';
+
     protected $fillable = [
         'user_id',
         'name',
         'description',
         'kind',
+        'day_period',
         'sort_order',
         'is_active',
         'is_archived',
@@ -51,6 +58,7 @@ class Routine extends Model
     protected $attributes = [
         'is_active' => true,
         'is_archived' => false,
+        'day_period' => self::DAY_PERIOD_ANYTIME,
     ];
 
     protected function casts(): array
@@ -73,6 +81,16 @@ class Routine extends Model
     public function logs(): HasMany
     {
         return $this->hasMany(RoutineLog::class);
+    }
+
+    public function activities(): HasMany
+    {
+        return $this->hasMany(RoutineActivity::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    public function daySelections(): HasMany
+    {
+        return $this->hasMany(RoutineDaySelection::class);
     }
 
     public function recurringRule(): HasOne

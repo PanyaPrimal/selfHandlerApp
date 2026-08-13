@@ -25,9 +25,20 @@ import type {
   ProfileInput,
   ProfileResponse,
   Routine,
+  RoutineActivityInput,
+  RoutineActivityLogPayload,
+  RoutineDayProjection,
   RoutineCreatePayload,
   RoutineLog,
+  RoutineTemplate,
   RoutineUpdatePayload,
+  SleepLogPayload,
+  SleepPlan,
+  SleepPlanPayload,
+  SleepPlanState,
+  SleepPlanUpdatePayload,
+  SleepStatistics,
+  SleepWorkspaceResponse,
   StorageItem,
   StorageItemPayload,
   StorageItemsResponse,
@@ -112,6 +123,89 @@ export async function updateRoutineLog(
 
 export function clearRoutineLog(routineId: number, date: string): Promise<void> {
   return request<void>(`/routines/${routineId}/logs/${date}`, { method: 'DELETE' })
+}
+
+export async function replaceRoutineActivities(
+  routineId: number,
+  activities: RoutineActivityInput[],
+): Promise<RoutineTemplate> {
+  const response = await jsonRequest<ItemResponse<RoutineTemplate>>(
+    `/routines/${routineId}/activities`,
+    'PUT',
+    { activities },
+  )
+  return response.data
+}
+
+export async function upsertRoutineActivityLog(
+  routineId: number,
+  activityId: number,
+  date: string,
+  payload: RoutineActivityLogPayload,
+): Promise<RoutineTemplate> {
+  const response = await jsonRequest<ItemResponse<RoutineTemplate>>(
+    `/routines/${routineId}/activities/${activityId}/logs/${encodeURIComponent(date)}`,
+    'PUT',
+    payload,
+  )
+  return response.data
+}
+
+export async function clearRoutineActivityLog(routineId: number, activityId: number, date: string): Promise<RoutineTemplate> {
+  const response = await request<ItemResponse<RoutineTemplate>>(
+    `/routines/${routineId}/activities/${activityId}/logs/${encodeURIComponent(date)}`,
+    { method: 'DELETE' },
+  )
+  return response.data
+}
+
+export async function replaceRoutineDaySelections(
+  date: string,
+  morningRoutineId: number | null,
+  eveningRoutineId: number | null,
+): Promise<RoutineDayProjection> {
+  const response = await jsonRequest<ItemResponse<RoutineDayProjection>>(
+    `/routine-selections/${encodeURIComponent(date)}`,
+    'PUT',
+    { morning_routine_id: morningRoutineId, evening_routine_id: eveningRoutineId },
+  )
+  return response.data
+}
+
+export function getSleepWorkspace(state: SleepPlanState = 'active', date?: string): Promise<SleepWorkspaceResponse> {
+  const query = new URLSearchParams({ state })
+  if (date) query.set('date', date)
+
+  return request<SleepWorkspaceResponse>(`/sleep?${query.toString()}`)
+}
+
+export async function createSleepPlan(payload: SleepPlanPayload): Promise<SleepPlan> {
+  const response = await jsonRequest<ItemResponse<SleepPlan>>('/sleep/plans', 'POST', payload)
+  return response.data
+}
+
+export async function updateSleepPlan(planId: number, payload: SleepPlanUpdatePayload): Promise<SleepPlan> {
+  const response = await jsonRequest<ItemResponse<SleepPlan>>(`/sleep/plans/${planId}`, 'PATCH', payload)
+  return response.data
+}
+
+export async function upsertSleepLog(planId: number, date: string, payload: SleepLogPayload): Promise<SleepPlan> {
+  const response = await jsonRequest<ItemResponse<SleepPlan>>(
+    `/sleep/plans/${planId}/logs/${encodeURIComponent(date)}`,
+    'PUT',
+    payload,
+  )
+  return response.data
+}
+
+export function clearSleepLog(planId: number, date: string): Promise<void> {
+  return request<void>(`/sleep/plans/${planId}/logs/${encodeURIComponent(date)}`, { method: 'DELETE' })
+}
+
+export async function getSleepStatistics(from: string, to: string): Promise<SleepStatistics> {
+  const query = new URLSearchParams({ from, to })
+  const response = await request<ItemResponse<SleepStatistics>>(`/sleep/statistics?${query.toString()}`)
+  return response.data
 }
 
 export function getHabits(state: HabitState = 'active', date?: string): Promise<HabitsResponse> {

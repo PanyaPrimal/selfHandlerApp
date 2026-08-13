@@ -23,7 +23,7 @@ test('registration normalizes identity, restores the session, and rejects a dupl
   await page.getByRole('link', { name: 'Routines', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'No routines yet' })).toBeVisible()
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'Repeatable actions' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Routines & sleep' })).toBeVisible()
 
   await gotoDestination(page, 'Account')
   await expect(page.locator('.content-shell').getByText(credentials.email)).toBeVisible()
@@ -92,8 +92,9 @@ test('two accounts stay isolated in simultaneous contexts and after account swit
   const routineB = `Private B routine ${Date.now()}`
 
   await registerViaUi(page, accountA, { redirectTo: '/routines' })
-  await page.getByLabel('Name').fill(routineA)
-  await page.getByRole('button', { name: 'Create' }).click()
+  const routineFormA = page.getByRole('form', { name: 'Create routine' })
+  await routineFormA.getByLabel('Name', { exact: true }).fill(routineA)
+  await routineFormA.getByRole('button', { name: 'Create routine', exact: true }).click()
   await expect(page.getByText(routineA)).toBeVisible()
 
   const routinesResponse = await page.request.get('/api/routines', {
@@ -115,8 +116,9 @@ test('two accounts stay isolated in simultaneous contexts and after account swit
     await registerViaUi(pageB, accountB, { redirectTo: '/routines' })
     await expect(pageB.getByText(routineA)).toHaveCount(0)
     await expect(pageB.getByRole('heading', { name: 'No routines yet' })).toBeVisible()
-    await pageB.getByLabel('Name').fill(routineB)
-    await pageB.getByRole('button', { name: 'Create' }).click()
+    const routineFormB = pageB.getByRole('form', { name: 'Create routine' })
+    await routineFormB.getByLabel('Name', { exact: true }).fill(routineB)
+    await routineFormB.getByRole('button', { name: 'Create routine', exact: true }).click()
     await expect(pageB.getByText(routineB)).toBeVisible()
 
     await page.reload()

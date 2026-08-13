@@ -186,11 +186,11 @@ components:
 
     NotificationCategory:
       type: string
-      enum: [routine, habit, storage, digest]
+      enum: [routine, habit, sleep, storage, digest]
 
     NotificationType:
       type: string
-      enum: [routine_reminder, habit_reminder, storage_due, daily_digest]
+      enum: [routine_reminder, habit_reminder, sleep_reminder, storage_due, daily_digest]
 
     DeliveredNotification:
       type: object
@@ -316,6 +316,8 @@ components:
               type: boolean
             habit:
               type: boolean
+            sleep:
+              type: boolean
 
     NotificationSettingsInput:
       allOf:
@@ -336,7 +338,7 @@ components:
           properties:
             categories:
               type: array
-              const: [routine, storage, habit]
+              const: [routine, storage, habit, sleep]
             channels:
               type: array
               const: [in_app]

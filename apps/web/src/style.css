@@ -788,6 +788,30 @@ h3 {
   text-decoration: line-through;
 }
 
+.sleep-plan-form .form-actions button,
+.activity-actions button,
+.activity-editor-form button {
+  min-height: 44px;
+}
+
+.activity-editor {
+  max-width: 100%;
+}
+
+.activity-editor-form,
+.activity-checkin-list,
+.activity-draft-list {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  width: 100%;
+}
+
+.activity-checkin,
+.activity-draft {
+  min-width: 0;
+}
+
 .routine-meta {
   display: flex;
   flex-wrap: wrap;
@@ -2619,6 +2643,24 @@ button.text-button {
 
   .button-row button {
     flex: 1;
+  }
+
+  .activity-actions {
+    flex-wrap: wrap;
+  }
+
+  .activity-actions button {
+    flex: 1 1 90px;
+    white-space: nowrap;
+  }
+
+  .management-actions > button,
+  .management-actions > .activity-editor {
+    flex: 1 1 110px;
+  }
+
+  .management-actions > .activity-editor > button {
+    width: 100%;
   }
 
   .appearance-layout {

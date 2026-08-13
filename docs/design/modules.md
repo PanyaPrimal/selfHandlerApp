@@ -94,6 +94,11 @@ Back to the plan: [Vision & Plan](vision.md)
 - Each activity is marked separately: done / skipped
 - The data is aggregated into analytics by day
 
+> Implemented by feature `014-sleep-routine-templates` (2026-08-13) for daily and exact selected-
+> weekday sleep plans, local cross-midnight sleep facts, ordered routine activities, explicit
+> morning/evening choices, derived parent facts, and shared Today/Review summaries. Alarms, wearable
+> imports, offline writes, and advanced sleep analytics remain deferred.
+
 ---
 
 ## Module 2 — Nutrition

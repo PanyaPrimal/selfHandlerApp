@@ -1,13 +1,21 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import { clearRoutineLog, getToday, updateRoutineLog } from '../api/client'
+import {
+  clearRoutineActivityLog,
+  clearRoutineLog,
+  getToday,
+  replaceRoutineDaySelections,
+  updateRoutineLog,
+  upsertRoutineActivityLog,
+} from '../api/client'
 import AsyncState from '../components/AsyncState.vue'
 import ProgressSummary from '../components/ProgressSummary.vue'
 import { formatCalendarDate } from '../lib/format'
 import { useAuthSession } from '../auth/session'
-import { UiDatePicker } from '../components/ui'
+import { UiDatePicker, UiNumberInput, UiSelect, UiTextarea } from '../components/ui'
 import type { RoutineLog, TodayResponse, TodayRoutine } from '../api/types'
+import type { UiOption } from '../components/ui'
 import { useI18n } from '../i18n'
 
 type RoutineState = RoutineLog['status'] | 'pending'
@@ -16,6 +24,11 @@ const selectedDate = ref('')
 const data = ref<TodayResponse | null>(null)
 const isLoading = ref(true)
 const actionRoutineId = ref<number | null>(null)
+const actionActivityId = ref<number | null>(null)
+const savingSelection = ref(false)
+const progressDrafts = ref<Record<number, number | null>>({})
+const noteDrafts = ref<Record<number, string>>({})
+let selectionSaveChain: Promise<void> = Promise.resolve()
 const error = ref<string | null>(null)
 const statusMessage = ref<string | null>(null)
 const retryAction = ref<(() => Promise<void>) | null>(null)
@@ -45,6 +58,14 @@ function streakLabel(count: number): string {
 
 const completionLabel = computed(() => `${Math.round(data.value?.summary.completion_rate ?? 0)}%`)
 const progressWidth = computed(() => `${data.value?.summary.completion_rate ?? 0}%`)
+const morningOptions = computed<UiOption<number>[]>(() => (data.value?.routine_day.morning.candidates ?? []).map((candidate) => ({
+  value: candidate.routine_id,
+  label: candidate.name,
+})))
+const eveningOptions = computed<UiOption<number>[]>(() => (data.value?.routine_day.evening.candidates ?? []).map((candidate) => ({
+  value: candidate.routine_id,
+  label: candidate.name,
+})))
 
 type FocusTarget = HTMLElement | { focus: () => void }
 
@@ -73,6 +94,14 @@ async function loadToday(date?: string, focusTarget?: FocusTarget | null): Promi
   try {
     const response = await getToday(date)
     data.value = response
+    progressDrafts.value = Object.fromEntries(response.routines.flatMap((routine) => routine.activities.map((activity) => [
+      activity.id,
+      activity.selected_day_log?.progress_value ?? null,
+    ])))
+    noteDrafts.value = Object.fromEntries(response.routines.flatMap((routine) => routine.activities.map((activity) => [
+      activity.id,
+      activity.selected_day_log?.note ?? '',
+    ])))
     selectedDate.value = response.date
 
     if (!date) {
@@ -180,6 +209,73 @@ async function setRoutineState(
   }
 }
 
+function saveSelection(period: 'morning' | 'evening', routineId: number | null): void {
+  if (!data.value) return
+  const rollback = cloneToday(data.value)
+  const currentPeriod = data.value.routine_day[period]
+  const previousId = currentPeriod.selected?.routine_id ?? null
+  currentPeriod.selected = currentPeriod.candidates.find((candidate) => candidate.routine_id === routineId) ?? null
+  if (previousId !== null && previousId !== routineId) {
+    data.value.routines = data.value.routines.filter((routine) => routine.id !== previousId)
+  }
+  savingSelection.value = true
+  error.value = null
+  selectionSaveChain = selectionSaveChain.then(async () => {
+    if (!data.value) return
+    const current = data.value.routine_day
+    await replaceRoutineDaySelections(
+        selectedDate.value,
+        period === 'morning' ? routineId : current.morning.selected?.routine_id ?? null,
+        period === 'evening' ? routineId : current.evening.selected?.routine_id ?? null,
+      )
+    await loadToday(selectedDate.value)
+    statusMessage.value = i18n.t('today.selectionSaved')
+  }).catch((currentError: unknown) => {
+    data.value = rollback
+    error.value = currentError instanceof Error ? currentError.message : i18n.t('today.selectionFailed')
+  }).finally(() => {
+    savingSelection.value = false
+  })
+}
+
+function resolvedCount(routine: TodayRoutine): number {
+  return routine.activities.filter((activity) => activity.selected_day_log !== null).length
+}
+
+async function setActivityState(
+  routine: TodayRoutine,
+  activityId: number,
+  state: 'done' | 'skipped' | 'pending',
+  focusTarget?: HTMLElement | null,
+): Promise<void> {
+  if (actionActivityId.value !== null) return
+  const activity = routine.activities.find((candidate) => candidate.id === activityId)
+  if (!activity) return
+  actionActivityId.value = activityId
+  error.value = null
+  try {
+    if (state === 'pending') {
+      await clearRoutineActivityLog(routine.id, activityId, selectedDate.value)
+    } else {
+      await upsertRoutineActivityLog(routine.id, activityId, selectedDate.value, {
+        status: state,
+        ...(state === 'done' && activity.progress_total !== null
+          ? { progress_value: progressDrafts.value[activityId] }
+          : {}),
+        note: noteDrafts.value[activityId] || null,
+      })
+    }
+    await loadToday(selectedDate.value)
+    statusMessage.value = i18n.t('today.activitySaved', { name: activity.name })
+  } catch (currentError) {
+    error.value = currentError instanceof Error ? currentError.message : i18n.t('today.activityFailed')
+  } finally {
+    actionActivityId.value = null
+    await nextTick()
+    refocus(focusTarget)
+  }
+}
+
 function loadSelectedDate(value: string | null): void {
   if (!value) {
     return
@@ -274,6 +370,27 @@ onMounted(() => loadToday())
           <RouterLink to="/routines">{{ i18n.t('today.manage') }}</RouterLink>
         </div>
 
+        <div class="form-grid routine-selections">
+          <UiSelect
+            :model-value="data.routine_day.morning.selected?.routine_id ?? null"
+            :label="i18n.t('today.morningTemplate')"
+            name="morning-template"
+            :options="morningOptions"
+            nullable
+            :nullable-label="i18n.t('today.noMorningTemplate')"
+            @update:model-value="saveSelection('morning', $event)"
+          />
+          <UiSelect
+            :model-value="data.routine_day.evening.selected?.routine_id ?? null"
+            :label="i18n.t('today.eveningTemplate')"
+            name="evening-template"
+            :options="eveningOptions"
+            nullable
+            :nullable-label="i18n.t('today.noEveningTemplate')"
+            @update:model-value="saveSelection('evening', $event)"
+          />
+        </div>
+
         <AsyncState
           :empty="data.routines.length === 0"
           :empty-title="i18n.t('today.empty')"
@@ -308,6 +425,8 @@ onMounted(() => loadToday())
                   <span v-if="routine.preferred_time" class="mono">{{ routine.preferred_time.slice(0, 5) }}</span>
                   <span>{{ routineKind(routine.kind) }}</span>
                   <span>{{ routineState(routine.log?.status ?? 'pending') }}</span>
+                  <span v-if="routine.activities.length > 0">{{ i18n.t('today.activitiesResolved', { resolved: resolvedCount(routine), total: routine.activities.length }) }}</span>
+                  <span v-if="routine.activities.length > 0" class="kind-chip">{{ i18n.t(`today.parentState.${routine.parent_state}` as 'today.parentState.pending') }}</span>
                   <span
                     class="streak-badge"
                     :aria-label="i18n.t('today.currentStreak', { streak: streakLabel(routine.current_streak) })"
@@ -319,7 +438,7 @@ onMounted(() => loadToday())
               </span>
             </div>
 
-            <div class="button-row state-actions" role="group" :aria-label="i18n.t('today.setState', { name: routine.name })">
+            <div v-if="routine.activities.length === 0" class="button-row state-actions" role="group" :aria-label="i18n.t('today.setState', { name: routine.name })">
               <button
                 type="button"
                 class="secondary"
@@ -348,6 +467,27 @@ onMounted(() => loadToday())
                 @click="setRoutineState(routine, 'pending', $event.currentTarget as HTMLElement)"
               >{{ i18n.t('today.actionPending') }}</button>
             </div>
+            <ol v-else class="activity-checkin-list">
+              <li v-for="activity in routine.activities" :key="activity.id" class="activity-checkin">
+                <div>
+                  <strong>{{ activity.name }}</strong>
+                  <span v-if="activity.selected_day_log?.progress_value !== null && activity.selected_day_log?.progress_value !== undefined && activity.progress_total !== null" class="muted">
+                    {{ i18n.number(activity.selected_day_log.progress_value) }} / {{ i18n.number(activity.progress_total) }}
+                  </span>
+                </div>
+                <form v-if="activity.progress_total !== null" class="activity-progress-form" :aria-label="i18n.t('today.recordActivity', { name: activity.name })" @submit.prevent="setActivityState(routine, activity.id, 'done', $event.submitter as HTMLElement)">
+                  <UiNumberInput v-model="progressDrafts[activity.id]" :label="i18n.t('today.progress')" :name="`activity-progress-${activity.id}`" :min="0" :max="activity.progress_total" :step="0.001" />
+                  <UiTextarea v-model="noteDrafts[activity.id]" :label="i18n.t('today.activityNote', { name: activity.name })" :name="`activity-note-${activity.id}`" :rows="2" :maxlength="2000" />
+                  <button type="submit" class="secondary" :disabled="actionActivityId !== null" :aria-label="i18n.t('today.markActivityDone', { name: activity.name })">{{ i18n.t('today.actionDone') }}</button>
+                </form>
+                <UiTextarea v-else v-model="noteDrafts[activity.id]" :label="i18n.t('today.activityNote', { name: activity.name })" :name="`activity-note-${activity.id}`" :rows="2" :maxlength="2000" />
+                <div class="button-row activity-actions">
+                  <button v-if="activity.progress_total === null" type="button" class="secondary" :disabled="actionActivityId !== null" :aria-label="i18n.t('today.markActivityDone', { name: activity.name })" @click="setActivityState(routine, activity.id, 'done', $event.currentTarget as HTMLElement)">{{ i18n.t('today.actionDone') }}</button>
+                  <button type="button" class="secondary" :disabled="actionActivityId !== null" :aria-label="i18n.t('today.markActivitySkipped', { name: activity.name })" @click="setActivityState(routine, activity.id, 'skipped', $event.currentTarget as HTMLElement)">{{ i18n.t('today.actionSkip') }}</button>
+                  <button type="button" class="secondary" :disabled="actionActivityId !== null" :aria-label="i18n.t('today.setActivityPending', { name: activity.name })" @click="setActivityState(routine, activity.id, 'pending', $event.currentTarget as HTMLElement)">{{ i18n.t('today.actionPending') }}</button>
+                </div>
+              </li>
+            </ol>
             </li>
           </ul>
         </AsyncState>

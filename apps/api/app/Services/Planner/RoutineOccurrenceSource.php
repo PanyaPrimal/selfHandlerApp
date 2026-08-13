@@ -7,6 +7,7 @@ use App\Models\PlannedOccurrence;
 use App\Models\RecurringRule;
 use App\Models\Routine;
 use App\Models\User;
+use App\Services\RoutineDayProjectionService;
 use App\Support\PlannerEntry;
 use Illuminate\Support\Collection;
 
@@ -19,6 +20,8 @@ use Illuminate\Support\Collection;
  */
 class RoutineOccurrenceSource implements SchedulableSource
 {
+    public function __construct(private readonly RoutineDayProjectionService $routineDays) {}
+
     public function name(): string
     {
         return 'routine';
@@ -44,14 +47,20 @@ class RoutineOccurrenceSource implements SchedulableSource
         }
 
         $routines = $this->routinesFor($occurrences);
+        $projection = $this->routineDays->project($user, $date);
+        $selectedIds = collect([
+            $projection['morning']['selected']['routine_id'] ?? null,
+            $projection['evening']['selected']['routine_id'] ?? null,
+            ...array_column($projection['anytime'], 'routine_id'),
+        ])->filter()->map(fn ($id): int => (int) $id);
 
         return $occurrences
-            ->map(function (PlannedOccurrence $occurrence) use ($routines): ?PlannerEntry {
+            ->map(function (PlannedOccurrence $occurrence) use ($routines, $selectedIds): ?PlannerEntry {
                 $routine = $routines->get($occurrence->recurringRule?->owner_id);
 
                 // A routine that was deleted leaves its window behind briefly;
                 // showing a nameless row would be worse than showing nothing.
-                if (! $routine) {
+                if (! $routine || ! $selectedIds->contains((int) $routine->id)) {
                     return null;
                 }
 

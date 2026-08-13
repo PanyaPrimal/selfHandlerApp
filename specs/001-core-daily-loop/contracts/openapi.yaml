@@ -410,6 +410,7 @@ components:
         - name
         - description
         - kind
+        - day_period
         - schedule_type
         - weekdays
         - preferred_time
@@ -420,6 +421,7 @@ components:
         - starts_on
         - ends_on
         - goals
+        - activities
       properties:
         id:
           type: integer
@@ -434,6 +436,9 @@ components:
         kind:
           type: string
           enum: [routine, sleep, habit]
+        day_period:
+          type: string
+          enum: [morning, evening, anytime]
         schedule_type:
           type: string
           enum: [daily, weekdays]
@@ -467,15 +472,31 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/GoalSummary'
+        activities:
+          type: array
+          items:
+            type: object
+            required: [id, name, sort_order, preferred_time, progress_total]
+            properties:
+              id: { type: integer, minimum: 1 }
+              name: { type: string, maxLength: 160 }
+              sort_order: { type: integer, minimum: 0 }
+              preferred_time: { type: [string, 'null'] }
+              progress_total: { type: [number, 'null'] }
 
     RoutineInput:
       type: object
       description: >-
-        Leading and trailing string whitespace is trimmed. Unrecognized properties are accepted
-        and ignored; in particular, a client-supplied user_id never changes the authenticated
+        Leading and trailing string whitespace is trimmed. Unrecognized properties are rejected.
+        The legacy user_id spoofing probe is accepted but ignored and never changes the authenticated
         owner. starts_on and ends_on must form a non-decreasing date window.
-      additionalProperties: true
+      additionalProperties: false
       properties:
+        user_id:
+          type: integer
+          minimum: 1
+          deprecated: true
+          description: Ignored legacy compatibility field; the owner always comes from authentication.
         name:
           type: string
           minLength: 1
@@ -487,6 +508,9 @@ components:
         kind:
           type: string
           enum: [routine, sleep, habit]
+        day_period:
+          type: string
+          enum: [morning, evening, anytime]
         schedule_type:
           type: string
           enum: [daily, weekdays]
@@ -793,11 +817,14 @@ components:
       allOf:
         - $ref: '#/components/schemas/RoutineSummary'
         - type: object
-          required: [description, kind, preferred_time, sort_order, log, goals, current_streak]
+          required: [description, kind, day_period, preferred_time, sort_order, log, parent_state, activities, goals, current_streak]
           properties:
             kind:
               type: string
               enum: [routine, sleep, habit]
+            day_period:
+              type: string
+              enum: [morning, evening, anytime]
             description:
               type: [string, 'null']
             preferred_time:
@@ -810,6 +837,14 @@ components:
               oneOf:
                 - $ref: '#/components/schemas/RoutineLog'
                 - type: 'null'
+            parent_state:
+              type: string
+              enum: [pending, done, skipped]
+            activities:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
             goals:
               type: array
               items:
@@ -841,7 +876,7 @@ components:
 
     TodayResponse:
       type: object
-      required: [date, summary, routines, goals, review, progress]
+      required: [date, summary, routines, goals, review, progress, routine_day, module_summaries]
       properties:
         date:
           type: string
@@ -875,6 +910,20 @@ components:
               pattern: '^\d{4}-\d{2}-\d{2}$'
             seven_day:
               $ref: '#/components/schemas/CompletionSummary'
+        routine_day:
+          type: object
+          description: Shared morning/evening/anytime routine projection for this local date.
+          additionalProperties: true
+        module_summaries:
+          type: object
+          required: [sleep, routine_activities]
+          properties:
+            sleep:
+              type: object
+              additionalProperties: true
+            routine_activities:
+              type: object
+              additionalProperties: true
 
     RoutineItemResponse:
       type: object

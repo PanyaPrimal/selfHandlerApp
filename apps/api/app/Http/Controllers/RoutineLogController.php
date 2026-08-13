@@ -5,23 +5,35 @@ namespace App\Http\Controllers;
 use App\Models\Routine;
 use App\Models\RoutineLog;
 use App\Services\OccurrenceFactSynchronizer;
+use App\Services\RoutineActivityLogService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class RoutineLogController extends Controller
 {
-    public function __construct(private readonly OccurrenceFactSynchronizer $occurrences) {}
+    public function __construct(
+        private readonly OccurrenceFactSynchronizer $occurrences,
+        private readonly RoutineActivityLogService $activityLogs,
+    ) {}
 
     public function upsert(Request $request, Routine $routine, string $date): JsonResponse
     {
         $user = $request->user();
         abort_unless($routine->isOwnedBy($user), 404);
 
+        if ($routine->activities()->exists()) {
+            throw ValidationException::withMessages([
+                'status' => __('messages.routine_parent_derived'),
+            ]);
+        }
+
         $logDate = $this->validatedDate($date, $user->calendarTimezone());
+
         $data = $request->validate([
             'status' => ['required', Rule::in(['done', 'skipped'])],
             'note' => ['sometimes', 'nullable', 'string', 'max:2000'],
@@ -62,6 +74,12 @@ class RoutineLogController extends Controller
         abort_unless($routine->isOwnedBy($user), 404);
 
         $logDate = $this->validatedDate($date, $user->calendarTimezone());
+
+        if ($routine->activities()->exists()) {
+            $this->activityLogs->clearWholeDate($routine, $user, $logDate);
+
+            return response()->noContent();
+        }
 
         RoutineLog::query()
             ->ownedBy($user)

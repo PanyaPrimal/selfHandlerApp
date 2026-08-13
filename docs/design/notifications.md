@@ -179,3 +179,14 @@ Extended by feature 013:
    enter the routine/task daily digest in this increment.
 4. EN/RU/UK rendering, quiet hours, escalation and Android local presentation are unchanged shared
    delivery concerns; push and stopped-app wakeup remain deferred.
+
+Extended by feature 014:
+
+1. Planned bedtimes produce `sleep_reminder` records in a backwards-compatible enabled `sleep`
+   category. They reuse the planned occurrence identity, quiet hours, locale rendering, dedupe,
+   escalation, snooze, and Android presentation paths.
+2. Routine synchronization asks the routine day projection for the selected morning/evening work;
+   unselected or explicitly empty slots create no reminder and close stale pending delivery.
+3. Pausing or archiving a SleepPlan removes its unfactored future occurrences and cancels delivery;
+   historical planned wake snapshots and sleep facts remain untouched.
+4. Push, stopped-app wakeup, alarms, and provider-specific bedtime delivery remain deferred.

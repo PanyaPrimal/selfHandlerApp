@@ -120,6 +120,7 @@ export interface Routine {
   name: string
   description: string | null
   kind: 'routine' | 'sleep' | 'habit'
+  day_period: RoutineDayPeriod
   schedule_type: 'daily' | 'weekdays'
   weekdays: Weekday[]
   preferred_time: string | null
@@ -130,6 +131,45 @@ export interface Routine {
   starts_on: string | null
   ends_on: string | null
   goals: GoalSummary[]
+  activities: RoutineActivity[]
+}
+
+export type RoutineDayPeriod = 'morning' | 'evening' | 'anytime'
+
+export interface RoutineActivityLog {
+  id: number
+  routine_activity_id: number
+  log_date: string
+  status: 'done' | 'skipped'
+  progress_value: number | null
+  note: string | null
+  completed_at: string | null
+}
+
+export interface RoutineActivity {
+  id: number
+  name: string
+  sort_order: number
+  preferred_time: string | null
+  progress_total: number | null
+  has_facts: boolean
+  selected_day_log: RoutineActivityLog | null
+}
+
+export interface RoutineActivityInput {
+  id?: number
+  name: string
+  sort_order: number
+  preferred_time?: string | null
+  progress_total?: number | null
+}
+
+export interface RoutineTemplate {
+  id: number
+  name: string
+  day_period: RoutineDayPeriod
+  activities: RoutineActivity[]
+  parent_state: 'pending' | 'done' | 'skipped'
 }
 
 export interface RoutineSummary extends Pick<Routine, 'id' | 'name' | 'is_active' | 'is_archived'> {}
@@ -157,8 +197,9 @@ export interface DailyReview extends DailyReviewFields {
   completed_at: string
 }
 
-export interface TodayRoutine extends Pick<Routine, 'id' | 'name' | 'description' | 'kind' | 'preferred_time' | 'sort_order' | 'is_active' | 'is_archived'> {
+export interface TodayRoutine extends Pick<Routine, 'id' | 'name' | 'description' | 'kind' | 'day_period' | 'preferred_time' | 'sort_order' | 'is_active' | 'is_archived' | 'activities'> {
   log: RoutineLog | null
+  parent_state: 'pending' | 'done' | 'skipped'
   goals: GoalSummary[]
   current_streak: number
 }
@@ -182,6 +223,8 @@ export interface TodayResponse {
     period_end: string
     seven_day: CompletionSummary
   }
+  module_summaries: ModuleDaySummaries
+  routine_day: RoutineDayProjection
 }
 
 export interface ListResponse<T> {
@@ -225,6 +268,7 @@ export interface RoutineInput {
   name?: string
   description?: string | null
   kind?: Routine['kind']
+  day_period?: RoutineDayPeriod
   schedule_type?: Routine['schedule_type']
   weekdays?: Weekday[]
   preferred_time?: string | null
@@ -245,6 +289,150 @@ export type RoutineCreatePayload = RoutineCreateFields & (
 )
 
 export type RoutineUpdatePayload = AtLeastOne<RoutineInput>
+
+/* ------------------------------------------------------------------ */
+/* Sleep and rich routine templates (feature 014)                     */
+/* ------------------------------------------------------------------ */
+
+export type SleepPlanState = 'active' | 'paused' | 'archived'
+
+export interface SleepSchedule {
+  schedule_type: 'daily' | 'weekdays'
+  weekdays: Weekday[]
+  planned_bed_time: string
+  starts_on: string | null
+  ends_on: string | null
+}
+
+export interface SleepLog {
+  id: number
+  sleep_plan_id: number
+  sleep_date: string
+  actual_bed_at: string
+  actual_wake_at: string
+  actual_bed_date: string
+  actual_bed_time: string
+  actual_wake_date: string
+  actual_wake_time: string
+  duration_minutes: number
+  quality: number
+  note: string | null
+}
+
+export interface SleepNight {
+  sleep_plan_id?: number
+  date: string
+  occurrence_id: number
+  planned_bed_time: string
+  planned_wake_date: string
+  planned_wake_time: string
+  state: 'planned' | 'recorded'
+  rescheduled_from: string | null
+  log: SleepLog | null
+}
+
+export interface SleepPlan {
+  id: number
+  name: string
+  planned_wake_time: string
+  is_active: boolean
+  is_archived: boolean
+  archived_at: string | null
+  schedule: SleepSchedule
+  selected_night: SleepNight | null
+}
+
+export interface SleepStatistics {
+  period_start: string
+  period_end: string
+  planned_nights: number
+  recorded_nights: number
+  average_duration_minutes: number | null
+  average_quality: number | null
+}
+
+export interface SleepWorkspaceResponse {
+  date: string
+  today: string
+  data: SleepPlan[]
+  statistics: SleepStatistics
+}
+
+export interface SleepPlanPayload {
+  name: string
+  planned_bed_time: string
+  planned_wake_time: string
+  schedule_type: 'daily' | 'weekdays'
+  weekdays?: Weekday[]
+  starts_on?: string | null
+  ends_on?: string | null
+  is_active?: boolean
+}
+
+export type SleepPlanUpdatePayload = AtLeastOne<Partial<SleepPlanPayload> & {
+  is_archived?: boolean
+}>
+
+export interface SleepLogPayload {
+  actual_bed_date: string
+  actual_bed_time: string
+  actual_wake_date: string
+  actual_wake_time: string
+  quality: number
+  note?: string | null
+}
+
+export interface RoutineActivitySummary {
+  scheduled: number
+  done: number
+  skipped: number
+  pending: number
+  completion_rate: number | null
+  templates: Array<{
+    routine_id: number
+    name: string
+    scheduled: number
+    done: number
+    skipped: number
+    pending: number
+    completion_rate: number | null
+  }>
+}
+
+export interface RoutineCandidate {
+  routine_id: number
+  occurrence_id: number
+  name: string
+  day_period: RoutineDayPeriod
+  preferred_time: string | null
+  sort_order: number
+}
+
+export interface RoutinePeriodProjection {
+  period: 'morning' | 'evening'
+  source: 'default' | 'explicit'
+  selected: RoutineCandidate | null
+  candidates: RoutineCandidate[]
+}
+
+export interface RoutineDayProjection {
+  date: string
+  morning: RoutinePeriodProjection
+  evening: RoutinePeriodProjection
+  anytime: RoutineCandidate[]
+  activity_summary: RoutineActivitySummary
+}
+
+export interface RoutineActivityLogPayload {
+  status: 'done' | 'skipped'
+  progress_value?: number | null
+  note?: string | null
+}
+
+export interface ModuleDaySummaries {
+  sleep: SleepStatistics & { selected_night: SleepNight | null }
+  routine_activities: RoutineActivitySummary
+}
 
 /* ------------------------------------------------------------------ */
 /* Habits and anti-habits (feature 013)                                */
@@ -606,7 +794,7 @@ export interface StorageProjectPayload {
 /* ------------------------------------------------------------------ */
 
 /** Which module a day entry came from. Planner owns only `time_block`. */
-export type PlannerSource = 'routine' | 'habit' | 'storage' | 'time_block'
+export type PlannerSource = 'routine' | 'sleep' | 'habit' | 'storage' | 'time_block'
 
 /** What the user may do with an entry from inside the planner. */
 export type PlannerAction = 'skip' | 'reschedule' | 'move' | 'edit' | 'delete'
@@ -701,13 +889,14 @@ export interface NotificationSettingsData {
     routine: boolean
     storage: boolean
     habit: boolean
+    sleep: boolean
   }
 }
 
 export interface NotificationSettingsResponse {
   data: NotificationSettingsData
   options: {
-    categories: Array<'routine' | 'storage' | 'habit'>
+    categories: Array<'routine' | 'storage' | 'habit' | 'sleep'>
     channels: ['in_app']
     snooze_minutes: NotificationSnoozeMinutes[]
   }

@@ -9,8 +9,9 @@ test('daily MVP loop works end-to-end', async ({ page }, testInfo) => {
 
   await registerViaUi(page, credentials, { redirectTo: '/routines' })
   const issues = collectRuntimeIssues(page)
-  await page.getByLabel('Name').fill(routineName)
-  await page.getByRole('button', { name: 'Create' }).click()
+  const routineForm = page.getByRole('form', { name: 'Create routine' })
+  await routineForm.getByLabel('Name', { exact: true }).fill(routineName)
+  await routineForm.getByRole('button', { name: 'Create routine', exact: true }).click()
   await expect(page.getByText(routineName)).toBeVisible()
 
   await page.getByRole('link', { name: /Today/i }).click()

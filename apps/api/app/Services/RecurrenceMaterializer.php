@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\PlannedOccurrence;
 use App\Models\RecurringRule;
+use App\Models\SleepOccurrenceDetail;
+use App\Models\SleepPlan;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
@@ -42,13 +44,16 @@ class RecurrenceMaterializer
 
         $wanted = $enabled ? $this->expander->datesBetween($rule, $from, $to) : [];
 
-        return DB::transaction(function () use ($rule, $from, $to, $wanted): int {
+        return DB::transaction(function () use ($rule, $from, $to, $wanted, $enabled): int {
             // One read of the current window, one upsert, one delete: the query
             // count does not grow with the number of days.
             $existing = PlannedOccurrence::query()
                 ->where('recurring_rule_id', $rule->id)
                 ->whereBetween('occurrence_date', [$from, $to])
-                ->get(['id', 'occurrence_date', 'rescheduled_to', 'routine_log_id', 'habit_log_id']);
+                ->get([
+                    'id', 'occurrence_date', 'rescheduled_to', 'routine_log_id', 'habit_log_id',
+                    'sleep_log_id',
+                ]);
 
             $known = $existing->pluck('occurrence_date')
                 ->map(fn ($date): string => $date->format('Y-m-d'))
@@ -69,6 +74,7 @@ class RecurrenceMaterializer
                         'status' => PlannedOccurrence::STATUS_PLANNED,
                         'routine_log_id' => null,
                         'habit_log_id' => null,
+                        'sleep_log_id' => null,
                         'materialized_at' => $now,
                         'created_at' => $now,
                         'updated_at' => $now,
@@ -76,6 +82,20 @@ class RecurrenceMaterializer
                     ['recurring_rule_id', 'occurrence_date', 'slot'],
                     ['occurrence_time', 'materialized_at', 'updated_at'],
                 );
+            }
+
+            if ($wanted !== []) {
+                PlannedOccurrence::query()
+                    ->where('recurring_rule_id', $rule->id)
+                    ->whereIn('occurrence_date', $wanted)
+                    ->whereNull('routine_log_id')
+                    ->whereNull('habit_log_id')
+                    ->whereNull('sleep_log_id')
+                    ->update([
+                        'occurrence_time' => $rule->slot_time,
+                        'materialized_at' => now(),
+                        'updated_at' => now(),
+                    ]);
             }
 
             // A day the rule no longer produces is removed, unless the user has
@@ -90,6 +110,10 @@ class RecurrenceMaterializer
 
             if ($stale !== []) {
                 PlannedOccurrence::query()->whereKey($stale)->delete();
+            }
+
+            if ($rule->owner_type === RecurringRule::OWNER_SLEEP_PLAN) {
+                $this->syncSleepDetails($rule, $from, $to, $enabled);
             }
 
             $rule->forceFill(['last_materialized_until' => $to])->save();
@@ -148,6 +172,7 @@ class RecurrenceMaterializer
             $table = match ($ownerType) {
                 RecurringRule::OWNER_ROUTINE => 'routines',
                 RecurringRule::OWNER_HABIT => 'habits',
+                RecurringRule::OWNER_SLEEP_PLAN => 'sleep_plans',
                 default => null,
             };
 
@@ -175,5 +200,50 @@ class RecurrenceMaterializer
     private function ownerKey(string $ownerType, int $ownerId): string
     {
         return $ownerType.':'.$ownerId;
+    }
+
+    private function syncSleepDetails(
+        RecurringRule $rule,
+        string $from,
+        string $to,
+        bool $updateUnlinked,
+    ): void {
+        $plan = SleepPlan::query()
+            ->whereKey($rule->owner_id)
+            ->where('user_id', $rule->user_id)
+            ->first();
+
+        if (! $plan) {
+            return;
+        }
+
+        $occurrences = PlannedOccurrence::query()
+            ->where('recurring_rule_id', $rule->id)
+            ->whereBetween('occurrence_date', [$from, $to])
+            ->get(['id', 'user_id', 'sleep_log_id']);
+
+        if ($occurrences->isEmpty()) {
+            return;
+        }
+
+        $now = now();
+        SleepOccurrenceDetail::query()->insertOrIgnore($occurrences->map(fn (PlannedOccurrence $occurrence): array => [
+            'user_id' => $occurrence->user_id,
+            'planned_occurrence_id' => $occurrence->id,
+            'planned_wake_time' => $plan->planned_wake_time,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ])->all());
+
+        if ($updateUnlinked) {
+            SleepOccurrenceDetail::query()
+                ->whereIn('planned_occurrence_id', $occurrences
+                    ->whereNull('sleep_log_id')
+                    ->pluck('id'))
+                ->update([
+                    'planned_wake_time' => $plan->planned_wake_time,
+                    'updated_at' => $now,
+                ]);
+        }
     }
 }

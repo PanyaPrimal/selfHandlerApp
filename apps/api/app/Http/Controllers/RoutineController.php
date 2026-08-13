@@ -15,7 +15,7 @@ use Illuminate\Validation\Validator as LaravelValidator;
 
 class RoutineController extends Controller
 {
-    private const RELATIONS = ['goals', 'recurringRule.ruleWeekdays'];
+    private const RELATIONS = ['goals', 'recurringRule.ruleWeekdays', 'activities'];
 
     public function __construct(private readonly RoutineRecurrence $recurrence) {}
 
@@ -144,6 +144,11 @@ class RoutineController extends Controller
             'name' => [$required, 'string', 'max:160'],
             'description' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'kind' => ['sometimes', Rule::in(['routine', 'sleep', 'habit'])],
+            'day_period' => ['sometimes', Rule::in([
+                Routine::DAY_PERIOD_MORNING,
+                Routine::DAY_PERIOD_EVENING,
+                Routine::DAY_PERIOD_ANYTIME,
+            ])],
             'schedule_type' => [$required, Rule::in(['daily', 'weekdays'])],
             'weekdays' => [Rule::requiredIf($requiresWeekdays), 'array', 'min:1'],
             'weekdays.*' => ['distinct', Rule::in(WeekdayCode::values())],
@@ -161,6 +166,17 @@ class RoutineController extends Controller
             $request,
             $routine,
         ): void {
+            $allowed = [
+                'name', 'description', 'kind', 'day_period', 'schedule_type', 'weekdays',
+                'preferred_time', 'sort_order', 'is_active', 'is_archived', 'starts_on', 'ends_on',
+                // Feature 001 intentionally accepts this legacy spoofing probe
+                // and ignores it; ownership is always derived from the session.
+                'user_id',
+            ];
+            if (array_diff(array_keys($request->all()), $allowed) !== []) {
+                $validator->errors()->add('request', __('messages.unknown_fields'));
+            }
+
             if ($request->has('weekdays') && $effectiveScheduleType !== 'weekdays') {
                 $validator->errors()->add('weekdays', __('messages.weekdays_daily'));
             }

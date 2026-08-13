@@ -12,6 +12,10 @@ class RoutineLog extends Model
 {
     use HasFactory, UserOwned;
 
+    public const STATUS_DONE = 'done';
+
+    public const STATUS_SKIPPED = 'skipped';
+
     protected $fillable = [
         'user_id',
         'routine_id',

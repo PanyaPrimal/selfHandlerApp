@@ -3,7 +3,7 @@ import { registerViaUi, uniqueCredentials } from '../support/auth'
 
 const routes = [
   ['/', 'Добрый вечер'],
-  ['/routines', 'Повторяемые действия'],
+  ['/routines', 'Рутины и сон'],
   ['/goals', 'Цели, связанные с действиями'],
   ['/review', 'Вечерний обзор'],
   ['/planner', 'Планировщик'],
@@ -35,12 +35,13 @@ test('every current route renders Russian product copy and localized formatting'
 
   await selectLocale(page, 'UK')
   await page.goto('/routines')
-  await expect(page.getByRole('heading', { name: 'Повторювані дії' })).toBeVisible()
-  await expect(page.getByText('Щодня', { exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Рутини та сон' })).toBeVisible()
+  await expect(page.getByRole('form', { name: 'Створити рутину' })
+    .getByRole('radio', { name: 'Щодня', exact: true })).toBeVisible()
 
   await selectLocale(page, 'EN')
   await page.goto('/routines')
-  await expect(page.getByRole('heading', { name: 'Repeatable actions' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Routines & sleep' })).toBeVisible()
 })
 
 test('validation, empty state, ARIA labels and user content remain correctly separated', async ({ page }, testInfo) => {

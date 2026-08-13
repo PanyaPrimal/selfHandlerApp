@@ -8,6 +8,8 @@ use App\Models\PlannedOccurrence;
 use App\Models\RecurringRule;
 use App\Models\Routine;
 use App\Models\RoutineLog;
+use App\Models\SleepLog;
+use App\Models\SleepPlan;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -62,6 +64,25 @@ class OccurrenceFactSynchronizer
         ]);
     }
 
+    public function syncFromSleepLog(SleepLog $log): void
+    {
+        $this->sleepOccurrenceQuery($log->sleep_plan_id, $log->sleep_date->format('Y-m-d'))
+            ->update([
+                'status' => PlannedOccurrence::STATUS_DONE,
+                'sleep_log_id' => $log->id,
+                'updated_at' => now(),
+            ]);
+    }
+
+    public function clearForSleepDate(SleepPlan $plan, string $date): void
+    {
+        $this->sleepOccurrenceQuery($plan->id, $date)->update([
+            'status' => PlannedOccurrence::STATUS_PLANNED,
+            'sleep_log_id' => null,
+            'updated_at' => now(),
+        ]);
+    }
+
     /**
      * Rebuild every derived occurrence status for a user from the logs.
      *
@@ -76,6 +97,7 @@ class OccurrenceFactSynchronizer
                     'status' => PlannedOccurrence::STATUS_PLANNED,
                     'routine_log_id' => null,
                     'habit_log_id' => null,
+                    'sleep_log_id' => null,
                     'updated_at' => now(),
                 ]);
 
@@ -94,6 +116,15 @@ class OccurrenceFactSynchronizer
                 ->chunk(500, function ($logs): void {
                     foreach ($logs as $log) {
                         $this->syncFromHabitLog($log);
+                    }
+                });
+
+            SleepLog::query()
+                ->ownedBy($user)
+                ->orderBy('id')
+                ->chunk(500, function ($logs): void {
+                    foreach ($logs as $log) {
+                        $this->syncFromSleepLog($log);
                     }
                 });
 
@@ -129,6 +160,20 @@ class OccurrenceFactSynchronizer
             ->whereIn('recurring_rule_id', RecurringRule::query()
                 ->where('owner_type', RecurringRule::OWNER_HABIT)
                 ->where('owner_id', $habitId)
+                ->select('id'));
+    }
+
+    private function sleepOccurrenceQuery(int $sleepPlanId, string $date): Builder
+    {
+        return PlannedOccurrence::query()
+            ->where(function ($query) use ($date): void {
+                $query->where(function ($original) use ($date): void {
+                    $original->where('occurrence_date', $date)->whereNull('rescheduled_to');
+                })->orWhere('rescheduled_to', $date);
+            })
+            ->whereIn('recurring_rule_id', RecurringRule::query()
+                ->where('owner_type', RecurringRule::OWNER_SLEEP_PLAN)
+                ->where('owner_id', $sleepPlanId)
                 ->select('id'));
     }
 }

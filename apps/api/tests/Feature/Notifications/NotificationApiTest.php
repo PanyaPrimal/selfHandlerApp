@@ -53,7 +53,10 @@ class NotificationApiTest extends NotificationTestCase
 
         $this->putJson('/api/notifications/settings', $payload)
             ->assertOk()
-            ->assertJsonPath('data', $payload);
+            ->assertJsonPath('data', [
+                ...$payload,
+                'categories' => [...$payload['categories'], 'sleep' => true],
+            ]);
 
         $this->putJson('/api/notifications/settings', [
             ...$payload,
@@ -61,7 +64,10 @@ class NotificationApiTest extends NotificationTestCase
             'unexpected' => true,
         ])->assertUnprocessable()->assertJsonValidationErrors(['quiet_hours.ends_at', 'unexpected']);
 
-        $this->getJson('/api/notifications/settings')->assertJsonPath('data', $payload);
+        $this->getJson('/api/notifications/settings')->assertJsonPath('data', [
+            ...$payload,
+            'categories' => [...$payload['categories'], 'sleep' => true],
+        ]);
     }
 
     public function test_read_dismiss_and_snooze_change_only_delivery_state(): void

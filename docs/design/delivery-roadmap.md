@@ -305,6 +305,8 @@ routine into the same entity. Keep anti-habit stepped limits distinct from goal 
 
 ### 014 — Sleep and Rich Routine Templates
 
+**Status:** implemented 2026-08-13.
+
 **User outcome:** the user plans and records sleep and uses ordered morning/evening routine templates
 with independently completable activities.
 
@@ -312,6 +314,10 @@ Extend Module 1 without replacing the occurrence source introduced in 006. Feed 
 aggregates into Today/Review through module-owned summaries.
 
 **Prerequisites:** 004 and 006. Use 009 for day placement and 011 for reminder stories.
+
+Delivered as a third recurrence owner for Sleep plus routine-owned ordered activities and day
+selections. Today, Review, Planner, and notifications share the same projection and owner facts.
+Alarms, wearable imports, offline writes, and advanced sleep analytics are explicitly deferred.
 
 ### 015 — Workouts and Training Goals
 
