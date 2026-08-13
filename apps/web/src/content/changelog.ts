@@ -19,6 +19,15 @@ export interface ChangelogEntry {
 
 const entries: readonly ChangelogEntry[] = [
   {
+    id: 'private-body-meal-photos', date: '2026-08-14', feature: '021-private-attachments',
+    titleKey: 'changelog.entry.attachments.title', summaryKey: 'changelog.entry.attachments.summary',
+    testKey: 'changelog.entry.attachments.test', links: [
+      { labelKey: 'nav.body', to: '/body' },
+      { labelKey: 'nav.nutrition', to: '/nutrition' },
+    ],
+    limitationKeys: ['changelog.entry.attachments.limit'],
+  },
+  {
     id: 'debts-funds-financial-goals', date: '2026-08-13', feature: '020-debts-funds-financial-goals',
     titleKey: 'changelog.entry.financeCommitments.title', summaryKey: 'changelog.entry.financeCommitments.summary',
     testKey: 'changelog.entry.financeCommitments.test', links: [

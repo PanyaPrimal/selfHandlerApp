@@ -117,4 +117,18 @@ class NutritionOpenApiContractTest extends NutritionTestCase
             $workouts['components']['schemas']['WorkoutProgram']['properties'],
         );
     }
+
+    public function test_meals_document_private_attachment_summaries_additively(): void
+    {
+        $schemas = $this->document()['components']['schemas'];
+
+        $this->assertContains('attachments', $schemas['Meal']['required']);
+        $this->assertSame(
+            '#/components/schemas/AttachmentSummary',
+            $schemas['Meal']['properties']['attachments']['items']['$ref'],
+        );
+        $this->assertFalse($schemas['AttachmentSummary']['additionalProperties']);
+        $this->assertArrayNotHasKey('path', $schemas['AttachmentSummary']['properties']);
+        $this->assertArrayNotHasKey('disk', $schemas['AttachmentSummary']['properties']);
+    }
 }

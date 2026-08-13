@@ -189,7 +189,7 @@ Do not implement these in the first coding slice:
 - `planned_occurrences`
 - `notifications`
 - `daily_metrics`
-- attachments
+- attachments (deferred from the first slice and delivered later by feature 021)
 - integrations
 
 Reason:

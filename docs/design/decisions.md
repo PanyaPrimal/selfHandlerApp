@@ -183,7 +183,7 @@ skipped occurrence facts alone may be cleared.
   - **Deletion ≠ archival:** SoftDeletes (a technical trash bin) ≠ `is_archived` (a domain flag, still visible in history/analytics).
   - **Dates in UTC**, the timezone from the profile. **Units in base units** (grams/ml/meters/seconds), converted on display.
   - **Aggregates:** a cached value + event-driven recompute (an Observer) for hot ones (balance/remaining/saved) + a daily rollup for analytics over long periods.
-- **Attachments** are designed (2026-06-13): **[Attachments](attachments.md)**. A polymorphic `Attachment` + a single `FileStorage` service. Storage is a **local disk + a disk abstraction** (Laravel Filesystem, switchable to S3/MinIO by changing the driver; NOT a BLOB in the database). Files are private (signed URLs). Consumers: food/body photos, receipts, GPX.
+- **Attachments** were delivered for body and meal photos by feature 021 (2026-08-14): **[Attachments](attachments.md)**. One polymorphic `Attachment` + one `FileStorage` service uses a private Laravel disk, opaque owner-partitioned paths, and authenticated no-store API streaming; neither public nor persistent signed URLs are exposed. Receipt/document/GPX consumers remain deferred.
 - **External integrations** are designed (2026-06-13): **[Integrations](integrations.md)**. A **shared layer** (a contract + adapters, like BYOK-LLM/channels), with calendars as the first member; later Strava/Garmin (fitness), bank statements. An `Integration` (encrypted OAuth tokens) + a `SyncedItem` (a local ↔ external mapping for dedup/conflicts). Calendars use **two-way** sync (exporting occurrences/events + importing external ones as "busy" time). Conflict handling at the start — last-write-wins.
 - **Profile is the single source of user input** (anthropometry, **base currency**, timezone, units, tone). The modules do the computing. This closes the open question "where the base currency lives" → the profile.
 - **Supply forecasting (2a) ≠ recurring (5/10)** — different mechanisms; restocking a supplement is a one-off planned expense.
@@ -192,7 +192,6 @@ skipped occurrence facts alone may be cleared.
 
 ### Identified gaps (NOT yet in the spec — next-phase backlog)
 - A weekly/monthly **review** as an entity (present in the Vision, but the spec has only the daily review).
-- **Attachments/photos** (a cross-cutting Attachment): food/body-progress photos, receipts.
 - **Notifications** as a separate subsystem (not part of the Planner): channels + escalation + snooze.
 - **Import/export/backup** of everything (the Vision requires being able to "pull everything out of a dozen places").
 - A **"Today"** screen as the root + a single app-wide **quick capture** into one inbox (not buried inside M7).
@@ -239,6 +238,26 @@ skipped occurrence facts alone may be cleared.
   separately. Pending and actual plans count, skipped plans do not, and missing FX nulls all totals.
 - Planner and Notifications are read/delivery adapters. Finance owns outcomes and budget eligibility;
   approaching and exceeded warnings have separate source identities and localized-at-delivery copy.
+
+### Feature 021 — Private attachment ownership (2026-08-14)
+
+- One immutable, owner-scoped polymorphic record may target only BodyMeasurement or Meal in this
+  increment. Domain parents retain all measurement and Nutrition truth; attachment changes cannot
+  rewrite their facts or aggregates.
+- Input is trusted only after magic-byte detection and successful decode. JPEG, PNG, and WebP are
+  auto-oriented, bounded to 40 megapixels and 5 MiB input, resized within 2560×2560 without
+  enlargement, re-encoded in the same format, and decoded again before storage.
+- Files stay on one private Laravel disk under opaque owner-partitioned paths. Content is returned only
+  by an authenticated ownership-checked stream with private/no-store/nosniff controls; resources never
+  disclose disk/path metadata or a public/signed URL.
+- A stable client identity makes upload retries idempotent. Owner then parent locking serializes the
+  ten-photo parent limit and 100 MiB normalized owner quota; failed storage/persistence and explicit,
+  parent, or user deletion use compensating cleanup.
+- Browser transport uses multipart bytes and temporary object URLs. Android uses Camera/Gallery URI
+  transfer and disposable Filesystem cache previews; it never bridges full images through base64 and
+  remains explicitly online-only.
+- Recognition or inference, receipts, documents, GPX, sharing, public links, background upload, and an
+  offline queue remain deferred.
 
 ## Design status
 

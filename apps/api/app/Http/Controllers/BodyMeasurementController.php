@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\BodyMeasurementResource;
 use App\Models\BodyMeasurement;
 use App\Services\BodyTrendService;
 use App\ValueObjects\BodyMetric;
@@ -25,6 +26,7 @@ class BodyMeasurementController extends Controller
 
         $measurements = BodyMeasurement::query()
             ->ownedBy($user)
+            ->with('attachments')
             ->when($filters['metric'] ?? null, fn ($query, $metric) => $query->where('metric', $metric))
             ->whereBetween('measured_on', [$from, $to])
             ->orderBy('measured_on')
@@ -34,7 +36,7 @@ class BodyMeasurementController extends Controller
             ->get(['id', 'metric', 'measured_on', 'value', 'note']);
 
         return response()->json([
-            'data' => $measurements,
+            'data' => BodyMeasurementResource::collection($measurements)->resolve($request),
             'metrics' => BodyMetric::catalogue(),
             'today' => CarbonImmutable::now($user->calendarTimezone())->toDateString(),
             'from' => $from,
@@ -91,7 +93,9 @@ class BodyMeasurementController extends Controller
             ],
         );
 
-        return response()->json(['data' => $measurement->fresh()]);
+        return response()->json([
+            'data' => BodyMeasurementResource::make($measurement->fresh('attachments'))->resolve($request),
+        ]);
     }
 
     public function destroy(Request $request, BodyMeasurement $measurement): Response

@@ -97,4 +97,18 @@ class BodyOpenApiContractTest extends TestCase
             'The documented direction vocabulary has drifted from BodyGoalDetail.',
         );
     }
+
+    public function test_body_measurements_document_private_attachment_summaries_additively(): void
+    {
+        $schemas = $this->document()['components']['schemas'];
+
+        $this->assertContains('attachments', $schemas['BodyMeasurement']['required']);
+        $this->assertSame(
+            '#/components/schemas/AttachmentSummary',
+            $schemas['BodyMeasurement']['properties']['attachments']['items']['$ref'],
+        );
+        $this->assertFalse($schemas['AttachmentSummary']['additionalProperties']);
+        $this->assertArrayNotHasKey('path', $schemas['AttachmentSummary']['properties']);
+        $this->assertArrayNotHasKey('disk', $schemas['AttachmentSummary']['properties']);
+    }
 }

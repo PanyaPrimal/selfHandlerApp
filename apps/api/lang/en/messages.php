@@ -193,4 +193,9 @@ return [
     'finance_source_conflict' => 'This source already has an active Finance path.',
     'finance_fund_linked_account_claimed' => 'This linked account is already assigned to another saving fund.',
     'finance_account_fund_reference' => 'An account used by an active saving fund cannot be archived or change currency.',
+    'attachment_image_invalid' => 'Choose a valid JPEG, PNG, or WebP photo within the size and dimension limits.',
+    'attachment_parent_quota' => 'This record already has the maximum of 10 photos.',
+    'attachment_owner_quota' => 'Your private photo storage limit has been reached. Delete a photo before uploading another.',
+    'attachment_upload_conflict' => 'This upload retry key was already used for a different photo or record.',
+    'attachment_storage_unavailable' => 'Private photo storage is temporarily unavailable. Try again without changing your record.',
 ];

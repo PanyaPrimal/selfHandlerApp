@@ -11,6 +11,8 @@ import {
   type ValidationErrors,
 } from '../api/client'
 import AsyncState from '../components/AsyncState.vue'
+import AttachmentGallery from '../components/attachments/AttachmentGallery.vue'
+import AttachmentUploader from '../components/attachments/AttachmentUploader.vue'
 import {
   UiDatePicker,
   UiNumberInput,
@@ -25,6 +27,7 @@ import { displayUnit, toCanonical, toDisplay } from '../lib/bodyUnits'
 import { useI18n } from '../i18n'
 import type { MessageKey } from '../i18n/locales/en'
 import type {
+  Attachment,
   BodyGoal,
   BodyGoalDirection,
   BodyGoalWarning,
@@ -204,6 +207,16 @@ async function removeMeasurement(measurement: BodyMeasurement): Promise<void> {
   } catch {
     error.value = i18n.t('body.measurementDeleteFailed')
   }
+}
+
+function addAttachment(measurement: BodyMeasurement, attachment: Attachment): void {
+  if (!measurement.attachments.some(({ id }) => id === attachment.id)) {
+    measurement.attachments = [...measurement.attachments, attachment]
+  }
+}
+
+function removeAttachment(measurement: BodyMeasurement, attachmentId: number): void {
+  measurement.attachments = measurement.attachments.filter(({ id }) => id !== attachmentId)
 }
 
 async function saveGoal(): Promise<void> {
@@ -461,6 +474,19 @@ onMounted(load)
                 :aria-label="i18n.t('body.deleteMeasurementOn', { date: measurement.measured_on })"
                 @click="removeMeasurement(measurement)"
               >{{ i18n.t('common.delete') }}</button>
+            </div>
+            <div class="attachment-parent" :data-attachment-parent="`body_measurement:${measurement.id}`">
+              <AttachmentGallery
+                :attachments="measurement.attachments"
+                :parent-label="`${metricLabel(measurement.metric)}, ${formatCalendarDate(measurement.measured_on, locale)}`"
+                @deleted="removeAttachment(measurement, $event)"
+              />
+              <AttachmentUploader
+                parent-type="body_measurement"
+                :parent-id="measurement.id"
+                :disabled="measurement.attachments.length >= 10"
+                @uploaded="addAttachment(measurement, $event)"
+              />
             </div>
           </li>
         </ul>

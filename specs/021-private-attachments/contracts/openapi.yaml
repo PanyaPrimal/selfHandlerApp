@@ -1,0 +1,274 @@
+openapi: 3.1.0
+info:
+  title: SelfHandler Private Attachments API
+  version: 0.21.0
+  description: Authenticated private photo upload, retrieval, and deletion for Body measurements and Meals.
+servers:
+  - url: /api
+security:
+  - sanctum: []
+paths:
+  /attachments:
+    post:
+      operationId: createAttachment
+      summary: Normalize and privately attach one photo
+      parameters:
+        - $ref: '#/components/parameters/AttachableType'
+        - $ref: '#/components/parameters/AttachableId'
+        - $ref: '#/components/parameters/UploadKey'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AttachmentUploadInput'
+      responses:
+        '200':
+          description: Idempotent replay of an existing attachment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttachmentEnvelope'
+        '201':
+          description: Attachment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttachmentEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '503':
+          $ref: '#/components/responses/StorageUnavailable'
+  /attachments/{attachment}/content:
+    get:
+      operationId: streamAttachmentContent
+      summary: Stream normalized private image bytes to their owner
+      parameters:
+        - $ref: '#/components/parameters/AttachmentId'
+      responses:
+        '200':
+          description: Normalized private image
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: max-age=0, no-store, private
+            X-Content-Type-Options:
+              schema:
+                type: string
+                const: nosniff
+            Content-Security-Policy:
+              schema:
+                type: string
+                const: sandbox
+            Content-Disposition:
+              schema:
+                type: string
+                pattern: '^inline; filename="[^"]+"$'
+            Content-Length:
+              schema:
+                type: integer
+                minimum: 1
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/StorageUnavailable'
+  /attachments/{attachment}:
+    delete:
+      operationId: deleteAttachment
+      summary: Remove private bytes and metadata
+      parameters:
+        - $ref: '#/components/parameters/AttachmentId'
+      responses:
+        '204':
+          description: Attachment removed
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/StorageUnavailable'
+components:
+  securitySchemes:
+    sanctum:
+      type: http
+      scheme: bearer
+      bearerFormat: Sanctum token
+  parameters:
+    AttachableType:
+      name: attachable_type
+      in: query
+      required: true
+      schema:
+        type: string
+        enum: [body_measurement, meal]
+    AttachableId:
+      name: attachable_id
+      in: query
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    UploadKey:
+      name: upload_key
+      in: query
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 100
+    AttachmentId:
+      name: attachment
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+  responses:
+    Unauthenticated:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    NotFound:
+      description: Attachment or parent is absent from the authenticated owner scope
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Conflict:
+      description: Upload identity already names different content or a different parent
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    TooLarge:
+      description: Source upload exceeds the request-body limit
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Unprocessable:
+      description: Invalid image, unsupported format, unsafe dimensions, or exhausted quota
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorEnvelope'
+    StorageUnavailable:
+      description: Private storage could not complete the requested operation safely
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+  schemas:
+    AttachmentUploadInput:
+      type: object
+      additionalProperties: false
+      required: [file]
+      properties:
+        file:
+          type: string
+          format: binary
+    AttachmentEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/Attachment'
+    Attachment:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - kind
+        - original_name
+        - mime_type
+        - size_bytes
+        - width
+        - height
+        - created_at
+        - content_url
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        kind:
+          type: string
+          const: photo
+        original_name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        mime_type:
+          type: string
+          enum: [image/jpeg, image/png, image/webp]
+        size_bytes:
+          type: integer
+          minimum: 1
+          maximum: 5242880
+        width:
+          type: integer
+          minimum: 1
+          maximum: 2560
+        height:
+          type: integer
+          minimum: 1
+          maximum: 2560
+        created_at:
+          type: string
+          format: date-time
+        content_url:
+          type: string
+          pattern: '^/api/attachments/[1-9][0-9]*/content$'
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [message]
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 500
+    ValidationErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [message, errors]
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 500
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            minItems: 1
+            items:
+              type: string
+              minLength: 1
+              maxLength: 500

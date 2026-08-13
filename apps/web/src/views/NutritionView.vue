@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   createNutritionFood,
   createNutritionMeal,
@@ -18,6 +18,7 @@ import {
   updateNutritionSettings,
 } from '../api/client'
 import type {
+  Attachment,
   BodyGoal,
   FoodBasis,
   FoodItem,
@@ -30,8 +31,11 @@ import type {
   Recipe,
 } from '../api/types'
 import AsyncState from '../components/AsyncState.vue'
+import AttachmentGallery from '../components/attachments/AttachmentGallery.vue'
+import AttachmentUploader from '../components/attachments/AttachmentUploader.vue'
 import { UiCheckbox, UiDatePicker, UiNumberInput, UiSegmented, UiSelect, UiTextInput, UiTimeField } from '../components/ui'
 import type { UiOption } from '../components/ui'
+import { useAuthSession } from '../auth/session'
 import { useI18n } from '../i18n'
 import { createNutritionMutationQueue, nutritionTargetCopyKey } from '../nutrition/nutrition-state'
 
@@ -51,6 +55,8 @@ interface RecipeComponentDraft { referenceId: number | null, grams: number | nul
 interface MealEntryDraft { reference: string | null, quantity: number | null }
 
 const route = useRoute()
+const router = useRouter()
+const session = useAuthSession()
 const i18n = useI18n()
 const locale = i18n.locale
 const selectedDate = ref<string | null>(typeof route.query.date === 'string' ? route.query.date : localToday())
@@ -119,8 +125,13 @@ const goalOptions = computed<UiOption<number>[]>(() => goals.value
   .map((goal) => ({ value: goal.id, label: goal.name })))
 
 function localToday(): string {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  const parts = new Intl.DateTimeFormat('en', {
+    timeZone: session.user?.preferences.timezone ?? 'UTC',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date())
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]))
+
+  return `${value.year}-${value.month}-${value.day}`
 }
 
 function foodLabel(food: FoodItem): string {
@@ -321,6 +332,16 @@ async function removeMeal(meal: Meal): Promise<void> {
   await mutate(() => deleteNutritionMeal(meal.id), i18n.t('nutrition.mealDeleted'))
 }
 
+function addMealAttachment(meal: Meal, attachment: Attachment): void {
+  if (!meal.attachments.some(({ id }) => id === attachment.id)) {
+    meal.attachments = [...meal.attachments, attachment]
+  }
+}
+
+function removeMealAttachment(meal: Meal, attachmentId: number): void {
+  meal.attachments = meal.attachments.filter(({ id }) => id !== attachmentId)
+}
+
 async function saveSettings(): Promise<void> {
   await mutate(() => updateNutritionSettings({
     body_goal_id: settingsForm.bodyGoalId, protein_percent: settingsForm.protein,
@@ -328,10 +349,11 @@ async function saveSettings(): Promise<void> {
   }), i18n.t('nutrition.settingsSaved'))
 }
 
-function selectDate(value: string | null): void {
+async function selectDate(value: string | null): Promise<void> {
   if (!value) return
   selectedDate.value = value
-  void loadAll()
+  await router.replace({ query: { ...route.query, date: value } })
+  await loadAll()
 }
 
 function format(value: string | number | null, suffix: string): string {
@@ -490,6 +512,19 @@ onMounted(loadAll)
               </div>
               <div class="button-row wide-field"><button type="button" class="secondary" @click="addMealEntry(mealDraft)">{{ i18n.t('nutrition.addEntry') }}</button><button type="submit">{{ i18n.t('nutrition.saveMeal') }}</button><button type="button" class="secondary" @click="editingMealId = null">{{ i18n.t('common.cancel') }}</button></div>
             </form>
+            <div class="attachment-parent wide-field" :data-attachment-parent="`meal:${meal.id}`">
+              <AttachmentGallery
+                :attachments="meal.attachments"
+                :parent-label="meal.name"
+                @deleted="removeMealAttachment(meal, $event)"
+              />
+              <AttachmentUploader
+                parent-type="meal"
+                :parent-id="meal.id"
+                :disabled="meal.attachments.length >= 10"
+                @uploaded="addMealAttachment(meal, $event)"
+              />
+            </div>
           </li>
         </ul>
       </section>

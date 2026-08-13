@@ -23,7 +23,7 @@ class NutritionDayController extends Controller
         Validator::make(['date' => $date], ['date' => ['required', 'date_format:Y-m-d']])->validate();
         $user = $request->user();
         $target = $this->targets->forDate($user, $date);
-        $meals = Meal::query()->ownedBy($user)->whereDate('consumed_on', $date)->with('entries')
+        $meals = Meal::query()->ownedBy($user)->whereDate('consumed_on', $date)->with(['entries', 'attachments'])
             ->orderByRaw('CASE WHEN consumed_at_local IS NULL THEN 1 ELSE 0 END')
             ->orderBy('consumed_at_local')->orderBy('id')->get();
 

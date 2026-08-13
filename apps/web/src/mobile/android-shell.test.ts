@@ -78,6 +78,7 @@ describe('Android shell lifecycle', () => {
     const app = pluginHarness()
     const keyboard = pluginHarness()
     const onResume = vi.fn().mockResolvedValue(undefined)
+    const onRestoredResult = vi.fn()
     const input = document.createElement('input')
     input.scrollIntoView = vi.fn()
     document.body.append(input)
@@ -89,6 +90,7 @@ describe('Android shell lifecycle', () => {
       router: { currentRoute: { value: { path: '/' } }, back: vi.fn() },
       canGoBack: () => false,
       onResume,
+      onRestoredResult,
     })
 
     await keyboard.listeners.get('keyboardWillShow')?.({ keyboardHeight: 312 })
@@ -100,9 +102,11 @@ describe('Android shell lifecycle', () => {
     expect(document.documentElement.dataset.nativeKeyboard).toBeUndefined()
     await app.listeners.get('appStateChange')?.({ isActive: true })
     expect(onResume).toHaveBeenCalledOnce()
+    await app.listeners.get('appRestoredResult')?.({ pluginId: 'Camera', methodName: 'takePhoto', success: true })
+    expect(onRestoredResult).toHaveBeenCalledOnce()
 
     await dispose()
-    expect(app.removed).toEqual(expect.arrayContaining(['backButton', 'appStateChange']))
+    expect(app.removed).toEqual(expect.arrayContaining(['backButton', 'appStateChange', 'appRestoredResult']))
     expect(keyboard.removed).toEqual(expect.arrayContaining(['keyboardWillShow', 'keyboardWillHide']))
   })
 })

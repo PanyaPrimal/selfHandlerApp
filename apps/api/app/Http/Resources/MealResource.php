@@ -9,7 +9,7 @@ class MealResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        $this->resource->loadMissing('entries');
+        $this->resource->loadMissing(['entries', 'attachments']);
 
         return [
             'id' => $this->id,
@@ -35,6 +35,7 @@ class MealResource extends JsonResource
                 'quality_numerator' => $entry->quality_numerator,
                 'quality_denominator' => $entry->quality_denominator,
             ])->values()->all(),
+            'attachments' => AttachmentResource::collection($this->attachments)->resolve($request),
         ];
     }
 }

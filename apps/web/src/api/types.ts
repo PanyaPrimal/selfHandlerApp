@@ -763,6 +763,25 @@ export interface MealEntry {
   quality_denominator: string
 }
 
+export interface Attachment {
+  id: number
+  kind: 'photo'
+  original_name: string
+  mime_type: 'image/jpeg' | 'image/png' | 'image/webp'
+  size_bytes: number
+  width: number
+  height: number
+  created_at: string
+  content_url: string
+}
+
+export type AttachmentParentType = 'body_measurement' | 'meal'
+
+export interface AttachmentParent {
+  type: AttachmentParentType
+  id: number
+}
+
 export interface Meal {
   id: number
   consumed_on: string
@@ -772,6 +791,7 @@ export interface Meal {
   note: string | null
   submission_key: string
   entries: MealEntry[]
+  attachments: Attachment[]
 }
 
 export interface MealInput {
@@ -1334,6 +1354,7 @@ export interface BodyMeasurement {
   /** Canonical base unit, as an exact decimal string. */
   value: string
   note: string | null
+  attachments: Attachment[]
 }
 
 export interface BodyMeasurementsResponse {

@@ -5,13 +5,14 @@ increments. It is a dependency roadmap, not a replacement for feature specificat
 still requires `$speckit-specify -> $speckit-clarify -> $speckit-plan -> $speckit-tasks ->
 $speckit-analyze -> $speckit-implement` before application code changes.
 
-> **Roadmap baseline (2026-08-13):** `001-core-daily-loop`, `003-multi-user-auth`,
+> **Roadmap baseline (2026-08-14):** `001-core-daily-loop`, `003-multi-user-auth`,
 > `004-profile-settings`, `005-interface-foundation`, `006-unified-recurrence`,
 > `007-body-measurements`, `008-storage-inbox`, `009-planner-day`,
 > `010-interface-personalization`, `011-in-app-notifications`, `012-android-capacitor-shell`, and
 > `013-habits-anti-habits`, `014-sleep-routine-templates`, `015-workouts-training-goals`, and
 > `016-nutrition-meals-hydration-targets`, `017-supplements-courses-intake-stock`, and
-> `018-finance-ledger-foundation` and `019-budget-recurring-cash-flow` are complete. Native compilation and device installation evidence for 012 remains externally blocked in
+> `018-finance-ledger-foundation`, `019-budget-recurring-cash-flow`,
+> `020-debts-funds-financial-goals`, and `021-private-attachments` are complete. Native compilation and device installation evidence for 012 remains externally blocked in
 > this workspace because Android Studio, JDK, SDK, Gradle, and `adb` are absent; all repository-owned
 > server, web, configuration, sync, resource, and native-source gates pass.
 > `002-homelab-deployment` stops at T055 by product decision: the current homelab deployment is
@@ -448,16 +449,27 @@ on desktop, exact 390px mobile, and the synchronized Capacitor bundle.
 
 ### 021 — Private Attachments with First Consumers
 
+**Status:** Complete on 2026-08-14 (`140/140` tasks; deployment was not part of this feature).
+
 **User outcome:** the user privately stores body-progress and meal photos and can retrieve or delete
 them safely.
 
 Implement the polymorphic `Attachment` model and `FileStorage` service with user-scoped access, private
-streaming/signed access, cleanup semantics, quotas, and at least one real consumer from Measurements
-or Nutrition.
+streaming, cleanup semantics, quotas, and real consumers in Measurements and Nutrition.
 
 **Prerequisites:** 007 or 016 plus the existing ownership boundary.
 
 **Explicitly defer:** image recognition, receipt parsing, and GPX parsing.
+
+Delivered as one immutable, owner-scoped photo attachment boundary for BodyMeasurement and Meal.
+JPEG, PNG, and WebP input is detected from bytes, decoded, auto-oriented, bounded, normalized in the
+same format, and stored through a private disk abstraction under opaque owner-partitioned paths.
+Authenticated API streaming exposes no path or public URL and applies private/no-store/nosniff
+controls. Stable client identities, serialized ten-photo/100 MiB quotas, compensating cleanup, and
+parent/user observers keep metadata and bytes consistent. The responsive EN/RU/UK browser client and
+synchronized Android shell provide online upload, temporary authenticated preview, retry, and delete;
+native transfer uses Camera/Gallery URIs and disposable cache files without full-image base64.
+Documents, sharing, offline queues, recognition/inference, receipts, and GPX remain deferred.
 
 ### 022 — Cross-Module and Periodic Review
 

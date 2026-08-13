@@ -10,6 +10,7 @@ import {
   useNotificationStore,
 } from '../notifications/store'
 import { initializeAndroidShell } from './android-shell'
+import { offerRestoredAttachment } from '../attachments/restored-source'
 import { createAndroidLocalPresenter } from './local-notifications'
 import { nativePlugin } from './platform'
 
@@ -80,6 +81,9 @@ export function initializeMobileRuntime(router: Router): Promise<() => Promise<v
       onResume: async () => {
         await restoreSession(true)
         if (useAuthSession().status === 'authenticated') await notifications.refresh()
+      },
+      onRestoredResult: (result) => {
+        offerRestoredAttachment(result as Parameters<typeof offerRestoredAttachment>[0])
       },
     })
 

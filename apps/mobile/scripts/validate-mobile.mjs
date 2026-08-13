@@ -42,7 +42,10 @@ for (const [name, version] of Object.entries({
   '@capacitor/android': '8.5.0',
   '@capacitor/core': '8.5.0',
   '@capacitor/app': '8.1.1',
+  '@capacitor/camera': '8.2.2',
   '@capacitor/device': '8.0.3',
+  '@capacitor/file-transfer': '2.0.5',
+  '@capacitor/filesystem': '8.1.2',
   '@capacitor/keyboard': '8.0.5',
   '@capacitor/local-notifications': '8.2.1',
 })) {
@@ -55,6 +58,7 @@ assert.match(manifest, /android:usesCleartextTraffic="false"/)
 assert.match(manifest, /android:windowSoftInputMode="adjustResize"/)
 assert.match(manifest, /android\.permission\.POST_NOTIFICATIONS/)
 assert.doesNotMatch(manifest, /SCHEDULE_EXACT_ALARM|USE_EXACT_ALARM/)
+assert.doesNotMatch(manifest, /READ_EXTERNAL_STORAGE|WRITE_EXTERNAL_STORAGE|READ_MEDIA_IMAGES/)
 
 const activity = read(resolve(android, 'app/src/main/java/app/selfhandler/mobile/MainActivity.java'))
 const vault = read(resolve(android, 'app/src/main/java/app/selfhandler/mobile/MobileCredentialVaultPlugin.java'))
@@ -118,7 +122,7 @@ assert.equal(generatedConfig.server, undefined, 'Generated Capacitor config must
 assert.equal(generatedConfig.appId, 'app.selfhandler.mobile')
 
 const generatedPlugins = read(resolve(android, 'app/src/main/assets/capacitor.plugins.json'))
-for (const plugin of ['App', 'Device', 'Keyboard', 'LocalNotifications']) {
+for (const plugin of ['App', 'Camera', 'Device', 'FileTransfer', 'Filesystem', 'Keyboard', 'LocalNotifications']) {
   assert.ok(generatedPlugins.includes(plugin), `Synchronized plugin metadata is missing ${plugin}.`)
 }
 

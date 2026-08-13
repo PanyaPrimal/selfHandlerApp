@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\BodyGoalController;
 use App\Http\Controllers\BodyMeasurementController;
 use App\Http\Controllers\DailyReviewController;
@@ -71,6 +72,12 @@ Route::middleware(['auth:sanctum', 'mobile.token'])->group(function () {
 });
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/attachments', [AttachmentController::class, 'store']);
+    Route::get('/attachments/{attachment}/content', [AttachmentController::class, 'content'])
+        ->whereNumber('attachment');
+    Route::delete('/attachments/{attachment}', [AttachmentController::class, 'destroy'])
+        ->whereNumber('attachment');
+
     Route::get('/finance/counterparties', [FinanceCounterpartyController::class, 'index']);
     Route::post('/finance/counterparties', [FinanceCounterpartyController::class, 'store']);
     Route::patch('/finance/counterparties/{counterparty}', [FinanceCounterpartyController::class, 'update']);

@@ -79,6 +79,14 @@ proposal. The responsive EN/RU/UK web client and the synchronized Android bundle
 closed contracts. Interest/amortization, investments, provider rates, imports/exports, integrations,
 AI, and native offline authority remain deferred.
 
+Feature 021 adds private photo attachments to owned body measurements and meals. JPEG, PNG, and WebP
+uploads are content-verified, auto-oriented, resized within 2560×2560, re-encoded, and stored behind
+an authenticated no-store stream without exposing disk paths or public URLs. Upload retries are
+idempotent, parent and owner quotas are serialized, and parent/user deletion cleans up private bytes.
+The EN/RU/UK browser and Android clients support upload, preview, and deletion while online; Android
+uses Camera/Gallery URI transfer and temporary cache files instead of full-image base64. Recognition,
+health or macro inference, receipts, documents, GPX, sharing, and offline queues remain deferred.
+
 The Android package in `apps/mobile` wraps the same production Vue bundle with Capacitor 8. Existing
 accounts use a separate 30-day, `mobile`-scoped Sanctum token stored by a custom Android Keystore
 AES-GCM plugin; browser cookie/CSRF auth is unchanged. Android local notifications are an opt-in

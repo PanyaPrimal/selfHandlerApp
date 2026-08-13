@@ -1,84 +1,77 @@
-# SelfHandler — Attachments
+# SelfHandler — Private Attachments
 
-> A cross-cutting mechanism for attaching files (photos/documents/tracks) to any domain record. One mechanism for the whole app — not a `photo_path` column in every module.
+> Delivered by feature `021-private-attachments` for private body-progress and meal photos.
 >
-> Related: [Data Conventions](data-conventions.md) (disk abstraction, user_id) · decisions: [Decisions Log](decisions.md)
+> Related: [Data Conventions](data-conventions.md) · [Decisions Log](decisions.md) ·
+> [Feature specification](../../specs/021-private-attachments/spec.md)
 
----
+## Delivered Boundary
 
-## Why It Exists and Who the Consumers Are
+One owner-scoped polymorphic `Attachment` entity serves two real consumers:
 
-| Module | What we attach | Why |
-|--------|------------------|-------|
-| 0 Profile / body measurements | Body progress photos (before/after) | result marker |
-| 2 Nutrition | Meal photo | photo recognition → components + weight (see [Modules Spec](modules.md)) |
-| 3 Workouts / running | GPS track (GPX), photos | geo/route (usually from integrations) |
-| 7 Storage | Images for ideas, documents for tasks | context |
-| 10 Finance | Receipt photo | spending proof |
-| 11 AI | Photo as agent input | meal/receipt breakdown |
+| Parent | Supported attachment | Domain effect |
+| --- | --- | --- |
+| `BodyMeasurement` | progress photo | none; metrics, notes, trends, and goals remain unchanged |
+| `Meal` | meal photo | none; entries, nutrition snapshots, hydration, and summaries remain unchanged |
 
-Without a single mechanism, every module ends up with its own upload/preview/cleanup/storage — duplication.
+Feature 021 accepts only `photo` attachments in JPEG, PNG, or WebP. It does not implement document,
+receipt, GPX, recognition, macro inference, health inference, AI transfer, or public-sharing behavior.
 
----
+## Data and Ownership
 
-## Decisions (locked in 2026-06-13)
+The database stores immutable attachment identity and metadata: owner, allowlisted parent type/id,
+logical disk/path, safe display name, detected MIME and extension, normalized byte size, dimensions,
+SHA-256 digest, stable client upload identity, and timestamps. Image bytes remain on the configured
+private Laravel Filesystem disk rather than in the database.
 
-- **Storage — local disk + disk abstraction** (Laravel Filesystem, `local` driver). Files live on the homelab server; switching to S3/MinIO later is a driver swap, no code rewrite. NOT a BLOB in the DB (bloats the database, hurts performance).
-- **Polymorphic association** — a single attachment can hook onto any entity.
+Every create, content read, and deletion resolves both the authenticated owner and the owned parent.
+The morph map is explicit and closed to `BodyMeasurement` and `Meal`. Resources expose a relative
+authenticated content endpoint but never disk names, paths, EXIF, hashes, public URLs, or signed URLs.
 
----
+## Image Pipeline and Limits
 
-## The `Attachment` Entity
+Input is accepted only after magic-byte inspection and successful image decode. Extension claims do
+not establish type. The pipeline rejects malformed, unsupported, oversized, and unsafe-dimension
+payloads before writing final bytes; applies EXIF orientation; resizes within 2560×2560 without
+enlargement; retains PNG/WebP transparency; and re-encodes in the detected format. The normalized
+result is inspected and decoded again before storage.
 
-- `id`, `user_id`
-- **Polymorphic association** `attachable_type` + `attachable_id` — what it's attached to (measurement / meal / workout / idea / transaction / …)
-- `disk` (Laravel disk name: local/s3) + `path` (path on the disk) — do NOT hardcode an absolute path
-- `original_name`, `mime`, `size`
-- `kind` (optional): photo / document / track / receipt — for UI and logic (a track ≠ a photo)
-- `meta` (JSON, optional): image dimensions, geo, recognition results (for the nutrition photo feature)
-- `created_at`
+- Source and normalized file maximum: 5 MiB.
+- Decoded source maximum: 40,000,000 pixels.
+- Per-parent maximum: 10 photos.
+- Per-owner normalized-byte maximum: 100 MiB.
+- Encoding: JPEG/WebP quality 85; PNG compression level 6.
 
-> The file lives physically on disk; the DB holds only metadata and the path. Download/preview goes through the `FileStorage` service (see below), never direct filesystem access.
+A user row is locked before the parent row so concurrent uploads share one lock order. The service
+then checks the parent count and exact owner-byte sum. A stable client identity makes the same retry
+return the existing attachment; conflicting reuse is rejected. Storage and persistence failures use
+compensating cleanup.
 
----
+## Private Delivery and Cleanup
 
-## `FileStorage` — The Single Service
+Content streams only from `/api/attachments/{attachment}/content` after authentication and ownership
+checks. Responses use the normalized content type plus private, no-store, and `nosniff` controls. There
+is no storage symlink or direct filesystem endpoint.
 
-- A wrapper over Laravel Filesystem: `store(file, attachable, kind)` / `url(attachment)` / `delete(attachment)` / `stream(attachment)`
-- **Disk abstraction:** the code works with a logical disk (`config('filesystems.default')`), not with paths. Switching local→S3 = a config change.
-- **Inbound validation:** allowed mime types/sizes (photo vs document vs gpx), limits.
-- **Previews/thumbnails** for images (generated on upload or on demand) — optional, later.
-- **Cleanup:** when a domain record is deleted, remove the associated attachments (from disk too). The policy is to be aligned with [Data Conventions](data-conventions.md) (a soft-deleted record → keep the file until final cleanup).
+Explicit deletion removes bytes before metadata. A missing file is treated as repairable deletion,
+while other disk failures retain metadata and return a safe localized error. Hard deletion of a body
+measurement, meal, or user cleans attachments in bounded batches. Domain deletion is aborted when
+private-file cleanup cannot complete, avoiding a knowingly orphaned file.
 
----
+## Browser and Android
 
-## Capacitor / Mobile Scenario
+The browser uploads multipart binary data and renders authenticated response blobs through temporary
+object URLs. Android presents separate Camera and Gallery actions, transfers the returned native URI
+as authenticated multipart data, downloads previews to temporary application cache, and deletes cache
+artifacts after use or failure. Full images never cross the JavaScript bridge as base64.
 
-- The photo source on mobile is the **camera/gallery** (Capacitor Camera plugin) → uploaded to the backend via the API.
-- ⚠️ **Offline:** a photo taken with no connectivity (gym, outdoors) → a local upload queue, delivered once the network is back. Tied to the broader offline open question (see backlog review). For the MVP, explicitly online-only; the queue comes later.
-- Client-side compression before upload (photos are heavy) — desirable.
+Uploads and previews are online-only. Android process restoration may offer a recovered Camera result,
+but the user must explicitly submit it after connectivity returns; there is no background or offline
+upload queue.
 
----
+## Deferred Extensions
 
-## Security / Privacy
-
-- Files are **private** (no public URL): access via signed URLs / proxying through the backend with a `user_id` check.
-- Especially: body photos and receipts are sensitive. Do not serve them via a direct link.
-- Multi-user readiness: an attachment is scoped by `user_id` ([Data Conventions](data-conventions.md)).
-
----
-
-## Responsibility Boundaries
-
-- An **attachment** = file + metadata + association. It carries no domain logic.
-- **What to do with the photo** (recognize a meal, parse a receipt) lives in the owning module or [Modules Spec](modules.md). Attachment only stores and serves the file.
-- A GPS track as a file (GPX) is stored here; parsing the track into running metrics is Module 3 / integrations.
-
----
-
-## Open Questions
-
-1. Previews/thumbnails — generate on upload (more disk) vs on the fly (more CPU).
-2. Offline upload queue on Capacitor — in which release (online-only for the MVP).
-3. Storage limits (the homelab disk is finite) — quota / cleanup of old attachments.
-4. Deduplication of identical files (hash) — is it needed.
+Additional parent types and file kinds require a separately specified consumer, allowlist, policy,
+contract, and tests. Deferred work includes thumbnails, deduplication, receipts/documents, GPX,
+recognition or other inference, public/shared links, external file providers, background transfer, and
+offline synchronization.

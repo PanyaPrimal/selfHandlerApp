@@ -6,6 +6,7 @@ use App\Support\UserOwned;
 use App\ValueObjects\BodyMetric;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 /** One observation of one metric on one calendar day. */
 class BodyMeasurement extends Model
@@ -21,5 +22,11 @@ class BodyMeasurement extends Model
             'measured_on' => 'date:Y-m-d',
             'value' => 'decimal:4',
         ];
+    }
+
+    public function attachments(): MorphMany
+    {
+        return $this->morphMany(Attachment::class, 'attachable')
+            ->orderBy('created_at')->orderBy('id');
     }
 }

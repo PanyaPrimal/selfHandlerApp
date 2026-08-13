@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Meal extends Model
 {
@@ -29,5 +30,11 @@ class Meal extends Model
     public function entries(): HasMany
     {
         return $this->hasMany(MealEntry::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    public function attachments(): MorphMany
+    {
+        return $this->morphMany(Attachment::class, 'attachable')
+            ->orderBy('created_at')->orderBy('id');
     }
 }

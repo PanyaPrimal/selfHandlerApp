@@ -3618,3 +3618,156 @@ button.text-button {
     font-size: 0.85rem;
   }
 }
+
+/* Private attachment consumers (body measurements and meals). */
+.attachment-parent {
+  display: grid;
+  gap: 12px;
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding-top: 4px;
+}
+
+.attachment-gallery,
+.attachment-uploader {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.attachment-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.attachment-card {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.attachment-card img,
+.attachment-placeholder {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: calc(var(--radius) - 4px);
+  background: var(--paper-soft);
+}
+
+.attachment-card img {
+  display: block;
+  object-fit: cover;
+}
+
+.attachment-placeholder {
+  display: grid;
+  place-items: center;
+  padding: 10px;
+  color: var(--muted);
+  text-align: center;
+  font-size: 0.8rem;
+}
+
+.attachment-placeholder.error {
+  color: var(--error);
+}
+
+.attachment-card-copy {
+  display: grid;
+  min-width: 0;
+}
+
+.attachment-card-copy span,
+.attachment-card-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-card-copy small,
+.attachment-hint,
+.attachment-empty {
+  margin: 0;
+}
+
+.attachment-actions,
+.attachment-confirm .button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.attachment-file-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  background: var(--paper-soft);
+  cursor: pointer;
+  user-select: none;
+}
+
+.attachment-file-button:has(input:focus-visible) {
+  outline: var(--focus-ring-width) solid var(--accent);
+  outline-offset: 2px;
+}
+
+.attachment-file-button.disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.attachment-file-button input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+.attachment-confirm {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--error);
+  border-radius: var(--radius);
+  background: var(--error-soft);
+}
+
+.attachment-delete,
+.attachment-confirm button.danger {
+  color: #ffffff;
+  background: var(--error);
+}
+
+.attachment-confirm p {
+  margin: 0;
+}
+
+@media (max-width: 620px) {
+  .attachment-actions,
+  .attachment-confirm .button-row {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .attachment-actions > *,
+  .attachment-confirm button,
+  .attachment-delete {
+    min-height: 44px;
+  }
+}

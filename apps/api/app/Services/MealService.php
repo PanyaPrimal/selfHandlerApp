@@ -22,7 +22,7 @@ class MealService
         if (isset($attributes['submission_key'])) {
             $existing = Meal::query()->ownedBy($user)->where('submission_key', $attributes['submission_key'])->first();
             if ($existing) {
-                return $existing->load('entries');
+                return $existing->load(['entries', 'attachments']);
             }
         }
         $data = $this->validate($user, $attributes, true);
@@ -33,7 +33,7 @@ class MealService
             $meal = Meal::create(['user_id' => $user->id, ...$data]);
             $this->replaceEntries($meal, $user, $entries);
 
-            return $meal->fresh('entries');
+            return $meal->fresh(['entries', 'attachments']);
         });
     }
 
@@ -49,7 +49,7 @@ class MealService
             $meal->update($data);
             $this->replaceEntries($meal, $user, $entries);
 
-            return $meal->fresh('entries');
+            return $meal->fresh(['entries', 'attachments']);
         });
     }
 
