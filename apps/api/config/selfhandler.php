@@ -34,4 +34,12 @@ return [
         ],
     ],
 
+    'notifications' => [
+        'channels' => ['in_app'],
+        'routine' => [
+            'escalation_interval_minutes' => 30,
+            'max_escalations' => 2,
+        ],
+    ],
+
 ];

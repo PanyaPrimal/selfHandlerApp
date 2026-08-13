@@ -20,6 +20,10 @@ and appearance are account preferences, while small validated browser caches app
 mounts to avoid a wrong-language or wrong-theme first frame. New UI copy must pass the repository
 localisation gate with `npm --prefix apps/web run check:i18n`.
 
+Authenticated users also have one in-app notification inbox for timed routine occurrences, important
+dated Storage tasks, and a daily digest. Per-user quiet hours, category settings, snooze, retry-safe
+processing, and routine escalation are owned by feature 011; external delivery channels remain deferred.
+
 ## Monorepo Layout
 
 - `apps/api` - Laravel API

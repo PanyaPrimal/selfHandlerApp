@@ -32,4 +32,6 @@ return [
     'write_capture' => 'Write something to capture.',
     'move_has_result' => 'This day already has a result, so it cannot be moved.',
     'move_not_past' => 'A day can only be moved to today or later.',
+    'notification_transition' => 'That notification cannot be changed from its current state.',
+    'quiet_hours_distinct' => 'Quiet hours must have different start and end times.',
 ];

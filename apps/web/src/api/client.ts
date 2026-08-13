@@ -30,6 +30,13 @@ import type {
   TimeBlockPayload,
   TodayResponse,
   PreferencesPayload,
+  NotificationActionResponse,
+  NotificationListResponse,
+  NotificationSettingsData,
+  NotificationSettingsResponse,
+  NotificationSnoozeMinutes,
+  NotificationSnoozeResponse,
+  NotificationView,
 } from './types'
 import { jsonRequest, request } from './http'
 
@@ -263,4 +270,33 @@ export async function updateTimeBlock(blockId: number, payload: TimeBlockPayload
 
 export function deleteTimeBlock(blockId: number): Promise<void> {
   return request<void>(`/planner/time-blocks/${blockId}`, { method: 'DELETE' })
+}
+
+export function getNotifications(view: NotificationView = 'all'): Promise<NotificationListResponse> {
+  return request<NotificationListResponse>(`/notifications?view=${encodeURIComponent(view)}`)
+}
+
+export function getNotificationSettings(): Promise<NotificationSettingsResponse> {
+  return request<NotificationSettingsResponse>('/notifications/settings')
+}
+
+export function replaceNotificationSettings(
+  payload: NotificationSettingsData,
+): Promise<NotificationSettingsResponse> {
+  return jsonRequest<NotificationSettingsResponse>('/notifications/settings', 'PUT', payload)
+}
+
+export function readNotification(notificationId: number): Promise<NotificationActionResponse> {
+  return jsonRequest<NotificationActionResponse>(`/notifications/${notificationId}/read`, 'PUT', {})
+}
+
+export function dismissNotification(notificationId: number): Promise<void> {
+  return jsonRequest<void>(`/notifications/${notificationId}/dismiss`, 'PUT', {})
+}
+
+export function snoozeNotification(
+  notificationId: number,
+  minutes: NotificationSnoozeMinutes,
+): Promise<NotificationSnoozeResponse> {
+  return jsonRequest<NotificationSnoozeResponse>(`/notifications/${notificationId}/snooze`, 'PUT', { minutes })
 }

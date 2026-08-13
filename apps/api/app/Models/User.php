@@ -89,6 +89,28 @@ class User extends Authenticatable
         return $this->hasOne(UserProfile::class);
     }
 
+    public function notificationSettings(): HasOne
+    {
+        return $this->hasOne(NotificationSettings::class);
+    }
+
+    public function notifications(): HasMany
+    {
+        return $this->hasMany(InAppNotification::class);
+    }
+
+    public function ensureNotificationSettings(): NotificationSettings
+    {
+        if ($this->relationLoaded('notificationSettings') && $this->notificationSettings) {
+            return $this->notificationSettings;
+        }
+
+        $settings = $this->notificationSettings()->firstOrCreate([], NotificationSettings::defaults());
+        $this->setRelation('notificationSettings', $settings);
+
+        return $settings;
+    }
+
     public function ensureProfile(): UserProfile
     {
         if ($this->relationLoaded('profile') && $this->profile) {

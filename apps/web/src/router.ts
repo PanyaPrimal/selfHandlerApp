@@ -14,6 +14,7 @@ import ReviewView from './views/ReviewView.vue'
 import RoutinesView from './views/RoutinesView.vue'
 import TodayView from './views/TodayView.vue'
 import AppearanceSettingsView from './views/AppearanceSettingsView.vue'
+import NotificationsView from './views/NotificationsView.vue'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -81,6 +82,11 @@ export const router = createRouter({
           path: 'settings/appearance',
           name: 'settings-appearance',
           component: AppearanceSettingsView,
+        },
+        {
+          path: 'notifications',
+          name: 'notifications',
+          component: NotificationsView,
         },
         {
           path: 'account',

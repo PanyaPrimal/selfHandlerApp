@@ -6,6 +6,8 @@ use App\Http\Controllers\DailyReviewController;
 use App\Http\Controllers\GoalController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\ItemController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\NotificationSettingsController;
 use App\Http\Controllers\PlannerController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
@@ -21,6 +23,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/profile', [ProfileController::class, 'show']);
     Route::put('/profile', [ProfileController::class, 'update']);
     Route::patch('/profile', [ProfileController::class, 'updatePreferences']);
+
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::get('/notifications/settings', [NotificationSettingsController::class, 'show']);
+    Route::put('/notifications/settings', [NotificationSettingsController::class, 'replace']);
+    Route::put('/notifications/{notification}/read', [NotificationController::class, 'read']);
+    Route::put('/notifications/{notification}/dismiss', [NotificationController::class, 'dismiss']);
+    Route::put('/notifications/{notification}/snooze', [NotificationController::class, 'snooze']);
 
     Route::get('/today', TodayController::class);
 

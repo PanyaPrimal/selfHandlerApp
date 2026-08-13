@@ -1,0 +1,368 @@
+openapi: 3.1.0
+info:
+  title: SelfHandler In-App Notifications API
+  version: 1.0.0
+  description: |
+    Authenticated in-app inbox, notification settings, and triage actions.
+    Source completion remains owned by recurrence/Storage; these endpoints only
+    expose and mutate delivery state.
+
+servers:
+  - url: /api
+
+security:
+  - sessionCookie: []
+
+paths:
+  /notifications:
+    get:
+      operationId: listNotifications
+      summary: List the owner's visible delivered notifications
+      parameters:
+        - name: view
+          in: query
+          required: false
+          description: "`all` includes read history; `unread` includes only sent/unread rows."
+          schema:
+            type: string
+            enum: [all, unread]
+            default: all
+      responses:
+        '200':
+          description: At most 50 newest visible notifications plus the exact unread count.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /notifications/settings:
+    get:
+      operationId: getNotificationSettings
+      summary: Read notification settings, recreating defaults if absent
+      responses:
+        '200':
+          description: The complete current settings shape and finite choices.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationSettingsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+    put:
+      operationId: replaceNotificationSettings
+      summary: Atomically replace notification settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationSettingsInput'
+      responses:
+        '200':
+          description: Normalized saved settings and finite choices.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationSettingsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '419':
+          description: CSRF state rejected.
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /notifications/{notification}/read:
+    put:
+      operationId: readNotification
+      summary: Mark a delivered notification read
+      parameters:
+        - $ref: '#/components/parameters/NotificationId'
+      responses:
+        '200':
+          description: The notification in read state; repeating the call is idempotent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationItemResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /notifications/{notification}/dismiss:
+    put:
+      operationId: dismissNotification
+      summary: Dismiss a notification and stop repeats from its source family
+      parameters:
+        - $ref: '#/components/parameters/NotificationId'
+      responses:
+        '204':
+          description: Dismissed, or already dismissed. No response body.
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /notifications/{notification}/snooze:
+    put:
+      operationId: snoozeNotification
+      summary: Hide a delivered notification for a finite server-timed duration
+      parameters:
+        - $ref: '#/components/parameters/NotificationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [minutes]
+              properties:
+                minutes:
+                  type: integer
+                  enum: [15, 60, 240, 1440]
+      responses:
+        '200':
+          description: Snooze state and the server-calculated UTC return instant.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: false
+                    required: [id, status, snoozed_until]
+                    properties:
+                      id:
+                        type: integer
+                      status:
+                        type: string
+                        const: snoozed
+                      snoozed_until:
+                        type: string
+                        format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '419':
+          description: CSRF state rejected.
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: selfhandler_session
+
+  parameters:
+    NotificationId:
+      name: notification
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+
+  schemas:
+    NotificationStatus:
+      type: string
+      description: Only visible inbox statuses are returned by the list/read APIs.
+      enum: [sent, read]
+
+    NotificationCategory:
+      type: string
+      enum: [routine, storage, digest]
+
+    NotificationType:
+      type: string
+      enum: [routine_reminder, storage_due, daily_digest]
+
+    DeliveredNotification:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - type
+        - category
+        - subject
+        - title
+        - body
+        - action_url
+        - status
+        - channels
+        - escalation_count
+        - sent_at
+        - read_at
+      properties:
+        id:
+          type: integer
+        type:
+          $ref: '#/components/schemas/NotificationType'
+        category:
+          $ref: '#/components/schemas/NotificationCategory'
+        subject:
+          type: [string, 'null']
+          description: User-authored source title when the source has one.
+        title:
+          type: string
+          minLength: 1
+        body:
+          type: string
+          minLength: 1
+        action_url:
+          type: [string, 'null']
+          pattern: '^/planner(?:\?date=\d{4}-\d{2}-\d{2})?$'
+        status:
+          $ref: '#/components/schemas/NotificationStatus'
+        channels:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [in_app]
+        escalation_count:
+          type: integer
+          minimum: 0
+          maximum: 2
+        sent_at:
+          type: string
+          format: date-time
+        read_at:
+          type: [string, 'null']
+          format: date-time
+
+    NotificationListResponse:
+      type: object
+      additionalProperties: false
+      required: [data, unread_count, views, snooze_options]
+      properties:
+        data:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/DeliveredNotification'
+        unread_count:
+          type: integer
+          minimum: 0
+        views:
+          type: array
+          const: [all, unread]
+        snooze_options:
+          type: array
+          const: [15, 60, 240, 1440]
+
+    NotificationItemResponse:
+      type: object
+      additionalProperties: false
+      required: [data, unread_count]
+      properties:
+        data:
+          $ref: '#/components/schemas/DeliveredNotification'
+        unread_count:
+          type: integer
+          minimum: 0
+
+    NotificationSettings:
+      type: object
+      additionalProperties: false
+      required: [quiet_hours, digest, categories]
+      properties:
+        quiet_hours:
+          type: object
+          additionalProperties: false
+          required: [enabled, starts_at, ends_at]
+          properties:
+            enabled:
+              type: boolean
+            starts_at:
+              type: string
+              pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+            ends_at:
+              type: string
+              pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+        digest:
+          type: object
+          additionalProperties: false
+          required: [enabled, time]
+          properties:
+            enabled:
+              type: boolean
+            time:
+              type: string
+              pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+        categories:
+          type: object
+          additionalProperties: false
+          required: [routine, storage]
+          properties:
+            routine:
+              type: boolean
+            storage:
+              type: boolean
+
+    NotificationSettingsInput:
+      allOf:
+        - $ref: '#/components/schemas/NotificationSettings'
+      description: Complete replacement. Enabled quiet endpoints must differ.
+
+    NotificationSettingsResponse:
+      type: object
+      additionalProperties: false
+      required: [data, options]
+      properties:
+        data:
+          $ref: '#/components/schemas/NotificationSettings'
+        options:
+          type: object
+          additionalProperties: false
+          required: [categories, channels, snooze_minutes]
+          properties:
+            categories:
+              type: array
+              const: [routine, storage]
+            channels:
+              type: array
+              const: [in_app]
+            snooze_minutes:
+              type: array
+              const: [15, 60, 240, 1440]
+
+    ValidationError:
+      type: object
+      required: [message, errors]
+      properties:
+        message:
+          type: string
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+
+  responses:
+    Unauthenticated:
+      description: No authenticated session.
+    NotFound:
+      description: Missing or not owned by the authenticated user.
+    ValidationError:
+      description: Localised validation or invalid-state feedback; nothing changed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'

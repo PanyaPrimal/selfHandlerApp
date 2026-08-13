@@ -19,3 +19,8 @@ Schedule::command('recurrence:materialize')
     ->dailyAt('03:10')
     ->withoutOverlapping()
     ->onOneServer();
+
+Schedule::command('notifications:process')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->onOneServer();

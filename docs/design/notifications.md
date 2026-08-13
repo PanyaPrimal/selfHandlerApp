@@ -23,9 +23,14 @@ Without a single subsystem, every module would roll its own delivery → no shar
 
 ---
 
-## Decisions (fixed 2026-06-13)
+## Decisions (fixed 2026-06-13; first implemented 2026-08-13)
 
-- **Channels — a unified contract for all, in-app first.** A Strategy/Adapter layer on top of **Laravel Notifications**: in-app (DB channel) is enabled now; push (FCM/Capacitor) / email / Telegram are adapters that can be added without a rewrite. (Same pattern as the BYOK providers in [Modules Spec](modules.md).)
+- **Channels — a unified contract for all, in-app first.** A Strategy/Adapter layer using Laravel's
+  scheduler and queue: the richer scheduled in-app record is enabled now; push (FCM/Capacitor), email,
+  and Telegram are adapters that can be added without rewriting sources. Laravel's generic database
+  notification payload is deliberately not stored beside it because it cannot represent schedule,
+  snooze, source closure, and escalation without becoming a second drifting record. (Same adapter
+  pattern as the BYOK providers in [Modules Spec](modules.md).)
 - **Escalation — repeat at an interval until marked done.** If a reminder is not "closed" (the task is not marked done), repeat after N minutes, at most K times, until it is marked done or overdue. Interval and limit are configurable per type.
 - **Anti-spam — quiet hours + daily digest.** Global "do not disturb" (night) + collapsing minor reminders into a single digest ("3 tasks for today").
 
@@ -36,7 +41,9 @@ Without a single subsystem, every module would roll its own delivery → no shar
 - `id`, `user_id`
 - **Polymorphic source** `source_type` + `source_id` — what produced it (engine's PlannedOccurrence / goal deadline / budget warning / manual). Most often a `PlannedOccurrence` from the [Recurrence Engine](recurrence-engine.md)
 - `type` / `category` — for grouping and settings (supplement intake / payment / report / habit …)
-- `title`, `body`, optional `action` (deep link into a module: "mark intake", "open report")
+- `title`, `body`, optional `action_url` (a safe relative deep link into a module: "mark intake", "open report")
+- `content` — bounded rendering parameters kept until delivery; `title`/`body` are rendered in the
+  recipient's current profile locale at delivery time
 - `scheduled_at` — when to show/deliver (UTC, see time zones)
 - `status`: `scheduled` / `sent` / `read` / `dismissed` / `snoozed` / `actioned` / `cancelled`
 - `channels` — which channels it went out through (in-app always + optional push/telegram/email)
@@ -62,8 +69,9 @@ Without a single subsystem, every module would roll its own delivery → no shar
 
 ## Notification settings (per-user)
 
-- **Global quiet hours** (e.g. 23:00–08:00) — during this window we do not deliver (we defer to the end of quiet hours or fold into the digest)
-- **Per-category settings:** on/off + which channels (supplement intake → in-app + push; budget → in-app only)
+- **Global quiet hours** (e.g. 23:00–08:00) — during this window delivery is deferred to the first
+  allowed instant. The interval may cross midnight; the profile time zone supplies its wall clock
+- **Per-category settings:** on/off now; channel choices arrive when more than one channel exists
 - **Daily digest:** time (e.g. 08:00) — collect the minor/non-urgent items into one digest notification, "N tasks for today"
 - Time zone/language — from the profile ([Modules Spec](modules.md))
 - 📌 lives in a single settings home (candidate — a future Settings module)
@@ -75,17 +83,34 @@ Without a single subsystem, every module would roll its own delivery → no shar
 - Trigger: the related `PlannedOccurrence` is still `planned` after `occurrence_time`
 - Repeat: after `escalation_interval` (e.g. 30 min), incrementing `escalation_count`, up to `max_escalations` (e.g. 3) OR until the occurrence is `done` / `skipped` / overdue
 - Interval and limit are **configurable per type** (supplements are more insistent than "iron a shirt")
-- Stops on: marking the task done (done), a manual dismiss, the onset of quiet hours (deferred), reaching the limit → the task moves to "missed"
+- Stops on: marking the task done, skip/overdue, manual dismiss, disabled category, or reaching the
+  limit. Quiet hours defer the repeat. Reaching the notification limit does **not** move the task to
+  `missed`; only the owning module may make that domain transition
 - ⚠️ Escalation **reads** the status from the Recurrence engine but **lives here** (not in the engine) — this is exactly the responsibility boundary
 
 ---
 
 ## Delivery — how it is sent technically
 
-- **Scheduler (Laravel Scheduler + queue):** a periodic job picks up `Notification` records with `status=scheduled` and `scheduled_at <= now` (and outside quiet hours) → delivers them through the selected channels → `sent`
+- **Scheduler (Laravel Scheduler + queue):** every minute a unique per-user job reconciles sources,
+  builds a due digest, creates due escalation records, and picks up notifications with
+  `status=scheduled` and `scheduled_at <= now` (or due snoozes) → quiet-hours check → selected channels → `sent`
 - The source of most notifications is materialized `PlannedOccurrence` records (the engine): on/after materializing an occurrence, a scheduled notification is created per the type's rules
-- **Idempotency:** uniqueness on `(source_type, source_id, escalation_count)` — the job won't double-deliver on restart
-- The daily digest is a separate job at the configured time: it aggregates the day's non-urgent items into a single notification
+- **Idempotency:** uniqueness on `(user_id, source_type, source_id, escalation_count)` — the job won't
+  duplicate another account's record or double-deliver on restart
+- The same per-user job creates a synthetic daily-digest source at the configured local time. Its
+  `YYYYMMDD` source id makes one digest per user/local day portable across MySQL and SQLite
+
+### First consumers (feature 011)
+
+- A timed, still-planned `PlannedOccurrence` receives a direct reminder. Routine policy is 30 minutes,
+  at most two repeats; later source types may select a different policy.
+- An open, high-priority Storage task due on the current local day receives a direct reminder at the
+  configured digest wall time because Storage currently owns a date, not a time.
+- Untimed planned occurrences and other open due Storage tasks are minor items counted in one daily
+  digest. Direct sources are excluded from the digest.
+- Settings are read when processing/delivering, not snapshotted when the row is created. Delivered copy
+  remains an event record in that delivery locale.
 
 ---
 
@@ -115,11 +140,19 @@ erDiagram
 
 ---
 
-## Open questions (to resolve during implementation)
+## Implementation resolutions and remaining question
 
-1. Whether to store `DELIVERY` as a separate table (per-channel history) or as a `channels` array on the notification — depends on the need to audit delivery.
-2. Quiet hours: defer to the end of the window vs fold into the morning digest (or let the user choose).
-3. Deduplication when multiple sources map to one task (occurrence + a manual reminder about the same thing).
-4. Where to draw the line between "urgent (send immediately) vs non-urgent (into the digest)" — a flag on the type.
-5. Push for Capacitor: local notifications (serverless) vs FCM (server) — which one for the first real version.
-6. A snapshot of settings at notification-creation time vs reading the current ones at delivery time.
+Resolved by feature 011:
+
+1. Successful adapters live in the notification's `channels` array. A separate delivery-attempt table
+   waits for a concrete second channel and an auditing need.
+2. Quiet hours always defer to their end; they never discard or silently fold a direct reminder.
+3. Portable source alias + source id + escalation count is the deduplication boundary. A future manual
+   reminder must name a distinct source rather than collide with an occurrence.
+4. Timed occurrences and high-priority dated tasks are direct; untimed occurrences and ordinary dated
+   tasks enter the digest. New modules must classify their own source explicitly.
+5. Current settings and profile locale are read at delivery, so a change applies to already scheduled
+   records.
+
+Remaining for feature 012: whether the first Capacitor adapter uses only local notifications or also
+introduces server push. FCM remains deferred unless that feature's acceptance journey requires it.

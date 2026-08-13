@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { useAuthSession } from '../auth/session'
 import UiPopoverSurface from '../components/ui/UiPopoverSurface.vue'
 import { useAnchoredSurface } from '../components/ui/useAnchoredSurface'
 import { useI18n } from '../i18n'
 import type { MessageKey } from '../i18n/locales/en'
+import { useNotificationStore } from '../notifications/store'
 
 interface Destination {
   name: string
@@ -29,6 +30,7 @@ const desktopDestinations: Destination[] = [
 ]
 
 const utilityDestinations: Destination[] = [
+  { name: 'notifications', to: '/notifications', label: 'nav.notifications' },
   { name: 'settings-appearance', to: '/settings/appearance', label: 'nav.settings' },
   { name: 'account', to: '/account', label: 'nav.account' },
   { name: 'changelog', to: '/changelog', label: 'nav.changelog' },
@@ -41,6 +43,7 @@ const route = useRoute()
 const session = useAuthSession()
 const moreButton = ref<HTMLElement | null>(null)
 const { t } = useI18n()
+const notifications = useNotificationStore()
 const userInitial = computed(() => session.user?.name.trim().charAt(0).toUpperCase() || '?')
 
 const secondaryIsActive = computed(() =>
@@ -57,11 +60,20 @@ const more = useAnchoredSurface({
 function goToSecondary(): void {
   more.close({ restoreFocus: false })
 }
+
+onMounted(notifications.start)
+onBeforeUnmount(notifications.stop)
 </script>
 
 <template>
   <div class="app-shell">
     <aside class="sidebar">
+      <span
+        v-if="notifications.state.unreadCount > 0"
+        class="visually-hidden"
+        role="status"
+        aria-live="polite"
+      >{{ t('notifications.unreadCount', { count: notifications.state.unreadCount }) }}</span>
       <RouterLink class="brand" to="/">
         <span class="brand-mark" aria-hidden="true"></span>
         <span>SELFHANDLER</span>
@@ -86,6 +98,12 @@ function goToSecondary(): void {
           >
             <span class="nav-dot" aria-hidden="true"></span>
             <span>{{ t(destination.label) }}</span>
+            <span
+              v-if="destination.name === 'notifications' && notifications.state.unreadCount > 0"
+              class="notification-badge"
+              data-testid="notification-unread-count"
+              aria-hidden="true"
+            >{{ notifications.state.unreadCount }}</span>
           </RouterLink>
         </div>
       </nav>
@@ -110,6 +128,12 @@ function goToSecondary(): void {
           >
             <span class="nav-dot" aria-hidden="true"></span>
             <span>{{ t('nav.more') }}</span>
+            <span
+              v-if="notifications.state.unreadCount > 0"
+              class="notification-badge"
+              data-testid="notification-unread-count"
+              aria-hidden="true"
+            >{{ notifications.state.unreadCount }}</span>
           </button>
 
           <UiPopoverSurface
@@ -130,6 +154,11 @@ function goToSecondary(): void {
               @click="goToSecondary"
             >
               {{ t(destination.label) }}
+              <span
+                v-if="destination.name === 'notifications' && notifications.state.unreadCount > 0"
+                class="notification-badge"
+                aria-hidden="true"
+              >{{ notifications.state.unreadCount }}</span>
             </RouterLink>
           </UiPopoverSurface>
         </div>

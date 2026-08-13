@@ -249,6 +249,8 @@ design-system package.
 
 ### 011 — In-App Notifications
 
+**Status:** Complete on 2026-08-13 (`41/41` tasks; deployment was explicitly excluded).
+
 **User outcome:** the user receives reliable in-app reminders with per-user quiet hours, snooze, and
 a digest without duplicating domain state.
 

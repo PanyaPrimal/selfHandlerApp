@@ -499,3 +499,73 @@ export interface TimeBlockPayload {
   starts_at?: string | null
   ends_at?: string | null
 }
+
+/* ------------------------------------------------------------------ */
+/* In-app notifications                                                */
+/* ------------------------------------------------------------------ */
+
+export type NotificationType = 'routine_reminder' | 'storage_due' | 'daily_digest'
+export type NotificationCategory = 'routine' | 'storage' | 'digest'
+export type NotificationStatus = 'sent' | 'read'
+export type NotificationView = 'all' | 'unread'
+export type NotificationSnoozeMinutes = 15 | 60 | 240 | 1440
+
+export interface InAppNotification {
+  id: number
+  type: NotificationType
+  category: NotificationCategory
+  subject: string | null
+  title: string
+  body: string
+  action_url: string | null
+  status: NotificationStatus
+  channels: readonly ['in_app']
+  escalation_count: number
+  sent_at: string
+  read_at: string | null
+}
+
+export interface NotificationListResponse {
+  data: InAppNotification[]
+  unread_count: number
+  views: NotificationView[]
+  snooze_options: NotificationSnoozeMinutes[]
+}
+
+export interface NotificationSettingsData {
+  quiet_hours: {
+    enabled: boolean
+    starts_at: string
+    ends_at: string
+  }
+  digest: {
+    enabled: boolean
+    time: string
+  }
+  categories: {
+    routine: boolean
+    storage: boolean
+  }
+}
+
+export interface NotificationSettingsResponse {
+  data: NotificationSettingsData
+  options: {
+    categories: Array<'routine' | 'storage'>
+    channels: ['in_app']
+    snooze_minutes: NotificationSnoozeMinutes[]
+  }
+}
+
+export interface NotificationActionResponse {
+  data: InAppNotification
+  unread_count: number
+}
+
+export interface NotificationSnoozeResponse {
+  data: {
+    id: number
+    status: 'snoozed'
+    snoozed_until: string
+  }
+}

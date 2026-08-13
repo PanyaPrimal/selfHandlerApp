@@ -19,6 +19,12 @@ export interface ChangelogEntry {
 
 const entries: readonly ChangelogEntry[] = [
   {
+    id: 'in-app-notifications', date: '2026-08-13', feature: '011-in-app-notifications',
+    titleKey: 'changelog.entry.notifications.title', summaryKey: 'changelog.entry.notifications.summary',
+    testKey: 'changelog.entry.notifications.test',
+    links: [{ labelKey: 'nav.notifications', to: '/notifications' }],
+  },
+  {
     id: 'interface-personalization', date: '2026-08-13', feature: '010-interface-personalization',
     titleKey: 'changelog.entry.personalization.title', summaryKey: 'changelog.entry.personalization.summary',
     testKey: 'changelog.entry.personalization.test',
