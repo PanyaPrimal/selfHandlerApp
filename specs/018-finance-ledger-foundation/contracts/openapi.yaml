@@ -1,0 +1,763 @@
+openapi: 3.1.0
+info:
+  title: SelfHandler Finance Ledger Foundation API
+  version: 0.1.0
+  description: Owner-scoped actual ledger, account, category, historical FX, and balance contracts.
+servers:
+  - url: /api
+security:
+  - sanctum: []
+tags:
+  - name: Finance
+paths:
+  /finance/currencies:
+    get:
+      tags: [Finance]
+      operationId: listFinanceCurrencies
+      summary: List supported immutable currencies
+      responses:
+        '200':
+          description: Supported currencies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrencyListResponse'
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+  /finance/exchange-rates:
+    get:
+      tags: [Finance]
+      operationId: listFinanceExchangeRates
+      summary: List owned manual historical rates
+      parameters:
+        - {$ref: '#/components/parameters/FromCurrency'}
+        - {$ref: '#/components/parameters/ToCurrency'}
+        - {$ref: '#/components/parameters/DateFrom'}
+        - {$ref: '#/components/parameters/DateTo'}
+      responses:
+        '200':
+          description: Ordered rates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExchangeRateListResponse'
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+    put:
+      tags: [Finance]
+      operationId: upsertFinanceExchangeRate
+      summary: Create or correct one owned pair/date rate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExchangeRateInput'
+      responses:
+        '200':
+          description: Upserted rate
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExchangeRateResponse'
+        '201':
+          description: Created rate
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExchangeRateResponse'
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /finance/accounts:
+    get:
+      tags: [Finance]
+      operationId: listFinanceAccounts
+      summary: List owned accounts with exact derived balances
+      parameters:
+        - in: query
+          name: include_archived
+          schema: {type: boolean, default: true}
+      responses:
+        '200':
+          description: Account list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountListResponse'
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+    post:
+      tags: [Finance]
+      operationId: createFinanceAccount
+      summary: Create account and optional opening adjustment atomically
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountCreateInput'
+      responses:
+        '201':
+          description: Created account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountResponse'
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /finance/accounts/{account}:
+    patch:
+      tags: [Finance]
+      operationId: updateFinanceAccount
+      summary: Update account identity or archival lifecycle
+      parameters:
+        - {$ref: '#/components/parameters/AccountId'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountUpdateInput'
+      responses:
+        '200':
+          description: Updated account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountResponse'
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /finance/accounts/{account}/reconcile:
+    post:
+      tags: [Finance]
+      operationId: reconcileFinanceAccount
+      summary: Append the exact observed-versus-derived adjustment
+      parameters:
+        - {$ref: '#/components/parameters/AccountId'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReconcileInput'
+      responses:
+        '200':
+          description: Reconciled account and optional new group
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReconcileResponse'
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /finance/categories:
+    get:
+      tags: [Finance]
+      operationId: listFinanceCategories
+      summary: Materialize and list the owned two-level category tree
+      parameters:
+        - in: query
+          name: direction
+          schema: {$ref: '#/components/schemas/CategoryDirection'}
+        - in: query
+          name: include_archived
+          schema: {type: boolean, default: true}
+      responses:
+        '200':
+          description: Category list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryListResponse'
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+    post:
+      tags: [Finance]
+      operationId: createFinanceCategory
+      summary: Create a custom group or one-level child
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryCreateInput'
+      responses:
+        '201':
+          description: Created category
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponse'
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /finance/categories/{category}:
+    patch:
+      tags: [Finance]
+      operationId: updateFinanceCategory
+      summary: Rename, reparent when unused, archive, or restore
+      parameters:
+        - {$ref: '#/components/parameters/CategoryId'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryUpdateInput'
+      responses:
+        '200':
+          description: Updated category
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponse'
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /finance/transactions:
+    get:
+      tags: [Finance]
+      operationId: listFinanceTransactions
+      summary: List bounded immutable action groups
+      parameters:
+        - {$ref: '#/components/parameters/DateFrom'}
+        - {$ref: '#/components/parameters/DateTo'}
+        - in: query
+          name: account_id
+          schema: {type: integer, minimum: 1}
+      responses:
+        '200':
+          description: Ordered transaction groups
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionListResponse'
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+    post:
+      tags: [Finance]
+      operationId: createFinanceTransaction
+      summary: Post idempotent actual income or expense
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionCreateInput'
+      responses:
+        '200':
+          description: Matching idempotent retry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+        '201':
+          description: Created group
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /finance/transfers:
+    post:
+      tags: [Finance]
+      operationId: createFinanceTransfer
+      summary: Post an idempotent atomic paired transfer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferCreateInput'
+      responses:
+        '200':
+          description: Matching idempotent retry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+        '201':
+          description: Created transfer group
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /finance/transactions/{transaction}/reverse:
+    post:
+      tags: [Finance]
+      operationId: reverseFinanceTransaction
+      summary: Append one linked reversal group
+      parameters:
+        - {$ref: '#/components/parameters/TransactionId'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReversalInput'
+      responses:
+        '201':
+          description: Created reversal group
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+  /finance/summary:
+    get:
+      tags: [Finance]
+      operationId: showFinanceSummary
+      summary: Show module-owned balances, consolidation, and bounded actual totals
+      parameters:
+        - {$ref: '#/components/parameters/DateFrom'}
+        - {$ref: '#/components/parameters/DateTo'}
+        - in: query
+          name: as_of
+          required: false
+          schema: {type: string, format: date}
+      responses:
+        '200':
+          description: Finance summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SummaryResponse'
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
+components:
+  securitySchemes:
+    sanctum:
+      type: http
+      scheme: bearer
+      bearerFormat: Sanctum
+  parameters:
+    AccountId:
+      in: path
+      name: account
+      required: true
+      schema: {type: integer, minimum: 1}
+    CategoryId:
+      in: path
+      name: category
+      required: true
+      schema: {type: integer, minimum: 1}
+    TransactionId:
+      in: path
+      name: transaction
+      required: true
+      schema: {type: string, format: uuid}
+    FromCurrency:
+      in: query
+      name: from_currency
+      required: false
+      schema: {$ref: '#/components/schemas/CurrencyCode'}
+    ToCurrency:
+      in: query
+      name: to_currency
+      required: false
+      schema: {$ref: '#/components/schemas/CurrencyCode'}
+    DateFrom:
+      in: query
+      name: from
+      required: false
+      schema: {type: string, format: date}
+    DateTo:
+      in: query
+      name: to
+      required: false
+      schema: {type: string, format: date}
+  responses:
+    Unauthenticated:
+      description: Authentication required
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/MessageResponse'}
+    NotFound:
+      description: Unknown or foreign owned reference
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/MessageResponse'}
+    Conflict:
+      description: Idempotency or lifecycle conflict
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/MessageResponse'}
+    ValidationFailed:
+      description: Strict validation failed
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ValidationErrorResponse'}
+  schemas:
+    CurrencyCode:
+      type: string
+      enum: [UAH, USD, EUR]
+    MoneyAmount:
+      type: string
+      pattern: '^-?(?:0|[1-9][0-9]{0,14})(?:\.[0-9]{1,4})?$'
+      examples: ['123.4567']
+    PositiveMoneyAmount:
+      type: string
+      pattern: '^(?:0\.(?:0{0,3}[1-9][0-9]*|[0-9]*[1-9][0-9]*)|[1-9][0-9]{0,14}(?:\.[0-9]{1,4})?)$'
+      examples: ['123.4567']
+    RateAmount:
+      type: string
+      pattern: '^(?:0\.[0-9]{0,11}[1-9]|[1-9][0-9]{0,10}(?:\.[0-9]{1,12})?)$'
+      examples: ['41.250000000000']
+    AccountType:
+      type: string
+      enum: [cash, card, savings, currency]
+    CategoryDirection:
+      type: string
+      enum: [income, expense]
+    TransactionKind:
+      type: string
+      enum: [income, expense, transfer, adjustment]
+    EntryRole:
+      type: string
+      enum: [primary, source, destination]
+    Currency:
+      type: object
+      additionalProperties: false
+      required: [code, decimal_places, active]
+      properties:
+        code: {$ref: '#/components/schemas/CurrencyCode'}
+        decimal_places: {type: integer, minimum: 0, maximum: 4}
+        active: {type: boolean}
+    CurrencyListResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: {$ref: '#/components/schemas/Currency'}
+    ExchangeRate:
+      type: object
+      additionalProperties: false
+      required: [id, from_currency, to_currency, rate_date, rate, source, created_at, updated_at]
+      properties:
+        id: {type: integer, minimum: 1}
+        from_currency: {$ref: '#/components/schemas/CurrencyCode'}
+        to_currency: {$ref: '#/components/schemas/CurrencyCode'}
+        rate_date: {type: string, format: date}
+        rate: {$ref: '#/components/schemas/RateAmount'}
+        source: {type: string, const: manual}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+    ExchangeRateInput:
+      type: object
+      additionalProperties: false
+      required: [from_currency, to_currency, rate_date, rate]
+      properties:
+        from_currency: {$ref: '#/components/schemas/CurrencyCode'}
+        to_currency: {$ref: '#/components/schemas/CurrencyCode'}
+        rate_date: {type: string, format: date}
+        rate: {$ref: '#/components/schemas/RateAmount'}
+    ExchangeRateResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/ExchangeRate'}
+    ExchangeRateListResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: {$ref: '#/components/schemas/ExchangeRate'}
+    FinanceAccount:
+      type: object
+      additionalProperties: false
+      required: [id, name, type, currency, balance, archived, created_at, updated_at]
+      properties:
+        id: {type: integer, minimum: 1}
+        name: {type: string, maxLength: 120}
+        type: {$ref: '#/components/schemas/AccountType'}
+        currency: {$ref: '#/components/schemas/CurrencyCode'}
+        balance: {$ref: '#/components/schemas/MoneyAmount'}
+        archived: {type: boolean}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+    AccountCreateInput:
+      type: object
+      additionalProperties: false
+      required: [name, type, currency]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 120}
+        type: {$ref: '#/components/schemas/AccountType'}
+        currency: {$ref: '#/components/schemas/CurrencyCode'}
+        opening_balance: {$ref: '#/components/schemas/MoneyAmount'}
+        opening_date: {type: string, format: date}
+        opening_note: {type: [string, 'null'], maxLength: 1000}
+    AccountUpdateInput:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: {type: string, minLength: 1, maxLength: 120}
+        type: {$ref: '#/components/schemas/AccountType'}
+        currency: {$ref: '#/components/schemas/CurrencyCode'}
+        archived: {type: boolean}
+    AccountResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/FinanceAccount'}
+    AccountListResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: {$ref: '#/components/schemas/FinanceAccount'}
+    FinanceCategory:
+      type: object
+      additionalProperties: false
+      required: [id, direction, parent_id, builtin_key, name, label, archived, used, created_at, updated_at]
+      properties:
+        id: {type: integer, minimum: 1}
+        direction: {$ref: '#/components/schemas/CategoryDirection'}
+        parent_id: {type: [integer, 'null'], minimum: 1}
+        builtin_key: {type: [string, 'null'], maxLength: 64}
+        name: {type: [string, 'null'], maxLength: 120}
+        label: {type: string, minLength: 1, maxLength: 120}
+        archived: {type: boolean}
+        used: {type: boolean}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+    CategoryCreateInput:
+      type: object
+      additionalProperties: false
+      required: [direction, name]
+      properties:
+        direction: {$ref: '#/components/schemas/CategoryDirection'}
+        parent_id: {type: [integer, 'null'], minimum: 1}
+        name: {type: string, minLength: 1, maxLength: 120}
+    CategoryUpdateInput:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: {type: string, minLength: 1, maxLength: 120}
+        parent_id: {type: [integer, 'null'], minimum: 1}
+        archived: {type: boolean}
+    CategoryResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/FinanceCategory'}
+    CategoryListResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: {$ref: '#/components/schemas/FinanceCategory'}
+    LedgerEntry:
+      type: object
+      additionalProperties: false
+      required: [id, account_id, account_name, category_id, category_label, role, delta_amount, currency]
+      properties:
+        id: {type: integer, minimum: 1}
+        account_id: {type: integer, minimum: 1}
+        account_name: {type: string}
+        category_id: {type: [integer, 'null'], minimum: 1}
+        category_label: {type: [string, 'null']}
+        role: {$ref: '#/components/schemas/EntryRole'}
+        delta_amount: {$ref: '#/components/schemas/MoneyAmount'}
+        currency: {$ref: '#/components/schemas/CurrencyCode'}
+    TransactionGroup:
+      type: object
+      additionalProperties: false
+      required: [id, kind, occurred_on, note, tag, reverses_id, reversed_by_id, reversal_reason, transfer, entries, created_at]
+      properties:
+        id: {type: string, format: uuid}
+        kind: {$ref: '#/components/schemas/TransactionKind'}
+        occurred_on: {type: string, format: date}
+        note: {type: [string, 'null'], maxLength: 1000}
+        tag: {type: [string, 'null'], maxLength: 80}
+        reverses_id: {type: [string, 'null'], format: uuid}
+        reversed_by_id: {type: [string, 'null'], format: uuid}
+        reversal_reason: {type: [string, 'null'], maxLength: 500}
+        transfer:
+          anyOf:
+            - {$ref: '#/components/schemas/TransferSnapshot'}
+            - {type: 'null'}
+        entries:
+          type: array
+          minItems: 1
+          maxItems: 2
+          items: {$ref: '#/components/schemas/LedgerEntry'}
+        created_at: {type: string, format: date-time}
+    TransferSnapshot:
+      type: object
+      additionalProperties: false
+      required: [from_currency, to_currency, effective_rate]
+      properties:
+        from_currency: {$ref: '#/components/schemas/CurrencyCode'}
+        to_currency: {$ref: '#/components/schemas/CurrencyCode'}
+        effective_rate: {$ref: '#/components/schemas/RateAmount'}
+    TransactionCreateInput:
+      type: object
+      additionalProperties: false
+      required: [idempotency_key, kind, account_id, category_id, amount, occurred_on]
+      properties:
+        idempotency_key: {type: string, minLength: 8, maxLength: 120}
+        kind: {type: string, enum: [income, expense]}
+        account_id: {type: integer, minimum: 1}
+        category_id: {type: integer, minimum: 1}
+        amount: {$ref: '#/components/schemas/PositiveMoneyAmount'}
+        occurred_on: {type: string, format: date}
+        note: {type: [string, 'null'], maxLength: 1000}
+        tag: {type: [string, 'null'], maxLength: 80}
+    TransferCreateInput:
+      type: object
+      additionalProperties: false
+      required: [idempotency_key, source_account_id, destination_account_id, source_amount, destination_amount, occurred_on]
+      properties:
+        idempotency_key: {type: string, minLength: 8, maxLength: 120}
+        source_account_id: {type: integer, minimum: 1}
+        destination_account_id: {type: integer, minimum: 1}
+        source_amount: {$ref: '#/components/schemas/PositiveMoneyAmount'}
+        destination_amount: {$ref: '#/components/schemas/PositiveMoneyAmount'}
+        occurred_on: {type: string, format: date}
+        note: {type: [string, 'null'], maxLength: 1000}
+        tag: {type: [string, 'null'], maxLength: 80}
+    ReversalInput:
+      type: object
+      additionalProperties: false
+      required: [idempotency_key, reason]
+      properties:
+        idempotency_key: {type: string, minLength: 8, maxLength: 120}
+        reason: {type: string, minLength: 1, maxLength: 500}
+    ReconcileInput:
+      type: object
+      additionalProperties: false
+      required: [idempotency_key, observed_balance, occurred_on, reason]
+      properties:
+        idempotency_key: {type: string, minLength: 8, maxLength: 120}
+        observed_balance: {$ref: '#/components/schemas/MoneyAmount'}
+        occurred_on: {type: string, format: date}
+        reason: {type: string, minLength: 1, maxLength: 500}
+    ReconcileResponse:
+      type: object
+      additionalProperties: false
+      required: [data, transaction]
+      properties:
+        data: {$ref: '#/components/schemas/FinanceAccount'}
+        transaction:
+          anyOf:
+            - {$ref: '#/components/schemas/TransactionGroup'}
+            - {type: 'null'}
+    TransactionResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/TransactionGroup'}
+    TransactionListResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: {$ref: '#/components/schemas/TransactionGroup'}
+    FxConversion:
+      type: object
+      additionalProperties: false
+      required: [currency, amount, converted_amount, rate, rate_date, rate_direction]
+      properties:
+        currency: {$ref: '#/components/schemas/CurrencyCode'}
+        amount: {$ref: '#/components/schemas/MoneyAmount'}
+        converted_amount: {$ref: '#/components/schemas/MoneyAmount'}
+        rate: {$ref: '#/components/schemas/RateAmount'}
+        rate_date: {type: string, format: date}
+        rate_direction: {type: string, enum: [identity, direct, inverse]}
+    ConsolidatedBalance:
+      type: object
+      additionalProperties: false
+      required: [as_of, base_currency, complete, total, missing_currencies, conversions]
+      properties:
+        as_of: {type: string, format: date}
+        base_currency: {$ref: '#/components/schemas/CurrencyCode'}
+        complete: {type: boolean}
+        total:
+          anyOf:
+            - {$ref: '#/components/schemas/MoneyAmount'}
+            - {type: 'null'}
+        missing_currencies:
+          type: array
+          uniqueItems: true
+          items: {$ref: '#/components/schemas/CurrencyCode'}
+        conversions:
+          type: array
+          items: {$ref: '#/components/schemas/FxConversion'}
+    ActualTotals:
+      type: object
+      additionalProperties: false
+      required: [from, to, base_currency, complete, income, expense, net, missing_currencies]
+      properties:
+        from: {type: string, format: date}
+        to: {type: string, format: date}
+        base_currency: {$ref: '#/components/schemas/CurrencyCode'}
+        complete: {type: boolean}
+        income:
+          anyOf: [{$ref: '#/components/schemas/MoneyAmount'}, {type: 'null'}]
+        expense:
+          anyOf: [{$ref: '#/components/schemas/MoneyAmount'}, {type: 'null'}]
+        net:
+          anyOf: [{$ref: '#/components/schemas/MoneyAmount'}, {type: 'null'}]
+        missing_currencies:
+          type: array
+          uniqueItems: true
+          items: {$ref: '#/components/schemas/CurrencyCode'}
+    FinanceSummary:
+      type: object
+      additionalProperties: false
+      required: [accounts, consolidated, actuals]
+      properties:
+        accounts:
+          type: array
+          items: {$ref: '#/components/schemas/FinanceAccount'}
+        consolidated: {$ref: '#/components/schemas/ConsolidatedBalance'}
+        actuals: {$ref: '#/components/schemas/ActualTotals'}
+    SummaryResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/FinanceSummary'}
+    MessageResponse:
+      type: object
+      additionalProperties: false
+      required: [message]
+      properties:
+        message: {type: string}
+    ValidationErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [message, errors]
+      properties:
+        message: {type: string}
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items: {type: string}

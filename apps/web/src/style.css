@@ -3041,6 +3041,226 @@ button.text-button {
   }
 }
 
+/* Finance keeps every value as an exact string in state; layout therefore
+   reserves room for long signed amounts instead of relying on truncation. */
+.finance-workspace {
+  width: 100%;
+  max-width: 1180px;
+}
+
+.finance-tabs {
+  display: flex;
+  gap: 8px;
+  max-width: 100%;
+  padding-bottom: 4px;
+  overflow-x: auto;
+}
+
+.finance-tabs button {
+  flex: 0 0 auto;
+}
+
+.finance-tabs button.active {
+  color: var(--paper);
+  background: var(--ink);
+}
+
+.finance-section,
+.finance-overview {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--paper);
+}
+
+.finance-form {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: end;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--paper-soft);
+}
+
+.finance-form label,
+.finance-reconcile label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+
+.finance-form input,
+.finance-form select,
+.finance-reconcile input {
+  width: 100%;
+  min-width: 0;
+}
+
+.finance-form--account {
+  grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
+}
+
+.finance-form--stack {
+  grid-template-columns: 1fr;
+  align-content: start;
+}
+
+.finance-form--stack h3 {
+  margin: 0;
+}
+
+.finance-card-grid,
+.finance-category-columns,
+.finance-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  min-width: 0;
+}
+
+.finance-card,
+.finance-category-group,
+.finance-history-item {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--paper-soft);
+}
+
+.finance-card header,
+.finance-history-item header,
+.finance-category-group > div,
+.finance-overview-list article,
+.finance-rate-list article,
+.finance-legs > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.finance-card h3,
+.finance-history-item h3 {
+  margin: 3px 0 0;
+}
+
+.finance-money,
+.finance-legs strong {
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.finance-reconcile {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr auto;
+  align-items: end;
+  gap: 10px;
+}
+
+.finance-category-columns > section,
+.finance-rate-list,
+.finance-history,
+.finance-overview-list,
+.finance-legs {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.finance-category-group ul {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.finance-category-group li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  padding-left: 12px;
+  border-left: 2px solid var(--border);
+}
+
+.finance-rate-list article,
+.finance-overview-list article {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.finance-legs > span {
+  padding: 8px 0;
+}
+
+.finance-metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (max-width: 900px) {
+  .finance-form,
+  .finance-form--account {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .finance-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .finance-section,
+  .finance-overview {
+    padding: 15px;
+  }
+
+  .finance-form,
+  .finance-form--account,
+  .finance-card-grid,
+  .finance-category-columns,
+  .finance-editor-grid,
+  .finance-reconcile,
+  .finance-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .finance-workspace button,
+  .finance-workspace input,
+  .finance-workspace select {
+    min-height: 44px;
+  }
+
+  .finance-card header,
+  .finance-history-item header,
+  .finance-overview-list article,
+  .finance-rate-list article,
+  .finance-legs > span {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .finance-category-group li {
+    grid-template-columns: 1fr auto;
+  }
+
+  .finance-category-group li small {
+    grid-column: 1 / -1;
+  }
+}
+
 /* Narrow phones down to 320px: tighten spacing further. Scrolling is expected. */
 @media (max-width: 360px) {
   .auth-shell {

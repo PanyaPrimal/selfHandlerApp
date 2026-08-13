@@ -10,7 +10,8 @@ $speckit-analyze -> $speckit-implement` before application code changes.
 > `007-body-measurements`, `008-storage-inbox`, `009-planner-day`,
 > `010-interface-personalization`, `011-in-app-notifications`, `012-android-capacitor-shell`, and
 > `013-habits-anti-habits`, `014-sleep-routine-templates`, `015-workouts-training-goals`, and
-> `016-nutrition-meals-hydration-targets` and `017-supplements-courses-intake-stock` are complete. Native compilation and device installation evidence for 012 remains externally blocked in
+> `016-nutrition-meals-hydration-targets`, `017-supplements-courses-intake-stock`, and
+> `018-finance-ledger-foundation` are complete. Native compilation and device installation evidence for 012 remains externally blocked in
 > this workspace because Android Studio, JDK, SDK, Gradle, and `adb` are absent; all repository-owned
 > server, web, configuration, sync, resource, and native-source gates pass.
 > `002-homelab-deployment` stops at T055 by product decision: the current homelab deployment is
@@ -394,6 +395,13 @@ currency comes only from Profile.
 **Prerequisites:** 004.
 
 **Explicitly defer:** budgets, recurring operations, debts, saving funds, and investments.
+
+Delivered as a private append-only ledger with exact decimal-string money, multi-currency accounts,
+two-level localized categories, actual income/expense facts, paired same/cross-currency transfers,
+linked reversals, reconciliation adjustments, and manual historical exchange rates. Balances and
+bounded actual/consolidated summaries are grouped projections; Profile owns base currency. The
+responsive EN/RU/UK web client and synchronized Capacitor bundle share the same closed API. Budgets,
+recurrence, debts, funds, purchases, investments, provider rates, imports, and AI remain deferred.
 
 ### 019 — Budget and Recurring Cash Flow
 

@@ -642,12 +642,30 @@ targets, so corrections remain consistent on every surface.
 - **Two-level categories** — group → subcategory (e.g. "Food → Groceries / Cafe / Delivery"). Convenient for collapsing in analytics.
 - **Budget — limits per category per month** — a monthly limit is set per category; the system shows "spent X of Y" and warns about approaching/exceeding it.
 
+### Feature 018 implementation boundary (2026-08-13)
+
+Feature `018-finance-ledger-foundation` implements the factual core only. A transaction group is one
+idempotent user action; its immutable signed ledger entries are the balance truth. Income and expense
+have one entry, transfers have exactly two paired entries, and corrections append one linked reversal.
+Opening balances and reconciliation are adjustment groups, never mutable account columns.
+
+Amounts use `DECIMAL(19,4)` and exact decimal strings. UAH, USD, and EUR are global reference rows;
+accounts, categories, rates, groups, and entries are owner-scoped. Manual rates are historical and
+looked up directly or inversely at or before the requested Profile-local date. Account balances,
+base-currency consolidation, and bounded income/expense/net are grouped read projections. Missing FX
+makes the whole affected projection explicitly incomplete instead of guessing.
+
+The shared EN/RU/UK web and Android bundle exposes accounts, reconciliation, categories, rates,
+actuals, transfers, history, and reversal. Budget limits, recurring operations, debts, saving and
+emergency funds, purchase/restock links, investments, provider FX, import/export, integrations, and
+AI remain owned by features 019, 020, 024, 025, and 026.
+
 ### The "Account" entity (account)
 - Name, type (cash / card / savings / currency — extensible)
 - **The account's currency** (one per account)
 - The current balance (a derivative: starting balance + sum of transactions; **the module computes the total itself**, see "Each module computes its own aggregates")
 - An "archived" flag (a closed account is not deleted — the transaction history must live on)
-- ❓ starting balance: a separate field or the first "adjusting" transaction — to decide when designing the schema
+- Starting balance is the first immutable adjustment group; it is never an account field.
 
 ### The "Transaction" entity (transaction)
 - Type: **income / expense / transfer**

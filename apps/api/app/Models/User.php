@@ -140,6 +140,31 @@ class User extends Authenticatable
         return $this->hasMany(DailyReview::class);
     }
 
+    public function financeAccounts(): HasMany
+    {
+        return $this->hasMany(FinanceAccount::class);
+    }
+
+    public function financeCategories(): HasMany
+    {
+        return $this->hasMany(FinanceCategory::class);
+    }
+
+    public function financeExchangeRates(): HasMany
+    {
+        return $this->hasMany(FinanceExchangeRate::class);
+    }
+
+    public function financeTransactionGroups(): HasMany
+    {
+        return $this->hasMany(FinanceTransactionGroup::class);
+    }
+
+    public function financeLedgerEntries(): HasMany
+    {
+        return $this->hasMany(FinanceLedgerEntry::class);
+    }
+
     public function profile(): HasOne
     {
         return $this->hasOne(UserProfile::class);

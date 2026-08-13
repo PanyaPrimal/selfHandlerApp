@@ -19,6 +19,12 @@ export interface ChangelogEntry {
 
 const entries: readonly ChangelogEntry[] = [
   {
+    id: 'finance-ledger-foundation', date: '2026-08-13', feature: '018-finance-ledger-foundation',
+    titleKey: 'changelog.entry.finance.title', summaryKey: 'changelog.entry.finance.summary',
+    testKey: 'changelog.entry.finance.test', links: [{ labelKey: 'nav.finance', to: '/finance' }],
+    limitationKeys: ['changelog.entry.finance.limit'],
+  },
+  {
     id: 'supplements-courses-intake-stock', date: '2026-08-13', feature: '017-supplements-courses-intake-stock',
     titleKey: 'changelog.entry.supplements.title', summaryKey: 'changelog.entry.supplements.summary',
     testKey: 'changelog.entry.supplements.test', links: [{ labelKey: 'nav.supplements', to: '/supplements' }],

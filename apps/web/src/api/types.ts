@@ -1626,3 +1626,31 @@ export interface NotificationSnoozeResponse {
     snoozed_until: string
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Finance ledger foundation                                          */
+/* ------------------------------------------------------------------ */
+
+export type FinanceCurrencyCode = 'UAH' | 'USD' | 'EUR'
+export type FinanceAccountType = 'cash' | 'card' | 'savings' | 'currency'
+export type FinanceCategoryDirection = 'income' | 'expense'
+export type FinanceTransactionKind = 'income' | 'expense' | 'transfer' | 'adjustment'
+
+export interface FinanceCurrency { code: FinanceCurrencyCode, decimal_places: number, active: boolean }
+export interface FinanceAccount { id: number, name: string, type: FinanceAccountType, currency: FinanceCurrencyCode, balance: string, archived: boolean, created_at: string, updated_at: string }
+export interface FinanceCategory { id: number, direction: FinanceCategoryDirection, parent_id: number | null, builtin_key: string | null, name: string | null, label: string, archived: boolean, used: boolean, created_at: string, updated_at: string }
+export interface FinanceExchangeRate { id: number, from_currency: FinanceCurrencyCode, to_currency: FinanceCurrencyCode, rate_date: string, rate: string, source: 'manual', created_at: string, updated_at: string }
+export interface FinanceLedgerEntry { id: number, account_id: number, account_name: string, category_id: number | null, category_label: string | null, role: 'primary' | 'source' | 'destination', delta_amount: string, currency: FinanceCurrencyCode }
+export interface FinanceTransactionGroup { id: string, kind: FinanceTransactionKind, occurred_on: string, note: string | null, tag: string | null, reverses_id: string | null, reversed_by_id: string | null, reversal_reason: string | null, transfer: { from_currency: FinanceCurrencyCode, to_currency: FinanceCurrencyCode, effective_rate: string } | null, entries: FinanceLedgerEntry[], created_at: string }
+export interface FinanceConversion { currency: FinanceCurrencyCode, amount: string, converted_amount: string, rate: string, rate_date: string, rate_direction: 'identity' | 'direct' | 'inverse' }
+export interface FinanceSummary { accounts: FinanceAccount[], consolidated: { as_of: string, base_currency: FinanceCurrencyCode, complete: boolean, total: string | null, missing_currencies: FinanceCurrencyCode[], conversions: FinanceConversion[] }, actuals: { from: string, to: string, base_currency: FinanceCurrencyCode, complete: boolean, income: string | null, expense: string | null, net: string | null, missing_currencies: FinanceCurrencyCode[] } }
+
+export interface FinanceAccountInput { name: string, type: FinanceAccountType, currency: FinanceCurrencyCode, opening_balance?: string, opening_date?: string, opening_note?: string | null }
+export interface FinanceAccountUpdate { name?: string, type?: FinanceAccountType, currency?: FinanceCurrencyCode, archived?: boolean }
+export interface FinanceReconcileInput { idempotency_key: string, observed_balance: string, occurred_on: string, reason: string }
+export interface FinanceCategoryInput { direction: FinanceCategoryDirection, parent_id?: number | null, name: string }
+export interface FinanceCategoryUpdate { name?: string, parent_id?: number | null, archived?: boolean }
+export interface FinanceExchangeRateInput { from_currency: FinanceCurrencyCode, to_currency: FinanceCurrencyCode, rate_date: string, rate: string }
+export interface FinanceTransactionInput { idempotency_key: string, kind: 'income' | 'expense', account_id: number, category_id: number, amount: string, occurred_on: string, note?: string | null, tag?: string | null }
+export interface FinanceTransferInput { idempotency_key: string, source_account_id: number, destination_account_id: number, source_amount: string, destination_amount: string, occurred_on: string, note?: string | null, tag?: string | null }
+export interface FinanceReversalInput { idempotency_key: string, reason: string }

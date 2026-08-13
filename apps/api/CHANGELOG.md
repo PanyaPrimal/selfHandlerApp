@@ -2,6 +2,13 @@
 
 ## [Unreleased](https://github.com/laravel/laravel/compare/v11.6.1...11.x)
 
+### SelfHandler feature 018
+
+* Add private multi-currency Finance accounts, two-level categories, exact immutable ledger entries,
+  paired transfers, reversals, reconciliation, and manual historical exchange rates.
+* Derive owner-scoped account, consolidated-base-currency, and bounded actual cash-flow projections
+  without mutable balance truth, with strict closed contracts and idempotent writes.
+
 ### SelfHandler feature 017
 
 * Add the private Supplements catalogue, bounded shared-recurrence courses, exact intake and stock

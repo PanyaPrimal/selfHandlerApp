@@ -73,6 +73,10 @@ const dynamicKeys = new Set([
   'supplements.forecast.no_active_course', 'supplements.forecast.no_consumption',
   'supplements.forecast.course_ends_with_stock', 'supplements.forecast.beyond_horizon',
   'supplements.status.planned', 'supplements.status.done', 'supplements.status.skipped',
+  'finance.tab.overview', 'finance.tab.accounts', 'finance.tab.categories', 'finance.tab.rates',
+  'finance.tab.activity', 'finance.accountType.cash', 'finance.accountType.card',
+  'finance.accountType.savings', 'finance.accountType.currency', 'finance.kind.income',
+  'finance.kind.expense', 'finance.kind.transfer', 'finance.kind.adjustment',
 ])
 
 function isAllowedText(value) {

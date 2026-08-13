@@ -57,6 +57,12 @@ Today, Review, and the EN/RU/UK web/Android clients consume the same module-owne
 adherence truth. Medical advice, inferred regimens, product recommendations, finance transactions,
 and AI assessment remain deferred.
 
+Feature 018 adds the Finance ledger foundation: private multi-currency accounts, two-level income and
+expense categories, immutable actuals and paired transfers, append-only reversals and reconciliation,
+manual historical exchange rates, and derived exact balances and summaries. Profile remains the only
+source of base currency. Budgets, recurring cash flow, debts, funds, purchases, investments,
+integrations, and financial AI remain deferred to their owning increments.
+
 The Android package in `apps/mobile` wraps the same production Vue bundle with Capacitor 8. Existing
 accounts use a separate 30-day, `mobile`-scoped Sanctum token stored by a custom Android Keystore
 AES-GCM plugin; browser cookie/CSRF auth is unchanged. Android local notifications are an opt-in

@@ -201,6 +201,21 @@
 - No day-selection row means a deterministic default; an explicit nullable row means none. One shared
   projection is authoritative for Today, Planner, activity writes, and reminders.
 
+### Feature 018 — Finance ledger ownership (2026-08-13)
+
+- An account stores identity, type, currency, and archival state only. Opening and reconciliation are
+  immutable adjustment groups; every balance is derived from signed ledger entries.
+- One transaction group represents one normalized idempotent action. Income/expense uses one leg,
+  transfer uses two legs, and correction appends one linked opposite-delta group. Accepted facts are
+  never edited or deleted.
+- Money uses `DECIMAL(19,4)` exact strings and exchange rates use twelve decimal places. Manual direct
+  or inverse rates are selected historically at or before the Profile-local date; missing FX yields an
+  explicit incomplete projection.
+- Currencies are global references; every account, category, rate, group, and entry is user-owned.
+  Categories have at most two levels and separate immutable income/expense directions.
+- Budgets and recurring cash flow remain feature 019; debts, funds, finance goals, and purchase/restock
+  links remain feature 020. Provider rates, investments, integrations, exports, and AI remain deferred.
+
 ## Design status
 
 - ✅ Designed: 0, 1, 2, 2a, 3, 4, 5, 6, 7, 8, 9, 10, 11 — **all modules designed; contradictions cleaned up (2026-06-13)**

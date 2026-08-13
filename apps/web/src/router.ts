@@ -19,6 +19,7 @@ import NotificationsView from './views/NotificationsView.vue'
 import WorkoutsView from './views/WorkoutsView.vue'
 import NutritionView from './views/NutritionView.vue'
 import SupplementsView from './views/SupplementsView.vue'
+import FinanceView from './views/FinanceView.vue'
 import { isAndroidNative } from './mobile/platform'
 
 declare module 'vue-router' {
@@ -77,6 +78,11 @@ export const router = createRouter({
           path: 'supplements',
           name: 'supplements',
           component: SupplementsView,
+        },
+        {
+          path: 'finance',
+          name: 'finance',
+          component: FinanceView,
         },
         {
           path: 'goals',

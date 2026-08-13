@@ -4,6 +4,12 @@ use App\Http\Controllers\BodyGoalController;
 use App\Http\Controllers\BodyMeasurementController;
 use App\Http\Controllers\DailyReviewController;
 use App\Http\Controllers\ExerciseController;
+use App\Http\Controllers\Finance\FinanceAccountController;
+use App\Http\Controllers\Finance\FinanceCategoryController;
+use App\Http\Controllers\Finance\FinanceReferenceController;
+use App\Http\Controllers\Finance\FinanceSummaryController;
+use App\Http\Controllers\Finance\FinanceTransactionController;
+use App\Http\Controllers\Finance\FinanceTransferController;
 use App\Http\Controllers\FoodItemController;
 use App\Http\Controllers\GoalController;
 use App\Http\Controllers\HabitController;
@@ -56,6 +62,22 @@ Route::middleware(['auth:sanctum', 'mobile.token'])->group(function () {
 });
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/finance/accounts', [FinanceAccountController::class, 'index']);
+    Route::post('/finance/accounts', [FinanceAccountController::class, 'store']);
+    Route::patch('/finance/accounts/{account}', [FinanceAccountController::class, 'update']);
+    Route::post('/finance/accounts/{account}/reconcile', [FinanceAccountController::class, 'reconcile']);
+    Route::get('/finance/categories', [FinanceCategoryController::class, 'index']);
+    Route::post('/finance/categories', [FinanceCategoryController::class, 'store']);
+    Route::patch('/finance/categories/{category}', [FinanceCategoryController::class, 'update']);
+    Route::get('/finance/transactions', [FinanceTransactionController::class, 'index']);
+    Route::post('/finance/transactions', [FinanceTransactionController::class, 'store']);
+    Route::post('/finance/transfers', [FinanceTransferController::class, 'store']);
+    Route::post('/finance/transactions/{transaction}/reverse', [FinanceTransactionController::class, 'reverse']);
+    Route::get('/finance/currencies', [FinanceReferenceController::class, 'currencies']);
+    Route::get('/finance/exchange-rates', [FinanceReferenceController::class, 'rates']);
+    Route::put('/finance/exchange-rates', [FinanceReferenceController::class, 'upsert']);
+    Route::get('/finance/summary', [FinanceSummaryController::class, 'show']);
+
     Route::get('/profile', [ProfileController::class, 'show']);
     Route::put('/profile', [ProfileController::class, 'update']);
     Route::patch('/profile', [ProfileController::class, 'updatePreferences']);

@@ -87,10 +87,20 @@ canonical dose, and taken facts snapshot it again so later reference edits canno
 Remaining stock and adherence are bounded set-query projections over immutable facts, never mutable
 counters or stored rollups.
 
+Feature 018 resolves the Money and ledger choices. Public money inputs and outputs are canonical
+decimal strings at four places, backed by `DECIMAL(19,4)`; exchange rates use twelve places. One
+idempotent immutable transaction group owns signed ledger entries, so opening balances,
+reconciliation, actuals, transfers, and reversals all share one append-only truth. Account and bounded
+cash-flow totals are exact grouped queries, not mutable balance or rollup columns. Historical FX is
+looked up at or before the Profile-local date, directly or inversely; missing conversion is an explicit
+incomplete result.
+
 ## 7. Aggregates — "the module computes the totals" — strategy (important for performance)
 
 > Balances/remaining amounts/streaks/actual budget figures are derived. So that the "Today" dashboard and Analytics don't grind to a halt:
-- **Cached value + event-driven recomputation** for hot derived values (account balance, remaining debt, amount saved in a fund): an Observer on the source record (Transaction, etc.) updates the cache within the same DB transaction. The "on the fly" computation is the source of truth for reconciliation/recomputation.
+- **Grouped source-of-truth queries first.** Feature 018 account balances use indexed grouped ledger
+  sums without a mutable cache. A later feature may add a rebuildable cache only after measured need;
+  the append-only ledger remains authoritative.
 - **A daily-rollup layer** for analytics over long periods: a `daily_metrics` table (date, metric, value), populated on write or by a nightly job. Analytics reads the rollup, not years of raw logs.
 - Decide this before the "Today" dashboard and Module 9 (otherwise you'll be rewriting queries).
 - ⚠️ This is the physical implementation of the principle in [Modules Spec](modules.md).
@@ -99,7 +109,7 @@ counters or stored rollups.
 
 ## Checklist "before the first migration"
 
-- [ ] Money VO + DECIMAL(19,4) cast ready
+- [x] Money VO + DECIMAL(19,4) storage ready (feature 018)
 - [ ] Decided for each polymorphic entity: class-table or single-table (see §2)
 - [ ] `user_id` + global scope — in the migration/model template
 - [ ] SoftDeletes vs is_archived — defined per entity
@@ -109,7 +119,7 @@ counters or stored rollups.
 
 ## Open questions
 
-1. Money: store DECIMAL or minor units as BIGINT (cents) — both are valid, pick one.
+1. ✅ Money uses `DECIMAL(19,4)` plus the exact `Money` value object (feature 018).
 2. Daily-rollup: which metrics go in the rollup, and the recomputation frequency (nightly vs. on write).
 3. Audit trail for changes to financial records (who edited a transaction and when) — do we need `laravel-auditable` selectively, or are timestamps enough?
 4. JSON vs. nullable columns for the specifics of similar types — finalize per entity at migration time.

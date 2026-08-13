@@ -95,11 +95,105 @@ import type {
   SupplementStockMovementInput,
 } from './types'
 import { jsonRequest, request } from './http'
+import type {
+  FinanceAccount,
+  FinanceAccountInput,
+  FinanceAccountUpdate,
+  FinanceCategory,
+  FinanceCategoryDirection,
+  FinanceCategoryInput,
+  FinanceCategoryUpdate,
+  FinanceCurrency,
+  FinanceCurrencyCode,
+  FinanceExchangeRate,
+  FinanceExchangeRateInput,
+  FinanceReconcileInput,
+  FinanceReversalInput,
+  FinanceSummary,
+  FinanceTransactionGroup,
+  FinanceTransactionInput,
+  FinanceTransferInput,
+} from './types'
 
 // The SelfHandler error contract: a message for the user plus the per-field
 // validation errors of a 422 response.
 export { ApiError, validationErrors } from './http'
 export type { ValidationErrors } from './http'
+
+export async function getFinanceCurrencies(): Promise<FinanceCurrency[]> {
+  return (await request<ListResponse<FinanceCurrency>>('/finance/currencies')).data
+}
+
+export async function getFinanceExchangeRates(from?: FinanceCurrencyCode, to?: FinanceCurrencyCode, dateFrom?: string, dateTo?: string): Promise<FinanceExchangeRate[]> {
+  const query = new URLSearchParams()
+  if (from) query.set('from_currency', from)
+  if (to) query.set('to_currency', to)
+  if (dateFrom) query.set('from', dateFrom)
+  if (dateTo) query.set('to', dateTo)
+  const suffix = query.toString() ? `?${query.toString()}` : ''
+  return (await request<ListResponse<FinanceExchangeRate>>(`/finance/exchange-rates${suffix}`)).data
+}
+
+export async function upsertFinanceExchangeRate(payload: FinanceExchangeRateInput): Promise<FinanceExchangeRate> {
+  return (await jsonRequest<ItemResponse<FinanceExchangeRate>>('/finance/exchange-rates', 'PUT', payload)).data
+}
+
+export async function getFinanceAccounts(includeArchived = true): Promise<FinanceAccount[]> {
+  return (await request<ListResponse<FinanceAccount>>(`/finance/accounts?include_archived=${includeArchived ? '1' : '0'}`)).data
+}
+
+export async function createFinanceAccount(payload: FinanceAccountInput): Promise<FinanceAccount> {
+  return (await jsonRequest<ItemResponse<FinanceAccount>>('/finance/accounts', 'POST', payload)).data
+}
+
+export async function updateFinanceAccount(id: number, payload: FinanceAccountUpdate): Promise<FinanceAccount> {
+  return (await jsonRequest<ItemResponse<FinanceAccount>>(`/finance/accounts/${id}`, 'PATCH', payload)).data
+}
+
+export function reconcileFinanceAccount(id: number, payload: FinanceReconcileInput): Promise<{ data: FinanceAccount, transaction: FinanceTransactionGroup | null }> {
+  return jsonRequest(`/finance/accounts/${id}/reconcile`, 'POST', payload)
+}
+
+export async function getFinanceCategories(direction?: FinanceCategoryDirection, includeArchived = true): Promise<FinanceCategory[]> {
+  const query = new URLSearchParams()
+  if (direction) query.set('direction', direction)
+  query.set('include_archived', includeArchived ? '1' : '0')
+  return (await request<ListResponse<FinanceCategory>>(`/finance/categories?${query.toString()}`)).data
+}
+
+export async function createFinanceCategory(payload: FinanceCategoryInput): Promise<FinanceCategory> {
+  return (await jsonRequest<ItemResponse<FinanceCategory>>('/finance/categories', 'POST', payload)).data
+}
+
+export async function updateFinanceCategory(id: number, payload: FinanceCategoryUpdate): Promise<FinanceCategory> {
+  return (await jsonRequest<ItemResponse<FinanceCategory>>(`/finance/categories/${id}`, 'PATCH', payload)).data
+}
+
+export async function getFinanceTransactions(from?: string, to?: string, accountId?: number): Promise<FinanceTransactionGroup[]> {
+  const query = new URLSearchParams()
+  if (from) query.set('from', from)
+  if (to) query.set('to', to)
+  if (accountId) query.set('account_id', String(accountId))
+  const suffix = query.toString() ? `?${query.toString()}` : ''
+  return (await request<ListResponse<FinanceTransactionGroup>>(`/finance/transactions${suffix}`)).data
+}
+
+export async function createFinanceTransaction(payload: FinanceTransactionInput): Promise<FinanceTransactionGroup> {
+  return (await jsonRequest<ItemResponse<FinanceTransactionGroup>>('/finance/transactions', 'POST', payload)).data
+}
+
+export async function createFinanceTransfer(payload: FinanceTransferInput): Promise<FinanceTransactionGroup> {
+  return (await jsonRequest<ItemResponse<FinanceTransactionGroup>>('/finance/transfers', 'POST', payload)).data
+}
+
+export async function reverseFinanceTransaction(id: string, payload: FinanceReversalInput): Promise<FinanceTransactionGroup> {
+  return (await jsonRequest<ItemResponse<FinanceTransactionGroup>>(`/finance/transactions/${encodeURIComponent(id)}/reverse`, 'POST', payload)).data
+}
+
+export async function getFinanceSummary(from: string, to: string, asOf: string): Promise<FinanceSummary> {
+  const query = new URLSearchParams({ from, to, as_of: asOf })
+  return (await request<ItemResponse<FinanceSummary>>(`/finance/summary?${query.toString()}`)).data
+}
 
 export function getProfile(): Promise<ProfileResponse> {
   return request<ProfileResponse>('/profile')

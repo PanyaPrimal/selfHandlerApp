@@ -1,8 +1,42 @@
 # SelfHandler — Finance: ER Diagram
 
-> Conceptual ER diagram for Module 10 (Finance). Logical entities and relationships — a bridge toward the Laravel/MySQL implementation. Not the final DDL: concrete types/indexes/nullability are pinned down when the migrations are written (open questions — at the bottom and in the [Modules Spec](modules.md)).
+> Conceptual ER diagram for the complete Module 10. Feature 018 implements the factual ledger subset
+> documented below; budget, recurrence, debt, fund, goal, and purchase relationships remain future
+> scope. The feature contract and migration are authoritative for physical names and constraints.
 >
 > Spec: [Modules Spec](modules.md) · Decisions: [Decisions Log](decisions.md)
+
+---
+
+## Implemented foundation — feature 018 (2026-08-13)
+
+```mermaid
+erDiagram
+    USER ||--o{ FINANCE_ACCOUNT : owns
+    USER ||--o{ FINANCE_CATEGORY : owns
+    USER ||--o{ FINANCE_EXCHANGE_RATE : owns
+    USER ||--o{ FINANCE_TRANSACTION_GROUP : owns
+    USER ||--o{ FINANCE_LEDGER_ENTRY : owns
+    CURRENCY ||--o{ FINANCE_ACCOUNT : denominates
+    FINANCE_CATEGORY ||--o{ FINANCE_CATEGORY : parent_of
+    FINANCE_TRANSACTION_GROUP ||--|{ FINANCE_LEDGER_ENTRY : contains
+    FINANCE_TRANSACTION_GROUP ||--o| FINANCE_TRANSACTION_GROUP : reverses
+    FINANCE_ACCOUNT ||--o{ FINANCE_LEDGER_ENTRY : receives
+    FINANCE_CATEGORY ||--o{ FINANCE_LEDGER_ENTRY : classifies
+```
+
+- `currencies` holds global UAH/USD/EUR references. `finance_accounts`, `finance_categories`,
+  `finance_exchange_rates`, `finance_transaction_groups`, and `finance_ledger_entries` are private.
+- A group is one immutable idempotent action. Its signed `DECIMAL(19,4)` entries are authoritative:
+  one leg for actual/adjustment, two for transfer, and opposite legs in one linked reversal group.
+- An account has no balance/opening column. Balances and bounded summaries are exact grouped queries.
+- Category depth is root plus one child; direction is immutable. Historical references survive archive.
+- A cross-currency transfer snapshots both original amounts and its effective twelve-place rate.
+  General manual rates are owner-owned date facts and are selected directly or inversely at or before
+  the requested Profile-local date.
+- Base currency remains on Profile. Missing required FX returns an incomplete projection with no total.
+
+The larger diagram below is a future design map, not a claim that deferred entities exist.
 
 ---
 
@@ -60,10 +94,10 @@ erDiagram
 ## Entities (logical)
 
 ### Money core
-- **USER** — the owner of everything (single-user for now, the user_id field is in place for multi-user). Stores the **base currency**.
+- **USER** — the owner boundary. The related Profile stores the **base currency**.
 - **CURRENCY** — currency reference table (UAH/USD/EUR…). Currency code.
 - **EXCHANGE_RATE** — exchange rate: currency_from + currency_to + **date** + rate. Historical (as of the operation date), not just the current one.
-- **ACCOUNT** — account: name, type (cash/card/savings/foreign-currency), **currency** (single), archived flag. The balance is a derived value (not a column but an aggregate), or a denormalized cache.
+- **ACCOUNT** — account: name, type (cash/card/savings/foreign-currency), **currency** (single), archived flag. The balance is a derived aggregate, never a mutable column in feature 018.
 - **CATEGORY** — category: name, direction (income/expense), **parent_id** (self-reference: group → subcategory, 2 levels), archived flag. Example: Medical → Dentistry.
 - **TRANSACTION** — transaction: type (income/expense/transfer), amount+currency, source account, destination account (transfer only), category (income/expense), date, note, tag. For a cross-currency transfer — both amounts + the effective exchange rate. Optional references: to DEBT (debt payment), to SAVING_FUND (top-up).
   - **`source` — polymorphic reference to the origin** (`source_type` + `source_id`): supplement (Module 2a, restock) / **purchase item (Module 7)** / null. This is the connection point between Storage↔Finance and Supplements↔Finance. The FK lives here (on the money side); the domain entities know nothing about money.
@@ -124,8 +158,8 @@ erDiagram
 
 > Some were closed by the review pass on 2026-06-13 (a recommendation is given). Open ones — without a checkmark.
 
-1. **Account opening balance:** an `opening_balance` column vs the first adjusting TRANSACTION. ⬜ open.
-2. ✅ **Transfer → two linked records** (transfer_out + transfer_in, `transfer_group_id`). Cleaner for each account's balance and for differing currencies (each leg in its own currency). (review recommendation)
+1. ✅ **Account opening balance:** the first immutable adjustment group; no opening column.
+2. ✅ **Transfer:** one immutable transaction group with two signed ledger entries, one per account.
 3. **Saving fund ↔ emergency fund:** a single SAVING_FUND with flags vs separate tables. ⬜ open (leaning toward a single one with flags).
 4. **Virtual envelope:** ✅ decision — **"available balance" = account balance − Σ envelopes on it**, the envelope does NOT move money physically. Invariant: Σ envelopes ≤ balance. It's a computed value, not separate money.
 5. **Counterparty:** COUNTERPARTY as an entity vs a string in DEBT. ⬜ open (recommendation — an entity from the start, cheaper than deduping later).
