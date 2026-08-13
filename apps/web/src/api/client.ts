@@ -56,6 +56,19 @@ import type {
   NotificationSnoozeMinutes,
   NotificationSnoozeResponse,
   NotificationView,
+  Exercise,
+  ExerciseCatalogueResponse,
+  ExerciseInput,
+  TrainingGoal,
+  TrainingGoalInput,
+  TrainingGoalsResponse,
+  WorkoutHistoryResponse,
+  WorkoutProgram,
+  WorkoutProgramInput,
+  WorkoutProgramsResponse,
+  WorkoutSession,
+  WorkoutSessionInput,
+  WorkoutState,
 } from './types'
 import { jsonRequest, request } from './http'
 
@@ -83,6 +96,99 @@ export function updateThemePreferences(theme: NonNullable<PreferencesPayload['pr
 export function getToday(date?: string): Promise<TodayResponse> {
   const query = date ? `?date=${encodeURIComponent(date)}` : ''
   return request<TodayResponse>(`/today${query}`)
+}
+
+export function getExercises(state: 'active' | 'archived' | 'all' = 'active'): Promise<ExerciseCatalogueResponse> {
+  return request<ExerciseCatalogueResponse>(`/exercises?state=${encodeURIComponent(state)}`)
+}
+
+export async function createExercise(payload: ExerciseInput): Promise<Exercise> {
+  const response = await jsonRequest<ItemResponse<Exercise>>('/exercises', 'POST', payload)
+  return response.data
+}
+
+export async function updateExercise(exerciseId: number, payload: Partial<ExerciseInput> & { is_archived?: boolean }): Promise<Exercise> {
+  const response = await jsonRequest<ItemResponse<Exercise>>(`/exercises/${exerciseId}`, 'PATCH', payload)
+  return response.data
+}
+
+export function getWorkoutPrograms(state: WorkoutState = 'active', date?: string): Promise<WorkoutProgramsResponse> {
+  const query = new URLSearchParams({ state })
+  if (date) query.set('date', date)
+  return request<WorkoutProgramsResponse>(`/workout-programs?${query.toString()}`)
+}
+
+export async function createWorkoutProgram(payload: WorkoutProgramInput): Promise<WorkoutProgram> {
+  const response = await jsonRequest<ItemResponse<WorkoutProgram>>('/workout-programs', 'POST', payload)
+  return response.data
+}
+
+export async function updateWorkoutProgram(programId: number, payload: Partial<Omit<WorkoutProgramInput, 'workout_type'>> & { is_active?: boolean, is_archived?: boolean }): Promise<WorkoutProgram> {
+  const response = await jsonRequest<ItemResponse<WorkoutProgram>>(`/workout-programs/${programId}`, 'PATCH', payload)
+  return response.data
+}
+
+export async function replaceWorkoutProgramExercises(
+  programId: number,
+  exercises: Array<{
+    exercise_id: number
+    sort_order: number
+    target_sets: number
+    target_reps: number
+    starting_weight_kg: number
+    increment_kg: number
+    successes_required: number
+  }>,
+): Promise<WorkoutProgram> {
+  const response = await jsonRequest<ItemResponse<WorkoutProgram>>(
+    `/workout-programs/${programId}/exercises`, 'PUT', { exercises },
+  )
+  return response.data
+}
+
+export async function upsertPlannedWorkout(
+  programId: number,
+  date: string,
+  payload: WorkoutSessionInput,
+): Promise<WorkoutSession> {
+  const response = await jsonRequest<ItemResponse<WorkoutSession>>(
+    `/workout-programs/${programId}/sessions/${encodeURIComponent(date)}`, 'PUT', payload,
+  )
+  return response.data
+}
+
+export function getWorkouts(from: string, to: string, programId?: number): Promise<WorkoutHistoryResponse> {
+  const query = new URLSearchParams({ from, to })
+  if (programId) query.set('program_id', String(programId))
+  return request<WorkoutHistoryResponse>(`/workouts?${query.toString()}`)
+}
+
+export async function createWorkout(payload: WorkoutSessionInput): Promise<WorkoutSession> {
+  const response = await jsonRequest<ItemResponse<WorkoutSession>>('/workouts', 'POST', payload)
+  return response.data
+}
+
+export async function updateWorkout(workoutId: number, payload: WorkoutSessionInput): Promise<WorkoutSession> {
+  const response = await jsonRequest<ItemResponse<WorkoutSession>>(`/workouts/${workoutId}`, 'PATCH', payload)
+  return response.data
+}
+
+export function deleteWorkout(workoutId: number): Promise<void> {
+  return request<void>(`/workouts/${workoutId}`, { method: 'DELETE' })
+}
+
+export function getTrainingGoals(archived = false): Promise<TrainingGoalsResponse> {
+  return request<TrainingGoalsResponse>(`/training/goals?archived=${archived ? '1' : '0'}`)
+}
+
+export async function createTrainingGoal(payload: TrainingGoalInput): Promise<TrainingGoal> {
+  const response = await jsonRequest<ItemResponse<TrainingGoal>>('/training/goals', 'POST', payload)
+  return response.data
+}
+
+export async function updateTrainingGoal(goalId: number, payload: Partial<Pick<TrainingGoalInput, 'name' | 'description' | 'target_date' | 'target_value'>> & { status?: TrainingGoal['status'], is_archived?: boolean }): Promise<TrainingGoal> {
+  const response = await jsonRequest<ItemResponse<TrainingGoal>>(`/training/goals/${goalId}`, 'PATCH', payload)
+  return response.data
 }
 
 export async function getRoutines(archived = false): Promise<Routine[]> {

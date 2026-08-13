@@ -19,6 +19,107 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Workouts keep dense programme, fact, and goal controls readable without
+   introducing a second application shell. */
+.workout-workspace {
+  max-width: 1180px;
+}
+
+.workout-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4, 1rem);
+}
+
+.workout-grid > *,
+.workout-card,
+.history-card,
+.goal-progress-card {
+  min-width: 0;
+}
+
+.workout-program-list,
+.prescription-summary,
+.chip-list {
+  list-style: none;
+  padding: 0;
+}
+
+.chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+}
+
+.workout-card,
+.history-card,
+.goal-progress-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+
+.workout-card + .workout-card,
+.history-card + .history-card,
+.goal-progress-card + .goal-progress-card {
+  margin-top: 0.75rem;
+}
+
+.prescription-summary {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.75rem 0;
+  color: var(--muted-text);
+}
+
+.prescription-editor,
+.planned-workout-form {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.inline-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  border: 0;
+  padding: 0;
+}
+
+.goal-progress-card progress {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+@media (max-width: 760px) {
+  .workout-grid,
+  .inline-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .workout-workspace .section-heading {
+    align-items: flex-start;
+  }
+
+  .workout-card > .section-heading {
+    flex-direction: column;
+  }
+
+  .workout-card > .section-heading .button-row {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .workout-workspace button,
+  .workout-workspace a.secondary {
+    min-height: 44px;
+    scroll-margin-block: 96px 112px;
+  }
+}
+
 :root[data-theme='light'] {
   --paper: #ece9e2;
   --paper-soft: #faf8f4;

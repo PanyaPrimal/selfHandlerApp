@@ -916,7 +916,7 @@ components:
           additionalProperties: true
         module_summaries:
           type: object
-          required: [sleep, routine_activities]
+          required: [sleep, routine_activities, workouts]
           properties:
             sleep:
               type: object
@@ -924,6 +924,18 @@ components:
             routine_activities:
               type: object
               additionalProperties: true
+            workouts:
+              type: object
+              additionalProperties: false
+              required: [planned, completed, skipped, unplanned, duration_seconds, distance_m, strength_volume_kg]
+              properties:
+                planned: { type: integer, minimum: 0 }
+                completed: { type: integer, minimum: 0 }
+                skipped: { type: integer, minimum: 0 }
+                unplanned: { type: integer, minimum: 0 }
+                duration_seconds: { type: integer, minimum: 0 }
+                distance_m: { type: integer, minimum: 0 }
+                strength_volume_kg: { type: string }
 
     RoutineItemResponse:
       type: object

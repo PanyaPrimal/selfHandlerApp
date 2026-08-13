@@ -90,6 +90,26 @@ class User extends Authenticatable
         return $this->hasMany(SleepLog::class);
     }
 
+    public function exercises(): HasMany
+    {
+        return $this->hasMany(Exercise::class);
+    }
+
+    public function workoutPrograms(): HasMany
+    {
+        return $this->hasMany(WorkoutProgram::class);
+    }
+
+    public function workoutSessions(): HasMany
+    {
+        return $this->hasMany(WorkoutSession::class);
+    }
+
+    public function trainingGoalDetails(): HasMany
+    {
+        return $this->hasMany(TrainingGoalDetail::class);
+    }
+
     public function dailyReviews(): HasMany
     {
         return $this->hasMany(DailyReview::class);

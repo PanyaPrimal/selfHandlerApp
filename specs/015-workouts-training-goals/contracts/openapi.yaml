@@ -1,0 +1,1235 @@
+openapi: 3.1.0
+info:
+  title: SelfHandler Workouts and Training Goals API
+  version: 0.1.0
+  description: >-
+    Authenticated, owner-scoped contract for feature 015. All weights, distances, and durations use
+    canonical kilograms, metres, and seconds. Conditional subtype and same-owner rules are enforced by
+    the domain in addition to these closed transport schemas.
+servers:
+  - url: /
+security:
+  - sanctum: []
+tags:
+  - name: Exercises
+  - name: Workout programs
+  - name: Workout sessions
+  - name: Training goals
+paths:
+  /api/exercises:
+    get:
+      tags: [Exercises]
+      operationId: listExercises
+      parameters:
+        - $ref: '#/components/parameters/ExerciseState'
+      responses:
+        '200':
+          description: Accessible built-in and private exercises
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExerciseCollectionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+    post:
+      tags: [Exercises]
+      operationId: createExercise
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateExerciseRequest'
+      responses:
+        '201':
+          description: Private exercise created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExerciseResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /api/exercises/{exercise}:
+    parameters:
+      - $ref: '#/components/parameters/ExerciseId'
+    patch:
+      tags: [Exercises]
+      operationId: updateExercise
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateExerciseRequest'
+      responses:
+        '200':
+          description: Private exercise updated or archived
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExerciseResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /api/workout-programs:
+    get:
+      tags: [Workout programs]
+      operationId: listWorkoutPrograms
+      parameters:
+        - $ref: '#/components/parameters/Date'
+        - $ref: '#/components/parameters/ProgramState'
+      responses:
+        '200':
+          description: Programs projected for one local date
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkoutProgramCollectionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+    post:
+      tags: [Workout programs]
+      operationId: createWorkoutProgram
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWorkoutProgramRequest'
+      responses:
+        '201':
+          description: Program and recurrence rule created atomically
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkoutProgramResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /api/workout-programs/{program}:
+    parameters:
+      - $ref: '#/components/parameters/ProgramId'
+    patch:
+      tags: [Workout programs]
+      operationId: updateWorkoutProgram
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateWorkoutProgramRequest'
+      responses:
+        '200':
+          description: Program, subtype, lifecycle, and future schedule updated atomically
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkoutProgramResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /api/workout-programs/{program}/exercises:
+    parameters:
+      - $ref: '#/components/parameters/ProgramId'
+    put:
+      tags: [Workout programs]
+      operationId: replaceWorkoutProgramExercises
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplaceProgramExercisesRequest'
+      responses:
+        '200':
+          description: Entire ordered strength prescription replaced
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkoutProgramResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /api/workout-programs/{program}/sessions/{date}:
+    parameters:
+      - $ref: '#/components/parameters/ProgramId'
+      - $ref: '#/components/parameters/PathDate'
+    put:
+      tags: [Workout sessions]
+      operationId: upsertPlannedWorkoutSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlannedWorkoutSessionRequest'
+      responses:
+        '200':
+          description: Planned session completed, skipped, or corrected idempotently
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkoutSessionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /api/workouts:
+    get:
+      tags: [Workout sessions]
+      operationId: listWorkoutSessions
+      parameters:
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+        - $ref: '#/components/parameters/OptionalProgramId'
+      responses:
+        '200':
+          description: Bounded history, summaries, records, and progression
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkoutHistoryResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+    post:
+      tags: [Workout sessions]
+      operationId: createManualWorkoutSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateManualWorkoutSessionRequest'
+      responses:
+        '201':
+          description: Unplanned completed session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkoutSessionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /api/workouts/{workout}:
+    parameters:
+      - $ref: '#/components/parameters/WorkoutId'
+    patch:
+      tags: [Workout sessions]
+      operationId: updateWorkoutSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateWorkoutSessionRequest'
+      responses:
+        '200':
+          description: Existing session corrected atomically
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkoutSessionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+    delete:
+      tags: [Workout sessions]
+      operationId: deleteWorkoutSession
+      responses:
+        '204':
+          description: Session removed; any planned occurrence is restored to pending
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/training/goals:
+    get:
+      tags: [Training goals]
+      operationId: listTrainingGoals
+      parameters:
+        - $ref: '#/components/parameters/Archived'
+      responses:
+        '200':
+          description: Training goals with derived progress
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrainingGoalCollectionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+    post:
+      tags: [Training goals]
+      operationId: createTrainingGoal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTrainingGoalRequest'
+      responses:
+        '201':
+          description: Ordinary Goal and training detail created atomically
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrainingGoalResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /api/training/goals/{goal}:
+    parameters:
+      - $ref: '#/components/parameters/GoalId'
+    patch:
+      tags: [Training goals]
+      operationId: updateTrainingGoal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTrainingGoalRequest'
+      responses:
+        '200':
+          description: Goal target or shared lifecycle updated; kind/scope/start remain immutable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrainingGoalResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+components:
+  securitySchemes:
+    sanctum:
+      type: http
+      scheme: bearer
+      description: Existing Sanctum session or permitted current mobile bearer boundary.
+  parameters:
+    ExerciseId:
+      name: exercise
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+    ProgramId:
+      name: program
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+    WorkoutId:
+      name: workout
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+    GoalId:
+      name: goal
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+    PathDate:
+      name: date
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/Date' }
+    Date:
+      name: date
+      in: query
+      required: false
+      schema: { $ref: '#/components/schemas/Date' }
+    FromDate:
+      name: from
+      in: query
+      required: false
+      schema: { $ref: '#/components/schemas/Date' }
+    ToDate:
+      name: to
+      in: query
+      required: false
+      schema: { $ref: '#/components/schemas/Date' }
+    OptionalProgramId:
+      name: program_id
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1 }
+    ExerciseState:
+      name: state
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [active, archived, all]
+        default: active
+    ProgramState:
+      name: state
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [active, paused, archived]
+        default: active
+    Archived:
+      name: archived
+      in: query
+      required: false
+      schema: { type: boolean, default: false }
+  responses:
+    Unauthenticated:
+      description: Authentication required
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/MessageError' }
+    NotFound:
+      description: Missing or foreign resource
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/MessageError' }
+    ValidationFailed:
+      description: Strict transport or domain validation failed atomically
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ValidationError' }
+  schemas:
+    Date:
+      type: string
+      format: date
+      pattern: '^\d{4}-\d{2}-\d{2}$'
+    Time:
+      type: string
+      pattern: '^(?:[01]\d|2[0-3]):[0-5]\d$'
+    NullableDate:
+      anyOf:
+        - $ref: '#/components/schemas/Date'
+        - type: 'null'
+    NullableTime:
+      anyOf:
+        - $ref: '#/components/schemas/Time'
+        - type: 'null'
+    NullableString:
+      anyOf:
+        - type: string
+        - type: 'null'
+    NullableInteger:
+      anyOf:
+        - type: integer
+        - type: 'null'
+    NullableDecimal:
+      anyOf:
+        - type: string
+          pattern: '^\d{1,10}(?:\.\d{1,3})?$'
+        - type: 'null'
+    MessageError:
+      type: object
+      additionalProperties: false
+      required: [message]
+      properties:
+        message: { type: string }
+    ValidationError:
+      type: object
+      additionalProperties: false
+      required: [message, errors]
+      properties:
+        message: { type: string }
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+    Weekday:
+      type: string
+      enum: [MO, TU, WE, TH, FR, SA, SU]
+    WorkoutType:
+      type: string
+      enum: [strength, cardio, flexibility, sport]
+    Intensity:
+      type: string
+      enum: [light, moderate, vigorous]
+    EnduranceActivity:
+      type: string
+      enum: [running, cycling, walking, swimming, other]
+    RunType:
+      type: string
+      enum: [easy, tempo, intervals, long]
+    Exercise:
+      type: object
+      additionalProperties: false
+      required: [id, system_key, name, display_key, muscle_group, equipment, exercise_type, is_builtin, is_archived, archived_at]
+      properties:
+        id: { type: integer }
+        system_key: { $ref: '#/components/schemas/NullableString' }
+        name: { type: string }
+        display_key: { $ref: '#/components/schemas/NullableString' }
+        muscle_group: { type: string }
+        equipment: { $ref: '#/components/schemas/NullableString' }
+        exercise_type: { type: string, enum: [strength, mobility] }
+        is_builtin: { type: boolean }
+        is_archived: { type: boolean }
+        archived_at: { $ref: '#/components/schemas/NullableString' }
+    ExerciseOptions:
+      type: object
+      additionalProperties: false
+      required: [muscle_groups, equipment, exercise_types]
+      properties:
+        muscle_groups:
+          type: array
+          items: { type: string }
+        equipment:
+          type: array
+          items: { type: string }
+        exercise_types:
+          type: array
+          items: { type: string, enum: [strength, mobility] }
+    ExerciseCollectionResponse:
+      type: object
+      additionalProperties: false
+      required: [data, options]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Exercise' }
+        options: { $ref: '#/components/schemas/ExerciseOptions' }
+    ExerciseResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/Exercise' }
+    CreateExerciseRequest:
+      type: object
+      additionalProperties: false
+      required: [name, muscle_group, exercise_type]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 160 }
+        muscle_group: { type: string, minLength: 1, maxLength: 64 }
+        equipment:
+          anyOf:
+            - type: string
+              minLength: 1
+              maxLength: 64
+            - type: 'null'
+        exercise_type: { type: string, enum: [strength, mobility] }
+    UpdateExerciseRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 160 }
+        muscle_group: { type: string, minLength: 1, maxLength: 64 }
+        equipment:
+          anyOf:
+            - type: string
+              minLength: 1
+              maxLength: 64
+            - type: 'null'
+        exercise_type: { type: string, enum: [strength, mobility] }
+        is_archived: { type: boolean }
+    RecurringRule:
+      type: object
+      additionalProperties: false
+      required: [id, frequency, schedule_type, starts_on, ends_on, timezone, slot_time, weekdays, last_materialized_until]
+      properties:
+        id: { type: integer }
+        frequency: { type: string, enum: [daily, weekly] }
+        schedule_type: { type: string, enum: [daily, weekdays] }
+        starts_on: { $ref: '#/components/schemas/NullableDate' }
+        ends_on: { $ref: '#/components/schemas/NullableDate' }
+        timezone: { type: string }
+        slot_time: { $ref: '#/components/schemas/NullableTime' }
+        weekdays:
+          type: array
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/Weekday' }
+        last_materialized_until: { $ref: '#/components/schemas/NullableDate' }
+    ProgramExerciseWrite:
+      type: object
+      additionalProperties: false
+      required: [exercise_id, sort_order, target_sets, target_reps, starting_weight_kg, increment_kg, successes_required]
+      properties:
+        exercise_id: { type: integer, minimum: 1 }
+        sort_order: { type: integer, minimum: 0, maximum: 49 }
+        target_sets: { type: integer, minimum: 1, maximum: 20 }
+        target_reps: { type: integer, minimum: 1, maximum: 1000 }
+        starting_weight_kg: { type: number, minimum: 0, maximum: 9999.999 }
+        increment_kg: { type: number, exclusiveMinimum: 0, maximum: 1000 }
+        successes_required: { type: integer, minimum: 1, maximum: 20 }
+    ProgramExercise:
+      type: object
+      additionalProperties: false
+      required: [id, exercise, sort_order, target_sets, target_reps, starting_weight_kg, increment_kg, successes_required, progression]
+      properties:
+        id: { type: integer }
+        exercise: { $ref: '#/components/schemas/Exercise' }
+        sort_order: { type: integer }
+        target_sets: { type: integer }
+        target_reps: { type: integer }
+        starting_weight_kg: { type: string }
+        increment_kg: { type: string }
+        successes_required: { type: integer }
+        progression: { $ref: '#/components/schemas/Progression' }
+    Progression:
+      type: object
+      additionalProperties: false
+      required: [next_weight_kg, successful_sessions, successes_required, successes_remaining]
+      properties:
+        next_weight_kg: { type: string }
+        successful_sessions: { type: integer, minimum: 0 }
+        successes_required: { type: integer, minimum: 1 }
+        successes_remaining: { type: integer, minimum: 1 }
+    ProgramEnduranceWrite:
+      type: object
+      additionalProperties: false
+      required: [activity]
+      properties:
+        activity: { $ref: '#/components/schemas/EnduranceActivity' }
+        run_type:
+          anyOf:
+            - $ref: '#/components/schemas/RunType'
+            - type: 'null'
+        target_distance_m:
+          anyOf:
+            - type: integer
+              minimum: 1
+              maximum: 1000000
+            - type: 'null'
+    ProgramTimedWrite:
+      type: object
+      additionalProperties: false
+      required: [activity_name]
+      properties:
+        activity_name:
+          anyOf:
+            - type: string
+              minLength: 1
+              maxLength: 160
+            - type: 'null'
+    ProgramEndurance:
+      type: object
+      additionalProperties: false
+      required: [activity, run_type, target_distance_m]
+      properties:
+        activity: { $ref: '#/components/schemas/EnduranceActivity' }
+        run_type:
+          anyOf:
+            - $ref: '#/components/schemas/RunType'
+            - type: 'null'
+        target_distance_m: { $ref: '#/components/schemas/NullableInteger' }
+    ProgramTimed:
+      type: object
+      additionalProperties: false
+      required: [activity_name]
+      properties:
+        activity_name: { $ref: '#/components/schemas/NullableString' }
+    WorkoutProgram:
+      type: object
+      additionalProperties: false
+      required: [id, name, description, workout_type, intensity, planned_duration_seconds, is_active, is_archived, archived_at, recurring_rule, exercises, endurance, timed, selected_date, occurrence]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        description: { $ref: '#/components/schemas/NullableString' }
+        workout_type: { $ref: '#/components/schemas/WorkoutType' }
+        intensity: { $ref: '#/components/schemas/Intensity' }
+        planned_duration_seconds: { $ref: '#/components/schemas/NullableInteger' }
+        is_active: { type: boolean }
+        is_archived: { type: boolean }
+        archived_at: { $ref: '#/components/schemas/NullableString' }
+        recurring_rule: { $ref: '#/components/schemas/RecurringRule' }
+        exercises:
+          type: array
+          items: { $ref: '#/components/schemas/ProgramExercise' }
+        endurance:
+          anyOf:
+            - $ref: '#/components/schemas/ProgramEndurance'
+            - type: 'null'
+        timed:
+          anyOf:
+            - $ref: '#/components/schemas/ProgramTimed'
+            - type: 'null'
+        selected_date: { $ref: '#/components/schemas/Date' }
+        occurrence:
+          anyOf:
+            - $ref: '#/components/schemas/WorkoutOccurrence'
+            - type: 'null'
+    WorkoutOccurrence:
+      type: object
+      additionalProperties: false
+      required: [id, occurrence_date, effective_date, time, status, workout_session_id]
+      properties:
+        id: { type: integer }
+        occurrence_date: { $ref: '#/components/schemas/Date' }
+        effective_date: { $ref: '#/components/schemas/Date' }
+        time: { $ref: '#/components/schemas/NullableTime' }
+        status: { type: string, enum: [planned, done, skipped, rescheduled] }
+        workout_session_id: { $ref: '#/components/schemas/NullableInteger' }
+    WorkoutProgramResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/WorkoutProgram' }
+    WorkoutProgramOptions:
+      type: object
+      additionalProperties: false
+      required: [workout_types, intensities, activities, run_types, weekdays]
+      properties:
+        workout_types:
+          type: array
+          items: { $ref: '#/components/schemas/WorkoutType' }
+        intensities:
+          type: array
+          items: { $ref: '#/components/schemas/Intensity' }
+        activities:
+          type: array
+          items: { $ref: '#/components/schemas/EnduranceActivity' }
+        run_types:
+          type: array
+          items: { $ref: '#/components/schemas/RunType' }
+        weekdays:
+          type: array
+          items: { $ref: '#/components/schemas/Weekday' }
+    WorkoutProgramCollectionResponse:
+      type: object
+      additionalProperties: false
+      required: [date, today, data, options]
+      properties:
+        date: { $ref: '#/components/schemas/Date' }
+        today: { $ref: '#/components/schemas/Date' }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/WorkoutProgram' }
+        options: { $ref: '#/components/schemas/WorkoutProgramOptions' }
+    CreateWorkoutProgramRequest:
+      type: object
+      additionalProperties: false
+      required: [name, workout_type, intensity, schedule_type]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 160 }
+        description: { $ref: '#/components/schemas/NullableString' }
+        workout_type: { $ref: '#/components/schemas/WorkoutType' }
+        intensity: { $ref: '#/components/schemas/Intensity' }
+        planned_duration_seconds:
+          anyOf:
+            - type: integer
+              minimum: 60
+              maximum: 86400
+            - type: 'null'
+        schedule_type: { type: string, enum: [daily, weekdays] }
+        weekdays:
+          type: array
+          uniqueItems: true
+          maxItems: 7
+          items: { $ref: '#/components/schemas/Weekday' }
+        preferred_time: { $ref: '#/components/schemas/NullableTime' }
+        starts_on: { $ref: '#/components/schemas/NullableDate' }
+        ends_on: { $ref: '#/components/schemas/NullableDate' }
+        endurance:
+          anyOf:
+            - $ref: '#/components/schemas/ProgramEnduranceWrite'
+            - type: 'null'
+        timed:
+          anyOf:
+            - $ref: '#/components/schemas/ProgramTimedWrite'
+            - type: 'null'
+    UpdateWorkoutProgramRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 160 }
+        description: { $ref: '#/components/schemas/NullableString' }
+        intensity: { $ref: '#/components/schemas/Intensity' }
+        planned_duration_seconds:
+          anyOf:
+            - type: integer
+              minimum: 60
+              maximum: 86400
+            - type: 'null'
+        schedule_type: { type: string, enum: [daily, weekdays] }
+        weekdays:
+          type: array
+          uniqueItems: true
+          maxItems: 7
+          items: { $ref: '#/components/schemas/Weekday' }
+        preferred_time: { $ref: '#/components/schemas/NullableTime' }
+        starts_on: { $ref: '#/components/schemas/NullableDate' }
+        ends_on: { $ref: '#/components/schemas/NullableDate' }
+        endurance:
+          anyOf:
+            - $ref: '#/components/schemas/ProgramEnduranceWrite'
+            - type: 'null'
+        timed:
+          anyOf:
+            - $ref: '#/components/schemas/ProgramTimedWrite'
+            - type: 'null'
+        is_active: { type: boolean }
+        is_archived: { type: boolean }
+    ReplaceProgramExercisesRequest:
+      type: object
+      additionalProperties: false
+      required: [exercises]
+      properties:
+        exercises:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items: { $ref: '#/components/schemas/ProgramExerciseWrite' }
+    WorkoutSetWrite:
+      type: object
+      additionalProperties: false
+      required: [set_order, weight_kg, reps]
+      properties:
+        set_order: { type: integer, minimum: 0, maximum: 19 }
+        weight_kg: { type: number, minimum: 0, maximum: 9999.999 }
+        reps: { type: integer, minimum: 1, maximum: 1000 }
+        rest_seconds:
+          anyOf:
+            - type: integer
+              minimum: 0
+              maximum: 86400
+            - type: 'null'
+    SessionExerciseWrite:
+      type: object
+      additionalProperties: false
+      required: [exercise_id, sort_order]
+      properties:
+        exercise_id: { type: integer, minimum: 1 }
+        sort_order: { type: integer, minimum: 0, maximum: 49 }
+        simple_weight_kg:
+          anyOf:
+            - type: number
+              minimum: 0
+              maximum: 9999.999
+            - type: 'null'
+        simple_reps:
+          anyOf:
+            - type: integer
+              minimum: 1
+              maximum: 1000
+            - type: 'null'
+        note:
+          anyOf:
+            - type: string
+              maxLength: 500
+            - type: 'null'
+        sets:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items: { $ref: '#/components/schemas/WorkoutSetWrite' }
+    StrengthSessionWrite:
+      type: object
+      additionalProperties: false
+      required: [mode, exercises]
+      properties:
+        mode: { type: string, enum: [simple, detailed] }
+        exercises:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items: { $ref: '#/components/schemas/SessionExerciseWrite' }
+    EnduranceSessionWrite:
+      type: object
+      additionalProperties: false
+      required: [activity]
+      properties:
+        activity: { $ref: '#/components/schemas/EnduranceActivity' }
+        run_type:
+          anyOf:
+            - $ref: '#/components/schemas/RunType'
+            - type: 'null'
+        distance_m:
+          anyOf:
+            - type: integer
+              minimum: 1
+              maximum: 1000000
+            - type: 'null'
+        average_heart_rate:
+          anyOf:
+            - type: integer
+              minimum: 30
+              maximum: 240
+            - type: 'null'
+        energy_kcal:
+          anyOf:
+            - type: integer
+              minimum: 0
+              maximum: 100000
+            - type: 'null'
+    TimedSessionWrite:
+      type: object
+      additionalProperties: false
+      required: [activity_name]
+      properties:
+        activity_name:
+          anyOf:
+            - type: string
+              minLength: 1
+              maxLength: 160
+            - type: 'null'
+    PlannedWorkoutSessionRequest:
+      type: object
+      additionalProperties: false
+      required: [outcome]
+      properties:
+        outcome: { type: string, enum: [completed, skipped] }
+        started_time: { $ref: '#/components/schemas/NullableTime' }
+        duration_seconds:
+          anyOf:
+            - type: integer
+              minimum: 1
+              maximum: 86400
+            - type: 'null'
+        note:
+          anyOf:
+            - type: string
+              maxLength: 5000
+            - type: 'null'
+        strength:
+          anyOf:
+            - $ref: '#/components/schemas/StrengthSessionWrite'
+            - type: 'null'
+        endurance:
+          anyOf:
+            - $ref: '#/components/schemas/EnduranceSessionWrite'
+            - type: 'null'
+        timed:
+          anyOf:
+            - $ref: '#/components/schemas/TimedSessionWrite'
+            - type: 'null'
+    CreateManualWorkoutSessionRequest:
+      type: object
+      additionalProperties: false
+      required: [name, workout_type, performed_on]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 160 }
+        workout_type: { $ref: '#/components/schemas/WorkoutType' }
+        performed_on: { $ref: '#/components/schemas/Date' }
+        started_time: { $ref: '#/components/schemas/NullableTime' }
+        duration_seconds:
+          anyOf:
+            - type: integer
+              minimum: 1
+              maximum: 86400
+            - type: 'null'
+        note:
+          anyOf:
+            - type: string
+              maxLength: 5000
+            - type: 'null'
+        strength:
+          anyOf:
+            - $ref: '#/components/schemas/StrengthSessionWrite'
+            - type: 'null'
+        endurance:
+          anyOf:
+            - $ref: '#/components/schemas/EnduranceSessionWrite'
+            - type: 'null'
+        timed:
+          anyOf:
+            - $ref: '#/components/schemas/TimedSessionWrite'
+            - type: 'null'
+    UpdateWorkoutSessionRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 160 }
+        performed_on: { $ref: '#/components/schemas/Date' }
+        outcome: { type: string, enum: [completed, skipped] }
+        started_time: { $ref: '#/components/schemas/NullableTime' }
+        duration_seconds:
+          anyOf:
+            - type: integer
+              minimum: 1
+              maximum: 86400
+            - type: 'null'
+        note:
+          anyOf:
+            - type: string
+              maxLength: 5000
+            - type: 'null'
+        strength:
+          anyOf:
+            - $ref: '#/components/schemas/StrengthSessionWrite'
+            - type: 'null'
+        endurance:
+          anyOf:
+            - $ref: '#/components/schemas/EnduranceSessionWrite'
+            - type: 'null'
+        timed:
+          anyOf:
+            - $ref: '#/components/schemas/TimedSessionWrite'
+            - type: 'null'
+    WorkoutSet:
+      type: object
+      additionalProperties: false
+      required: [id, set_order, weight_kg, reps, rest_seconds]
+      properties:
+        id: { type: integer }
+        set_order: { type: integer }
+        weight_kg: { type: string }
+        reps: { type: integer }
+        rest_seconds: { $ref: '#/components/schemas/NullableInteger' }
+    SessionExercise:
+      type: object
+      additionalProperties: false
+      required: [id, exercise, sort_order, simple_weight_kg, simple_reps, note, sets]
+      properties:
+        id: { type: integer }
+        exercise: { $ref: '#/components/schemas/Exercise' }
+        sort_order: { type: integer }
+        simple_weight_kg: { $ref: '#/components/schemas/NullableDecimal' }
+        simple_reps: { $ref: '#/components/schemas/NullableInteger' }
+        note: { $ref: '#/components/schemas/NullableString' }
+        sets:
+          type: array
+          items: { $ref: '#/components/schemas/WorkoutSet' }
+    StrengthSession:
+      type: object
+      additionalProperties: false
+      required: [mode, exercises]
+      properties:
+        mode: { type: string, enum: [simple, detailed] }
+        exercises:
+          type: array
+          items: { $ref: '#/components/schemas/SessionExercise' }
+    EnduranceSession:
+      type: object
+      additionalProperties: false
+      required: [activity, run_type, distance_m, average_heart_rate, energy_kcal, pace_seconds_per_km]
+      properties:
+        activity: { $ref: '#/components/schemas/EnduranceActivity' }
+        run_type:
+          anyOf:
+            - $ref: '#/components/schemas/RunType'
+            - type: 'null'
+        distance_m: { $ref: '#/components/schemas/NullableInteger' }
+        average_heart_rate: { $ref: '#/components/schemas/NullableInteger' }
+        energy_kcal: { $ref: '#/components/schemas/NullableInteger' }
+        pace_seconds_per_km: { $ref: '#/components/schemas/NullableInteger' }
+    TimedSession:
+      type: object
+      additionalProperties: false
+      required: [activity_name]
+      properties:
+        activity_name: { $ref: '#/components/schemas/NullableString' }
+    WorkoutSession:
+      type: object
+      additionalProperties: false
+      required: [id, workout_program_id, planned_occurrence_id, name, workout_type, outcome, performed_on, started_at, started_time, duration_seconds, note, strength, endurance, timed, totals]
+      properties:
+        id: { type: integer }
+        workout_program_id: { $ref: '#/components/schemas/NullableInteger' }
+        planned_occurrence_id: { $ref: '#/components/schemas/NullableInteger' }
+        name: { type: string }
+        workout_type: { $ref: '#/components/schemas/WorkoutType' }
+        outcome: { type: string, enum: [completed, skipped] }
+        performed_on: { $ref: '#/components/schemas/Date' }
+        started_at: { $ref: '#/components/schemas/NullableString' }
+        started_time: { $ref: '#/components/schemas/NullableTime' }
+        duration_seconds: { $ref: '#/components/schemas/NullableInteger' }
+        note: { $ref: '#/components/schemas/NullableString' }
+        strength:
+          anyOf:
+            - $ref: '#/components/schemas/StrengthSession'
+            - type: 'null'
+        endurance:
+          anyOf:
+            - $ref: '#/components/schemas/EnduranceSession'
+            - type: 'null'
+        timed:
+          anyOf:
+            - $ref: '#/components/schemas/TimedSession'
+            - type: 'null'
+        totals: { $ref: '#/components/schemas/WorkoutTotals' }
+    WorkoutTotals:
+      type: object
+      additionalProperties: false
+      required: [duration_seconds, distance_m, strength_volume_kg]
+      properties:
+        duration_seconds: { type: integer, minimum: 0 }
+        distance_m: { type: integer, minimum: 0 }
+        strength_volume_kg: { type: string }
+    WorkoutSessionResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/WorkoutSession' }
+    WorkoutSummary:
+      type: object
+      additionalProperties: false
+      required: [planned, completed, skipped, unplanned, duration_seconds, distance_m, strength_volume_kg]
+      properties:
+        planned: { type: integer, minimum: 0 }
+        completed: { type: integer, minimum: 0 }
+        skipped: { type: integer, minimum: 0 }
+        unplanned: { type: integer, minimum: 0 }
+        duration_seconds: { type: integer, minimum: 0 }
+        distance_m: { type: integer, minimum: 0 }
+        strength_volume_kg: { type: string }
+    ExerciseRecord:
+      type: object
+      additionalProperties: false
+      required: [exercise, max_weight_kg, max_volume_kg, recorded_on]
+      properties:
+        exercise: { $ref: '#/components/schemas/Exercise' }
+        max_weight_kg: { $ref: '#/components/schemas/NullableDecimal' }
+        max_volume_kg: { $ref: '#/components/schemas/NullableDecimal' }
+        recorded_on: { $ref: '#/components/schemas/NullableDate' }
+    PaceRecord:
+      type: object
+      additionalProperties: false
+      required: [activity, best_pace_seconds_per_km, recorded_on]
+      properties:
+        activity: { $ref: '#/components/schemas/EnduranceActivity' }
+        best_pace_seconds_per_km: { $ref: '#/components/schemas/NullableInteger' }
+        recorded_on: { $ref: '#/components/schemas/NullableDate' }
+    WorkoutRecords:
+      type: object
+      additionalProperties: false
+      required: [exercises, paces]
+      properties:
+        exercises:
+          type: array
+          items: { $ref: '#/components/schemas/ExerciseRecord' }
+        paces:
+          type: array
+          items: { $ref: '#/components/schemas/PaceRecord' }
+    WorkoutHistoryResponse:
+      type: object
+      additionalProperties: false
+      required: [from, to, today, data, summary, records]
+      properties:
+        from: { $ref: '#/components/schemas/Date' }
+        to: { $ref: '#/components/schemas/Date' }
+        today: { $ref: '#/components/schemas/Date' }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/WorkoutSession' }
+        summary: { $ref: '#/components/schemas/WorkoutSummary' }
+        records: { $ref: '#/components/schemas/WorkoutRecords' }
+    GoalKind:
+      type: string
+      enum: [strength, distance, race, consistency]
+    TrainingGoalProgress:
+      type: object
+      additionalProperties: false
+      required: [kind, unit, exercise, activity, workout_program_id, starting_value, target_value, current_value, current_on, progress]
+      properties:
+        kind: { $ref: '#/components/schemas/GoalKind' }
+        unit: { type: string, enum: [kg, m, sessions_per_week] }
+        exercise:
+          anyOf:
+            - $ref: '#/components/schemas/Exercise'
+            - type: 'null'
+        activity:
+          anyOf:
+            - $ref: '#/components/schemas/EnduranceActivity'
+            - type: 'null'
+        workout_program_id: { $ref: '#/components/schemas/NullableInteger' }
+        starting_value: { type: string }
+        target_value: { type: string }
+        current_value: { $ref: '#/components/schemas/NullableDecimal' }
+        current_on: { $ref: '#/components/schemas/NullableDate' }
+        progress:
+          anyOf:
+            - type: number
+              minimum: 0
+              maximum: 1
+            - type: 'null'
+    TrainingGoal:
+      type: object
+      additionalProperties: false
+      required: [id, name, description, type, status, target_date, completed_at, is_archived, archived_at, training]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        description: { $ref: '#/components/schemas/NullableString' }
+        type: { type: string, const: training }
+        status: { type: string, enum: [active, completed, abandoned] }
+        target_date: { $ref: '#/components/schemas/NullableDate' }
+        completed_at: { $ref: '#/components/schemas/NullableString' }
+        is_archived: { type: boolean }
+        archived_at: { $ref: '#/components/schemas/NullableString' }
+        training: { $ref: '#/components/schemas/TrainingGoalProgress' }
+    TrainingGoalResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/TrainingGoal' }
+    TrainingGoalCollectionResponse:
+      type: object
+      additionalProperties: false
+      required: [data, kinds]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/TrainingGoal' }
+        kinds:
+          type: array
+          items: { $ref: '#/components/schemas/GoalKind' }
+    CreateTrainingGoalRequest:
+      type: object
+      additionalProperties: false
+      required: [name, kind, target_value]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 160 }
+        description:
+          anyOf:
+            - type: string
+              maxLength: 5000
+            - type: 'null'
+        target_date: { $ref: '#/components/schemas/NullableDate' }
+        kind: { $ref: '#/components/schemas/GoalKind' }
+        exercise_id: { $ref: '#/components/schemas/NullableInteger' }
+        activity:
+          anyOf:
+            - $ref: '#/components/schemas/EnduranceActivity'
+            - type: 'null'
+        workout_program_id: { $ref: '#/components/schemas/NullableInteger' }
+        target_value: { type: number, exclusiveMinimum: 0, maximum: 1000000 }
+    UpdateTrainingGoalRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 160 }
+        description:
+          anyOf:
+            - type: string
+              maxLength: 5000
+            - type: 'null'
+        target_date: { $ref: '#/components/schemas/NullableDate' }
+        target_value: { type: number, exclusiveMinimum: 0, maximum: 1000000 }
+        status: { type: string, enum: [active, completed, abandoned] }
+        is_archived: { type: boolean }

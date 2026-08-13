@@ -282,7 +282,10 @@ function loadSelectedDate(value: string | null): void {
   }
 
   selectedDate.value = value
-  void loadToday(value, dateControl.value)
+  // The date picker already restores focus when its surface closes. Re-focusing
+  // after the request finishes can steal focus from the user's next control and
+  // scroll a newly opened popup out of the viewport on mobile.
+  void loadToday(value)
 }
 
 function retry(): void {
@@ -363,6 +366,15 @@ onMounted(() => loadToday())
       </section>
 
       <ProgressSummary :progress="data.progress" />
+
+      <section class="panel" :aria-label="i18n.t('today.workoutSummary')">
+        <div class="section-heading">
+          <h2>{{ i18n.t('today.workoutSummary') }}</h2>
+          <RouterLink to="/workouts">{{ i18n.t('today.manage') }}</RouterLink>
+        </div>
+        <p class="summary-value">{{ i18n.t('today.workoutPlanned', { count: data.module_summaries.workouts.planned }) }}</p>
+        <p class="muted">{{ i18n.t('workouts.completed') }}: {{ data.module_summaries.workouts.completed }} · {{ i18n.t('workouts.distanceTotal') }}: {{ i18n.number(data.module_summaries.workouts.distance_m / 1000) }} km</p>
+      </section>
 
       <section class="panel">
         <div class="section-heading">

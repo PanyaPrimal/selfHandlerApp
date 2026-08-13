@@ -61,6 +61,12 @@
 - Exercise catalog + ready-made programs + custom splits.
 - Progression: history + PRs + suggestions. Tier 1 rules (+2.5 kg, etc.) plus Tier 2 LLM program builder. The next session date flows into the Planner.
 - **Running** is a specialized subtype: level (self-assessment + adjustment), a target event (a race = date + distance), a training plan at 3 tiers (manual/templates/LLM), metrics (pace/heart rate/type/geo), data sources (manual + Strava/Garmin/Apple Health integrations + LLM).
+- **Feature 015 implementation boundary (2026-08-13):** a `WorkoutProgram` is the fourth typed
+  recurrence owner and a `WorkoutSession` is the fourth mutually exclusive occurrence fact. Divergent
+  strength/endurance/timed fields use explicit class tables; canonical kg/metres/seconds and every
+  aggregate remain deterministic. Training goals reuse the common Goal lifecycle with an immutable
+  creation baseline and derived current value. The shipped catalogue is intentionally generic;
+  licensed content, GPS/wearables, advanced plans, rollup charts, and AI advice wait for their owners.
 
 ### Module 4 — Goals
 - **A shared mechanism with types** (body/training/finance/...). Common fields plus type-specific detail. Several can be active at once. We come back to this module during Workouts/Finance.

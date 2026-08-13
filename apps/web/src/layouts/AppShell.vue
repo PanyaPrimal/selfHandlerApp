@@ -23,6 +23,7 @@ const desktopDestinations: Destination[] = [
   { name: 'today', to: '/', label: 'nav.today' },
   { name: 'routines', to: '/routines', label: 'nav.routines' },
   { name: 'habits', to: '/habits', label: 'nav.habits' },
+  { name: 'workouts', to: '/workouts', label: 'nav.workouts' },
   { name: 'goals', to: '/goals', label: 'nav.goals' },
   { name: 'review', to: '/review', label: 'nav.review' },
   { name: 'planner', to: '/planner', label: 'nav.planner' },

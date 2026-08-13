@@ -11,6 +11,8 @@ use App\Models\RoutineLog;
 use App\Models\SleepLog;
 use App\Models\SleepPlan;
 use App\Models\User;
+use App\Models\WorkoutProgram;
+use App\Models\WorkoutSession;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
@@ -83,6 +85,31 @@ class OccurrenceFactSynchronizer
         ]);
     }
 
+    public function syncFromWorkoutSession(WorkoutSession $session): void
+    {
+        if ($session->workout_program_id === null) {
+            return;
+        }
+
+        $this->workoutOccurrenceQuery($session->workout_program_id, $session->performed_on->format('Y-m-d'))
+            ->update([
+                'status' => $session->outcome === WorkoutSession::OUTCOME_SKIPPED
+                    ? PlannedOccurrence::STATUS_SKIPPED
+                    : PlannedOccurrence::STATUS_DONE,
+                'workout_session_id' => $session->id,
+                'updated_at' => now(),
+            ]);
+    }
+
+    public function clearForWorkoutDate(WorkoutProgram $program, string $date): void
+    {
+        $this->workoutOccurrenceQuery($program->id, $date)->update([
+            'status' => PlannedOccurrence::STATUS_PLANNED,
+            'workout_session_id' => null,
+            'updated_at' => now(),
+        ]);
+    }
+
     /**
      * Rebuild every derived occurrence status for a user from the logs.
      *
@@ -98,6 +125,7 @@ class OccurrenceFactSynchronizer
                     'routine_log_id' => null,
                     'habit_log_id' => null,
                     'sleep_log_id' => null,
+                    'workout_session_id' => null,
                     'updated_at' => now(),
                 ]);
 
@@ -125,6 +153,16 @@ class OccurrenceFactSynchronizer
                 ->chunk(500, function ($logs): void {
                     foreach ($logs as $log) {
                         $this->syncFromSleepLog($log);
+                    }
+                });
+
+            WorkoutSession::query()
+                ->ownedBy($user)
+                ->whereNotNull('workout_program_id')
+                ->orderBy('id')
+                ->chunk(500, function ($sessions): void {
+                    foreach ($sessions as $session) {
+                        $this->syncFromWorkoutSession($session);
                     }
                 });
 
@@ -174,6 +212,20 @@ class OccurrenceFactSynchronizer
             ->whereIn('recurring_rule_id', RecurringRule::query()
                 ->where('owner_type', RecurringRule::OWNER_SLEEP_PLAN)
                 ->where('owner_id', $sleepPlanId)
+                ->select('id'));
+    }
+
+    private function workoutOccurrenceQuery(int $programId, string $date): Builder
+    {
+        return PlannedOccurrence::query()
+            ->where(function ($query) use ($date): void {
+                $query->where(function ($original) use ($date): void {
+                    $original->where('occurrence_date', $date)->whereNull('rescheduled_to');
+                })->orWhere('rescheduled_to', $date);
+            })
+            ->whereIn('recurring_rule_id', RecurringRule::query()
+                ->where('owner_type', RecurringRule::OWNER_WORKOUT_PROGRAM)
+                ->where('owner_id', $programId)
                 ->select('id'));
     }
 }

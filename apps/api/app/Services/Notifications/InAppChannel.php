@@ -46,6 +46,9 @@ class InAppChannel implements NotificationChannel
             InAppNotification::TYPE_SLEEP_REMINDER => $notification->escalation_count > 0
                 ? ['notifications.sleep_escalation_title', 'notifications.sleep_escalation_body']
                 : ['notifications.sleep_title', 'notifications.sleep_body'],
+            InAppNotification::TYPE_WORKOUT_REMINDER => $notification->escalation_count > 0
+                ? ['notifications.workout_escalation_title', 'notifications.workout_escalation_body']
+                : ['notifications.workout_title', 'notifications.workout_body'],
             InAppNotification::TYPE_STORAGE_DUE => [
                 'notifications.storage_title', 'notifications.storage_body',
             ],

@@ -34,7 +34,7 @@ test('quiet hours digest and categories save atomically and survive reload', asy
   expect(response.body.data).toEqual({
     quiet_hours: { enabled: true, starts_at: '22:30', ends_at: '07:15' },
     digest: { enabled: false, time: '09:00' },
-    categories: { routine: true, storage: false, habit: true, sleep: true },
+    categories: { routine: true, storage: false, habit: true, sleep: true, workout: true },
   })
 })
 

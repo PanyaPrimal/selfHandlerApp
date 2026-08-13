@@ -54,6 +54,13 @@ const dynamicKeys = new Set([
   'sleep.empty.active', 'sleep.empty.paused', 'sleep.empty.archived',
   'sleep.paused', 'sleep.resumed', 'sleep.archived', 'sleep.restored',
   'today.parentState.done', 'today.parentState.skipped',
+  'workouts.state.paused', 'workouts.state.archived',
+  'workouts.occurrence.skipped', 'workouts.occurrence.rescheduled',
+  'workouts.activity.cycling', 'workouts.activity.walking', 'workouts.activity.swimming',
+  'workouts.activity.other', 'workouts.runType.tempo', 'workouts.runType.intervals',
+  'workouts.runType.long', 'workouts.goalStatus.completed', 'workouts.goalStatus.abandoned',
+  'workouts.exercise.bench_press', 'workouts.exercise.deadlift',
+  'workouts.exercise.overhead_press', 'workouts.exercise.row', 'workouts.exercise.pull_up',
 ])
 
 function isAllowedText(value) {

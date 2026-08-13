@@ -43,7 +43,7 @@ const accepted = ref<NotificationSettingsData | null>(null)
 const draft = reactive<NotificationSettingsData>({
   quiet_hours: { enabled: true, starts_at: '23:00', ends_at: '08:00' },
   digest: { enabled: true, time: '08:00' },
-  categories: { routine: true, storage: true, habit: true, sleep: true },
+  categories: { routine: true, storage: true, habit: true, sleep: true, workout: true },
 })
 
 const snoozeLabelKeys: Record<NotificationSnoozeMinutes, MessageKey> = {
@@ -88,7 +88,8 @@ function sentAt(value: string): string {
 }
 
 function safeAction(url: string | null): boolean {
-  return Boolean(url && /^\/planner(?:\?date=\d{4}-\d{2}-\d{2})?$/.test(url))
+  return Boolean(url && (/^\/planner(?:\?date=\d{4}-\d{2}-\d{2})?$/.test(url)
+    || /^\/workouts\?date=\d{4}-\d{2}-\d{2}&program=\d+$/.test(url)))
 }
 
 function snoozeLabel(minutes: NotificationSnoozeMinutes): string {
@@ -442,6 +443,12 @@ onMounted(() => {
             name="sleep_notifications"
             :label="t('notifications.sleep')"
             :helper="t('notifications.sleepHelp')"
+          />
+          <UiSwitch
+            v-model="draft.categories.workout"
+            name="workout_notifications"
+            :label="t('notifications.workout')"
+            :helper="t('notifications.workoutHelp')"
           />
         </fieldset>
 

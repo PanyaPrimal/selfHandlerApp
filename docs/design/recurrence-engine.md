@@ -184,6 +184,18 @@ erDiagram
 - Sleep Planner entries expose wake context and reschedule only; facts close all actions. Alarms,
   interval/monthly sleep rules, and wearable schedule imports remain deferred.
 
+**Extended by feature `015-workouts-training-goals` (2026-08-13):**
+
+- `workout_program` is the fourth typed owner. It uses the same daily/exact-weekday schedule and
+  materialization window; the program keeps subtype targets while the rule keeps only schedule data.
+- `planned_occurrences.workout_session_id` is the fourth mutually exclusive fact link. Completed and
+  skipped sessions close an occurrence; correction preserves identity, and deletion clears the link
+  and reopens the occurrence.
+- Workout Planner entries allow skip/reschedule only while pending and deep-link to the effective date
+  and program. Active race goals are a separate read-only Planner source, not fabricated recurrence.
+- Multiple daily slots, interval/monthly programs, imported provider schedules, and advanced training
+  plan generation remain deferred.
+
 **Still open, each waiting for a consumer:**
 
 3. `payload` (JSON on the rule) vs. storing domain data only in the polymorphic owner. Feature 006 needs

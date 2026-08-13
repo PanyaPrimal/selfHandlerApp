@@ -121,7 +121,11 @@ test('weekday routine planning and daily state transitions survive reload', asyn
   await expectMetric(page, 'Completion', '50%')
   await expectNoHorizontalOverflow(page)
 
-  await page.getByRole('link', { name: 'Manage' }).click()
+  await page
+    .getByRole('heading', { name: 'Routines', exact: true })
+    .locator('..')
+    .getByRole('link', { name: 'Manage' })
+    .click()
   await page.getByRole('button', { name: `Pause ${laterName}` }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Routine paused.' })).toBeVisible()
   await page.getByRole('button', { name: `Resume ${laterName}` }).click()

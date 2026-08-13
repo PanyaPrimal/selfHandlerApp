@@ -41,6 +41,7 @@ class PlannedOccurrence extends Model
         'routine_log_id',
         'habit_log_id',
         'sleep_log_id',
+        'workout_session_id',
         'materialized_at',
     ];
 
@@ -63,6 +64,7 @@ class PlannedOccurrence extends Model
                 $occurrence->routine_log_id,
                 $occurrence->habit_log_id,
                 $occurrence->sleep_log_id,
+                $occurrence->workout_session_id,
             ])->filter(fn ($id): bool => $id !== null)->count() > 1) {
                 throw new RuntimeException('An occurrence may link to only one domain fact.');
             }
@@ -74,6 +76,8 @@ class PlannedOccurrence extends Model
                     ->whereKey($occurrence->habit_log_id)->value('user_id'),
                 $occurrence->sleep_log_id !== null => SleepLog::query()
                     ->whereKey($occurrence->sleep_log_id)->value('user_id'),
+                $occurrence->workout_session_id !== null => WorkoutSession::query()
+                    ->whereKey($occurrence->workout_session_id)->value('user_id'),
                 default => $occurrence->user_id,
             };
 
@@ -112,6 +116,11 @@ class PlannedOccurrence extends Model
         return $this->belongsTo(SleepLog::class);
     }
 
+    public function workoutSession(): BelongsTo
+    {
+        return $this->belongsTo(WorkoutSession::class);
+    }
+
     public function sleepDetail(): HasOne
     {
         return $this->hasOne(SleepOccurrenceDetail::class);
@@ -121,6 +130,7 @@ class PlannedOccurrence extends Model
     {
         return $this->routine_log_id !== null
             || $this->habit_log_id !== null
-            || $this->sleep_log_id !== null;
+            || $this->sleep_log_id !== null
+            || $this->workout_session_id !== null;
     }
 }

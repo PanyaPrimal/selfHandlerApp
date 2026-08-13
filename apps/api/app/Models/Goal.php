@@ -19,6 +19,9 @@ class Goal extends Model
     /** A body-composition goal: the same goal, with a typed detail attached. */
     public const TYPE_BODY = 'body';
 
+    /** A workout-derived training goal with a typed detail attached. */
+    public const TYPE_TRAINING = 'training';
+
     protected $attributes = [
         'type' => 'general',
         'status' => 'active',
@@ -50,6 +53,11 @@ class Goal extends Model
     public function bodyDetail(): HasOne
     {
         return $this->hasOne(BodyGoalDetail::class);
+    }
+
+    public function trainingDetail(): HasOne
+    {
+        return $this->hasOne(TrainingGoalDetail::class);
     }
 
     public function milestones(): HasMany

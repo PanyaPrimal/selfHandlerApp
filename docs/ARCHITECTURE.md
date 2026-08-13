@@ -33,6 +33,14 @@ and own ordered `RoutineActivity` definitions and per-day facts. One `RoutineDay
 selects morning/evening templates for Today, Planner, validation, and notification synchronization,
 while parent `RoutineLog` rows remain derived compatibility facts.
 
+Workouts are the fourth recurrence owner. `WorkoutProgram` owns one rule plus typed program details;
+`WorkoutSession` is the correctable fact root with mutually exclusive strength, endurance, or timed
+details and an optional `PlannedOccurrence` link. Exercise prescriptions, sets, records, progression,
+summaries, and training-goal current values stay relational and are derived in bounded module queries.
+Planner and Notifications are adapters over the same occurrence; Today and Review transport the same
+Workout summary rather than persisting copies. Training-specific detail extends the existing `Goal`
+lifecycle instead of creating a second goal aggregate.
+
 ### `apps/web`
 
 Vue 3 SPA for desktop and mobile web usage.

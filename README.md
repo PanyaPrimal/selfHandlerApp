@@ -36,6 +36,13 @@ morning/evening choices. Today, Review, Planner, and notifications consume the s
 occurrences and module summaries; alarms, wearable imports, offline writes, and advanced sleep
 analytics remain deferred.
 
+Feature 015 adds the Workouts workspace: a shared/private exercise catalogue, recurring strength,
+cardio, flexibility, and sport programs, planned and manual facts, deterministic progression and
+records, and typed training goals. Workout occurrences and race deadlines appear in Planner; timed
+workouts reuse notification quiet hours and delivery; Today and Review present one module-owned day
+summary. Canonical facts remain kilograms/metres/seconds, and wearable imports, GPS/GPX, licensed
+program content, advanced periodisation, and AI coaching remain deferred.
+
 The Android package in `apps/mobile` wraps the same production Vue bundle with Capacitor 8. Existing
 accounts use a separate 30-day, `mobile`-scoped Sanctum token stored by a custom Android Keystore
 AES-GCM plugin; browser cookie/CSRF auth is unchanged. Android local notifications are an opt-in

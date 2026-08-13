@@ -67,6 +67,12 @@
 - Don't multiply `weight_in_kg` + `weight_in_g` — one column in the base unit + conversion at display time.
 - Units/locale live in the profile/settings.
 
+Feature 015 resolves the Workout-specific representation: strength loads use `DECIMAL(8,3)` kilograms
+because plates, prescriptions, records, and progression all compare fractional kg directly; endurance
+distance uses integer metres and duration uses integer seconds. Display conversion is never persisted.
+Workout polymorphism is an explicit `workout_sessions` root plus one strength/endurance/timed detail,
+with relational exercises and sets rather than JSON.
+
 ## 7. Aggregates — "the module computes the totals" — strategy (important for performance)
 
 > Balances/remaining amounts/streaks/actual budget figures are derived. So that the "Today" dashboard and Analytics don't grind to a halt:

@@ -35,7 +35,7 @@ class PlannerDayTest extends PlannerTestCase
             ->assertJsonPath('entries.3.title', 'Read');
 
         $this->assertSame(
-            ['routine', 'sleep', 'habit', 'storage', 'time_block'],
+            ['routine', 'sleep', 'habit', 'workout', 'training_goal', 'storage', 'time_block'],
             $response->json('sources'),
         );
     }
@@ -157,7 +157,7 @@ class PlannerDayTest extends PlannerTestCase
 
         // Roughly one query per source plus the shared lookups. The point is that
         // it does not grow with the 45 entries on the day.
-        $this->assertLessThanOrEqual(18, $queries);
+        $this->assertLessThanOrEqual(20, $queries);
     }
 
     public function test_planner_stores_nothing_belonging_to_another_module(): void

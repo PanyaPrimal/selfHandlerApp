@@ -232,7 +232,13 @@ Back to the plan: [Vision & Plan](vision.md)
 
 ## Module 3 — Workouts
 
-> In design (2026-06-07).
+> The deterministic Level-1 slice is implemented by feature `015-workouts-training-goals`
+> (2026-08-13): a small immutable built-in plus private exercise catalogue, recurring custom programs,
+> planned/manual correctable facts, strength/endurance/timed class-table details, records and linear
+> progression, and strength/distance/race/consistency training goals. Planner, Notifications, Today,
+> Review, EN/RU/UK web, and the shared Android bundle consume the same owner-scoped sources. Licensed
+> ready-made programs, runner-level inference, wearables/GPS/GPX, advanced periodisation, charts, and
+> LLM coaching remain deferred.
 
 ### Workout types (polymorphism by type)
 - **Strength** (iron) — exercises, sets, weight, reps

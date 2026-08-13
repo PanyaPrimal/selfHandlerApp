@@ -190,3 +190,14 @@ Extended by feature 014:
 3. Pausing or archiving a SleepPlan removes its unfactored future occurrences and cancels delivery;
    historical planned wake snapshots and sleep facts remain untouched.
 4. Push, stopped-app wakeup, alarms, and provider-specific bedtime delivery remain deferred.
+
+Extended by feature 015:
+
+1. A timed pending workout occurrence produces `workout_reminder` in a backwards-compatible enabled
+   `workout` category; older settings rows receive the default at read time.
+2. The program occurrence remains the source identity, so synchronisation, escalation, snooze, quiet
+   hours, locale rendering, Android presentation, and fact/lifecycle closure reuse the shared path.
+3. Untimed workouts are not assigned an invented time and race goal deadlines remain Planner events,
+   not reminders, in this increment.
+4. Provider push, stopped-app wakeup, wearable-triggered delivery, and coaching notifications remain
+   deferred.

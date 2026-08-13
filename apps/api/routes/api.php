@@ -3,6 +3,7 @@
 use App\Http\Controllers\BodyGoalController;
 use App\Http\Controllers\BodyMeasurementController;
 use App\Http\Controllers\DailyReviewController;
+use App\Http\Controllers\ExerciseController;
 use App\Http\Controllers\GoalController;
 use App\Http\Controllers\HabitController;
 use App\Http\Controllers\HabitLimitController;
@@ -28,6 +29,9 @@ use App\Http\Controllers\SleepPlanController;
 use App\Http\Controllers\SleepStatisticsController;
 use App\Http\Controllers\TimeBlockController;
 use App\Http\Controllers\TodayController;
+use App\Http\Controllers\TrainingGoalController;
+use App\Http\Controllers\WorkoutProgramController;
+use App\Http\Controllers\WorkoutSessionController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', HealthController::class);
@@ -53,6 +57,25 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/notifications/{notification}/snooze', [NotificationController::class, 'snooze']);
 
     Route::get('/today', TodayController::class);
+
+    Route::get('/exercises', [ExerciseController::class, 'index']);
+    Route::post('/exercises', [ExerciseController::class, 'store']);
+    Route::patch('/exercises/{exercise}', [ExerciseController::class, 'update']);
+
+    Route::get('/workout-programs', [WorkoutProgramController::class, 'index']);
+    Route::post('/workout-programs', [WorkoutProgramController::class, 'store']);
+    Route::patch('/workout-programs/{program}', [WorkoutProgramController::class, 'update']);
+    Route::put('/workout-programs/{program}/exercises', [WorkoutProgramController::class, 'replaceExercises']);
+    Route::put('/workout-programs/{program}/sessions/{date}', [WorkoutSessionController::class, 'upsertPlanned']);
+
+    Route::get('/workouts', [WorkoutSessionController::class, 'index']);
+    Route::post('/workouts', [WorkoutSessionController::class, 'store']);
+    Route::patch('/workouts/{workout}', [WorkoutSessionController::class, 'update']);
+    Route::delete('/workouts/{workout}', [WorkoutSessionController::class, 'destroy']);
+
+    Route::get('/training/goals', [TrainingGoalController::class, 'index']);
+    Route::post('/training/goals', [TrainingGoalController::class, 'store']);
+    Route::patch('/training/goals/{goal}', [TrainingGoalController::class, 'update']);
 
     Route::get('/habits', [HabitController::class, 'index']);
     Route::post('/habits', [HabitController::class, 'store']);

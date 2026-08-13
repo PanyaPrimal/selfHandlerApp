@@ -306,6 +306,11 @@ watch(
               {{ template.name }} · {{ i18n.t('today.activitiesResolved', { resolved: template.done + template.skipped, total: template.scheduled }) }}
             </p>
           </section>
+          <section class="metric" :aria-label="i18n.t('review.workoutSummary')">
+            <span>{{ i18n.t('review.workoutSummary') }}</span>
+            <strong>{{ i18n.t('today.workoutPlanned', { count: moduleSummaries.workouts.planned }) }}</strong>
+            <p class="muted">{{ i18n.t('workouts.completed') }}: {{ moduleSummaries.workouts.completed }} · {{ i18n.number(moduleSummaries.workouts.distance_m / 1000) }} km</p>
+          </section>
         </div>
 
         <form

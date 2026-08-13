@@ -432,6 +432,265 @@ export interface RoutineActivityLogPayload {
 export interface ModuleDaySummaries {
   sleep: SleepStatistics & { selected_night: SleepNight | null }
   routine_activities: RoutineActivitySummary
+  workouts: WorkoutSummary
+}
+
+/* ------------------------------------------------------------------ */
+/* Workouts and training goals (feature 015)                           */
+/* ------------------------------------------------------------------ */
+
+export type WorkoutType = 'strength' | 'cardio' | 'flexibility' | 'sport'
+export type WorkoutIntensity = 'light' | 'moderate' | 'vigorous'
+export type WorkoutState = 'active' | 'paused' | 'archived'
+export type TrainingGoalKind = 'strength' | 'distance' | 'race' | 'consistency'
+
+export interface Exercise {
+  id: number
+  system_key: string | null
+  name: string
+  display_key: string | null
+  muscle_group: string
+  equipment: string | null
+  exercise_type: 'strength' | 'mobility'
+  is_builtin: boolean
+  is_archived: boolean
+  archived_at: string | null
+}
+
+export interface ExerciseInput {
+  name: string
+  muscle_group: string
+  equipment?: string | null
+  exercise_type: Exercise['exercise_type']
+}
+
+export interface ExerciseCatalogueResponse {
+  data: Exercise[]
+  options: {
+    muscle_groups: string[]
+    equipment: string[]
+    exercise_types: Exercise['exercise_type'][]
+  }
+}
+
+export interface WorkoutProgression {
+  next_weight_kg: string
+  successful_sessions: number
+  successes_required: number
+  successes_remaining: number
+}
+
+export interface WorkoutProgramExercise {
+  id: number
+  exercise: Exercise
+  sort_order: number
+  target_sets: number
+  target_reps: number
+  starting_weight_kg: string
+  increment_kg: string
+  successes_required: number
+  progression: WorkoutProgression
+}
+
+export interface WorkoutOccurrence {
+  id: number
+  occurrence_date: string
+  effective_date: string
+  time: string | null
+  status: 'planned' | 'done' | 'skipped' | 'rescheduled'
+  workout_session_id: number | null
+}
+
+export interface WorkoutProgram {
+  id: number
+  name: string
+  description: string | null
+  workout_type: WorkoutType
+  intensity: WorkoutIntensity
+  planned_duration_seconds: number | null
+  is_active: boolean
+  is_archived: boolean
+  archived_at: string | null
+  recurring_rule: {
+    id: number
+    frequency: 'daily' | 'weekly'
+    schedule_type: 'daily' | 'weekdays'
+    starts_on: string | null
+    ends_on: string | null
+    timezone: string
+    slot_time: string | null
+    weekdays: Weekday[]
+    last_materialized_until: string | null
+  }
+  exercises: WorkoutProgramExercise[]
+  endurance: { activity: string, run_type: string | null, target_distance_m: number | null } | null
+  timed: { activity_name: string | null } | null
+  selected_date: string
+  occurrence: WorkoutOccurrence | null
+}
+
+export interface WorkoutProgramsResponse {
+  date: string
+  today: string
+  data: WorkoutProgram[]
+  options: {
+    workout_types: WorkoutType[]
+    intensities: WorkoutIntensity[]
+    activities: string[]
+    run_types: string[]
+    weekdays: Weekday[]
+  }
+}
+
+export interface WorkoutProgramInput {
+  name: string
+  description?: string | null
+  workout_type: WorkoutType
+  intensity: WorkoutIntensity
+  planned_duration_seconds?: number | null
+  schedule_type: 'daily' | 'weekdays'
+  weekdays?: Weekday[]
+  preferred_time?: string | null
+  starts_on?: string | null
+  ends_on?: string | null
+  endurance?: { activity: string, run_type?: string | null, target_distance_m?: number | null } | null
+  timed?: { activity_name?: string | null } | null
+}
+
+export interface WorkoutSetInput {
+  set_order: number
+  weight_kg: number
+  reps: number
+  rest_seconds?: number | null
+}
+
+export interface WorkoutStrengthInput {
+  mode: 'simple' | 'detailed'
+  exercises: Array<{
+    exercise_id: number
+    sort_order: number
+    simple_weight_kg?: number | null
+    simple_reps?: number | null
+    note?: string | null
+    sets: WorkoutSetInput[]
+  }>
+}
+
+export interface WorkoutSessionInput {
+  name?: string
+  workout_type?: WorkoutType
+  performed_on?: string
+  outcome?: 'completed' | 'skipped'
+  started_time?: string | null
+  duration_seconds?: number | null
+  note?: string | null
+  strength?: WorkoutStrengthInput | null
+  endurance?: {
+    activity: string
+    run_type?: string | null
+    distance_m?: number | null
+    average_heart_rate?: number | null
+    energy_kcal?: number | null
+  } | null
+  timed?: { activity_name?: string | null } | null
+}
+
+export interface WorkoutSession {
+  id: number
+  workout_program_id: number | null
+  planned_occurrence_id: number | null
+  name: string
+  workout_type: WorkoutType
+  outcome: 'completed' | 'skipped'
+  performed_on: string
+  started_at: string | null
+  started_time: string | null
+  duration_seconds: number | null
+  note: string | null
+  strength: {
+    mode: 'simple' | 'detailed'
+    exercises: Array<{
+      id: number
+      exercise: Exercise
+      sort_order: number
+      simple_weight_kg: string | null
+      simple_reps: number | null
+      note: string | null
+      sets: Array<{ id: number, set_order: number, weight_kg: string, reps: number, rest_seconds: number | null }>
+    }>
+  } | null
+  endurance: {
+    activity: string
+    run_type: string | null
+    distance_m: number | null
+    average_heart_rate: number | null
+    energy_kcal: number | null
+    pace_seconds_per_km: number | null
+  } | null
+  timed: { activity_name: string | null } | null
+  totals: { duration_seconds: number, distance_m: number, strength_volume_kg: string }
+}
+
+export interface WorkoutSummary {
+  planned: number
+  completed: number
+  skipped: number
+  unplanned: number
+  duration_seconds: number
+  distance_m: number
+  strength_volume_kg: string
+}
+
+export interface WorkoutHistoryResponse {
+  from: string
+  to: string
+  today: string
+  data: WorkoutSession[]
+  summary: WorkoutSummary
+  records: {
+    exercises: Array<{ exercise: Exercise, max_weight_kg: string | null, max_volume_kg: string | null, recorded_on: string | null }>
+    paces: Array<{ activity: string, best_pace_seconds_per_km: number | null, recorded_on: string | null }>
+  }
+}
+
+export interface TrainingGoal {
+  id: number
+  name: string
+  description: string | null
+  type: 'training'
+  status: 'active' | 'completed' | 'abandoned'
+  target_date: string | null
+  completed_at: string | null
+  is_archived: boolean
+  archived_at: string | null
+  training: {
+    kind: TrainingGoalKind
+    unit: 'kg' | 'm' | 'sessions_per_week'
+    exercise: Exercise | null
+    activity: string | null
+    workout_program_id: number | null
+    starting_value: string
+    target_value: string
+    current_value: string | null
+    current_on: string | null
+    progress: number | null
+  }
+}
+
+export interface TrainingGoalsResponse {
+  data: TrainingGoal[]
+  kinds: TrainingGoalKind[]
+}
+
+export interface TrainingGoalInput {
+  name: string
+  description?: string | null
+  target_date?: string | null
+  kind: TrainingGoalKind
+  exercise_id?: number | null
+  activity?: string | null
+  workout_program_id?: number | null
+  target_value: number
 }
 
 /* ------------------------------------------------------------------ */
@@ -794,7 +1053,7 @@ export interface StorageProjectPayload {
 /* ------------------------------------------------------------------ */
 
 /** Which module a day entry came from. Planner owns only `time_block`. */
-export type PlannerSource = 'routine' | 'sleep' | 'habit' | 'storage' | 'time_block'
+export type PlannerSource = 'routine' | 'sleep' | 'habit' | 'workout' | 'training_goal' | 'storage' | 'time_block'
 
 /** What the user may do with an entry from inside the planner. */
 export type PlannerAction = 'skip' | 'reschedule' | 'move' | 'edit' | 'delete'
@@ -847,8 +1106,8 @@ export interface TimeBlockPayload {
 /* In-app notifications                                                */
 /* ------------------------------------------------------------------ */
 
-export type NotificationType = 'routine_reminder' | 'habit_reminder' | 'storage_due' | 'daily_digest'
-export type NotificationCategory = 'routine' | 'habit' | 'storage' | 'digest'
+export type NotificationType = 'routine_reminder' | 'habit_reminder' | 'sleep_reminder' | 'workout_reminder' | 'storage_due' | 'daily_digest'
+export type NotificationCategory = 'routine' | 'habit' | 'sleep' | 'workout' | 'storage' | 'digest'
 export type NotificationStatus = 'sent' | 'read'
 export type NotificationView = 'all' | 'unread'
 export type NotificationSnoozeMinutes = 15 | 60 | 240 | 1440
@@ -890,13 +1149,14 @@ export interface NotificationSettingsData {
     storage: boolean
     habit: boolean
     sleep: boolean
+    workout: boolean
   }
 }
 
 export interface NotificationSettingsResponse {
   data: NotificationSettingsData
   options: {
-    categories: Array<'routine' | 'storage' | 'habit' | 'sleep'>
+    categories: Array<'routine' | 'storage' | 'habit' | 'sleep' | 'workout'>
     channels: ['in_app']
     snooze_minutes: NotificationSnoozeMinutes[]
   }

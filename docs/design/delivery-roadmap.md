@@ -332,6 +332,11 @@ with the module rather than speculating about every future goal type in advance.
 
 **Explicitly defer:** wearable imports, GPX, advanced training-plan generation, and LLM coaching.
 
+Delivered as the fourth recurrence/fact owner with a relational exercise catalogue, typed recurring
+programs and correctable sessions, bounded progression/records, and training details on the existing
+Goal lifecycle. Planner exposes workout occurrences and race dates; notifications, Today, Review, the
+responsive EN/RU/UK web client, and the Capacitor bundle consume the same module-owned truth.
+
 ### 016 — Nutrition, Meals, Hydration, and Targets
 
 **User outcome:** the user logs meals and beverages and sees calorie, macro, hydration, and food-quality

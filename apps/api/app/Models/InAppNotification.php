@@ -29,6 +29,8 @@ class InAppNotification extends Model
 
     public const TYPE_SLEEP_REMINDER = 'sleep_reminder';
 
+    public const TYPE_WORKOUT_REMINDER = 'workout_reminder';
+
     public const TYPE_STORAGE_DUE = 'storage_due';
 
     public const TYPE_DAILY_DIGEST = 'daily_digest';
@@ -37,6 +39,7 @@ class InAppNotification extends Model
         self::TYPE_ROUTINE_REMINDER,
         self::TYPE_HABIT_REMINDER,
         self::TYPE_SLEEP_REMINDER,
+        self::TYPE_WORKOUT_REMINDER,
         self::TYPE_STORAGE_DUE,
         self::TYPE_DAILY_DIGEST,
     ];
@@ -49,12 +52,15 @@ class InAppNotification extends Model
 
     public const CATEGORY_SLEEP = 'sleep';
 
+    public const CATEGORY_WORKOUT = 'workout';
+
     public const CATEGORY_DIGEST = 'digest';
 
     public const CATEGORIES = [
         self::CATEGORY_ROUTINE,
         self::CATEGORY_HABIT,
         self::CATEGORY_SLEEP,
+        self::CATEGORY_WORKOUT,
         self::CATEGORY_STORAGE,
         self::CATEGORY_DIGEST,
     ];

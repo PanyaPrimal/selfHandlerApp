@@ -10,6 +10,7 @@ use App\Models\RecurringRule;
 use App\Models\Routine;
 use App\Models\SleepPlan;
 use App\Models\User;
+use App\Models\WorkoutProgram;
 use App\Services\RoutineDayProjectionService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
@@ -42,6 +43,8 @@ class NotificationSourceSynchronizer
         $habits = $this->activeHabits($user);
         $sleepPlans = SleepPlan::query()->ownedBy($user)
             ->where('is_active', true)->where('is_archived', false)->get()->keyBy('id');
+        $workoutPrograms = WorkoutProgram::query()->ownedBy($user)
+            ->where('is_active', true)->where('is_archived', false)->get()->keyBy('id');
         $occurrences = PlannedOccurrence::query()
             ->ownedBy($user)
             ->with('recurringRule')
@@ -55,6 +58,7 @@ class NotificationSourceSynchronizer
             $routines,
             $habits,
             $sleepPlans,
+            $workoutPrograms,
             $today,
         );
 
@@ -145,6 +149,33 @@ class NotificationSourceSynchronizer
             }
         }
 
+        if ($settings->categoryEnabled(InAppNotification::CATEGORY_WORKOUT)) {
+            foreach ($occurrences as $occurrence) {
+                $program = $this->workoutProgramForOccurrence($occurrence, $workoutPrograms);
+                $effectiveDate = $this->effectiveDate($occurrence);
+                if (! $program
+                    || $occurrence->status !== PlannedOccurrence::STATUS_PLANNED
+                    || blank($occurrence->occurrence_time)
+                    || $effectiveDate !== $today) {
+                    continue;
+                }
+                $scheduledAt = CarbonImmutable::parse(
+                    "{$effectiveDate} ".substr((string) $occurrence->occurrence_time, 0, 8),
+                    $timezone,
+                )->utc();
+                $written += $this->upsertInitial($user, [
+                    'source_type' => InAppNotification::SOURCE_PLANNED_OCCURRENCE,
+                    'source_id' => $occurrence->id,
+                    'type' => InAppNotification::TYPE_WORKOUT_REMINDER,
+                    'category' => InAppNotification::CATEGORY_WORKOUT,
+                    'content' => ['title' => $program->name, 'date' => $effectiveDate],
+                    'action_url' => "/workouts?date={$effectiveDate}&program={$program->id}",
+                    'scheduled_at' => $scheduledAt,
+                    'max_escalations' => (int) config('selfhandler.notifications.workout.max_escalations', 2),
+                ]);
+            }
+        }
+
         if ($settings->categoryEnabled(InAppNotification::CATEGORY_STORAGE)) {
             $digestAt = CarbonImmutable::parse("{$today} {$settings->digestTime()}", $timezone)->utc();
 
@@ -203,6 +234,12 @@ class NotificationSourceSynchronizer
                     ->where('is_archived', false)
                     ->exists(),
                 RecurringRule::OWNER_SLEEP_PLAN => SleepPlan::query()
+                    ->ownedBy($user)
+                    ->whereKey($occurrence->recurringRule->owner_id)
+                    ->where('is_active', true)
+                    ->where('is_archived', false)
+                    ->exists(),
+                RecurringRule::OWNER_WORKOUT_PROGRAM => WorkoutProgram::query()
                     ->ownedBy($user)
                     ->whereKey($occurrence->recurringRule->owner_id)
                     ->where('is_active', true)
@@ -287,6 +324,15 @@ class NotificationSourceSynchronizer
             : null;
     }
 
+    public function workoutProgramForOccurrence(PlannedOccurrence $occurrence, Collection $programs): ?WorkoutProgram
+    {
+        $rule = $occurrence->recurringRule;
+
+        return $rule?->owner_type === RecurringRule::OWNER_WORKOUT_PROGRAM
+            ? $programs->get($rule->owner_id)
+            : null;
+    }
+
     public function effectiveDate(PlannedOccurrence $occurrence): string
     {
         return ($occurrence->rescheduled_to ?? $occurrence->occurrence_date)->format('Y-m-d');
@@ -355,6 +401,7 @@ class NotificationSourceSynchronizer
      * @param  Collection<int, Routine>  $routines
      * @param  Collection<int, Habit>  $habits
      * @param  Collection<int, SleepPlan>  $sleepPlans
+     * @param  Collection<int, WorkoutProgram>  $workoutPrograms
      */
     private function closeInvalidExisting(
         User $user,
@@ -363,6 +410,7 @@ class NotificationSourceSynchronizer
         Collection $routines,
         Collection $habits,
         Collection $sleepPlans,
+        Collection $workoutPrograms,
         string $today,
     ): void {
         $settings = $user->ensureNotificationSettings();
@@ -382,6 +430,7 @@ class NotificationSourceSynchronizer
                 $routines,
                 $habits,
                 $sleepPlans,
+                $workoutPrograms,
                 $today,
             ): void {
                 $terminal = null;
@@ -397,7 +446,8 @@ class NotificationSourceSynchronizer
                         || $occurrence->status !== PlannedOccurrence::STATUS_PLANNED
                         || (! $this->routineForOccurrence($occurrence, $routines)
                             && ! $this->habitForOccurrence($occurrence, $habits)
-                            && ! $this->sleepPlanForOccurrence($occurrence, $sleepPlans))
+                            && ! $this->sleepPlanForOccurrence($occurrence, $sleepPlans)
+                            && ! $this->workoutProgramForOccurrence($occurrence, $workoutPrograms))
                         || blank($occurrence->occurrence_time)
                         || $this->effectiveDate($occurrence) !== $today) {
                         $terminal = InAppNotification::STATUS_CANCELLED;

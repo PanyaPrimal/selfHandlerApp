@@ -49,6 +49,8 @@ const sourceLabels = computed<Record<PlannerSource, string>>(() => ({
   routine: i18n.t('planner.routine'),
   sleep: i18n.t('planner.sleep'),
   habit: i18n.t('planner.habit'),
+  workout: i18n.t('planner.workout'),
+  training_goal: i18n.t('planner.trainingGoal'),
   storage: i18n.t('planner.task'),
   time_block: i18n.t('planner.block'),
 }))
@@ -84,7 +86,7 @@ function metaText(entry: PlannerEntry): string | null {
 
   // A day that arrived here from another date should say so, or it looks like
   // the schedule itself changed.
-  if ((entry.source === 'routine' || entry.source === 'habit') && typeof entry.meta.occurrence_date === 'string') {
+  if ((entry.source === 'routine' || entry.source === 'habit' || entry.source === 'workout') && typeof entry.meta.occurrence_date === 'string') {
     return entry.meta.occurrence_date === date.value ? null : i18n.t('planner.movedFrom', { date: entry.meta.occurrence_date })
   }
 
@@ -144,7 +146,7 @@ async function confirmMove(entry: PlannerEntry): Promise<void> {
   error.value = null
 
   try {
-    if (entry.source === 'routine' || entry.source === 'habit') {
+    if (entry.source === 'routine' || entry.source === 'habit' || entry.source === 'workout') {
       await reschedulePlannerOccurrence(entry.source_id, moveTarget.value)
     } else {
       // A task's date belongs to Storage, so the move goes through Storage.
@@ -323,6 +325,11 @@ void load()
             </div>
 
             <div v-if="entry.actions.length > 0 || entry.source === 'habit'" class="planner-entry__actions">
+              <a
+                v-if="entry.source === 'workout' && typeof entry.meta.action_url === 'string'"
+                class="secondary"
+                :href="entry.meta.action_url"
+              >{{ i18n.t('planner.openWorkout') }}</a>
               <button
                 v-if="entry.source === 'habit'"
                 type="button"
@@ -352,7 +359,7 @@ void load()
                 {{ i18n.t('planner.move') }}
               </button>
               <button
-                v-if="(entry.source === 'routine' || entry.source === 'habit' || entry.source === 'sleep') && entry.meta.rescheduled_to"
+                v-if="(entry.source === 'routine' || entry.source === 'habit' || entry.source === 'sleep' || entry.source === 'workout') && entry.meta.rescheduled_to"
                 type="button"
                 class="secondary"
                 :aria-label="i18n.t('planner.putBackNamed', { name: entry.title })"

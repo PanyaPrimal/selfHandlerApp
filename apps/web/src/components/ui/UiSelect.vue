@@ -77,12 +77,28 @@ const activeOptionId = computed(() =>
 )
 
 function scrollActiveIntoView(): void {
-  void nextTick(() => {
-    if (activeIndex.value < 0) {
-      return
-    }
+  surface.whenPositioned(() => {
+    void nextTick(() => {
+      if (activeIndex.value < 0) {
+        return
+      }
 
-    document.getElementById(optionId(activeIndex.value))?.scrollIntoView({ block: 'nearest' })
+      const option = document.getElementById(optionId(activeIndex.value))
+      const container = surface.surfaceRef.value
+
+      if (!option || !container) {
+        return
+      }
+
+      const optionTop = option.offsetTop
+      const optionBottom = optionTop + option.offsetHeight
+
+      if (optionTop < container.scrollTop) {
+        container.scrollTop = optionTop
+      } else if (optionBottom > container.scrollTop + container.clientHeight) {
+        container.scrollTop = optionBottom - container.clientHeight
+      }
+    })
   })
 }
 

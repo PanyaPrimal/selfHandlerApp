@@ -52,7 +52,7 @@ class RecurrenceMaterializer
                 ->whereBetween('occurrence_date', [$from, $to])
                 ->get([
                     'id', 'occurrence_date', 'rescheduled_to', 'routine_log_id', 'habit_log_id',
-                    'sleep_log_id',
+                    'sleep_log_id', 'workout_session_id',
                 ]);
 
             $known = $existing->pluck('occurrence_date')
@@ -75,6 +75,7 @@ class RecurrenceMaterializer
                         'routine_log_id' => null,
                         'habit_log_id' => null,
                         'sleep_log_id' => null,
+                        'workout_session_id' => null,
                         'materialized_at' => $now,
                         'created_at' => $now,
                         'updated_at' => $now,
@@ -91,6 +92,7 @@ class RecurrenceMaterializer
                     ->whereNull('routine_log_id')
                     ->whereNull('habit_log_id')
                     ->whereNull('sleep_log_id')
+                    ->whereNull('workout_session_id')
                     ->update([
                         'occurrence_time' => $rule->slot_time,
                         'materialized_at' => now(),
@@ -173,6 +175,7 @@ class RecurrenceMaterializer
                 RecurringRule::OWNER_ROUTINE => 'routines',
                 RecurringRule::OWNER_HABIT => 'habits',
                 RecurringRule::OWNER_SLEEP_PLAN => 'sleep_plans',
+                RecurringRule::OWNER_WORKOUT_PROGRAM => 'workout_programs',
                 default => null,
             };
 

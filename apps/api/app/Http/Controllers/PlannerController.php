@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\PlannedOccurrence;
 use App\Models\RecurringRule;
 use App\Models\Routine;
+use App\Models\WorkoutProgram;
 use App\Services\Planner\DayAssembler;
 use App\Services\Planner\SourceRegistry;
 use App\Services\RoutineActivityLogService;
+use App\Services\WorkoutSessionService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -27,6 +29,7 @@ class PlannerController extends Controller
         private readonly SourceRegistry $sources,
         private readonly RoutineLogController $logs,
         private readonly RoutineActivityLogService $activityLogs,
+        private readonly WorkoutSessionService $workoutSessions,
     ) {}
 
     public function day(Request $request): JsonResponse
@@ -85,6 +88,16 @@ class PlannerController extends Controller
         abort_unless($occurrence->isOwnedBy($user), 404);
 
         $routine = $this->routineFor($occurrence);
+        $program = $this->workoutProgramFor($occurrence);
+        if ($program && $program->isOwnedBy($user)) {
+            $date = ($occurrence->rescheduled_to ?? $occurrence->occurrence_date)->format('Y-m-d');
+            $this->workoutSessions->upsertPlanned($program, $user, $date, [
+                'outcome' => 'skipped',
+                'note' => null,
+            ]);
+
+            return response()->json(['data' => $occurrence->fresh()]);
+        }
         abort_unless($routine && $routine->isOwnedBy($user), 404);
 
         $date = ($occurrence->rescheduled_to ?? $occurrence->occurrence_date)->format('Y-m-d');
@@ -124,7 +137,10 @@ class PlannerController extends Controller
             ]);
         }
 
-        if ($occurrence->recurringRule?->owner_type === RecurringRule::OWNER_HABIT
+        if (in_array($occurrence->recurringRule?->owner_type, [
+            RecurringRule::OWNER_HABIT,
+            RecurringRule::OWNER_WORKOUT_PROGRAM,
+        ], true)
             && PlannedOccurrence::query()
                 ->where('recurring_rule_id', $occurrence->recurring_rule_id)
                 ->whereKeyNot($occurrence->id)
@@ -149,5 +165,15 @@ class PlannerController extends Controller
         }
 
         return Routine::query()->whereKey($rule->owner_id)->first();
+    }
+
+    private function workoutProgramFor(PlannedOccurrence $occurrence): ?WorkoutProgram
+    {
+        $rule = $occurrence->recurringRule;
+        if (! $rule || $rule->owner_type !== RecurringRule::OWNER_WORKOUT_PROGRAM) {
+            return null;
+        }
+
+        return WorkoutProgram::query()->whereKey($rule->owner_id)->first();
     }
 }

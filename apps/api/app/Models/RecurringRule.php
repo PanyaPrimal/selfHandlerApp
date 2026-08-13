@@ -27,6 +27,8 @@ class RecurringRule extends Model
 
     public const OWNER_SLEEP_PLAN = 'sleep_plan';
 
+    public const OWNER_WORKOUT_PROGRAM = 'workout_program';
+
     public const FREQUENCY_DAILY = 'daily';
 
     public const FREQUENCY_WEEKLY = 'weekly';
