@@ -42,7 +42,25 @@ class RecurrenceMaterializer
             ->addDays(self::WINDOW_DAYS)
             ->toDateString();
 
-        $wanted = $enabled ? $this->expander->datesBetween($rule, $from, $to) : [];
+        $rule->loadMissing('ruleSlots');
+        $dates = $enabled ? $this->expander->datesBetween($rule, $from, $to) : [];
+        $slots = $rule->ruleSlots->isEmpty()
+            ? [['slot' => '', 'occurrence_time' => $rule->slot_time]]
+            : $rule->ruleSlots->map(fn ($slot): array => [
+                'slot' => $slot->slot,
+                'occurrence_time' => $slot->occurrence_time,
+            ])->values()->all();
+        $wanted = [];
+        foreach ($dates as $date) {
+            foreach ($slots as $slot) {
+                $wanted[] = [
+                    'key' => $this->occurrenceKey($date, (string) $slot['slot']),
+                    'date' => $date,
+                    'slot' => (string) $slot['slot'],
+                    'occurrence_time' => $slot['occurrence_time'],
+                ];
+            }
+        }
 
         return DB::transaction(function () use ($rule, $from, $to, $wanted, $enabled): int {
             // One read of the current window, one upsert, one delete: the query
@@ -51,31 +69,36 @@ class RecurrenceMaterializer
                 ->where('recurring_rule_id', $rule->id)
                 ->whereBetween('occurrence_date', [$from, $to])
                 ->get([
-                    'id', 'occurrence_date', 'rescheduled_to', 'routine_log_id', 'habit_log_id',
-                    'sleep_log_id', 'workout_session_id',
+                    'id', 'occurrence_date', 'rescheduled_to', 'slot', 'routine_log_id', 'habit_log_id',
+                    'sleep_log_id', 'workout_session_id', 'supplement_intake_id',
                 ]);
 
-            $known = $existing->pluck('occurrence_date')
-                ->map(fn ($date): string => $date->format('Y-m-d'))
-                ->all();
+            $known = $existing->map(fn (PlannedOccurrence $occurrence): string => $this->occurrenceKey(
+                $occurrence->occurrence_date->format('Y-m-d'),
+                (string) $occurrence->slot,
+            ))->all();
 
-            $missing = array_values(array_diff($wanted, $known));
+            $missing = array_values(array_filter(
+                $wanted,
+                fn (array $occurrence): bool => ! in_array($occurrence['key'], $known, true),
+            ));
 
             if ($missing !== []) {
                 $now = now();
 
                 PlannedOccurrence::query()->upsert(
-                    array_map(fn (string $date): array => [
+                    array_map(fn (array $occurrence): array => [
                         'user_id' => $rule->user_id,
                         'recurring_rule_id' => $rule->id,
-                        'occurrence_date' => $date,
-                        'slot' => '',
-                        'occurrence_time' => $rule->slot_time,
+                        'occurrence_date' => $occurrence['date'],
+                        'slot' => $occurrence['slot'],
+                        'occurrence_time' => $occurrence['occurrence_time'],
                         'status' => PlannedOccurrence::STATUS_PLANNED,
                         'routine_log_id' => null,
                         'habit_log_id' => null,
                         'sleep_log_id' => null,
                         'workout_session_id' => null,
+                        'supplement_intake_id' => null,
                         'materialized_at' => $now,
                         'created_at' => $now,
                         'updated_at' => $now,
@@ -85,16 +108,18 @@ class RecurrenceMaterializer
                 );
             }
 
-            if ($wanted !== []) {
+            foreach (collect($wanted)->groupBy('slot') as $slot => $slotOccurrences) {
                 PlannedOccurrence::query()
                     ->where('recurring_rule_id', $rule->id)
-                    ->whereIn('occurrence_date', $wanted)
+                    ->where('slot', $slot)
+                    ->whereIn('occurrence_date', $slotOccurrences->pluck('date')->all())
                     ->whereNull('routine_log_id')
                     ->whereNull('habit_log_id')
                     ->whereNull('sleep_log_id')
                     ->whereNull('workout_session_id')
+                    ->whereNull('supplement_intake_id')
                     ->update([
-                        'occurrence_time' => $rule->slot_time,
+                        'occurrence_time' => $slotOccurrences->first()['occurrence_time'],
                         'materialized_at' => now(),
                         'updated_at' => now(),
                     ]);
@@ -107,7 +132,10 @@ class RecurrenceMaterializer
             $stale = $existing
                 ->filter(fn (PlannedOccurrence $occurrence): bool => ! $occurrence->hasFact()
                     && $occurrence->rescheduled_to === null
-                    && ! in_array($occurrence->occurrence_date->format('Y-m-d'), $wanted, true))
+                    && ! in_array($this->occurrenceKey(
+                        $occurrence->occurrence_date->format('Y-m-d'),
+                        (string) $occurrence->slot,
+                    ), array_column($wanted, 'key'), true))
                 ->modelKeys();
 
             if ($stale !== []) {
@@ -138,7 +166,7 @@ class RecurrenceMaterializer
 
         RecurringRule::query()
             ->ownedBy($user)
-            ->with('ruleWeekdays')
+            ->with(['ruleWeekdays', 'ruleSlots'])
             ->orderBy('id')
             ->chunk(100, function ($rules) use (&$written, $from): void {
                 $enabled = $this->enabledOwners($rules);
@@ -176,6 +204,7 @@ class RecurrenceMaterializer
                 RecurringRule::OWNER_HABIT => 'habits',
                 RecurringRule::OWNER_SLEEP_PLAN => 'sleep_plans',
                 RecurringRule::OWNER_WORKOUT_PROGRAM => 'workout_programs',
+                RecurringRule::OWNER_SUPPLEMENT_COURSE => 'supplement_courses',
                 default => null,
             };
 
@@ -203,6 +232,11 @@ class RecurrenceMaterializer
     private function ownerKey(string $ownerType, int $ownerId): string
     {
         return $ownerType.':'.$ownerId;
+    }
+
+    private function occurrenceKey(string $date, string $slot): string
+    {
+        return $date."\0".$slot;
     }
 
     private function syncSleepDetails(

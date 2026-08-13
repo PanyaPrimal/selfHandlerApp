@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'supplement_range_invalid' => 'The supplement adherence range must be ordered and no longer than 366 days.',
     'already_authenticated' => 'Already authenticated.',
     'body_fat_required' => 'Body fat percentage is required for the Katch-McArdle formula.',
     'block_end_after_start' => 'The end time has to be after the start time.',
@@ -84,4 +85,22 @@ return [
     'nutrition_future_meal' => 'Consumed meals cannot be recorded in the future.',
     'nutrition_entry_reference' => 'Choose exactly one food or recipe for this entry.',
     'nutrition_range_invalid' => 'Choose an ordered date range of no more than 366 days.',
+    'supplement_unit_incompatible' => 'Choose an exact amount and a unit compatible with this stock.',
+    'supplement_field_required' => 'Provide at least one supplement field to update.',
+    'supplement_stock_unit_locked' => 'Stock unit cannot change after a course or stock/intake fact exists.',
+    'supplement_course_end_choice' => 'Choose exactly one end date or duration.',
+    'supplement_course_weekdays' => 'Choose at least one weekday for a weekly course.',
+    'supplement_course_daily_weekdays' => 'A daily course cannot also select weekdays.',
+    'supplement_course_slots_unique' => 'Course slot codes and times must be unique.',
+    'supplement_course_field_required' => 'Provide at least one course field to update.',
+    'supplement_course_supplement_active' => 'Choose an active owned supplement.',
+    'supplement_course_bounds' => 'The course end must be on or after its start.',
+    'supplement_intake_dose_pair' => 'Provide both a dose amount and display unit, or use the course dose.',
+    'supplement_intake_time_required' => 'Provide the actual local time for a taken intake.',
+    'supplement_intake_skip_fields' => 'A skipped intake cannot have an actual time or dose override.',
+    'supplement_intake_future' => 'An intake cannot be recorded in the future.',
+    'supplement_intake_time_nonexistent' => 'That local time does not exist because of a daylight-saving transition.',
+    'supplement_stock_correction_reason' => 'Explain why this compensating stock correction is needed.',
+    'supplement_stock_quantity' => 'Restock must be positive; a correction must be a non-zero compatible amount.',
+    'supplement_move_collision' => 'This course already has another planned intake in that slot on that date.',
 ];

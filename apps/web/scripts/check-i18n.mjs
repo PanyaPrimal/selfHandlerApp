@@ -61,6 +61,18 @@ const dynamicKeys = new Set([
   'workouts.runType.long', 'workouts.goalStatus.completed', 'workouts.goalStatus.abandoned',
   'workouts.exercise.bench_press', 'workouts.exercise.deadlift',
   'workouts.exercise.overhead_press', 'workouts.exercise.row', 'workouts.exercise.pull_up',
+  'supplements.tab.day', 'supplements.tab.catalogue', 'supplements.tab.courses', 'supplements.tab.stock',
+  'supplements.category.vitamin', 'supplements.category.sports_nutrition', 'supplements.category.nootropic',
+  'supplements.category.medication', 'supplements.category.other',
+  'supplements.form.capsule', 'supplements.form.tablet', 'supplements.form.powder',
+  'supplements.form.liquid', 'supplements.form.injection', 'supplements.form.other',
+  'supplements.unit.gram', 'supplements.unit.millilitre', 'supplements.unit.piece',
+  'supplements.unit.mg', 'supplements.unit.g', 'supplements.unit.ml',
+  'supplements.context.unspecified', 'supplements.context.with_food', 'supplements.context.empty_stomach',
+  'supplements.forecast.ready', 'supplements.forecast.already_depleted', 'supplements.forecast.no_stock',
+  'supplements.forecast.no_active_course', 'supplements.forecast.no_consumption',
+  'supplements.forecast.course_ends_with_stock', 'supplements.forecast.beyond_horizon',
+  'supplements.status.planned', 'supplements.status.done', 'supplements.status.skipped',
 ])
 
 function isAllowedText(value) {

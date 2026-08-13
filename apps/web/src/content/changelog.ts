@@ -19,6 +19,12 @@ export interface ChangelogEntry {
 
 const entries: readonly ChangelogEntry[] = [
   {
+    id: 'supplements-courses-intake-stock', date: '2026-08-13', feature: '017-supplements-courses-intake-stock',
+    titleKey: 'changelog.entry.supplements.title', summaryKey: 'changelog.entry.supplements.summary',
+    testKey: 'changelog.entry.supplements.test', links: [{ labelKey: 'nav.supplements', to: '/supplements' }],
+    limitationKeys: ['changelog.entry.supplements.limit'],
+  },
+  {
     id: 'nutrition-meals-hydration-targets', date: '2026-08-13', feature: '016-nutrition-meals-hydration-targets',
     titleKey: 'changelog.entry.nutrition.title', summaryKey: 'changelog.entry.nutrition.summary',
     testKey: 'changelog.entry.nutrition.test', links: [{ labelKey: 'nav.nutrition', to: '/nutrition' }],

@@ -9,6 +9,7 @@ use App\Models\WorkoutProgram;
 use App\Services\Planner\DayAssembler;
 use App\Services\Planner\SourceRegistry;
 use App\Services\RoutineActivityLogService;
+use App\Services\SupplementIntakeService;
 use App\Services\WorkoutSessionService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
@@ -30,6 +31,7 @@ class PlannerController extends Controller
         private readonly RoutineLogController $logs,
         private readonly RoutineActivityLogService $activityLogs,
         private readonly WorkoutSessionService $workoutSessions,
+        private readonly SupplementIntakeService $supplementIntakes,
     ) {}
 
     public function day(Request $request): JsonResponse
@@ -89,6 +91,17 @@ class PlannerController extends Controller
 
         $routine = $this->routineFor($occurrence);
         $program = $this->workoutProgramFor($occurrence);
+        if ($occurrence->recurringRule?->owner_type === RecurringRule::OWNER_SUPPLEMENT_COURSE) {
+            $this->supplementIntakes->upsert($occurrence, $user, [
+                'outcome' => 'skipped',
+                'dose_quantity' => null,
+                'dose_display_unit' => null,
+                'taken_time' => null,
+                'note' => null,
+            ]);
+
+            return response()->json(['data' => $occurrence->fresh()]);
+        }
         if ($program && $program->isOwnedBy($user)) {
             $date = ($occurrence->rescheduled_to ?? $occurrence->occurrence_date)->format('Y-m-d');
             $this->workoutSessions->upsertPlanned($program, $user, $date, [
@@ -140,6 +153,7 @@ class PlannerController extends Controller
         if (in_array($occurrence->recurringRule?->owner_type, [
             RecurringRule::OWNER_HABIT,
             RecurringRule::OWNER_WORKOUT_PROGRAM,
+            RecurringRule::OWNER_SUPPLEMENT_COURSE,
         ], true)
             && PlannedOccurrence::query()
                 ->where('recurring_rule_id', $occurrence->recurring_rule_id)
@@ -149,9 +163,16 @@ class PlannerController extends Controller
                         $original->where('occurrence_date', $target)->whereNull('rescheduled_to');
                     })->orWhere('rescheduled_to', $target);
                 })
+                ->when(
+                    $occurrence->recurringRule?->owner_type === RecurringRule::OWNER_SUPPLEMENT_COURSE,
+                    fn ($query) => $query->where('slot', $occurrence->slot),
+                )
                 ->exists()) {
+            $message = $occurrence->recurringRule?->owner_type === RecurringRule::OWNER_SUPPLEMENT_COURSE
+                ? 'messages.supplement_move_collision'
+                : 'messages.habit_move_collision';
             throw ValidationException::withMessages([
-                'rescheduled_to' => __('messages.habit_move_collision'),
+                'rescheduled_to' => __($message),
             ]);
         }
     }

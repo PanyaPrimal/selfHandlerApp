@@ -25,6 +25,7 @@ const desktopDestinations: Destination[] = [
   { name: 'habits', to: '/habits', label: 'nav.habits' },
   { name: 'workouts', to: '/workouts', label: 'nav.workouts' },
   { name: 'nutrition', to: '/nutrition', label: 'nav.nutrition' },
+  { name: 'supplements', to: '/supplements', label: 'nav.supplements' },
   { name: 'goals', to: '/goals', label: 'nav.goals' },
   { name: 'review', to: '/review', label: 'nav.review' },
   { name: 'planner', to: '/planner', label: 'nav.planner' },

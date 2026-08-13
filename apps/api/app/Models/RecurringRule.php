@@ -29,6 +29,8 @@ class RecurringRule extends Model
 
     public const OWNER_WORKOUT_PROGRAM = 'workout_program';
 
+    public const OWNER_SUPPLEMENT_COURSE = 'supplement_course';
+
     public const FREQUENCY_DAILY = 'daily';
 
     public const FREQUENCY_WEEKLY = 'weekly';
@@ -38,6 +40,9 @@ class RecurringRule extends Model
         'owner_type',
         'owner_id',
         'frequency',
+        'interval_count',
+        'cycle_on_days',
+        'cycle_off_days',
         'starts_on',
         'ends_on',
         'timezone',
@@ -55,6 +60,9 @@ class RecurringRule extends Model
     {
         return [
             'owner_id' => 'integer',
+            'interval_count' => 'integer',
+            'cycle_on_days' => 'integer',
+            'cycle_off_days' => 'integer',
             'starts_on' => 'date:Y-m-d',
             'ends_on' => 'date:Y-m-d',
             'last_materialized_until' => 'date:Y-m-d',
@@ -69,6 +77,13 @@ class RecurringRule extends Model
     public function occurrences(): HasMany
     {
         return $this->hasMany(PlannedOccurrence::class);
+    }
+
+    public function ruleSlots(): HasMany
+    {
+        return $this->hasMany(RecurringRuleSlot::class)
+            ->orderBy('sort_order')
+            ->orderBy('id');
     }
 
     /**

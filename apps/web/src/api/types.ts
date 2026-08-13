@@ -434,6 +434,232 @@ export interface ModuleDaySummaries {
   routine_activities: RoutineActivitySummary
   workouts: WorkoutSummary
   nutrition: NutritionSummary
+  supplements: SupplementAdherenceSummary
+}
+
+/* ------------------------------------------------------------------ */
+/* Supplements, courses, intake, and stock (feature 017)              */
+/* ------------------------------------------------------------------ */
+
+export type SupplementCategory = 'vitamin' | 'sports_nutrition' | 'nootropic' | 'medication' | 'other'
+export type SupplementForm = 'capsule' | 'tablet' | 'powder' | 'liquid' | 'injection' | 'other'
+export type SupplementStockUnit = 'gram' | 'millilitre' | 'piece'
+export type SupplementDisplayUnit = 'mg' | 'g' | 'ml' | 'piece'
+export type SupplementLifecycleState = 'active' | 'archived' | 'all'
+export type SupplementIntakeContext = 'unspecified' | 'with_food' | 'empty_stomach'
+
+export interface SupplementStock {
+  remaining_quantity: string
+  stock_unit: SupplementStockUnit
+  is_negative: boolean
+}
+
+export interface SupplementForecast {
+  status: 'ready' | 'already_depleted' | 'no_stock' | 'no_active_course' | 'no_consumption' | 'course_ends_with_stock' | 'beyond_horizon'
+  as_of: string
+  runout_on: string | null
+  horizon_until: string
+  remaining_quantity: string
+  stock_unit: SupplementStockUnit
+  projected_occurrences: number
+  projected_consumption: string
+  last_course_end: string | null
+}
+
+export interface SupplementRestockProposal {
+  id: number
+  supplement_id: number
+  forecast_runout_on: string
+  needed_by: string
+  suggested_quantity: string | null
+  stock_unit: SupplementStockUnit
+  status: 'open' | 'dismissed' | 'resolved'
+  dismissed_at: string | null
+  resolved_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface Supplement {
+  id: number
+  name: string
+  category: SupplementCategory
+  form: SupplementForm
+  stock_unit: SupplementStockUnit
+  preferred_display_unit: SupplementDisplayUnit
+  usual_dose_quantity: string
+  package_quantity: string | null
+  restock_lead_days: number
+  note: string | null
+  is_archived: boolean
+  archived_at: string | null
+  stock: SupplementStock
+  forecast: SupplementForecast
+  restock_proposal: SupplementRestockProposal | null
+  created_at: string
+  updated_at: string
+}
+
+export interface SupplementInput {
+  name: string
+  category: SupplementCategory
+  form: SupplementForm
+  stock_unit: SupplementStockUnit
+  preferred_display_unit: SupplementDisplayUnit
+  usual_dose_quantity: string
+  package_quantity: string | null
+  restock_lead_days: number
+  note: string | null
+}
+
+export interface SupplementListResponse {
+  data: Supplement[]
+  meta: {
+    categories: SupplementCategory[]
+    forms: SupplementForm[]
+    canonical_units: SupplementStockUnit[]
+    display_units: SupplementDisplayUnit[]
+  }
+}
+
+export interface SupplementCourseSlot {
+  id?: number
+  slot: string
+  time: string
+  intake_context: SupplementIntakeContext
+  sort_order?: number
+}
+
+export interface SupplementSchedule {
+  frequency: 'daily' | 'weekly'
+  interval_count: number
+  weekdays: Weekday[]
+  cycle: { on_days: number, off_days: number } | null
+  slots: SupplementCourseSlot[]
+}
+
+export interface SupplementCourse {
+  id: number
+  supplement_id: number
+  supplement_name: string
+  stock_unit: SupplementStockUnit
+  goal_id: number | null
+  name: string | null
+  dose_quantity: string
+  dose_display_unit: SupplementDisplayUnit
+  starts_on: string
+  ends_on: string
+  is_active: boolean
+  is_archived: boolean
+  archived_at: string | null
+  schedule: SupplementSchedule & { timezone: string, materialized_until: string | null }
+  created_at: string
+  updated_at: string
+}
+
+export interface SupplementCourseInput {
+  supplement_id: number
+  goal_id: number | null
+  name: string | null
+  dose_quantity: string
+  dose_display_unit: SupplementDisplayUnit
+  starts_on: string
+  ends_on: string
+  is_active: boolean
+  schedule: SupplementSchedule
+}
+
+export interface SupplementCourseListResponse {
+  data: SupplementCourse[]
+  meta: {
+    frequencies: Array<'daily' | 'weekly'>
+    weekdays: Weekday[]
+    intake_contexts: SupplementIntakeContext[]
+    max_slots: number
+  }
+}
+
+export interface SupplementIntake {
+  id: number
+  supplement_course_id: number
+  supplement_id: number
+  planned_on: string
+  effective_on: string
+  slot: string
+  outcome: 'taken' | 'skipped'
+  dose_quantity: string
+  dose_display_unit: SupplementDisplayUnit
+  supplement_name: string
+  taken_at: string | null
+  taken_time: string | null
+  note: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface SupplementOccurrence {
+  id: number
+  course_id: number
+  course_name: string
+  supplement_id: number
+  supplement_name: string
+  stock_unit: SupplementStockUnit
+  occurrence_date: string
+  rescheduled_to: string | null
+  effective_date: string
+  slot: string
+  time: string
+  intake_context: SupplementIntakeContext
+  status: 'planned' | 'done' | 'skipped'
+  dose_quantity: string
+  dose_display_unit: SupplementDisplayUnit
+  actions: Array<'take' | 'skip' | 'correct' | 'clear' | 'reschedule'>
+  intake: SupplementIntake | null
+}
+
+export interface SupplementAdherenceSummary {
+  done: number
+  skipped: number
+  overdue: number
+  pending: number
+  eligible: number
+  adherence_percentage: number | null
+}
+
+export interface SupplementDay {
+  date: string
+  today: string
+  occurrences: SupplementOccurrence[]
+  summary: SupplementAdherenceSummary
+}
+
+export interface SupplementAdherenceRange {
+  from: string
+  to: string
+  today: string
+  summary: SupplementAdherenceSummary
+  days: Array<SupplementAdherenceSummary & { date: string }>
+}
+
+export interface SupplementStockMovement {
+  id: number
+  supplement_id: number
+  kind: 'restock' | 'correction'
+  quantity_delta: string
+  stock_unit: SupplementStockUnit
+  effective_on: string
+  reason: string | null
+  note: string | null
+  created_at: string
+}
+
+export interface SupplementStockMovementInput {
+  kind: 'restock' | 'correction'
+  quantity: string
+  display_unit: SupplementDisplayUnit
+  effective_on: string
+  reason: string | null
+  note: string | null
 }
 
 /* ------------------------------------------------------------------ */
@@ -1278,7 +1504,7 @@ export interface StorageProjectPayload {
 /* ------------------------------------------------------------------ */
 
 /** Which module a day entry came from. Planner owns only `time_block`. */
-export type PlannerSource = 'routine' | 'sleep' | 'habit' | 'workout' | 'training_goal' | 'storage' | 'time_block'
+export type PlannerSource = 'routine' | 'sleep' | 'habit' | 'workout' | 'supplement' | 'training_goal' | 'storage' | 'time_block'
 
 /** What the user may do with an entry from inside the planner. */
 export type PlannerAction = 'skip' | 'reschedule' | 'move' | 'edit' | 'delete'
@@ -1331,8 +1557,8 @@ export interface TimeBlockPayload {
 /* In-app notifications                                                */
 /* ------------------------------------------------------------------ */
 
-export type NotificationType = 'routine_reminder' | 'habit_reminder' | 'sleep_reminder' | 'workout_reminder' | 'storage_due' | 'daily_digest'
-export type NotificationCategory = 'routine' | 'habit' | 'sleep' | 'workout' | 'storage' | 'digest'
+export type NotificationType = 'routine_reminder' | 'habit_reminder' | 'sleep_reminder' | 'workout_reminder' | 'storage_due' | 'daily_digest' | 'supplement_intake' | 'supplement_restock'
+export type NotificationCategory = 'routine' | 'habit' | 'sleep' | 'workout' | 'storage' | 'digest' | 'supplement'
 export type NotificationStatus = 'sent' | 'read'
 export type NotificationView = 'all' | 'unread'
 export type NotificationSnoozeMinutes = 15 | 60 | 240 | 1440
@@ -1375,13 +1601,14 @@ export interface NotificationSettingsData {
     habit: boolean
     sleep: boolean
     workout: boolean
+    supplement: boolean
   }
 }
 
 export interface NotificationSettingsResponse {
   data: NotificationSettingsData
   options: {
-    categories: Array<'routine' | 'storage' | 'habit' | 'sleep' | 'workout'>
+    categories: Array<'routine' | 'storage' | 'habit' | 'sleep' | 'workout' | 'supplement'>
     channels: ['in_app']
     snooze_minutes: NotificationSnoozeMinutes[]
   }

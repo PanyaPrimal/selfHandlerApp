@@ -88,9 +88,11 @@ class NotificationDispatcher
             }
 
             $canEscalate = $notification->max_escalations > $notification->escalation_count;
-            $intervalKey = $notification->category === InAppNotification::CATEGORY_HABIT
-                ? 'habit'
-                : 'routine';
+            $intervalKey = match ($notification->category) {
+                InAppNotification::CATEGORY_HABIT => 'habit',
+                InAppNotification::CATEGORY_SUPPLEMENT => 'supplement',
+                default => 'routine',
+            };
             $interval = (int) config(
                 "selfhandler.notifications.{$intervalKey}.escalation_interval_minutes",
                 30,

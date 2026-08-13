@@ -35,7 +35,7 @@ class PlannerDayTest extends PlannerTestCase
             ->assertJsonPath('entries.3.title', 'Read');
 
         $this->assertSame(
-            ['routine', 'sleep', 'habit', 'workout', 'training_goal', 'storage', 'time_block'],
+            ['routine', 'sleep', 'habit', 'workout', 'supplement', 'training_goal', 'storage', 'time_block'],
             $response->json('sources'),
         );
     }

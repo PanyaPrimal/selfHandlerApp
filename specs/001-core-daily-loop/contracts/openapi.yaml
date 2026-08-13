@@ -920,6 +920,18 @@ components:
         quality_score: { type: [string, 'null'] }
         progress: { $ref: '#/components/schemas/NutritionDayProgress' }
 
+    SupplementAdherenceSummary:
+      type: object
+      additionalProperties: false
+      required: [done, skipped, overdue, pending, eligible, adherence_percentage]
+      properties:
+        done: { type: integer, minimum: 0 }
+        skipped: { type: integer, minimum: 0 }
+        overdue: { type: integer, minimum: 0 }
+        pending: { type: integer, minimum: 0 }
+        eligible: { type: integer, minimum: 0 }
+        adherence_percentage: { type: [number, 'null'], minimum: 0, maximum: 100 }
+
     TodayResponse:
       type: object
       required: [date, summary, routines, goals, review, progress, routine_day, module_summaries]
@@ -962,7 +974,7 @@ components:
           additionalProperties: true
         module_summaries:
           type: object
-          required: [sleep, routine_activities, workouts, nutrition]
+          required: [sleep, routine_activities, workouts, nutrition, supplements]
           properties:
             sleep:
               type: object
@@ -984,6 +996,8 @@ components:
                 strength_volume_kg: { type: string }
             nutrition:
               $ref: '#/components/schemas/NutritionDaySummary'
+            supplements:
+              $ref: '#/components/schemas/SupplementAdherenceSummary'
 
     RoutineItemResponse:
       type: object

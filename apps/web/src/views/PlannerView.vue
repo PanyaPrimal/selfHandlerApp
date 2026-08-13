@@ -50,6 +50,7 @@ const sourceLabels = computed<Record<PlannerSource, string>>(() => ({
   sleep: i18n.t('planner.sleep'),
   habit: i18n.t('planner.habit'),
   workout: i18n.t('planner.workout'),
+  supplement: i18n.t('planner.supplement'),
   training_goal: i18n.t('planner.trainingGoal'),
   storage: i18n.t('planner.task'),
   time_block: i18n.t('planner.block'),

@@ -384,6 +384,14 @@ onMounted(() => loadToday())
         <p class="summary-value">{{ i18n.number(Number(data.module_summaries.nutrition.calories)) }} kcal</p>
         <p class="muted">{{ i18n.t('nutrition.hydration') }}: {{ i18n.number(Number(data.module_summaries.nutrition.hydration_ml)) }} ml · {{ i18n.t('nutrition.meals') }}: {{ data.module_summaries.nutrition.meal_count }}</p>
       </section>
+      <section class="panel" :aria-label="i18n.t('today.supplementSummary')">
+        <div class="section-heading">
+          <h2>{{ i18n.t('today.supplementSummary') }}</h2>
+          <RouterLink :to="`/supplements?date=${selectedDate}`">{{ i18n.t('today.openSupplements') }}</RouterLink>
+        </div>
+        <p class="summary-value">{{ data.module_summaries.supplements.adherence_percentage === null ? '—' : `${i18n.number(data.module_summaries.supplements.adherence_percentage)}%` }}</p>
+        <p class="muted">{{ i18n.t('supplements.done') }}: {{ data.module_summaries.supplements.done }} · {{ i18n.t('supplements.pending') }}: {{ data.module_summaries.supplements.pending }} · {{ i18n.t('supplements.overdue') }}: {{ data.module_summaries.supplements.overdue }}</p>
+      </section>
 
       <section class="panel">
         <div class="section-heading">

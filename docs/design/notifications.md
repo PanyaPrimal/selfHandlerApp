@@ -201,3 +201,15 @@ Extended by feature 015:
    not reminders, in this increment.
 4. Provider push, stopped-app wakeup, wearable-triggered delivery, and coaching notifications remain
    deferred.
+
+Extended by feature 017:
+
+1. A timed pending supplement occurrence produces `supplement_intake` in the backwards-compatible
+   enabled `supplement` category. It repeats every 30 minutes up to three escalations while the
+   occurrence remains planned; taken/skipped/clear/lifecycle changes reuse source disposition.
+2. An open restock proposal produces one `supplement_restock` notification with the proposal as its
+   stable source. It does not escalate and closes when the proposal is dismissed or resolved.
+3. Both families render at delivery in EN/RU/UK, obey quiet hours and current settings, deep-link only
+   to the owned Supplements surface, and reuse Android local presentation after inbox delivery.
+4. Course-end reminders, finance actions, provider push, stopped-app wakeup, medical language, and
+   coaching remain deferred.

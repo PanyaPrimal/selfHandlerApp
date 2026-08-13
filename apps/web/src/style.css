@@ -19,6 +19,60 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Supplements workspace ------------------------------------------------ */
+.supplements-page { min-width: 0; }
+.supplements-header { align-items: end; }
+.supplement-tabs { display: flex; gap: .45rem; overflow-x: auto; padding: .25rem; border: 1px solid var(--border); border-radius: 1rem; background: var(--surface); }
+.supplement-tabs button { flex: 1 0 auto; min-height: 44px; background: transparent; color: var(--muted); border-color: transparent; }
+.supplement-tabs button.is-active { background: var(--accent-soft); color: var(--ink); border-color: var(--border-strong); }
+.supplement-grid, .course-list, .supplement-occurrences { display: grid; gap: 1rem; }
+.supplement-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); }
+.supplement-card, .course-card, .supplement-occurrence { display: grid; gap: 1rem; min-width: 0; padding: 1rem; border: 1px solid var(--border); border-radius: 1rem; background: var(--surface); }
+.supplement-card > header, .course-card > header, .supplement-occurrence > header { display: flex; align-items: start; justify-content: space-between; gap: 1rem; }
+.supplement-card h3, .course-card h3, .supplement-occurrence h3 { margin: .2rem 0; overflow-wrap: anywhere; }
+.is-muted { opacity: .68; }
+.supplement-occurrence.is-highlighted { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.forecast-card { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+.forecast-card > div { display: flex; flex-direction: column; gap: .25rem; min-width: 0; }
+.forecast-card .notice { grid-column: 1 / -1; }
+.adherence-card { display: grid; grid-template-columns: minmax(8rem, .6fr) minmax(0, 2fr); gap: 1rem; padding: 1.1rem; border: 1px solid var(--border); border-radius: 1rem; background: var(--surface); }
+.adherence-card > div { display: flex; flex-direction: column; }
+.adherence-card > div strong { font-size: clamp(2rem, 5vw, 3rem); }
+.adherence-card dl { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .5rem; margin: 0; }
+.adherence-card dl div { padding: .75rem; border-radius: .75rem; background: var(--paper-soft); }
+.adherence-card dt { color: var(--muted); font-size: .8rem; }
+.adherence-card dd { margin: .25rem 0 0; font-size: 1.35rem; font-weight: 700; }
+.adherence-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .5rem; }
+.adherence-days div { display: flex; flex-direction: column; align-items: center; gap: .25rem; padding: .65rem .25rem; border-radius: .75rem; background: var(--paper-soft); }
+.supplement-editor, .course-editor, .stock-editor { margin: 1rem 0; padding: 1rem; border: 1px solid var(--border); border-radius: 1rem; background: var(--paper-soft); }
+.intake-editor { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end; gap: .75rem; }
+.intake-editor .form-actions { grid-column: 1 / -1; }
+.slot-list, .weekday-fieldset { min-width: 0; padding: .75rem; border: 1px solid var(--border); border-radius: .85rem; }
+.weekday-fieldset { display: flex; flex-wrap: wrap; gap: .6rem 1rem; }
+.check-row { display: inline-flex; align-items: center; min-height: 44px; gap: .4rem; }
+.slot-row { display: grid; grid-template-columns: 1fr .8fr 1.2fr auto; align-items: end; gap: .6rem; margin-bottom: .75rem; }
+.course-slots, .stock-picker { display: flex; flex-wrap: wrap; gap: .5rem; }
+.course-slots span { padding: .35rem .6rem; border-radius: 999px; background: var(--accent-soft); font-size: .85rem; }
+.stock-picker { margin-bottom: 1rem; }
+.movement-list { display: grid; gap: .5rem; margin-top: 1rem; }
+.movement-list article { display: grid; grid-template-columns: minmax(8rem, .5fr) 1fr; gap: .2rem 1rem; padding: .75rem; border-bottom: 1px solid var(--border); }
+.movement-list small { grid-column: 2; }
+
+@media (max-width: 700px) {
+  .supplements-header { align-items: stretch; }
+  .supplements-page button,
+  .supplements-page a.secondary { min-height: 44px; }
+  .adherence-card { grid-template-columns: 1fr; }
+  .adherence-card dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .adherence-days { grid-template-columns: repeat(7, minmax(2.25rem, 1fr)); overflow-x: auto; }
+  .intake-editor, .slot-row { grid-template-columns: 1fr; }
+  .slot-row button { width: 100%; }
+  .forecast-card { grid-template-columns: 1fr; }
+  .forecast-card .notice { grid-column: auto; }
+  .movement-list article { grid-template-columns: 1fr; }
+  .movement-list small { grid-column: auto; }
+}
+
 /* Workouts keep dense programme, fact, and goal controls readable without
    introducing a second application shell. */
 .workout-workspace {

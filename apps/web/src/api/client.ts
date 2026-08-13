@@ -80,6 +80,19 @@ import type {
   NutritionSummaryRange,
   Recipe,
   RecipeInput,
+  Supplement,
+  SupplementAdherenceRange,
+  SupplementCourse,
+  SupplementCourseInput,
+  SupplementCourseListResponse,
+  SupplementDay,
+  SupplementInput,
+  SupplementLifecycleState,
+  SupplementListResponse,
+  SupplementOccurrence,
+  SupplementRestockProposal,
+  SupplementStockMovement,
+  SupplementStockMovementInput,
 } from './types'
 import { jsonRequest, request } from './http'
 
@@ -107,6 +120,68 @@ export function updateThemePreferences(theme: NonNullable<PreferencesPayload['pr
 export function getToday(date?: string): Promise<TodayResponse> {
   const query = date ? `?date=${encodeURIComponent(date)}` : ''
   return request<TodayResponse>(`/today${query}`)
+}
+
+export function getSupplements(state: SupplementLifecycleState = 'active'): Promise<SupplementListResponse> {
+  return request<SupplementListResponse>(`/supplements?state=${encodeURIComponent(state)}`)
+}
+
+export async function createSupplement(payload: SupplementInput): Promise<Supplement> {
+  return (await jsonRequest<ItemResponse<Supplement>>('/supplements', 'POST', payload)).data
+}
+
+export async function updateSupplement(supplementId: number, payload: Partial<SupplementInput> & { is_archived?: boolean }): Promise<Supplement> {
+  return (await jsonRequest<ItemResponse<Supplement>>(`/supplements/${supplementId}`, 'PATCH', payload)).data
+}
+
+export function getSupplementCourses(state: SupplementLifecycleState = 'active'): Promise<SupplementCourseListResponse> {
+  return request<SupplementCourseListResponse>(`/supplement-courses?state=${encodeURIComponent(state)}`)
+}
+
+export async function createSupplementCourse(payload: SupplementCourseInput): Promise<SupplementCourse> {
+  return (await jsonRequest<ItemResponse<SupplementCourse>>('/supplement-courses', 'POST', payload)).data
+}
+
+export async function updateSupplementCourse(courseId: number, payload: Partial<Omit<SupplementCourseInput, 'supplement_id'>> & { is_archived?: boolean }): Promise<SupplementCourse> {
+  return (await jsonRequest<ItemResponse<SupplementCourse>>(`/supplement-courses/${courseId}`, 'PATCH', payload)).data
+}
+
+export interface SupplementIntakeResponse extends ItemResponse<SupplementOccurrence> {
+  stock: Supplement['stock']
+  forecast: Supplement['forecast']
+  restock_proposal: SupplementRestockProposal | null
+}
+
+export function upsertSupplementIntake(
+  occurrenceId: number,
+  payload: { outcome: 'taken' | 'skipped', dose_quantity: string | null, dose_display_unit: string | null, taken_time: string | null, note: string | null },
+): Promise<SupplementIntakeResponse> {
+  return jsonRequest<SupplementIntakeResponse>(`/supplement-occurrences/${occurrenceId}/intake`, 'PUT', payload)
+}
+
+export function clearSupplementIntake(occurrenceId: number): Promise<void> {
+  return request<void>(`/supplement-occurrences/${occurrenceId}/intake`, { method: 'DELETE' })
+}
+
+export async function getSupplementStockMovements(supplementId: number): Promise<SupplementStockMovement[]> {
+  return (await request<ListResponse<SupplementStockMovement>>(`/supplements/${supplementId}/stock-movements`)).data
+}
+
+export function createSupplementStockMovement(supplementId: number, payload: SupplementStockMovementInput): Promise<ItemResponse<SupplementStockMovement> & Pick<SupplementIntakeResponse, 'stock' | 'forecast' | 'restock_proposal'>> {
+  return jsonRequest(`/supplements/${supplementId}/stock-movements`, 'POST', payload)
+}
+
+export async function dismissSupplementRestockProposal(proposalId: number): Promise<SupplementRestockProposal> {
+  return (await jsonRequest<ItemResponse<SupplementRestockProposal>>(`/supplement-restock-proposals/${proposalId}`, 'PATCH', { status: 'dismissed' })).data
+}
+
+export async function getSupplementDay(date: string): Promise<SupplementDay> {
+  return (await request<ItemResponse<SupplementDay>>(`/supplements/days/${encodeURIComponent(date)}`)).data
+}
+
+export async function getSupplementAdherence(from: string, to: string): Promise<SupplementAdherenceRange> {
+  const query = new URLSearchParams({ from, to })
+  return (await request<ItemResponse<SupplementAdherenceRange>>(`/supplements/adherence?${query.toString()}`)).data
 }
 
 export async function getNutritionFoods(state: NutritionLifecycleState = 'active'): Promise<FoodItem[]> {

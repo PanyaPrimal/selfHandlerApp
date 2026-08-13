@@ -2,6 +2,13 @@
 
 ## [Unreleased](https://github.com/laravel/laravel/compare/v11.6.1...11.x)
 
+### SelfHandler feature 017
+
+* Add the private Supplements catalogue, bounded shared-recurrence courses, exact intake and stock
+  facts, run-out forecasting, one-off restock proposals, and adherence projections.
+* Integrate supplement occurrences and reminders with Planner, Today, Review, and Notifications while
+  preserving owner isolation, legacy recurrence behavior, and closed OpenAPI contracts.
+
 ## [v11.6.1](https://github.com/laravel/laravel/compare/v11.6.0...v11.6.1) - 2025-01-24
 
 * Update vite dependencies by [@laserhybiz](https://github.com/laserhybiz) in https://github.com/laravel/laravel/pull/6521

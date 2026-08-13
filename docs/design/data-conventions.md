@@ -80,6 +80,13 @@ and bounded range totals are set-query projections over those snapshots, not mut
 Daily targets are separate immutable user/date estimate snapshots, so changing a Profile, goal, or
 Workout plan never rewrites the reference used to assess an existing day.
 
+Feature 017 stores supplement quantities as `DECIMAL(14,6)` decimal strings in canonical grams,
+millilitres, or whole pieces. The accepted display units are `mg`, `g`, `ml`, and `piece`; conversion
+is exact and incompatible dimensions or fractional pieces reject atomically. Courses snapshot a
+canonical dose, and taken facts snapshot it again so later reference edits cannot rewrite history.
+Remaining stock and adherence are bounded set-query projections over immutable facts, never mutable
+counters or stored rollups.
+
 ## 7. Aggregates — "the module computes the totals" — strategy (important for performance)
 
 > Balances/remaining amounts/streaks/actual budget figures are derived. So that the "Today" dashboard and Analytics don't grind to a halt:

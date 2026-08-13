@@ -188,8 +188,12 @@ Back to the plan: [Vision & Plan](vision.md)
 ## Module 2a — Supplements & Vitamins
 
 > Split out of "Nutrition" into a separate module (2026-06-07): supplements have a different nature — intake courses, dosages, an intake schedule, different purposes.
-> Implemented by feature `013-habits-anti-habits` (2026-08-13) for daily and exact selected-weekday
-> schedules, yes/no and numeric habits, explicit abstinence, and separate stepped day/week ceilings.
+> The deterministic neutral-monitor slice is implemented by feature
+> `017-supplements-courses-intake-stock` (2026-08-13): private references, bounded courses, normalized
+> multi-slot recurrence, correctable taken/skipped facts, exact stock history, bounded forecasts,
+> one-off restock proposals, Planner/Notifications/Today/Review integration, and EN/RU/UK clients.
+> Medical advice, inferred regimens, product recommendations, finance facts, provider catalogues,
+> historical import, and AI remain deferred.
 
 ### The "Supplement/medication" entity (reference)
 - Name
@@ -226,6 +230,13 @@ Back to the plan: [Vision & Plan](vision.md)
 - **Cost per intake**: unit price → cost per day/month of the course
 - Link to "Module 10 — Finance": supplement expenses in the budget; planning the restock (set aside N in the budget)
 - (opt.) a savings hint: comparing the price per gram across different pack sizes
+
+Feature 017 implements only the neutral logistics boundary: stock is derived from immutable restock/
+correction movements minus taken intake snapshots; skipped facts consume nothing. Forecasting uses
+the same recurrence semantics for at most 730 local dates and yields one closed machine-readable
+state. A shortage can reconcile one durable restock proposal and notification, but never creates a
+`RecurringRule`, price recommendation, purchase, budget, or transaction. All cost/finance and product
+comparison bullets above remain future design, not current behavior.
 
 ### Relationships with other modules
 - "Module 5 — Planner" — reminders about intakes and about the end of a course (required)

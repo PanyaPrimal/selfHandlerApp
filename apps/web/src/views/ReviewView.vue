@@ -317,6 +317,12 @@ watch(
             <p class="muted">{{ i18n.t('nutrition.hydration') }}: {{ i18n.number(Number(moduleSummaries.nutrition.hydration_ml)) }} ml</p>
             <RouterLink :to="`/nutrition?date=${reviewDate}`">{{ i18n.t('today.openNutrition') }}</RouterLink>
           </section>
+          <section class="metric" :aria-label="i18n.t('review.supplementSummary')">
+            <span>{{ i18n.t('review.supplementSummary') }}</span>
+            <strong>{{ moduleSummaries.supplements.adherence_percentage === null ? '—' : `${i18n.number(moduleSummaries.supplements.adherence_percentage)}%` }}</strong>
+            <p class="muted">{{ i18n.t('supplements.done') }}: {{ moduleSummaries.supplements.done }} · {{ i18n.t('supplements.skipped') }}: {{ moduleSummaries.supplements.skipped }}</p>
+            <RouterLink :to="`/supplements?date=${reviewDate}`">{{ i18n.t('today.openSupplements') }}</RouterLink>
+          </section>
         </div>
 
         <form

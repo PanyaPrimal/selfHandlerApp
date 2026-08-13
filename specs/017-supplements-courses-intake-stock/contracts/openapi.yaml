@@ -1,0 +1,876 @@
+openapi: 3.1.0
+info:
+  title: SelfHandler Supplements API
+  version: 0.17.0
+  description: >-
+    Closed authenticated contract for neutral supplement references, bounded courses, intake facts,
+    stock facts, run-out projection, restock proposals, and module-owned adherence.
+servers:
+  - url: /api
+security:
+  - bearerAuth: []
+tags:
+  - name: Supplements
+  - name: Supplement courses
+  - name: Supplement intake
+  - name: Supplement stock
+paths:
+  /supplements:
+    get:
+      tags: [Supplements]
+      operationId: listSupplements
+      parameters:
+        - $ref: '#/components/parameters/LifecycleFilter'
+      responses:
+        '200':
+          description: Owned references with current stock, forecast, and active proposal.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Supplement' }
+                  meta: { $ref: '#/components/schemas/SupplementMeta' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+    post:
+      tags: [Supplements]
+      operationId: createSupplement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SupplementCreateInput' }
+      responses:
+        '201': { $ref: '#/components/responses/SupplementData' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+  /supplements/{supplement}:
+    patch:
+      tags: [Supplements]
+      operationId: updateSupplement
+      parameters:
+        - $ref: '#/components/parameters/SupplementId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SupplementPatchInput' }
+      responses:
+        '200': { $ref: '#/components/responses/SupplementData' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+  /supplements/{supplement}/stock-movements:
+    get:
+      tags: [Supplement stock]
+      operationId: listSupplementStockMovements
+      parameters:
+        - $ref: '#/components/parameters/SupplementId'
+      responses:
+        '200':
+          description: Immutable stock movement history in effective-date order.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/StockMovement' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [Supplement stock]
+      operationId: createSupplementStockMovement
+      parameters:
+        - $ref: '#/components/parameters/SupplementId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StockMovementInput' }
+      responses:
+        '201':
+          description: Accepted immutable stock fact and refreshed projections.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [data, stock, forecast, restock_proposal]
+                properties:
+                  data: { $ref: '#/components/schemas/StockMovement' }
+                  stock: { $ref: '#/components/schemas/StockSummary' }
+                  forecast: { $ref: '#/components/schemas/StockForecast' }
+                  restock_proposal:
+                    oneOf:
+                      - $ref: '#/components/schemas/RestockProposal'
+                      - type: 'null'
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+  /supplement-courses:
+    get:
+      tags: [Supplement courses]
+      operationId: listSupplementCourses
+      parameters:
+        - $ref: '#/components/parameters/LifecycleFilter'
+      responses:
+        '200':
+          description: Owned courses with full shared schedule projection.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/SupplementCourse' }
+                  meta: { $ref: '#/components/schemas/CourseMeta' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+    post:
+      tags: [Supplement courses]
+      operationId: createSupplementCourse
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CourseCreateInput' }
+      responses:
+        '201': { $ref: '#/components/responses/CourseData' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+  /supplement-courses/{course}:
+    patch:
+      tags: [Supplement courses]
+      operationId: updateSupplementCourse
+      parameters:
+        - $ref: '#/components/parameters/CourseId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CoursePatchInput' }
+      responses:
+        '200': { $ref: '#/components/responses/CourseData' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+  /supplements/days/{date}:
+    get:
+      tags: [Supplement intake]
+      operationId: getSupplementDay
+      parameters:
+        - $ref: '#/components/parameters/Date'
+      responses:
+        '200':
+          description: Selected local day occurrence facts and module-owned summary.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/SupplementDay' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+  /supplement-occurrences/{occurrence}/intake:
+    put:
+      tags: [Supplement intake]
+      operationId: upsertSupplementIntake
+      parameters:
+        - $ref: '#/components/parameters/OccurrenceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IntakeInput' }
+      responses:
+        '200':
+          description: Corrected fact and refreshed occurrence/stock projections.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IntakeMutationResponse' }
+        '201':
+          description: New fact and refreshed occurrence/stock projections.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IntakeMutationResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+    delete:
+      tags: [Supplement intake]
+      operationId: clearSupplementIntake
+      parameters:
+        - $ref: '#/components/parameters/OccurrenceId'
+      responses:
+        '204': { description: Fact cleared and occurrence restored to planned. }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /supplements/adherence:
+    get:
+      tags: [Supplement intake]
+      operationId: getSupplementAdherence
+      parameters:
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+      responses:
+        '200':
+          description: Bounded correction-safe adherence projection.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/AdherenceRange' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+  /supplement-restock-proposals/{proposal}:
+    patch:
+      tags: [Supplement stock]
+      operationId: dismissSupplementRestockProposal
+      parameters:
+        - $ref: '#/components/parameters/ProposalId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProposalPatchInput' }
+      responses:
+        '200':
+          description: Dismissed one-off proposal.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/RestockProposal' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Sanctum
+  parameters:
+    SupplementId:
+      name: supplement
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+    CourseId:
+      name: course
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+    OccurrenceId:
+      name: occurrence
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+    ProposalId:
+      name: proposal
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+    Date:
+      name: date
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/LocalDate' }
+    FromDate:
+      name: from
+      in: query
+      required: true
+      schema: { $ref: '#/components/schemas/LocalDate' }
+    ToDate:
+      name: to
+      in: query
+      required: true
+      schema: { $ref: '#/components/schemas/LocalDate' }
+    LifecycleFilter:
+      name: state
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [active, archived, all]
+        default: active
+  responses:
+    SupplementData:
+      description: Supplement workspace projection.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [data]
+            properties:
+              data: { $ref: '#/components/schemas/Supplement' }
+    CourseData:
+      description: Course and shared schedule projection.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [data]
+            properties:
+              data: { $ref: '#/components/schemas/SupplementCourse' }
+    Unauthenticated:
+      description: Authentication required.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Resource is absent or belongs to another user.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ValidationFailed:
+      description: Closed request or domain validation failed atomically.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ValidationError' }
+  schemas:
+    LocalDate:
+      type: string
+      format: date
+      pattern: '^\d{4}-\d{2}-\d{2}$'
+    LocalTime:
+      type: string
+      pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+    Instant:
+      type: string
+      format: date-time
+    DecimalQuantity:
+      type: string
+      pattern: '^-?\d+(\.\d{1,6})?$'
+      examples: ['0.500000']
+    PositiveDecimalQuantity:
+      type: string
+      pattern: '^(?:0\.\d*[1-9]\d*|[1-9]\d*(?:\.\d+)?)$'
+      examples: ['0.500000']
+    CanonicalUnit:
+      type: string
+      enum: [gram, millilitre, piece]
+    DisplayUnit:
+      type: string
+      enum: [mg, g, ml, piece]
+    SupplementCategory:
+      type: string
+      enum: [vitamin, sports_nutrition, nootropic, medication, other]
+    SupplementForm:
+      type: string
+      enum: [capsule, tablet, powder, liquid, injection, other]
+    SupplementCreateInput:
+      type: object
+      additionalProperties: false
+      required:
+        [name, category, form, stock_unit, preferred_display_unit, usual_dose_quantity,
+         package_quantity, restock_lead_days, note]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 160 }
+        category: { $ref: '#/components/schemas/SupplementCategory' }
+        form: { $ref: '#/components/schemas/SupplementForm' }
+        stock_unit: { $ref: '#/components/schemas/CanonicalUnit' }
+        preferred_display_unit: { $ref: '#/components/schemas/DisplayUnit' }
+        usual_dose_quantity: { $ref: '#/components/schemas/PositiveDecimalQuantity' }
+        package_quantity:
+          oneOf:
+            - $ref: '#/components/schemas/PositiveDecimalQuantity'
+            - type: 'null'
+        restock_lead_days: { type: integer, minimum: 0, maximum: 90 }
+        note: { type: [string, 'null'], maxLength: 5000 }
+    SupplementPatchInput:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 160 }
+        category: { $ref: '#/components/schemas/SupplementCategory' }
+        form: { $ref: '#/components/schemas/SupplementForm' }
+        stock_unit: { $ref: '#/components/schemas/CanonicalUnit' }
+        preferred_display_unit: { $ref: '#/components/schemas/DisplayUnit' }
+        usual_dose_quantity: { $ref: '#/components/schemas/PositiveDecimalQuantity' }
+        package_quantity:
+          oneOf:
+            - $ref: '#/components/schemas/PositiveDecimalQuantity'
+            - type: 'null'
+        restock_lead_days: { type: integer, minimum: 0, maximum: 90 }
+        note: { type: [string, 'null'], maxLength: 5000 }
+        is_archived: { type: boolean }
+    Supplement:
+      type: object
+      additionalProperties: false
+      required:
+        [id, name, category, form, stock_unit, preferred_display_unit, usual_dose_quantity,
+         package_quantity, restock_lead_days, note, is_archived, archived_at, stock, forecast,
+         restock_proposal, created_at, updated_at]
+      properties:
+        id: { type: integer, minimum: 1 }
+        name: { type: string }
+        category: { $ref: '#/components/schemas/SupplementCategory' }
+        form: { $ref: '#/components/schemas/SupplementForm' }
+        stock_unit: { $ref: '#/components/schemas/CanonicalUnit' }
+        preferred_display_unit: { $ref: '#/components/schemas/DisplayUnit' }
+        usual_dose_quantity: { $ref: '#/components/schemas/DecimalQuantity' }
+        package_quantity:
+          oneOf:
+            - $ref: '#/components/schemas/DecimalQuantity'
+            - type: 'null'
+        restock_lead_days: { type: integer }
+        note: { type: [string, 'null'] }
+        is_archived: { type: boolean }
+        archived_at:
+          oneOf:
+            - $ref: '#/components/schemas/Instant'
+            - type: 'null'
+        stock: { $ref: '#/components/schemas/StockSummary' }
+        forecast: { $ref: '#/components/schemas/StockForecast' }
+        restock_proposal:
+          oneOf:
+            - $ref: '#/components/schemas/RestockProposal'
+            - type: 'null'
+        created_at: { $ref: '#/components/schemas/Instant' }
+        updated_at: { $ref: '#/components/schemas/Instant' }
+    SupplementMeta:
+      type: object
+      additionalProperties: false
+      required: [categories, forms, canonical_units, display_units]
+      properties:
+        categories:
+          type: array
+          items: { $ref: '#/components/schemas/SupplementCategory' }
+        forms:
+          type: array
+          items: { $ref: '#/components/schemas/SupplementForm' }
+        canonical_units:
+          type: array
+          items: { $ref: '#/components/schemas/CanonicalUnit' }
+        display_units:
+          type: array
+          items: { $ref: '#/components/schemas/DisplayUnit' }
+    StockSummary:
+      type: object
+      additionalProperties: false
+      required: [remaining_quantity, stock_unit, is_negative]
+      properties:
+        remaining_quantity: { $ref: '#/components/schemas/DecimalQuantity' }
+        stock_unit: { $ref: '#/components/schemas/CanonicalUnit' }
+        is_negative: { type: boolean }
+    StockForecast:
+      type: object
+      additionalProperties: false
+      required:
+        [status, as_of, horizon_until, remaining_quantity, stock_unit, projected_occurrences,
+         projected_consumption, runout_on, last_course_end]
+      properties:
+        status:
+          type: string
+          enum:
+            [ready, already_depleted, no_stock, no_active_course, no_consumption,
+             course_ends_with_stock, beyond_horizon]
+        as_of: { $ref: '#/components/schemas/LocalDate' }
+        horizon_until: { $ref: '#/components/schemas/LocalDate' }
+        remaining_quantity: { $ref: '#/components/schemas/DecimalQuantity' }
+        stock_unit: { $ref: '#/components/schemas/CanonicalUnit' }
+        projected_occurrences: { type: integer, minimum: 0 }
+        projected_consumption: { $ref: '#/components/schemas/DecimalQuantity' }
+        runout_on:
+          oneOf:
+            - $ref: '#/components/schemas/LocalDate'
+            - type: 'null'
+        last_course_end:
+          oneOf:
+            - $ref: '#/components/schemas/LocalDate'
+            - type: 'null'
+    RestockProposal:
+      type: object
+      additionalProperties: false
+      required:
+        [id, supplement_id, forecast_runout_on, needed_by, suggested_quantity, stock_unit,
+         status, dismissed_at, resolved_at, created_at, updated_at]
+      properties:
+        id: { type: integer, minimum: 1 }
+        supplement_id: { type: integer, minimum: 1 }
+        forecast_runout_on: { $ref: '#/components/schemas/LocalDate' }
+        needed_by: { $ref: '#/components/schemas/LocalDate' }
+        suggested_quantity:
+          oneOf:
+            - $ref: '#/components/schemas/DecimalQuantity'
+            - type: 'null'
+        stock_unit: { $ref: '#/components/schemas/CanonicalUnit' }
+        status: { type: string, enum: [open, dismissed, resolved] }
+        dismissed_at:
+          oneOf:
+            - $ref: '#/components/schemas/Instant'
+            - type: 'null'
+        resolved_at:
+          oneOf:
+            - $ref: '#/components/schemas/Instant'
+            - type: 'null'
+        created_at: { $ref: '#/components/schemas/Instant' }
+        updated_at: { $ref: '#/components/schemas/Instant' }
+    ProposalPatchInput:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: { type: string, enum: [dismissed] }
+    StockMovementInput:
+      type: object
+      additionalProperties: false
+      required: [kind, quantity, display_unit, effective_on, reason, note]
+      properties:
+        kind: { type: string, enum: [restock, correction] }
+        quantity: { $ref: '#/components/schemas/DecimalQuantity' }
+        display_unit: { $ref: '#/components/schemas/DisplayUnit' }
+        effective_on: { $ref: '#/components/schemas/LocalDate' }
+        reason: { type: [string, 'null'], maxLength: 500 }
+        note: { type: [string, 'null'], maxLength: 5000 }
+    StockMovement:
+      type: object
+      additionalProperties: false
+      required:
+        [id, supplement_id, kind, quantity_delta, stock_unit, effective_on, reason, note,
+         created_at]
+      properties:
+        id: { type: integer, minimum: 1 }
+        supplement_id: { type: integer, minimum: 1 }
+        kind: { type: string, enum: [restock, correction] }
+        quantity_delta: { $ref: '#/components/schemas/DecimalQuantity' }
+        stock_unit: { $ref: '#/components/schemas/CanonicalUnit' }
+        effective_on: { $ref: '#/components/schemas/LocalDate' }
+        reason: { type: [string, 'null'] }
+        note: { type: [string, 'null'] }
+        created_at: { $ref: '#/components/schemas/Instant' }
+    CourseCreateInput:
+      type: object
+      additionalProperties: false
+      required:
+        [supplement_id, goal_id, name, dose_quantity, dose_display_unit, starts_on,
+         is_active, schedule]
+      oneOf:
+        - required: [ends_on]
+          not: { required: [duration_days] }
+        - required: [duration_days]
+          not: { required: [ends_on] }
+      properties:
+        supplement_id: { type: integer, minimum: 1 }
+        goal_id: { type: [integer, 'null'], minimum: 1 }
+        name: { type: [string, 'null'], maxLength: 160 }
+        dose_quantity: { $ref: '#/components/schemas/PositiveDecimalQuantity' }
+        dose_display_unit: { $ref: '#/components/schemas/DisplayUnit' }
+        starts_on: { $ref: '#/components/schemas/LocalDate' }
+        ends_on: { $ref: '#/components/schemas/LocalDate' }
+        duration_days: { type: integer, minimum: 1, maximum: 3660 }
+        is_active: { type: boolean }
+        schedule: { $ref: '#/components/schemas/CourseScheduleInput' }
+    CoursePatchInput:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        goal_id: { type: [integer, 'null'], minimum: 1 }
+        name: { type: [string, 'null'], maxLength: 160 }
+        dose_quantity: { $ref: '#/components/schemas/PositiveDecimalQuantity' }
+        dose_display_unit: { $ref: '#/components/schemas/DisplayUnit' }
+        starts_on: { $ref: '#/components/schemas/LocalDate' }
+        ends_on: { $ref: '#/components/schemas/LocalDate' }
+        duration_days: { type: integer, minimum: 1, maximum: 3660 }
+        is_active: { type: boolean }
+        is_archived: { type: boolean }
+        schedule: { $ref: '#/components/schemas/CourseScheduleInput' }
+    CourseScheduleInput:
+      type: object
+      additionalProperties: false
+      required: [frequency, interval_count, weekdays, cycle, slots]
+      properties:
+        frequency: { type: string, enum: [daily, weekly] }
+        interval_count: { type: integer, minimum: 1, maximum: 52 }
+        weekdays:
+          type: array
+          uniqueItems: true
+          maxItems: 7
+          items: { type: string, enum: [MO, TU, WE, TH, FR, SA, SU] }
+        cycle:
+          oneOf:
+            - $ref: '#/components/schemas/CourseCycleInput'
+            - type: 'null'
+        slots:
+          type: array
+          minItems: 1
+          maxItems: 8
+          items: { $ref: '#/components/schemas/CourseSlotInput' }
+    CourseCycleInput:
+      type: object
+      additionalProperties: false
+      required: [on_days, off_days]
+      properties:
+        on_days: { type: integer, minimum: 1, maximum: 366 }
+        off_days: { type: integer, minimum: 1, maximum: 366 }
+    CourseSlotInput:
+      type: object
+      additionalProperties: false
+      required: [slot, time, intake_context]
+      properties:
+        slot: { type: string, pattern: '^[a-z0-9_-]{1,32}$' }
+        time: { $ref: '#/components/schemas/LocalTime' }
+        intake_context:
+          type: string
+          enum: [unspecified, with_food, empty_stomach]
+    SupplementCourse:
+      type: object
+      additionalProperties: false
+      required:
+        [id, supplement_id, supplement_name, stock_unit, goal_id, name, dose_quantity,
+         dose_display_unit, starts_on, ends_on, is_active, is_archived, archived_at, schedule,
+         created_at, updated_at]
+      properties:
+        id: { type: integer, minimum: 1 }
+        supplement_id: { type: integer, minimum: 1 }
+        supplement_name: { type: string }
+        stock_unit: { $ref: '#/components/schemas/CanonicalUnit' }
+        goal_id: { type: [integer, 'null'], minimum: 1 }
+        name: { type: [string, 'null'] }
+        dose_quantity: { $ref: '#/components/schemas/DecimalQuantity' }
+        dose_display_unit: { $ref: '#/components/schemas/DisplayUnit' }
+        starts_on: { $ref: '#/components/schemas/LocalDate' }
+        ends_on: { $ref: '#/components/schemas/LocalDate' }
+        is_active: { type: boolean }
+        is_archived: { type: boolean }
+        archived_at:
+          oneOf:
+            - $ref: '#/components/schemas/Instant'
+            - type: 'null'
+        schedule: { $ref: '#/components/schemas/CourseSchedule' }
+        created_at: { $ref: '#/components/schemas/Instant' }
+        updated_at: { $ref: '#/components/schemas/Instant' }
+    CourseSchedule:
+      type: object
+      additionalProperties: false
+      required:
+        [frequency, interval_count, weekdays, cycle, timezone, slots, materialized_until]
+      properties:
+        frequency: { type: string, enum: [daily, weekly] }
+        interval_count: { type: integer, minimum: 1 }
+        weekdays:
+          type: array
+          items: { type: string, enum: [MO, TU, WE, TH, FR, SA, SU] }
+        cycle:
+          oneOf:
+            - $ref: '#/components/schemas/CourseCycleInput'
+            - type: 'null'
+        timezone: { type: string }
+        slots:
+          type: array
+          items: { $ref: '#/components/schemas/CourseSlot' }
+        materialized_until:
+          oneOf:
+            - $ref: '#/components/schemas/LocalDate'
+            - type: 'null'
+    CourseSlot:
+      type: object
+      additionalProperties: false
+      required: [id, slot, time, intake_context, sort_order]
+      properties:
+        id: { type: integer, minimum: 1 }
+        slot: { type: string }
+        time: { $ref: '#/components/schemas/LocalTime' }
+        intake_context:
+          type: string
+          enum: [unspecified, with_food, empty_stomach]
+        sort_order: { type: integer, minimum: 0, maximum: 7 }
+    CourseMeta:
+      type: object
+      additionalProperties: false
+      required: [frequencies, weekdays, intake_contexts, max_slots]
+      properties:
+        frequencies:
+          type: array
+          items: { type: string, enum: [daily, weekly] }
+        weekdays:
+          type: array
+          items: { type: string, enum: [MO, TU, WE, TH, FR, SA, SU] }
+        intake_contexts:
+          type: array
+          items: { type: string, enum: [unspecified, with_food, empty_stomach] }
+        max_slots: { type: integer, const: 8 }
+    IntakeInput:
+      type: object
+      additionalProperties: false
+      required: [outcome, dose_quantity, dose_display_unit, taken_time, note]
+      properties:
+        outcome: { type: string, enum: [taken, skipped] }
+        dose_quantity:
+          oneOf:
+            - $ref: '#/components/schemas/PositiveDecimalQuantity'
+            - type: 'null'
+        dose_display_unit:
+          oneOf:
+            - $ref: '#/components/schemas/DisplayUnit'
+            - type: 'null'
+        taken_time:
+          oneOf:
+            - $ref: '#/components/schemas/LocalTime'
+            - type: 'null'
+        note: { type: [string, 'null'], maxLength: 5000 }
+    SupplementIntake:
+      type: object
+      additionalProperties: false
+      required:
+        [id, supplement_course_id, supplement_id, planned_on, effective_on, slot, outcome,
+         dose_quantity, dose_display_unit, supplement_name, taken_at, taken_time, note, created_at, updated_at]
+      properties:
+        id: { type: integer, minimum: 1 }
+        supplement_course_id: { type: integer, minimum: 1 }
+        supplement_id: { type: integer, minimum: 1 }
+        planned_on: { $ref: '#/components/schemas/LocalDate' }
+        effective_on: { $ref: '#/components/schemas/LocalDate' }
+        slot: { type: string }
+        outcome: { type: string, enum: [taken, skipped] }
+        dose_quantity: { $ref: '#/components/schemas/DecimalQuantity' }
+        dose_display_unit: { $ref: '#/components/schemas/DisplayUnit' }
+        supplement_name: { type: string }
+        taken_at:
+          oneOf:
+            - $ref: '#/components/schemas/Instant'
+            - type: 'null'
+        taken_time:
+          oneOf:
+            - $ref: '#/components/schemas/LocalTime'
+            - type: 'null'
+        note: { type: [string, 'null'] }
+        created_at: { $ref: '#/components/schemas/Instant' }
+        updated_at: { $ref: '#/components/schemas/Instant' }
+    SupplementOccurrence:
+      type: object
+      additionalProperties: false
+      required:
+        [id, course_id, course_name, supplement_id, supplement_name, stock_unit,
+         occurrence_date, rescheduled_to, effective_date, slot, time, intake_context, status,
+         dose_quantity, dose_display_unit, actions, intake]
+      properties:
+        id: { type: integer, minimum: 1 }
+        course_id: { type: integer, minimum: 1 }
+        course_name: { type: string }
+        supplement_id: { type: integer, minimum: 1 }
+        supplement_name: { type: string }
+        stock_unit: { $ref: '#/components/schemas/CanonicalUnit' }
+        occurrence_date: { $ref: '#/components/schemas/LocalDate' }
+        rescheduled_to:
+          oneOf:
+            - $ref: '#/components/schemas/LocalDate'
+            - type: 'null'
+        effective_date: { $ref: '#/components/schemas/LocalDate' }
+        slot: { type: string }
+        time: { $ref: '#/components/schemas/LocalTime' }
+        intake_context:
+          type: string
+          enum: [unspecified, with_food, empty_stomach]
+        status: { type: string, enum: [planned, done, skipped] }
+        dose_quantity: { $ref: '#/components/schemas/DecimalQuantity' }
+        dose_display_unit: { $ref: '#/components/schemas/DisplayUnit' }
+        actions:
+          type: array
+          uniqueItems: true
+          items: { type: string, enum: [take, skip, correct, clear, reschedule] }
+        intake:
+          oneOf:
+            - $ref: '#/components/schemas/SupplementIntake'
+            - type: 'null'
+    AdherenceSummary:
+      type: object
+      additionalProperties: false
+      required: [done, skipped, overdue, pending, eligible, adherence_percentage]
+      properties:
+        done: { type: integer, minimum: 0 }
+        skipped: { type: integer, minimum: 0 }
+        overdue: { type: integer, minimum: 0 }
+        pending: { type: integer, minimum: 0 }
+        eligible: { type: integer, minimum: 0 }
+        adherence_percentage: { type: [number, 'null'], minimum: 0, maximum: 100 }
+    SupplementDay:
+      type: object
+      additionalProperties: false
+      required: [date, today, occurrences, summary]
+      properties:
+        date: { $ref: '#/components/schemas/LocalDate' }
+        today: { $ref: '#/components/schemas/LocalDate' }
+        occurrences:
+          type: array
+          items: { $ref: '#/components/schemas/SupplementOccurrence' }
+        summary: { $ref: '#/components/schemas/AdherenceSummary' }
+    AdherenceDay:
+      type: object
+      additionalProperties: false
+      required: [date, done, skipped, overdue, pending, eligible, adherence_percentage]
+      properties:
+        date: { $ref: '#/components/schemas/LocalDate' }
+        done: { type: integer, minimum: 0 }
+        skipped: { type: integer, minimum: 0 }
+        overdue: { type: integer, minimum: 0 }
+        pending: { type: integer, minimum: 0 }
+        eligible: { type: integer, minimum: 0 }
+        adherence_percentage: { type: [number, 'null'], minimum: 0, maximum: 100 }
+    AdherenceRange:
+      type: object
+      additionalProperties: false
+      required: [from, to, today, summary, days]
+      properties:
+        from: { $ref: '#/components/schemas/LocalDate' }
+        to: { $ref: '#/components/schemas/LocalDate' }
+        today: { $ref: '#/components/schemas/LocalDate' }
+        summary: { $ref: '#/components/schemas/AdherenceSummary' }
+        days:
+          type: array
+          items: { $ref: '#/components/schemas/AdherenceDay' }
+    IntakeMutationResponse:
+      type: object
+      additionalProperties: false
+      required: [data, stock, forecast, restock_proposal]
+      properties:
+        data: { $ref: '#/components/schemas/SupplementOccurrence' }
+        stock: { $ref: '#/components/schemas/StockSummary' }
+        forecast: { $ref: '#/components/schemas/StockForecast' }
+        restock_proposal:
+          oneOf:
+            - $ref: '#/components/schemas/RestockProposal'
+            - type: 'null'
+    Error:
+      type: object
+      additionalProperties: false
+      required: [message]
+      properties:
+        message: { type: string }
+    ValidationError:
+      type: object
+      additionalProperties: false
+      required: [message, errors]
+      properties:
+        message: { type: string }
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }

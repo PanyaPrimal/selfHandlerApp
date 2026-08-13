@@ -9,6 +9,8 @@ use App\Models\PlannedOccurrence;
 use App\Models\RecurringRule;
 use App\Models\Routine;
 use App\Models\SleepPlan;
+use App\Models\SupplementCourse;
+use App\Models\SupplementRestockProposal;
 use App\Models\User;
 use App\Models\WorkoutProgram;
 use App\Services\RoutineDayProjectionService;
@@ -45,6 +47,11 @@ class NotificationSourceSynchronizer
             ->where('is_active', true)->where('is_archived', false)->get()->keyBy('id');
         $workoutPrograms = WorkoutProgram::query()->ownedBy($user)
             ->where('is_active', true)->where('is_archived', false)->get()->keyBy('id');
+        $supplementCourses = SupplementCourse::query()->ownedBy($user)
+            ->where('is_active', true)->where('is_archived', false)
+            ->with('supplement')->get()->keyBy('id');
+        $restockProposals = SupplementRestockProposal::query()->ownedBy($user)
+            ->with('supplement')->get()->keyBy('id');
         $occurrences = PlannedOccurrence::query()
             ->ownedBy($user)
             ->with('recurringRule')
@@ -59,6 +66,8 @@ class NotificationSourceSynchronizer
             $habits,
             $sleepPlans,
             $workoutPrograms,
+            $supplementCourses,
+            $restockProposals,
             $today,
         );
 
@@ -197,6 +206,52 @@ class NotificationSourceSynchronizer
             }
         }
 
+        if ($settings->categoryEnabled(InAppNotification::CATEGORY_SUPPLEMENT)) {
+            foreach ($occurrences as $occurrence) {
+                $course = $this->supplementCourseForOccurrence($occurrence, $supplementCourses);
+                $effectiveDate = $this->effectiveDate($occurrence);
+                if (! $course
+                    || $occurrence->status !== PlannedOccurrence::STATUS_PLANNED
+                    || blank($occurrence->occurrence_time)
+                    || $effectiveDate !== $today) {
+                    continue;
+                }
+                $scheduledAt = CarbonImmutable::parse(
+                    "{$effectiveDate} ".substr((string) $occurrence->occurrence_time, 0, 8),
+                    $timezone,
+                )->utc();
+                $written += $this->upsertInitial($user, [
+                    'source_type' => InAppNotification::SOURCE_PLANNED_OCCURRENCE,
+                    'source_id' => $occurrence->id,
+                    'type' => InAppNotification::TYPE_SUPPLEMENT_INTAKE,
+                    'category' => InAppNotification::CATEGORY_SUPPLEMENT,
+                    'content' => ['title' => $course->name ?: $course->supplement->name, 'date' => $effectiveDate],
+                    'action_url' => "/supplements?date={$effectiveDate}&course={$course->id}&slot={$occurrence->slot}",
+                    'scheduled_at' => $scheduledAt,
+                    'max_escalations' => (int) config('selfhandler.notifications.supplement.max_escalations', 3),
+                ]);
+            }
+
+            foreach ($restockProposals as $proposal) {
+                if ($proposal->status !== SupplementRestockProposal::STATUS_OPEN) {
+                    continue;
+                }
+                $written += $this->upsertInitial($user, [
+                    'source_type' => InAppNotification::SOURCE_SUPPLEMENT_RESTOCK_PROPOSAL,
+                    'source_id' => $proposal->id,
+                    'type' => InAppNotification::TYPE_SUPPLEMENT_RESTOCK,
+                    'category' => InAppNotification::CATEGORY_SUPPLEMENT,
+                    'content' => [
+                        'title' => $proposal->supplement->name,
+                        'needed_by' => $proposal->needed_by->format('Y-m-d'),
+                    ],
+                    'action_url' => "/supplements?restock={$proposal->id}",
+                    'scheduled_at' => $now,
+                    'max_escalations' => 0,
+                ]);
+            }
+        }
+
         return $written;
     }
 
@@ -245,6 +300,12 @@ class NotificationSourceSynchronizer
                     ->where('is_active', true)
                     ->where('is_archived', false)
                     ->exists(),
+                RecurringRule::OWNER_SUPPLEMENT_COURSE => SupplementCourse::query()
+                    ->ownedBy($user)
+                    ->whereKey($occurrence->recurringRule->owner_id)
+                    ->where('is_active', true)
+                    ->where('is_archived', false)
+                    ->exists(),
                 default => false,
             };
 
@@ -264,6 +325,14 @@ class NotificationSourceSynchronizer
             }
 
             return $item && $this->isDirectStorageItem($item, $today)
+                ? 'pending'
+                : InAppNotification::STATUS_CANCELLED;
+        }
+
+        if ($notification->source_type === InAppNotification::SOURCE_SUPPLEMENT_RESTOCK_PROPOSAL) {
+            $proposal = SupplementRestockProposal::query()->ownedBy($user)->find($notification->source_id);
+
+            return $proposal?->status === SupplementRestockProposal::STATUS_OPEN
                 ? 'pending'
                 : InAppNotification::STATUS_CANCELLED;
         }
@@ -330,6 +399,15 @@ class NotificationSourceSynchronizer
 
         return $rule?->owner_type === RecurringRule::OWNER_WORKOUT_PROGRAM
             ? $programs->get($rule->owner_id)
+            : null;
+    }
+
+    public function supplementCourseForOccurrence(PlannedOccurrence $occurrence, Collection $courses): ?SupplementCourse
+    {
+        $rule = $occurrence->recurringRule;
+
+        return $rule?->owner_type === RecurringRule::OWNER_SUPPLEMENT_COURSE
+            ? $courses->get($rule->owner_id)
             : null;
     }
 
@@ -402,6 +480,8 @@ class NotificationSourceSynchronizer
      * @param  Collection<int, Habit>  $habits
      * @param  Collection<int, SleepPlan>  $sleepPlans
      * @param  Collection<int, WorkoutProgram>  $workoutPrograms
+     * @param  Collection<int, SupplementCourse>  $supplementCourses
+     * @param  Collection<int, SupplementRestockProposal>  $restockProposals
      */
     private function closeInvalidExisting(
         User $user,
@@ -411,6 +491,8 @@ class NotificationSourceSynchronizer
         Collection $habits,
         Collection $sleepPlans,
         Collection $workoutPrograms,
+        Collection $supplementCourses,
+        Collection $restockProposals,
         string $today,
     ): void {
         $settings = $user->ensureNotificationSettings();
@@ -420,6 +502,7 @@ class NotificationSourceSynchronizer
             ->whereIn('source_type', [
                 InAppNotification::SOURCE_PLANNED_OCCURRENCE,
                 InAppNotification::SOURCE_STORAGE_ITEM,
+                InAppNotification::SOURCE_SUPPLEMENT_RESTOCK_PROPOSAL,
             ])
             ->whereIn('status', InAppNotification::ACTIVE_STATUSES)
             ->get()
@@ -431,6 +514,8 @@ class NotificationSourceSynchronizer
                 $habits,
                 $sleepPlans,
                 $workoutPrograms,
+                $supplementCourses,
+                $restockProposals,
                 $today,
             ): void {
                 $terminal = null;
@@ -447,9 +532,15 @@ class NotificationSourceSynchronizer
                         || (! $this->routineForOccurrence($occurrence, $routines)
                             && ! $this->habitForOccurrence($occurrence, $habits)
                             && ! $this->sleepPlanForOccurrence($occurrence, $sleepPlans)
-                            && ! $this->workoutProgramForOccurrence($occurrence, $workoutPrograms))
+                            && ! $this->workoutProgramForOccurrence($occurrence, $workoutPrograms)
+                            && ! $this->supplementCourseForOccurrence($occurrence, $supplementCourses))
                         || blank($occurrence->occurrence_time)
                         || $this->effectiveDate($occurrence) !== $today) {
+                        $terminal = InAppNotification::STATUS_CANCELLED;
+                    }
+                } elseif ($notification->source_type === InAppNotification::SOURCE_SUPPLEMENT_RESTOCK_PROPOSAL) {
+                    $proposal = $restockProposals->get($notification->source_id);
+                    if (! $proposal || $proposal->status !== SupplementRestockProposal::STATUS_OPEN) {
                         $terminal = InAppNotification::STATUS_CANCELLED;
                     }
                 } else {

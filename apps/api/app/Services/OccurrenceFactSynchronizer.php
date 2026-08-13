@@ -10,6 +10,7 @@ use App\Models\Routine;
 use App\Models\RoutineLog;
 use App\Models\SleepLog;
 use App\Models\SleepPlan;
+use App\Models\SupplementIntake;
 use App\Models\User;
 use App\Models\WorkoutProgram;
 use App\Models\WorkoutSession;
@@ -110,6 +111,33 @@ class OccurrenceFactSynchronizer
         ]);
     }
 
+    public function syncFromSupplementIntake(SupplementIntake $intake): void
+    {
+        PlannedOccurrence::query()
+            ->where('user_id', $intake->user_id)
+            ->where('occurrence_date', $intake->planned_on->format('Y-m-d'))
+            ->where('slot', $intake->slot)
+            ->whereIn('recurring_rule_id', RecurringRule::query()
+                ->where('owner_type', RecurringRule::OWNER_SUPPLEMENT_COURSE)
+                ->where('owner_id', $intake->supplement_course_id)
+                ->select('id'))
+            ->update([
+                'status' => $intake->outcome === SupplementIntake::OUTCOME_SKIPPED
+                    ? PlannedOccurrence::STATUS_SKIPPED
+                    : PlannedOccurrence::STATUS_DONE,
+                'supplement_intake_id' => $intake->id,
+                'updated_at' => now(),
+            ]);
+    }
+
+    public function clearForSupplementOccurrence(PlannedOccurrence $occurrence): void
+    {
+        $occurrence->forceFill([
+            'status' => PlannedOccurrence::STATUS_PLANNED,
+            'supplement_intake_id' => null,
+        ])->save();
+    }
+
     /**
      * Rebuild every derived occurrence status for a user from the logs.
      *
@@ -126,6 +154,7 @@ class OccurrenceFactSynchronizer
                     'habit_log_id' => null,
                     'sleep_log_id' => null,
                     'workout_session_id' => null,
+                    'supplement_intake_id' => null,
                     'updated_at' => now(),
                 ]);
 
@@ -163,6 +192,15 @@ class OccurrenceFactSynchronizer
                 ->chunk(500, function ($sessions): void {
                     foreach ($sessions as $session) {
                         $this->syncFromWorkoutSession($session);
+                    }
+                });
+
+            SupplementIntake::query()
+                ->ownedBy($user)
+                ->orderBy('id')
+                ->chunk(500, function ($intakes): void {
+                    foreach ($intakes as $intake) {
+                        $this->syncFromSupplementIntake($intake);
                     }
                 });
 

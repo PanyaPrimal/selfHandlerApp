@@ -55,7 +55,7 @@ class NotificationApiTest extends NotificationTestCase
             ->assertOk()
             ->assertJsonPath('data', [
                 ...$payload,
-                'categories' => [...$payload['categories'], 'sleep' => true, 'workout' => true],
+                'categories' => [...$payload['categories'], 'sleep' => true, 'workout' => true, 'supplement' => true],
             ]);
 
         $this->putJson('/api/notifications/settings', [
@@ -66,7 +66,7 @@ class NotificationApiTest extends NotificationTestCase
 
         $this->getJson('/api/notifications/settings')->assertJsonPath('data', [
             ...$payload,
-            'categories' => [...$payload['categories'], 'sleep' => true, 'workout' => true],
+            'categories' => [...$payload['categories'], 'sleep' => true, 'workout' => true, 'supplement' => true],
         ]);
     }
 

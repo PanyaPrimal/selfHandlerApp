@@ -50,6 +50,13 @@ never drifts, while completed-workout refinement remains a separate read-only co
 Review display the same Nutrition-owned DTO. Photo recognition, provider catalogues, medical advice,
 long-period rollups, and AI assessment remain deferred.
 
+Feature 017 adds a neutral Supplements workspace: private references, bounded multi-slot courses on
+shared recurrence, correctable taken/skipped facts, an append-only exact stock ledger, a bounded
+run-out forecast, and one active one-off restock proposal. Planner, escalating in-app reminders,
+Today, Review, and the EN/RU/UK web/Android clients consume the same module-owned occurrence and
+adherence truth. Medical advice, inferred regimens, product recommendations, finance transactions,
+and AI assessment remain deferred.
+
 The Android package in `apps/mobile` wraps the same production Vue bundle with Capacitor 8. Existing
 accounts use a separate 30-day, `mobile`-scoped Sanctum token stored by a custom Android Keystore
 AES-GCM plugin; browser cookie/CSRF auth is unchanged. Android local notifications are an opt-in

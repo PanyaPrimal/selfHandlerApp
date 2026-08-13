@@ -45,7 +45,10 @@ Without a single engine, every module would reinvent its own scheduling → inco
 - **`interval`** (int, default 1) — "every N units of freq". Covers **"every other day"** = `daily, interval=2`
 - **`by_weekday`** (array) — weekdays for `weekly` (Mon, Thu = `[MO, TH]`). Covers "N times/week by weekday"
 - **`by_monthday`** (array) — days of the month for `monthly` (salary on the 5th/15th/25th = `[5, 15, 25]`). Covers "3×/month by date"
-- **`times_per_day`** (array of times or labels) — several intakes per day: `[{time: "08:00", label: "morning", with_food: true}, {time: "20:00", label: "evening"}]`. Covers "2×/day, with food / on an empty stomach"
+- **Normalized rule slots** — several occurrences per day are ordered `RecurringRuleSlot` rows with
+  a stable label and local time. Owner-specific context stays in an owner detail row rather than in
+  generic schedule JSON; Supplements uses `SupplementCourseSlot` for
+  `unspecified|with_food|empty_stomach`.
 
 ### Cyclic patterns (a dedicated block — exactly where hand-rolled solutions break)
 - **`cycle_on` / `cycle_off`** (int days) — "N days on / M days off". Example: week on / week off = `cycle_on=7, cycle_off=7`. Expansion: starting from `dtstart`, alternate on/off windows; occurrences fall only within on-windows
@@ -196,9 +199,27 @@ erDiagram
 - Multiple daily slots, interval/monthly programs, imported provider schedules, and advanced training
   plan generation remain deferred.
 
+**Extended by feature `017-supplements-courses-intake-stock` (2026-08-13):**
+
+- `supplement_course` is the fifth typed owner. Daily/weekly rules now support positive
+  `interval_count`, paired `cycle_on_days`/`cycle_off_days`, and one to eight normalized ordered slots.
+  Expansion anchors interval and cycle arithmetic to the local course start and preserves legacy
+  owners as interval 1 with their original single-slot fallback.
+- Materialization expands date × slot and keeps `(rule, original date, slot)` as the durable identity.
+  Schedule edits replace future unfactored slots while fact-bound and explicitly rescheduled
+  occurrences remain intact.
+- `planned_occurrences.supplement_intake_id` is the fifth mutually exclusive fact link. The owner
+  service supplies idempotent taken/skipped/correct/clear semantics and UTC snapshots; recurrence only
+  synchronizes the link and status.
+- Supplements implements its own Planner source. Pending occurrences allow skip/reschedule, settled
+  occurrences expose no Planner write, and all actions delegate to the domain fact boundary.
+- Stock forecast and restock proposal reconciliation remain outside recurrence: a shortage produces
+  one one-off proposal, never a recurring rule.
+
 **Still open, each waiting for a consumer:**
 
 3. `payload` (JSON on the rule) vs. storing domain data only in the polymorphic owner. Feature 006 needs
    neither, so it added neither.
-4. The supported subset of `rrule` at launch. Feature 006 implements `daily` and `weekly` only; interval,
-   monthly, month-days, on/off cycles and multi-slot days arrive with the module that needs them.
+4. The supported subset of `rrule` at launch. Daily/weekly interval, on/off cycles, and multi-slot
+   days are implemented through explicit fields; monthly, month-days, and arbitrary RRULE input remain
+   deferred until a consumer needs them.

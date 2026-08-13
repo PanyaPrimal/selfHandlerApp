@@ -16,6 +16,7 @@ test('quiet hours digest and categories save atomically and survive reload', asy
   await setSwitch(page, 'Routine reminders', true)
   await setSwitch(page, 'Storage reminders', false)
   await setSwitch(page, 'Habit reminders', true)
+  await setSwitch(page, 'Supplements', false)
   await page.getByRole('button', { name: 'Save notification settings' }).click()
   await expect(page.getByText('Notification settings saved.')).toBeVisible()
 
@@ -25,6 +26,7 @@ test('quiet hours digest and categories save atomically and survive reload', asy
   await expect(page.getByRole('combobox', { name: 'Quiet ends' })).toHaveValue('07:15')
   await expect(page.getByRole('switch', { name: 'Daily digest' })).toHaveAttribute('aria-checked', 'false')
   await expect(page.getByRole('switch', { name: 'Storage reminders' })).toHaveAttribute('aria-checked', 'false')
+  await expect(page.getByRole('switch', { name: 'Supplements' })).toHaveAttribute('aria-checked', 'false')
 
   const response = await page.evaluate(async () => {
     const result = await fetch('/api/notifications/settings', { headers: { Accept: 'application/json' } })
@@ -34,7 +36,7 @@ test('quiet hours digest and categories save atomically and survive reload', asy
   expect(response.body.data).toEqual({
     quiet_hours: { enabled: true, starts_at: '22:30', ends_at: '07:15' },
     digest: { enabled: false, time: '09:00' },
-    categories: { routine: true, storage: false, habit: true, sleep: true, workout: true },
+    categories: { routine: true, storage: false, habit: true, sleep: true, workout: true, supplement: false },
   })
 })
 

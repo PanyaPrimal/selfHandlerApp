@@ -61,6 +61,42 @@ class RecurrenceEngineTest extends RecurrenceTestCase
         $this->assertSame([], $this->expander()->datesBetween($unknown, '2026-08-01', '2026-08-31'));
     }
 
+    public function test_extended_rule_fields_preserve_legacy_routine_expansion_and_slots(): void
+    {
+        $owner = $this->createUser();
+        $daily = $this->ruleFor($this->createRoutine($owner));
+        $weekly = $this->ruleFor($this->createRoutine($owner, [], ['MO', 'WE']));
+
+        foreach ([$daily, $weekly] as $rule) {
+            $this->assertSame(1, $rule->interval_count);
+            $this->assertNull($rule->cycle_on_days);
+            $this->assertNull($rule->cycle_off_days);
+            $this->assertFalse($rule->relationLoaded('ruleSlots'));
+            $this->assertSame(0, $rule->ruleSlots()->count());
+        }
+
+        $this->assertSame(
+            ['2026-08-10', '2026-08-11', '2026-08-12'],
+            $this->expander()->datesBetween($daily, '2026-08-10', '2026-08-12'),
+        );
+        $this->assertSame(
+            ['2026-08-10', '2026-08-12'],
+            $this->expander()->datesBetween($weekly, '2026-08-10', '2026-08-12'),
+        );
+
+        $this->materializer()->materialize($daily, '2026-08-10');
+
+        $this->assertSame(
+            [''],
+            PlannedOccurrence::query()
+                ->where('recurring_rule_id', $daily->id)
+                ->distinct()
+                ->pluck('slot')
+                ->all(),
+            'Legacy owners keep their one empty-slot occurrence identity.',
+        );
+    }
+
     /* ---------------------------------------------------------------- */
     /* Time zones */
     /* ---------------------------------------------------------------- */
@@ -264,6 +300,7 @@ class RecurrenceEngineTest extends RecurrenceTestCase
         $occurrence = $this->occurrenceOn($routine, '2026-08-11');
         $this->assertSame(PlannedOccurrence::STATUS_DONE, $occurrence->status);
         $this->assertNotNull($occurrence->routine_log_id);
+        $this->assertNull($occurrence->supplement_intake_id);
 
         $this->putJson("/api/routines/{$routine->id}/logs/2026-08-11", ['status' => 'skipped'])->assertOk();
         $this->assertSame(PlannedOccurrence::STATUS_SKIPPED, $this->occurrenceOn($routine, '2026-08-11')->status);
@@ -284,6 +321,7 @@ class RecurrenceEngineTest extends RecurrenceTestCase
         app(OccurrenceFactSynchronizer::class)->reconcile($owner);
 
         $this->assertSame(PlannedOccurrence::STATUS_DONE, $this->occurrenceOn($routine, '2026-08-12')->status);
+        $this->assertNull($this->occurrenceOn($routine, '2026-08-12')->supplement_intake_id);
     }
 
     /* ---------------------------------------------------------------- */

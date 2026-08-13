@@ -23,6 +23,8 @@ class InAppNotification extends Model
 
     public const SOURCE_DAILY_DIGEST = 'daily_digest';
 
+    public const SOURCE_SUPPLEMENT_RESTOCK_PROPOSAL = 'supplement_restock_proposal';
+
     public const TYPE_ROUTINE_REMINDER = 'routine_reminder';
 
     public const TYPE_HABIT_REMINDER = 'habit_reminder';
@@ -35,6 +37,10 @@ class InAppNotification extends Model
 
     public const TYPE_DAILY_DIGEST = 'daily_digest';
 
+    public const TYPE_SUPPLEMENT_INTAKE = 'supplement_intake';
+
+    public const TYPE_SUPPLEMENT_RESTOCK = 'supplement_restock';
+
     public const TYPES = [
         self::TYPE_ROUTINE_REMINDER,
         self::TYPE_HABIT_REMINDER,
@@ -42,6 +48,8 @@ class InAppNotification extends Model
         self::TYPE_WORKOUT_REMINDER,
         self::TYPE_STORAGE_DUE,
         self::TYPE_DAILY_DIGEST,
+        self::TYPE_SUPPLEMENT_INTAKE,
+        self::TYPE_SUPPLEMENT_RESTOCK,
     ];
 
     public const CATEGORY_ROUTINE = 'routine';
@@ -56,6 +64,8 @@ class InAppNotification extends Model
 
     public const CATEGORY_DIGEST = 'digest';
 
+    public const CATEGORY_SUPPLEMENT = 'supplement';
+
     public const CATEGORIES = [
         self::CATEGORY_ROUTINE,
         self::CATEGORY_HABIT,
@@ -63,6 +73,7 @@ class InAppNotification extends Model
         self::CATEGORY_WORKOUT,
         self::CATEGORY_STORAGE,
         self::CATEGORY_DIGEST,
+        self::CATEGORY_SUPPLEMENT,
     ];
 
     public const STATUS_SCHEDULED = 'scheduled';

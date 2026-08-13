@@ -10,7 +10,7 @@ $speckit-analyze -> $speckit-implement` before application code changes.
 > `007-body-measurements`, `008-storage-inbox`, `009-planner-day`,
 > `010-interface-personalization`, `011-in-app-notifications`, `012-android-capacitor-shell`, and
 > `013-habits-anti-habits`, `014-sleep-routine-templates`, `015-workouts-training-goals`, and
-> `016-nutrition-meals-hydration-targets` are complete. Native compilation and device installation evidence for 012 remains externally blocked in
+> `016-nutrition-meals-hydration-targets` and `017-supplements-courses-intake-stock` are complete. Native compilation and device installation evidence for 012 remains externally blocked in
 > this workspace because Android Studio, JDK, SDK, Gradle, and `adb` are absent; all repository-owned
 > server, web, configuration, sync, resource, and native-source gates pass.
 > `002-homelab-deployment` stops at T055 by product decision: the current homelab deployment is
@@ -59,6 +59,10 @@ The application already provides:
 - profile-owned light/dark/system, accent, texture, numeral, motion and contrast-safe background choices.
 - first-class habits and anti-habits with ordinary/numeric facts, explicit abstinence, stepped limits,
   deterministic chains, Planner projection and timed in-app reminders.
+- sleep plans and rich routine templates, recurring workout programs and training goals, and exact
+  Nutrition meal/hydration facts with stable daily targets;
+- neutral supplement references and bounded courses, correctable intake facts, exact stock history,
+  bounded forecast/restock proposals, Planner entries, reminders, and daily adherence summaries.
 
 The shared recurrence boundary now exists and owns every routine schedule. A module that needs
 recurring behaviour uses it; no second scheduling table may be added.
@@ -369,6 +373,14 @@ owned by Supplements and produces a one-off restock proposal; it is not a recurr
 **Prerequisites:** 004, 006, and 011.
 
 **Explicitly defer:** medical advice, finance transaction creation, and AI regimen generation.
+
+Delivered as private exact-unit references, bounded daily/weekly interval and on/off-cycle courses,
+normalized multi-slot recurrence, one correctable taken/skipped fact per occurrence, and an immutable
+stock-movement ledger. A 730-date projection exposes every closed forecast state and reconciles one
+stable one-off restock proposal without creating recurrence or money facts. Planner, Notifications,
+Today, Review, the responsive EN/RU/UK web client, and the synchronized Capacitor bundle consume the
+same module-owned projections. Medical/product advice, inferred schedules, finance integration,
+historical import, provider catalogues, push/offline authority, and AI remain deferred.
 
 ### 018 — Finance Ledger Foundation
 

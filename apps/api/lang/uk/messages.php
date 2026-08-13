@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'supplement_range_invalid' => 'Період дотримання курсу має бути впорядкований і не перевищувати 366 днів.',
     'already_authenticated' => 'У цьому браузері вже виконано вхід.',
     'body_fat_required' => 'Для формули Кетча — МакАрдла потрібен відсоток жиру.',
     'block_end_after_start' => 'Час завершення має бути пізніше часу початку.',
@@ -84,4 +85,22 @@ return [
     'nutrition_future_meal' => 'Не можна записувати прийом їжі в майбутньому.',
     'nutrition_entry_reference' => 'Виберіть рівно один продукт або рецепт.',
     'nutrition_range_invalid' => 'Виберіть упорядкований діапазон не довший за 366 днів.',
+    'supplement_unit_incompatible' => 'Укажіть точну кількість та одиницю, сумісну з цим запасом.',
+    'supplement_field_required' => 'Укажіть принаймні одне поле добавки для зміни.',
+    'supplement_stock_unit_locked' => 'Одиницю запасу не можна змінювати після появи курсу або факту запасу/прийому.',
+    'supplement_course_end_choice' => 'Укажіть рівно одне: дату завершення або тривалість.',
+    'supplement_course_weekdays' => 'Виберіть принаймні один день тижня для щотижневого курсу.',
+    'supplement_course_daily_weekdays' => 'Для щоденного курсу не можна водночас вибирати дні тижня.',
+    'supplement_course_slots_unique' => 'Коди й час слотів курсу мають бути унікальними.',
+    'supplement_course_field_required' => 'Укажіть принаймні одне поле курсу для зміни.',
+    'supplement_course_supplement_active' => 'Виберіть активну власну добавку.',
+    'supplement_course_bounds' => 'Кінець курсу має бути не раніше його початку.',
+    'supplement_intake_dose_pair' => 'Укажіть кількість і одиницю дози разом або використайте дозу курсу.',
+    'supplement_intake_time_required' => 'Укажіть фактичний місцевий час прийнятої дози.',
+    'supplement_intake_skip_fields' => 'Пропущений прийом не може мати фактичного часу чи іншої дози.',
+    'supplement_intake_future' => 'Не можна записувати прийом у майбутньому.',
+    'supplement_intake_time_nonexistent' => 'Цей місцевий час не існує через перехід на літній час.',
+    'supplement_stock_correction_reason' => 'Поясніть, навіщо потрібне це компенсувальне коригування запасу.',
+    'supplement_stock_quantity' => 'Поповнення має бути додатним, а коригування — ненульовим і сумісним.',
+    'supplement_move_collision' => 'У цьому курсі на цю дату й слот уже заплановано інший прийом.',
 ];

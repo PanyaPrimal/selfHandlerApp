@@ -18,6 +18,7 @@ import AppearanceSettingsView from './views/AppearanceSettingsView.vue'
 import NotificationsView from './views/NotificationsView.vue'
 import WorkoutsView from './views/WorkoutsView.vue'
 import NutritionView from './views/NutritionView.vue'
+import SupplementsView from './views/SupplementsView.vue'
 import { isAndroidNative } from './mobile/platform'
 
 declare module 'vue-router' {
@@ -71,6 +72,11 @@ export const router = createRouter({
           path: 'nutrition',
           name: 'nutrition',
           component: NutritionView,
+        },
+        {
+          path: 'supplements',
+          name: 'supplements',
+          component: SupplementsView,
         },
         {
           path: 'goals',

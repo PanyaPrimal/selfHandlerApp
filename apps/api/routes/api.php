@@ -32,6 +32,12 @@ use App\Http\Controllers\SleepController;
 use App\Http\Controllers\SleepLogController;
 use App\Http\Controllers\SleepPlanController;
 use App\Http\Controllers\SleepStatisticsController;
+use App\Http\Controllers\SupplementController;
+use App\Http\Controllers\SupplementCourseController;
+use App\Http\Controllers\SupplementDayController;
+use App\Http\Controllers\SupplementIntakeController;
+use App\Http\Controllers\SupplementRestockProposalController;
+use App\Http\Controllers\SupplementStockMovementController;
 use App\Http\Controllers\TimeBlockController;
 use App\Http\Controllers\TodayController;
 use App\Http\Controllers\TrainingGoalController;
@@ -62,6 +68,20 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/notifications/{notification}/snooze', [NotificationController::class, 'snooze']);
 
     Route::get('/today', TodayController::class);
+
+    Route::get('/supplements', [SupplementController::class, 'index']);
+    Route::post('/supplements', [SupplementController::class, 'store']);
+    Route::patch('/supplements/{supplement}', [SupplementController::class, 'update']);
+    Route::get('/supplements/days/{date}', [SupplementDayController::class, 'show']);
+    Route::get('/supplements/adherence', [SupplementDayController::class, 'adherence']);
+    Route::get('/supplement-courses', [SupplementCourseController::class, 'index']);
+    Route::post('/supplement-courses', [SupplementCourseController::class, 'store']);
+    Route::patch('/supplement-courses/{course}', [SupplementCourseController::class, 'update']);
+    Route::put('/supplement-occurrences/{occurrence}/intake', [SupplementIntakeController::class, 'upsert']);
+    Route::delete('/supplement-occurrences/{occurrence}/intake', [SupplementIntakeController::class, 'clear']);
+    Route::get('/supplements/{supplement}/stock-movements', [SupplementStockMovementController::class, 'index']);
+    Route::post('/supplements/{supplement}/stock-movements', [SupplementStockMovementController::class, 'store']);
+    Route::patch('/supplement-restock-proposals/{proposal}', [SupplementRestockProposalController::class, 'update']);
 
     Route::get('/nutrition/foods', [FoodItemController::class, 'index']);
     Route::post('/nutrition/foods', [FoodItemController::class, 'store']);

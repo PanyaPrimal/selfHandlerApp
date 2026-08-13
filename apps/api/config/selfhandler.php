@@ -44,6 +44,10 @@ return [
             'escalation_interval_minutes' => 30,
             'max_escalations' => 2,
         ],
+        'supplement' => [
+            'escalation_interval_minutes' => 30,
+            'max_escalations' => 3,
+        ],
     ],
 
     'mobile' => [

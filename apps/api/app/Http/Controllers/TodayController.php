@@ -10,6 +10,7 @@ use App\Services\RoutineDayProjectionService;
 use App\Services\RoutineProgressService;
 use App\Services\RoutineScheduleService;
 use App\Services\SleepStatisticsService;
+use App\Services\SupplementAdherenceService;
 use App\Services\WorkoutStatisticsService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
@@ -24,6 +25,7 @@ class TodayController extends Controller
         private readonly SleepStatisticsService $sleepStatistics,
         private readonly WorkoutStatisticsService $workoutStatistics,
         private readonly NutritionSummaryService $nutritionSummary,
+        private readonly SupplementAdherenceService $supplementAdherence,
     ) {}
 
     public function __invoke(Request $request): JsonResponse
@@ -174,6 +176,7 @@ class TodayController extends Controller
                 'routine_activities' => $projection['activity_summary'],
                 'workouts' => $workouts['summary'],
                 'nutrition' => $this->nutritionSummary->forDay($user, $dateValue),
+                'supplements' => $this->supplementAdherence->forDay($user, $dateValue),
             ],
         ]);
     }
