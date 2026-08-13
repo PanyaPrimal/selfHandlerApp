@@ -28,10 +28,13 @@ return [
     'too_many_login' => 'Too many login attempts. Please try again later.',
     'too_many_registration' => 'Too many registration attempts. Please try again later.',
     'unsupported_field' => 'This field is not supported.',
+    'unauthenticated' => 'Unauthenticated.',
     'weekdays_daily' => 'Weekdays are only allowed for a weekday schedule.',
     'write_capture' => 'Write something to capture.',
     'move_has_result' => 'This day already has a result, so it cannot be moved.',
     'move_not_past' => 'A day can only be moved to today or later.',
     'notification_transition' => 'That notification cannot be changed from its current state.',
+    'mobile_presentation_state' => 'Only an unread delivered notification can be presented locally.',
+    'mobile_token_required' => 'A current SelfHandler Android session is required.',
     'quiet_hours_distinct' => 'Quiet hours must have different start and end times.',
 ];

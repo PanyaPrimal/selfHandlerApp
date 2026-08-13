@@ -32,6 +32,7 @@ const state = reactive<NotificationState>({
 
 let requestSequence = 0
 let polling: number | null = null
+let presentationHandler: ((items: InAppNotification[]) => Promise<unknown>) | null = null
 
 async function refresh(view: NotificationView = state.view): Promise<void> {
   const sequence = ++requestSequence
@@ -46,6 +47,7 @@ async function refresh(view: NotificationView = state.view): Promise<void> {
     state.items = response.data
     state.unreadCount = response.unread_count
     state.snoozeOptions = response.snooze_options
+    try { await presentationHandler?.(response.data) } catch { /* native presentation never blocks the inbox */ }
   } catch {
     if (sequence === requestSequence) state.error = translate('notifications.loadFailed')
   } finally {
@@ -111,4 +113,10 @@ export function useNotificationStore() {
     start,
     stop,
   }
+}
+
+export function setNotificationPresentationHandler(
+  handler: ((items: InAppNotification[]) => Promise<unknown>) | null,
+): void {
+  presentationHandler = handler
 }

@@ -6,15 +6,17 @@ import { router } from './router'
 import './style.css'
 import { initializeTheme } from './theme'
 import { initializeLocale } from './i18n'
+import { isAndroidNative } from './mobile/platform'
+import { initializeMobileRuntime } from './mobile/runtime'
 
 initializeLocale()
 initializeTheme()
 
-setUnauthorizedHandler(() => {
+setUnauthorizedHandler(async () => {
   const currentRoute = router.currentRoute.value
   const redirect = currentRoute.meta.requiresAuth ? currentRoute.fullPath : '/'
 
-  expireSession()
+  await expireSession()
 
   if (currentRoute.name !== 'login') {
     void router.replace({
@@ -25,3 +27,7 @@ setUnauthorizedHandler(() => {
 })
 
 createApp(App).use(router).mount('#app')
+
+if (isAndroidNative()) {
+  void initializeMobileRuntime(router)
+}

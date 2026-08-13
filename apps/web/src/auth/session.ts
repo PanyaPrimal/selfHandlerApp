@@ -9,6 +9,8 @@ import { ApiError, resetCsrfProtection } from '../api/http'
 import type { LoginPayload, RegisterPayload, User } from '../api/types'
 import { syncThemeFromProfile } from '../theme'
 import { syncLocaleFromProfile } from '../i18n'
+import { mobileCredentialVault } from '../mobile/credential-vault'
+import { isAndroidNative } from '../mobile/platform'
 
 export type SessionStatus = 'checking' | 'authenticated' | 'guest' | 'unavailable'
 
@@ -124,7 +126,10 @@ export async function logout(): Promise<void> {
   becomeGuest()
 }
 
-export function expireSession(): void {
+export async function expireSession(): Promise<void> {
+  if (isAndroidNative()) {
+    try { await mobileCredentialVault.clear() } catch { /* already unavailable or cleared */ }
+  }
   restored = true
   becomeGuest()
 }

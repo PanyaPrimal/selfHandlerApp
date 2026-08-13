@@ -1,0 +1,33 @@
+{
+  "name": "@selfhandler/mobile",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "build:web": "node scripts/build-web.mjs",
+    "sync:android": "npm run build:web && cap sync android && node scripts/validate-mobile.mjs",
+    "validate": "node scripts/validate-mobile.mjs",
+    "assets:android": "capacitor-assets generate --android",
+    "android:debug": "npm run sync:android && cd android && gradlew.bat assembleDebug",
+    "android:release": "npm run sync:android && cd android && gradlew.bat assembleRelease"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.0",
+    "@capacitor/app": "8.1.1",
+    "@capacitor/core": "8.5.0",
+    "@capacitor/device": "8.0.3",
+    "@capacitor/keyboard": "8.0.5",
+    "@capacitor/local-notifications": "8.2.1"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "3.0.5",
+    "@capacitor/cli": "8.5.0"
+  },
+  "overrides": {
+    "minimatch": "3.1.4",
+    "sharp": "0.35.3",
+    "tar": "7.5.22",
+    "uuid": "11.1.1"
+  }
+}

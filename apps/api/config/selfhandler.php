@@ -42,4 +42,10 @@ return [
         ],
     ],
 
+    'mobile' => [
+        'ability' => 'mobile',
+        'token_lifetime_days' => 30,
+        'token_name_prefix' => 'Android · ',
+    ],
+
 ];

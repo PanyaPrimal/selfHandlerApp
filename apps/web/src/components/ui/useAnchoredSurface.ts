@@ -159,6 +159,12 @@ export function useAnchoredSurface(options: AnchoredSurfaceOptions = {}): Anchor
     close()
   }
 
+  function onNativeBack(event: Event): void {
+    event.preventDefault()
+    options.onDismiss?.('escape')
+    close()
+  }
+
   watch(isOpen, (openNow) => {
     if (typeof document === 'undefined') {
       return
@@ -167,10 +173,12 @@ export function useAnchoredSurface(options: AnchoredSurfaceOptions = {}): Anchor
     if (openNow) {
       document.addEventListener('pointerdown', onPointerDown, true)
       document.addEventListener('keydown', onKeyDown, true)
+      window.addEventListener('selfhandler:back', onNativeBack)
       window.addEventListener('resize', refreshBottomPadding)
     } else {
       document.removeEventListener('pointerdown', onPointerDown, true)
       document.removeEventListener('keydown', onKeyDown, true)
+      window.removeEventListener('selfhandler:back', onNativeBack)
       window.removeEventListener('resize', refreshBottomPadding)
       availableHeight.value = null
     }
@@ -183,6 +191,7 @@ export function useAnchoredSurface(options: AnchoredSurfaceOptions = {}): Anchor
 
     document.removeEventListener('pointerdown', onPointerDown, true)
     document.removeEventListener('keydown', onKeyDown, true)
+    window.removeEventListener('selfhandler:back', onNativeBack)
     window.removeEventListener('resize', refreshBottomPadding)
   })
 

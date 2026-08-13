@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\RequireMobileToken;
 use App\Http\Middleware\UseRequestLocale;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -24,6 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 | Request::HEADER_X_FORWARDED_PROTO,
         );
         $middleware->statefulApi();
+        $middleware->alias(['mobile.token' => RequireMobileToken::class]);
         $middleware->appendToGroup('api', UseRequestLocale::class);
         $middleware->appendToGroup('web', UseRequestLocale::class);
         $middleware->redirectGuestsTo(

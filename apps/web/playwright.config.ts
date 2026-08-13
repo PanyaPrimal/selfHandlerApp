@@ -61,6 +61,7 @@ export default defineConfig({
       cwd: webDir,
       env: {
         VITE_API_PROXY_TARGET: apiUrl,
+        VITE_MOBILE_API_ORIGIN: 'https://selfhandler.example.test',
       },
       url: webUrl,
       reuseExistingServer: false,

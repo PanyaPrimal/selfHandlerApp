@@ -192,6 +192,22 @@ export interface ItemResponse<T> {
   data: T
 }
 
+export interface MobileSessionResponse {
+  data: {
+    token: string
+    token_type: 'Bearer'
+    expires_at: string
+    user: User
+  }
+}
+
+export interface MobileCurrentSessionResponse {
+  data: {
+    expires_at: string
+    user: User
+  }
+}
+
 export interface RegisterPayload {
   name: string
   email: string
@@ -519,7 +535,7 @@ export interface InAppNotification {
   body: string
   action_url: string | null
   status: NotificationStatus
-  channels: readonly ['in_app']
+  channels: readonly ('in_app' | 'android_local')[]
   escalation_count: number
   sent_at: string
   read_at: string | null

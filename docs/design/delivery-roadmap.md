@@ -5,10 +5,13 @@ increments. It is a dependency roadmap, not a replacement for feature specificat
 still requires `$speckit-specify -> $speckit-clarify -> $speckit-plan -> $speckit-tasks ->
 $speckit-analyze -> $speckit-implement` before application code changes.
 
-> **Roadmap baseline (2026-08-12):** `001-core-daily-loop`, `003-multi-user-auth`,
+> **Roadmap baseline (2026-08-13):** `001-core-daily-loop`, `003-multi-user-auth`,
 > `004-profile-settings`, `005-interface-foundation`, `006-unified-recurrence`,
-> `007-body-measurements`, `008-storage-inbox`, `009-planner-day`, and
-> `010-interface-personalization` are complete.
+> `007-body-measurements`, `008-storage-inbox`, `009-planner-day`,
+> `010-interface-personalization`, `011-in-app-notifications`, and `012-android-capacitor-shell` are
+> complete. Native compilation and device installation evidence for 012 remains externally blocked in
+> this workspace because Android Studio, JDK, SDK, Gradle, and `adb` are absent; all repository-owned
+> server, web, configuration, sync, resource, and native-source gates pass.
 > `002-homelab-deployment` stops at T055 by product decision: the current homelab deployment is
 > accepted, and T056-T059 are intentionally excluded from the product queue.
 >
@@ -264,6 +267,10 @@ owning fact is completed.
 feature needs them.
 
 ### 012 — Android Capacitor Shell
+
+**Status:** Complete on 2026-08-13 (`48/48` tasks; deployment was explicitly excluded). Android APK/
+release compilation and device installation are documented external gates, not claimed as executed in
+the toolchain-free workspace.
 
 **User outcome:** the user installs a sideloadable Android APK, signs in safely, and uses the shared
 SelfHandler interface and homelab data on a real phone.

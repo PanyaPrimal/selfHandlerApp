@@ -6,6 +6,8 @@ use App\Http\Controllers\DailyReviewController;
 use App\Http\Controllers\GoalController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\ItemController;
+use App\Http\Controllers\MobileNotificationController;
+use App\Http\Controllers\MobileSessionController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\NotificationSettingsController;
 use App\Http\Controllers\PlannerController;
@@ -18,6 +20,14 @@ use App\Http\Controllers\TodayController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', HealthController::class);
+
+Route::post('/mobile/session', [MobileSessionController::class, 'store']);
+
+Route::middleware(['auth:sanctum', 'mobile.token'])->group(function () {
+    Route::get('/mobile/session', [MobileSessionController::class, 'show']);
+    Route::delete('/mobile/session', [MobileSessionController::class, 'destroy']);
+    Route::put('/mobile/notifications/{notification}/presented', [MobileNotificationController::class, 'presented']);
+});
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/profile', [ProfileController::class, 'show']);

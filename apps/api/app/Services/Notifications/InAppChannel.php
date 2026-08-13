@@ -12,7 +12,7 @@ class InAppChannel implements NotificationChannel
 {
     public function key(): string
     {
-        return 'in_app';
+        return InAppNotification::CHANNEL_IN_APP;
     }
 
     public function deliver(InAppNotification $notification, User $recipient): void

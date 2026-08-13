@@ -5,6 +5,10 @@
   "scripts": {
     "dev:web": "npm --prefix apps/web run dev",
     "build:web": "npm --prefix apps/web run build",
+    "build:android-web": "npm --prefix apps/mobile run build:web",
+    "sync:android": "npm --prefix apps/mobile run sync:android",
+    "validate:android": "npm --prefix apps/mobile run validate",
+    "test:android-shell": "npm --prefix apps/mobile test",
     "lint:web": "npm --prefix apps/web run typecheck",
     "test:deployment": "python -m unittest discover -s deployment/tests -p \"test_*.py\" -v",
     "test:production-smoke": "python deployment/tests/production_smoke.py",

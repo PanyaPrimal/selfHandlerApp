@@ -11,6 +11,12 @@ class InAppNotification extends Model
 {
     use HasFactory, UserOwned;
 
+    public const CHANNEL_IN_APP = 'in_app';
+
+    public const CHANNEL_ANDROID_LOCAL = 'android_local';
+
+    public const CHANNELS = [self::CHANNEL_IN_APP, self::CHANNEL_ANDROID_LOCAL];
+
     public const SOURCE_PLANNED_OCCURRENCE = 'planned_occurrence';
 
     public const SOURCE_STORAGE_ITEM = 'storage_item';

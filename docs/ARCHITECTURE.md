@@ -26,7 +26,19 @@ Vue 3 SPA for desktop and mobile web usage.
 
 ### `apps/mobile`
 
-Capacitor wrapper around the web client for Android first, with room for iOS later.
+Capacitor 8 wrapper around the production web client for Android. It packages `apps/web/dist` and has
+no `server.url`, remote HTML, or live-update path. The only platform-specific source is configuration,
+resources, lifecycle integration, and a credential-vault plugin; product routes remain in Vue.
+
+The bundled WebView cannot reuse the browser's same-origin cookie session. Android therefore exchanges
+existing-account credentials for one 30-day Sanctum token with exactly the `mobile` ability, retrieves
+that token from Android Keystore immediately before native HTTP calls, and revokes only that device
+token on sign-out. The plaintext token exists only across issue/write and just-in-time read/request
+boundaries. Browser Fetch, session cookies, and CSRF remain a separate unchanged transport.
+
+Android Local Notifications is a presentation adapter over feature 011: after explicit permission, it
+mirrors already-delivered unread inbox records when the app synchronises or resumes, then records the
+`android_local` channel. There is no stopped-app wakeup or FCM in this increment.
 
 ## Infrastructure
 

@@ -16,6 +16,13 @@
   user is allowed. Roles, invitations, sharing, verification, recovery, 2FA, and external identity
   providers are deliberately deferred. Delivery contract:
   [`003-multi-user-auth`](../../specs/003-multi-user-auth/spec.md).
+- **Android uses a separate device-token boundary** (2026-08-13): the bundled Capacitor origin never
+  weakens the browser's same-origin cookie/CSRF contract. Existing credentials create one 30-day
+  Sanctum token with exactly the `mobile` ability; a custom Android Keystore AES-GCM plugin persists it,
+  native HTTP reads it just in time, and sign-out revokes only that token. Native registration, Web
+  Storage credentials, cleartext/private origins, remote HTML, FCM, exact alarms, and offline sync are
+  explicitly outside feature 012. Delivery contract:
+  [`012-android-capacitor-shell`](../../specs/012-android-capacitor-shell/spec.md).
 
 ## AI assistant (Module 11)
 

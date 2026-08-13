@@ -1,6 +1,15 @@
 import type { MessageKey } from './en'
 
 export const ru = {
+  'mobile.registrationBrowser': 'Уже есть аккаунт? Войдите здесь. Чтобы начать, сначала создайте аккаунт в браузере.',
+  'mobile.notificationsTitle': 'Уведомления Android',
+  'mobile.notificationsBody': 'С вашего разрешения SelfHandler может дублировать непрочитанные напоминания, уже доставленные в этот список. Разрешение запрашивается только после включения.',
+  'mobile.notificationsEnable': 'Включить уведомления',
+  'mobile.notificationsEnabling': 'Включаем…',
+  'mobile.notificationsEnabled': 'Уведомления Android включены.',
+  'mobile.notificationsGranted': 'Разрешены',
+  'mobile.notificationsDenied': 'Разрешение на уведомления не предоставлено. Его можно изменить в настройках Android.',
+  'mobile.notificationsFailed': 'Не удалось обновить настройки уведомлений Android.',
   'app.restoringSession': 'Восстанавливаем сессию…',
   'app.unavailableTitle': 'SelfHandler недоступен',
   'app.unavailableBody': 'Не удалось подтвердить сессию. Проверьте сервис и повторите попытку.',
@@ -624,6 +633,10 @@ export const ru = {
   'changelog.howToTest': 'Как проверить',
   'changelog.openSection': 'Перейти к разделу',
   'changelog.entry.notifications.title': 'Надёжные уведомления в приложении',
+  'changelog.entry.android.title': 'SelfHandler для Android',
+  'changelog.entry.android.summary': 'То же рабочее пространство SelfHandler теперь доступно как встроенное Android-приложение с защищёнными сессиями устройства, нативной кнопкой Назад, клавиатурой и необязательными локальными напоминаниями.',
+  'changelog.entry.android.test': 'Войдите в существующий аккаунт, используйте кнопку Назад, откройте клавиатуру в поле и включите уведомления Android в разделе Уведомления.',
+  'changelog.entry.android.limit': 'Аккаунт по-прежнему создаётся в браузере. Локальные напоминания дублируют события списка после синхронизации приложения; фоновые push-уведомления пока не включены.',
   'changelog.entry.notifications.summary': 'Рутины со временем, важные задачи на сегодня и ежедневная сводка теперь используют единый список с учётом тихих часов.',
   'changelog.entry.notifications.test': 'Откройте Уведомления, настройте тихие часы, затем прочитайте, отложите, скройте напоминание или перейдите из него в Планировщик.',
   'changelog.entry.personalization.title': 'Язык и персональное оформление',

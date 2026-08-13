@@ -24,6 +24,11 @@ Authenticated users also have one in-app notification inbox for timed routine oc
 dated Storage tasks, and a daily digest. Per-user quiet hours, category settings, snooze, retry-safe
 processing, and routine escalation are owned by feature 011; external delivery channels remain deferred.
 
+The Android package in `apps/mobile` wraps the same production Vue bundle with Capacitor 8. Existing
+accounts use a separate 30-day, `mobile`-scoped Sanctum token stored by a custom Android Keystore
+AES-GCM plugin; browser cookie/CSRF auth is unchanged. Android local notifications are an opt-in
+presentation of unread inbox events after synchronisation, not background push delivery.
+
 ## Monorepo Layout
 
 - `apps/api` - Laravel API
@@ -71,3 +76,17 @@ Local deployment validation commands:
 ```powershell
 npm run validate:deployment
 ```
+
+## Android Build
+
+Node-only configuration, build, sync, and static native-source validation are available now:
+
+```powershell
+$env:SELFHANDLER_MOBILE_API_ORIGIN = 'https://selfhandler.example.test'
+npm --prefix apps/mobile ci
+npm run sync:android
+```
+
+Native compilation additionally requires Android Studio 2025.2.1+, JDK, Android SDK API 36, and
+`adb`. See [`apps/mobile/README.md`](apps/mobile/README.md) for signing, sideloading, security, and the
+manual device journey. Deployment is a separate concern and is not changed by the Android package.

@@ -1,6 +1,15 @@
 import type { MessageKey } from './en'
 
 export const uk = {
+  'mobile.registrationBrowser': 'Уже маєте обліковий запис? Увійдіть тут. Щоб почати, спочатку створіть обліковий запис у браузері.',
+  'mobile.notificationsTitle': 'Сповіщення Android',
+  'mobile.notificationsBody': 'З вашого дозволу SelfHandler може дублювати непрочитані нагадування, уже доставлені до цього списку. Дозвіл запитується лише після ввімкнення.',
+  'mobile.notificationsEnable': 'Увімкнути сповіщення',
+  'mobile.notificationsEnabling': 'Вмикаємо…',
+  'mobile.notificationsEnabled': 'Сповіщення Android увімкнено.',
+  'mobile.notificationsGranted': 'Дозволено',
+  'mobile.notificationsDenied': 'Дозвіл на сповіщення не надано. Його можна змінити в налаштуваннях Android.',
+  'mobile.notificationsFailed': 'Не вдалося оновити налаштування сповіщень Android.',
   'app.restoringSession': 'Відновлюємо сесію…',
   'app.unavailableTitle': 'SelfHandler недоступний',
   'app.unavailableBody': 'Не вдалося підтвердити сесію. Перевірте сервіс і повторіть спробу.',
@@ -624,6 +633,10 @@ export const uk = {
   'changelog.howToTest': 'Як перевірити',
   'changelog.openSection': 'Перейти до розділу',
   'changelog.entry.notifications.title': 'Надійні сповіщення у застосунку',
+  'changelog.entry.android.title': 'SelfHandler для Android',
+  'changelog.entry.android.summary': 'Той самий робочий простір SelfHandler тепер доступний як вбудований Android-застосунок із захищеними сесіями пристрою, нативною кнопкою Назад, клавіатурою та необов’язковими локальними нагадуваннями.',
+  'changelog.entry.android.test': 'Увійдіть до наявного облікового запису, скористайтеся кнопкою Назад, відкрийте клавіатуру в полі та ввімкніть сповіщення Android у розділі Сповіщення.',
+  'changelog.entry.android.limit': 'Обліковий запис і надалі створюється в браузері. Локальні нагадування дублюють події списку після синхронізації застосунку; фонові push-сповіщення поки не включено.',
   'changelog.entry.notifications.summary': 'Рутини з часом, важливі завдання на сьогодні та щоденний огляд тепер використовують єдиний список з урахуванням тихих годин.',
   'changelog.entry.notifications.test': 'Відкрийте Сповіщення, налаштуйте тихі години, потім прочитайте, відкладіть, сховайте нагадування або перейдіть із нього до Планувальника.',
   'changelog.entry.personalization.title': 'Мова та персональне оформлення',

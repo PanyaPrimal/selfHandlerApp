@@ -19,11 +19,17 @@ import { UiSwitch, UiTimeField } from '../components/ui'
 import { useI18n } from '../i18n'
 import type { MessageKey } from '../i18n/locales/en'
 import { useNotificationStore } from '../notifications/store'
+import { isAndroidNative } from '../mobile/platform'
+import {
+  enableMobileNotifications,
+  mobileNotificationState,
+} from '../mobile/runtime'
 
 const router = useRouter()
 const session = useAuthSession()
 const notifications = useNotificationStore()
 const { locale, t } = useI18n()
+const native = isAndroidNative()
 
 const settingsLoading = ref(true)
 const settingsSaving = ref(false)
@@ -197,6 +203,14 @@ async function saveSettings(): Promise<void> {
   }
 }
 
+async function enableNativeNotifications(): Promise<void> {
+  feedback.value = null
+  const permission = await enableMobileNotifications()
+  feedback.value = permission === 'granted'
+    ? t('mobile.notificationsEnabled')
+    : t('mobile.notificationsDenied')
+}
+
 onMounted(() => {
   void notifications.refresh()
   void loadSettings()
@@ -217,6 +231,27 @@ onMounted(() => {
     </header>
 
     <div v-if="feedback" class="notice success" role="status" aria-live="polite">{{ feedback }}</div>
+
+    <section
+      v-if="native"
+      class="panel native-notification-permission"
+      aria-labelledby="native-notification-heading"
+    >
+      <div>
+        <h2 id="native-notification-heading">{{ t('mobile.notificationsTitle') }}</h2>
+        <p class="muted">{{ t('mobile.notificationsBody') }}</p>
+        <p v-if="mobileNotificationState.error" class="field-error" role="alert">
+          {{ t('mobile.notificationsFailed') }}
+        </p>
+      </div>
+      <button
+        v-if="mobileNotificationState.permission !== 'granted'"
+        type="button"
+        :disabled="mobileNotificationState.enabling"
+        @click="enableNativeNotifications"
+      >{{ mobileNotificationState.enabling ? t('mobile.notificationsEnabling') : t('mobile.notificationsEnable') }}</button>
+      <span v-else class="status-chip">{{ t('mobile.notificationsGranted') }}</span>
+    </section>
 
     <section class="panel notifications-inbox" aria-labelledby="notification-list-heading">
       <div class="notifications-section-heading">

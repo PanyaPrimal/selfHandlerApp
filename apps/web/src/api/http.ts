@@ -1,4 +1,8 @@
+import { CapacitorHttp } from '@capacitor/core'
 import { activeLocaleValue, translate } from '../i18n'
+import { mobileCredentialVault } from '../mobile/credential-vault'
+import { createNativeTransport, type TransportResponse } from '../mobile/native-transport'
+import { configuredMobileApiOrigin, isAndroidNative, nativePlugin } from '../mobile/platform'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api'
 const csrfUrl = import.meta.env.VITE_CSRF_URL ?? '/sanctum/csrf-cookie'
@@ -8,6 +12,7 @@ export type ValidationErrors = Record<string, string[]>
 export interface RequestBehavior {
   handleUnauthorized?: boolean
   retryCsrf?: boolean
+  mobileAuthenticated?: boolean
 }
 
 export class ApiError extends Error {
@@ -30,11 +35,11 @@ export class ApiError extends Error {
   }
 }
 
-let unauthorizedHandler: (() => void) | null = null
+let unauthorizedHandler: (() => void | Promise<void>) | null = null
 let csrfReady = false
 let csrfRequest: Promise<void> | null = null
 
-export function setUnauthorizedHandler(handler: (() => void) | null): void {
+export function setUnauthorizedHandler(handler: (() => void | Promise<void>) | null): void {
   unauthorizedHandler = handler
 }
 
@@ -65,12 +70,12 @@ function readCookie(name: string): string | null {
   }
 }
 
-async function parsePayload(response: Response): Promise<unknown> {
+function parsePayload(response: TransportResponse): unknown {
   if (response.status === 204) {
     return null
   }
 
-  const text = await response.text()
+  const text = response.body
 
   if (!text) {
     return null
@@ -83,8 +88,10 @@ async function parsePayload(response: Response): Promise<unknown> {
   }
 }
 
-function retryAfterSeconds(response: Response): number | null {
-  const value = response.headers.get('Retry-After')
+function retryAfterSeconds(response: TransportResponse): number | null {
+  const entry = Object.entries(response.headers)
+    .find(([key]) => key.toLowerCase() === 'retry-after')
+  const value = entry?.[1]
 
   if (!value) {
     return null
@@ -135,14 +142,19 @@ async function initializeCsrf(force = false): Promise<void> {
       throw new ApiError(translate('common.errorReach'), 0, null, null, cause)
     }
 
-    const payload = await parsePayload(response)
+    const normalizedResponse = {
+      status: response.status,
+      body: await response.text(),
+      headers: Object.fromEntries(response.headers.entries()),
+    }
+    const payload = parsePayload(normalizedResponse)
 
     if (!response.ok) {
       throw new ApiError(
         responseMessage(payload, translate('common.errorInitProtection')),
         response.status,
         payload,
-        retryAfterSeconds(response),
+        retryAfterSeconds(normalizedResponse),
       )
     }
 
@@ -172,8 +184,9 @@ async function executeRequest<T>(
 ): Promise<T> {
   const method = (init.method ?? 'GET').toUpperCase()
   const unsafe = isUnsafeMethod(method)
+  const native = isAndroidNative()
 
-  if (unsafe) {
+  if (unsafe && !native) {
     await initializeCsrf()
   }
 
@@ -185,7 +198,7 @@ async function executeRequest<T>(
     headers.set('Content-Type', 'application/json')
   }
 
-  if (unsafe) {
+  if (unsafe && !native) {
     const token = readCookie('XSRF-TOKEN')
 
     if (token) {
@@ -193,27 +206,45 @@ async function executeRequest<T>(
     }
   }
 
-  let response: Response
+  let response: TransportResponse
 
   try {
-    response = await fetch(`${apiBaseUrl}${path}`, {
-      ...init,
-      method,
-      headers,
-      credentials: 'same-origin',
-    })
+    if (native) {
+      const transport = createNativeTransport(
+        configuredMobileApiOrigin(),
+        mobileCredentialVault,
+        nativePlugin('CapacitorHttp', CapacitorHttp),
+      )
+      response = await transport(
+        path,
+        { ...init, method, headers },
+        behavior.mobileAuthenticated !== false,
+      )
+    } else {
+      const browserResponse = await fetch(`${apiBaseUrl}${path}`, {
+        ...init,
+        method,
+        headers,
+        credentials: 'same-origin',
+      })
+      response = {
+        status: browserResponse.status,
+        body: await browserResponse.text(),
+        headers: Object.fromEntries(browserResponse.headers.entries()),
+      }
+    }
   } catch (cause) {
     throw new ApiError(translate('common.errorReach'), 0, null, null, cause)
   }
 
-  if (response.status === 419 && unsafe && behavior.retryCsrf !== false && !csrfRetried) {
+  if (response.status === 419 && unsafe && !native && behavior.retryCsrf !== false && !csrfRetried) {
     await initializeCsrf(true)
     return executeRequest<T>(path, init, behavior, true)
   }
 
-  const payload = await parsePayload(response)
+  const payload = parsePayload(response)
 
-  if (!response.ok) {
+  if (response.status < 200 || response.status >= 300) {
     const error = new ApiError(
       responseMessage(payload, translate('common.errorApiStatus', { status: response.status })),
       response.status,
@@ -222,7 +253,7 @@ async function executeRequest<T>(
     )
 
     if (response.status === 401 && behavior.handleUnauthorized !== false) {
-      unauthorizedHandler?.()
+      await unauthorizedHandler?.()
     }
 
     throw error

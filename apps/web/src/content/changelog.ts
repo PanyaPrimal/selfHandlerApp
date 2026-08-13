@@ -19,6 +19,12 @@ export interface ChangelogEntry {
 
 const entries: readonly ChangelogEntry[] = [
   {
+    id: 'android-capacitor-shell', date: '2026-08-13', feature: '012-android-capacitor-shell',
+    titleKey: 'changelog.entry.android.title', summaryKey: 'changelog.entry.android.summary',
+    testKey: 'changelog.entry.android.test', links: [{ labelKey: 'nav.notifications', to: '/notifications' }],
+    limitationKeys: ['changelog.entry.android.limit'],
+  },
+  {
     id: 'in-app-notifications', date: '2026-08-13', feature: '011-in-app-notifications',
     titleKey: 'changelog.entry.notifications.title', summaryKey: 'changelog.entry.notifications.summary',
     testKey: 'changelog.entry.notifications.test',

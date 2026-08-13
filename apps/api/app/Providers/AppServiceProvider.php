@@ -9,7 +9,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
-use Laravel\Sanctum\Sanctum;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -26,8 +25,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Sanctum::getAccessTokenFromRequestUsing(static fn (Request $request): ?string => null);
-
         // Outside production, a write that names an attribute the model does not
         // accept is a bug worth failing on instead of dropping it in silence.
         Model::preventSilentlyDiscardingAttributes(! $this->app->isProduction());

@@ -59,7 +59,8 @@ Without a single subsystem, every module would roll its own delivery → no shar
 - A unified `NotificationChannel` contract (a "deliver" method): `deliver(Notification, recipientPrefs)`
 - Implementations:
   - **in-app** (DB) — the in-app list, an unread badge. Enabled now
-  - **local push** (Capacitor Local Notifications) — serverless, for the evening ritual. Early candidate
+  - **Android local presentation** (Capacitor Local Notifications) — enabled by feature 012 for unread
+    events already delivered to the in-app inbox after a foreground/resume synchronisation
   - **push** (FCM/Web Push) — server-based, later
   - **telegram** (bot) — an external channel, later (concept reference: skill telegram-mcp-setup)
   - **email** — later
@@ -154,5 +155,16 @@ Resolved by feature 011:
 5. Current settings and profile locale are read at delivery, so a change applies to already scheduled
    records.
 
-Remaining for feature 012: whether the first Capacitor adapter uses only local notifications or also
-introduces server push. FCM remains deferred unless that feature's acceptance journey requires it.
+Resolved by feature 012:
+
+1. The first Android adapter uses Capacitor Local Notifications only. It requests OS permission only
+   after an explicit action in Notifications and creates the `selfhandler-reminders` channel after
+   permission is granted.
+2. It mirrors only `sent` inbox records without `android_local`, comparing a stable signed-32-bit native
+   id and the original server id against pending and delivered native notifications before scheduling.
+3. The server appends `android_local` idempotently only after successful local scheduling. That channel
+   is presentation evidence; it does not change unread or domain state.
+4. A tap accepts only the Planner or Notifications relative route and marks the inbox event read on a
+   best-effort basis. Any invalid action opens the inbox.
+5. This adapter cannot wake a stopped app. FCM, background push, exact alarms, and generalized delivery
+   audit rows remain deferred until a feature needs them.

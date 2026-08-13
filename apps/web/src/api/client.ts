@@ -300,3 +300,7 @@ export function snoozeNotification(
 ): Promise<NotificationSnoozeResponse> {
   return jsonRequest<NotificationSnoozeResponse>(`/notifications/${notificationId}/snooze`, 'PUT', { minutes })
 }
+
+export function acknowledgeMobileNotificationPresentation(notificationId: number): Promise<unknown> {
+  return jsonRequest<unknown>(`/mobile/notifications/${notificationId}/presented`, 'PUT', {})
+}
