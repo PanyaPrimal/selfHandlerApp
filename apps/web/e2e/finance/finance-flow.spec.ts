@@ -80,7 +80,11 @@ test('locale switching works and rejected exact draft remains recoverable', asyn
   await expect(page.getByRole('heading', { name: 'Фінанси', exact: true })).toBeVisible()
   await page.getByRole('tab', { name: 'Категорії' }).click()
   await expect(page.getByText('Зарплата', { exact: true })).toBeVisible()
+  const englishSaved = page.waitForResponse((response) => response.url().endsWith('/api/profile')
+    && response.request().method() === 'PATCH' && response.ok())
   await page.getByRole('button', { name: 'EN', exact: true }).click()
+  await englishSaved
+  await page.waitForLoadState('networkidle')
 
   await page.getByRole('tab', { name: 'Accounts' }).click()
   const form = page.getByRole('form', { name: 'Account editor' })

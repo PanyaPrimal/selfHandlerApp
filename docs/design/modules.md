@@ -646,8 +646,8 @@ shape but never mutate Supplement stock or proposal lifecycle.
   habit completion ↔ day rating. Pearson uses pairwise-complete daily values, requires seven samples,
   rejects zero variance, rounds to four decimals, and always shows an association-not-causation notice.
 - The responsive EN/RU/UK browser and synchronized Android bundle provide exact accessible tables and
-  dependency-free SVG charts. Exports/reports, AI conclusions, provider imports, offline authority,
-  calendar integration, and deployment remain outside this feature.
+  dependency-free SVG charts. Feature 024 adds CSV/PDF projections over this same workspace; AI
+  conclusions, provider imports, offline authority, calendar integration, and deployment remain outside.
 
 ### Conclusions — rules + LLM (the "layer" pattern)
 - **Level 1 (rules, mandatory):** deterministic correlations/conclusions by rules (a threshold, a trend, a comparison with a target) — works without AI
@@ -655,8 +655,10 @@ shape but never mutate Supplement stock or proposal lifecycle.
 - A link to the "Recommendation mechanism (adjustment)" — analytics provides the trends for the recommendations
 
 ### Export (important)
-- Exporting data/reports: CSV / PDF (to show a doctor/trainer, for backup)
-- ❓ formats and composition (per-module / consolidated / by period)
+- Feature 024 delivers localized CSV and A4 PDF for the currently applied metric/range/granularity,
+  including comparison and exact evidence rows. Reports remain distinct from machine backup/restore.
+- Schema-v1 backup covers authoritative owner tables and private attachments with portable references,
+  closed JSON, checksums, strict bounds, read-only validation, and empty-target atomic restore.
 
 ### Relationships with other modules
 - All modules — sources of ready-made totals
@@ -665,7 +667,7 @@ shape but never mutate Supplement stock or proposal lifecycle.
 ### TODO / open questions
 - Whether measured production demand justifies rebuildable precomputation beyond the current bounded
   grouped source queries.
-- Export/report formats and restore boundaries are owned by feature 024.
+- Additional report compositions and any future schema migration require a new versioned contract.
 - Additional correlation pairs require their own validated semantics and must not be inferred from
   the first fixed set.
 

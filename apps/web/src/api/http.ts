@@ -3,6 +3,7 @@ import { activeLocaleValue, translate } from '../i18n'
 import { mobileCredentialVault } from '../mobile/credential-vault'
 import { createNativeTransport, type TransportResponse } from '../mobile/native-transport'
 import { configuredMobileApiOrigin, isAndroidNative, nativePlugin } from '../mobile/platform'
+import { contentDispositionFilename, type DownloadedFile } from '../portability/files'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api'
 const csrfUrl = import.meta.env.VITE_CSRF_URL ?? '/sanctum/csrf-cookie'
@@ -284,6 +285,114 @@ export function jsonRequest<T>(
     },
     behavior,
   )
+}
+
+function fetchApiUrl(path: string, native: boolean): string {
+  if (!path.startsWith('/') || path.startsWith('//') || /(^|\/)\.\.?($|\/)/.test(decodeURIComponent(path.split('?')[0] ?? ''))) {
+    throw new TypeError('API file requests require a safe relative path.')
+  }
+
+  return native
+    ? `${configuredMobileApiOrigin()}/api${path}`
+    : `${apiBaseUrl}${path}`
+}
+
+async function executeFileRequest(
+  path: string,
+  init: RequestInit,
+  behavior: RequestBehavior,
+  csrfRetried: boolean,
+): Promise<Response> {
+  const method = (init.method ?? 'GET').toUpperCase()
+  const unsafe = isUnsafeMethod(method)
+  const native = isAndroidNative()
+
+  if (unsafe && !native) await initializeCsrf()
+
+  const headers = new Headers(init.headers)
+  headers.set('Accept-Language', activeLocaleValue())
+  if (!headers.has('Accept')) headers.set('Accept', 'application/json')
+
+  if (unsafe && !native) {
+    const csrfToken = readCookie('XSRF-TOKEN')
+    if (csrfToken) headers.set('X-XSRF-TOKEN', csrfToken)
+  }
+
+  if (native && behavior.mobileAuthenticated !== false) {
+    const token = await mobileCredentialVault.read()
+    if (!token) throw new ApiError('The Android session is not available.', 401)
+    headers.set('Authorization', `Bearer ${token}`)
+  }
+
+  let response: Response
+  try {
+    response = await fetch(fetchApiUrl(path, native), {
+      ...init,
+      method,
+      headers,
+      credentials: native ? 'omit' : 'same-origin',
+      cache: 'no-store',
+    })
+  } catch (cause) {
+    throw new ApiError(translate('common.errorReach'), 0, null, null, cause)
+  }
+
+  if (response.status === 419 && unsafe && !native && behavior.retryCsrf !== false && !csrfRetried) {
+    await initializeCsrf(true)
+    return executeFileRequest(path, init, behavior, true)
+  }
+
+  if (!response.ok) {
+    const normalized = {
+      status: response.status,
+      body: await response.text(),
+      headers: Object.fromEntries(response.headers.entries()),
+    }
+    const payload = parsePayload(normalized)
+    const error = new ApiError(
+      responseMessage(payload, translate('common.errorApiStatus', { status: response.status })),
+      response.status,
+      payload,
+      retryAfterSeconds(normalized),
+    )
+
+    if (response.status === 401 && behavior.handleUnauthorized !== false) await unauthorizedHandler?.()
+    throw error
+  }
+
+  return response
+}
+
+export async function downloadRequest(
+  path: string,
+  fallbackFilename: string,
+  accept: string,
+  behavior: RequestBehavior = {},
+): Promise<DownloadedFile> {
+  const response = await executeFileRequest(path, { headers: { Accept: accept } }, behavior, false)
+
+  return {
+    blob: await response.blob(),
+    filename: contentDispositionFilename(response.headers.get('Content-Disposition'), fallbackFilename),
+  }
+}
+
+export async function multipartRequest<T>(
+  path: string,
+  form: FormData,
+  behavior: RequestBehavior = {},
+): Promise<T> {
+  const response = await executeFileRequest(path, { method: 'POST', body: form }, behavior, false)
+  if (response.status === 204) return undefined as T
+
+  const text = await response.text()
+  if (!text) return null as T
+
+  try {
+    return JSON.parse(text) as T
+  } catch (cause) {
+    throw new ApiError(translate('common.errorApiStatus', { status: response.status }), response.status, null, null, cause)
+  }
 }
 
 export function validationErrors(error: unknown): ValidationErrors {

@@ -19,6 +19,15 @@ export interface ChangelogEntry {
 
 const entries: readonly ChangelogEntry[] = [
   {
+    id: 'data-portability-reports', date: '2026-08-14', feature: '024-data-portability-reports',
+    titleKey: 'changelog.entry.portability.title', summaryKey: 'changelog.entry.portability.summary',
+    testKey: 'changelog.entry.portability.test', links: [
+      { labelKey: 'nav.analytics', to: '/analytics' },
+      { labelKey: 'nav.data', to: '/settings/data' },
+    ],
+    limitationKeys: ['changelog.entry.portability.limit'],
+  },
+  {
     id: 'long-period-analytics', date: '2026-08-14', feature: '023-analytics-long-period-rollups',
     titleKey: 'changelog.entry.analytics.title', summaryKey: 'changelog.entry.analytics.summary',
     testKey: 'changelog.entry.analytics.test', links: [{ labelKey: 'nav.analytics', to: '/analytics' }],

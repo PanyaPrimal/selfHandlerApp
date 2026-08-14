@@ -103,8 +103,11 @@ import type {
   AnalyticsGranularity,
   AnalyticsMetricKey,
   AnalyticsWorkspace,
+  PortabilityRestoreResult,
+  PortabilityValidation,
 } from './types'
-import { jsonRequest, request } from './http'
+import { downloadRequest, jsonRequest, multipartRequest, request } from './http'
+import type { DownloadedFile } from '../portability/files'
 import type {
   FinanceAccount,
   FinanceAccountInput,
@@ -155,18 +158,21 @@ import type {
 // validation errors of a 422 response.
 export { ApiError, validationErrors } from './http'
 export type { ValidationErrors } from './http'
+export type { DownloadedFile } from '../portability/files'
 
-export async function getAnalyticsCatalog(): Promise<AnalyticsCatalog> {
-  return (await request<ItemResponse<AnalyticsCatalog>>('/analytics/catalog')).data
-}
-
-export async function getAnalyticsWorkspace(params: {
+export interface AnalyticsReportQuery {
   metric: AnalyticsMetricKey
   from: string
   to: string
   granularity: AnalyticsGranularity
   compare: boolean
-}): Promise<AnalyticsWorkspace> {
+}
+
+export async function getAnalyticsCatalog(): Promise<AnalyticsCatalog> {
+  return (await request<ItemResponse<AnalyticsCatalog>>('/analytics/catalog')).data
+}
+
+export async function getAnalyticsWorkspace(params: AnalyticsReportQuery): Promise<AnalyticsWorkspace> {
   const query = new URLSearchParams({
     metric: params.metric,
     from: params.from,
@@ -176,6 +182,53 @@ export async function getAnalyticsWorkspace(params: {
   })
 
   return (await request<ItemResponse<AnalyticsWorkspace>>(`/analytics/workspace?${query.toString()}`)).data
+}
+
+function analyticsReportQuery(params: AnalyticsReportQuery): string {
+  return new URLSearchParams({
+    metric: params.metric,
+    from: params.from,
+    to: params.to,
+    granularity: params.granularity,
+    compare: params.compare ? '1' : '0',
+  }).toString()
+}
+
+export function downloadAnalyticsReport(
+  format: 'csv' | 'pdf',
+  params: AnalyticsReportQuery,
+): Promise<DownloadedFile> {
+  return downloadRequest(
+    `/reports/analytics.${format}?${analyticsReportQuery(params)}`,
+    `selfhandler-analytics.${format}`,
+    format === 'csv' ? 'text/csv' : 'application/pdf',
+  )
+}
+
+export function downloadPortableBackup(): Promise<DownloadedFile> {
+  return downloadRequest('/portability/backup', 'selfhandler-backup.zip', 'application/zip')
+}
+
+export async function validatePortableBackup(backup: File): Promise<PortabilityValidation> {
+  const form = new FormData()
+  form.append('backup', backup, backup.name)
+  return (await multipartRequest<ItemResponse<PortabilityValidation>>(
+    '/portability/restore/validate', form,
+  )).data
+}
+
+export async function restorePortableBackup(
+  backup: File,
+  restoreToken: string,
+  confirmation: 'RESTORE',
+): Promise<PortabilityRestoreResult> {
+  const form = new FormData()
+  form.append('backup', backup, backup.name)
+  form.append('restore_token', restoreToken)
+  form.append('confirmation', confirmation)
+  return (await multipartRequest<ItemResponse<PortabilityRestoreResult>>(
+    '/portability/restore', form,
+  )).data
 }
 
 export async function getAnalyticsCorrelations(params: { from: string, to: string }): Promise<AnalyticsCorrelationWorkspace> {

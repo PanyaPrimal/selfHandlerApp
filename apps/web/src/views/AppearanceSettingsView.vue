@@ -212,7 +212,7 @@ onBeforeUnmount(() => {
       <RouterLink to="/settings/appearance" aria-current="page">{{ t('appearance.tab') }}</RouterLink>
       <RouterLink to="/account">{{ t('appearance.profileTab') }}</RouterLink>
       <span aria-disabled="true">{{ t('appearance.preferencesTab') }}</span>
-      <span aria-disabled="true">{{ t('appearance.dataTab') }}</span>
+      <RouterLink to="/settings/data">{{ t('appearance.dataTab') }}</RouterLink>
     </nav>
 
     <div v-if="loading" class="state-block" role="status">{{ t('appearance.loading') }}</div>

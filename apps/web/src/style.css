@@ -2160,7 +2160,7 @@ input[type="range"] {
 .settings-tabs a,
 .settings-tabs span {
   display: inline-flex;
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 14px;
   align-items: center;
   border: 1px solid var(--border);
@@ -4080,6 +4080,150 @@ button.text-button {
   background: var(--paper-soft);
 }
 
+.analytics-reports,
+.data-card,
+.data-validation,
+.data-confirm {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.analytics-report-actions,
+.data-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.analytics-report-actions > *,
+.data-actions > * {
+  min-height: 44px;
+}
+
+/* Settings / Data: archive names and record counts must remain usable at 390px. */
+.data-page {
+  max-width: 880px;
+  min-width: 0;
+}
+
+.data-card__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.data-privacy {
+  padding: 14px;
+  border-inline-start: 3px solid var(--accent);
+  color: var(--subtle);
+  background: var(--paper-soft);
+}
+
+.data-file-picker {
+  position: relative;
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.data-file-picker label.button {
+  display: inline-flex;
+  min-height: 44px;
+  padding: 0 16px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  background: var(--paper-soft);
+  cursor: pointer;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.data-file-picker input[type='file'] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.data-file-picker input[type='file']:focus-visible + .data-filename,
+.data-file-picker:focus-within label.button {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.data-filename,
+.data-facts dd,
+.data-exclusions li,
+.data-result p {
+  overflow-wrap: anywhere;
+}
+
+.data-filename {
+  margin: 0;
+  color: var(--subtle);
+}
+
+.data-validation {
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.data-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.data-facts div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--paper-soft);
+}
+
+.data-facts dt {
+  color: var(--subtle);
+  font-size: 0.78rem;
+}
+
+.data-facts dd {
+  margin: 0;
+  font-weight: 650;
+}
+
+.data-exclusions ul,
+.data-issues {
+  margin: 8px 0 0;
+  padding-inline-start: 20px;
+}
+
+.data-confirm {
+  max-width: 520px;
+  padding-top: 6px;
+}
+
+.data-confirm > button {
+  width: fit-content;
+  min-height: 44px;
+}
+
+.data-result h3,
+.data-result p {
+  margin: 0;
+}
+
 @media (max-width: 900px) {
   .analytics-filters {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4131,5 +4275,21 @@ button.text-button {
 
   .analytics-facts {
     grid-template-columns: 1fr;
+  }
+
+  .data-page {
+    padding-top: 48px;
+  }
+
+  .data-facts {
+    grid-template-columns: 1fr;
+  }
+
+  .analytics-report-actions > *,
+  .data-actions > *,
+  .data-confirm > button,
+  .data-file-picker label.button {
+    width: 100%;
+    justify-content: center;
   }
 }

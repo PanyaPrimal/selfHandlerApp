@@ -10,6 +10,7 @@ test('Capacitor config embeds the shared build and never a remote server URL', (
   assert.match(config, /webDir:\s*['"]\.\.\/web\/dist['"]/)
   assert.doesNotMatch(config, /server\s*:/)
   assert.match(config, /appId:\s*['"]app\.selfhandler\.mobile['"]/)
+  assert.match(config, /CapacitorHttp:\s*\{\s*enabled:\s*true/s)
 })
 
 test('Android vault, manifest security, plugins, resources, and Gradle wrapper are versioned', () => {

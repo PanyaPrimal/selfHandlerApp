@@ -100,8 +100,18 @@ come from bounded, owner-scoped daily primitives maintained by their source modu
 into daily, Monday-week, or calendar-month rollups with explicit ready, empty, and incomplete evidence.
 Users can inspect exact tables and accessible SVG trends, compare the preceding equal-length period,
 and view three deterministic Pearson correlations with sample and causality disclosures. Corrections
-are reflected on the next read; exports/reports, calendar integrations, AI narratives, provider data,
-offline authority, and deployment remain deferred.
+are reflected on the next read; calendar integrations, AI narratives, provider data, offline authority,
+and deployment remain deferred.
+
+Feature 024 adds localized CSV and A4 PDF reports over the exact applied Analytics workspace plus a
+separate schema-v1 machine backup. The owner-only ZIP uses deterministic portable references and
+separate checksum-verified attachment members; it contains Profile preferences and authoritative
+module rows but no credentials, sessions, server paths, public catalogue copies, or notification
+delivery history. Validation is read-only. A ten-minute archive/user-bound token and literal
+`RESTORE` confirmation permit one atomic restore only into an empty target account, retaining that
+account's email, password, and authentication identity. The responsive EN/RU/UK browser client and
+the synchronized Android WebView share this online workflow. Merge restore, scheduled exports,
+server/deployment backups, legacy archive migration, offline authority, and deployment remain deferred.
 
 The Android package in `apps/mobile` wraps the same production Vue bundle with Capacitor 8. Existing
 accounts use a separate 30-day, `mobile`-scoped Sanctum token stored by a custom Android Keystore

@@ -202,4 +202,6 @@ return [
     'review_date_invalid' => 'Оберіть коректну календарну дату.',
     'periodic_review_field_required' => 'Заповніть хоча б одне поле періодичного огляду.',
     'analytics_range_invalid' => 'Оберіть упорядкований період аналітики не довший за :days днів.',
+    'portability_archive_invalid' => 'Це не цілісна підтримувана резервна копія SelfHandler.',
+    'portability_target_not_empty' => 'Відновлення доступне лише для порожнього облікового запису.',
 ];

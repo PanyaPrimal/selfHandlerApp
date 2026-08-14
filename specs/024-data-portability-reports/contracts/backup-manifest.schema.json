@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://selfhandler.local/schemas/backup-manifest-v1.json",
+  "title": "SelfHandler Backup Manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "schema_version", "backup_id", "created_at", "members", "attachments", "counts", "exclusions", "limits"],
+  "properties": {
+    "format": { "const": "selfhandler-backup" },
+    "schema_version": { "const": 1 },
+    "backup_id": { "type": "string", "format": "uuid" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "members": { "type": "array", "minItems": 2, "maxItems": 102, "items": { "$ref": "#/$defs/member" } },
+    "attachments": { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/attachment" } },
+    "counts": { "$ref": "#/$defs/counts" },
+    "exclusions": { "type": "array", "items": { "type": "string", "enum": ["account_credentials", "auth_sessions_tokens", "invitations", "framework_runtime", "public_catalog_rows", "notification_deliveries"] }, "uniqueItems": true },
+    "limits": { "$ref": "#/$defs/limits" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "member": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "role", "size_bytes", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1, "maxLength": 255 },
+        "role": { "type": "string", "enum": ["profile", "records", "attachment"] },
+        "size_bytes": { "type": "integer", "minimum": 0, "maximum": 67108864 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "attachment": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "path", "parent_type", "parent_id", "original_name", "mime_type", "size_bytes", "kind", "width", "height", "sha256", "created_at"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^attachments:[0-9]{6}$" },
+        "path": { "type": "string", "pattern": "^attachments/attachments-[0-9]{6}\\.(jpg|png|webp)$" },
+        "parent_type": { "type": "string", "enum": ["body_measurement", "meal"] },
+        "parent_id": { "type": "string", "minLength": 1, "maxLength": 96 },
+        "original_name": { "type": "string", "minLength": 1, "maxLength": 255 },
+        "mime_type": { "type": "string", "enum": ["image/jpeg", "image/png", "image/webp"] },
+        "size_bytes": { "type": "integer", "minimum": 1, "maximum": 5242880 },
+        "kind": { "const": "photo" },
+        "width": { "type": "integer", "minimum": 1, "maximum": 2560 },
+        "height": { "type": "integer", "minimum": 1, "maximum": 2560 },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "created_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "counts": {
+      "type": "object", "additionalProperties": false,
+      "required": ["records_by_table", "total_records", "attachments", "total_bytes"],
+      "properties": {
+        "records_by_table": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
+        "total_records": { "type": "integer", "minimum": 0, "maximum": 100000 },
+        "attachments": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "total_bytes": { "type": "integer", "minimum": 0, "maximum": 268435456 }
+      }
+    },
+    "limits": {
+      "type": "object", "additionalProperties": false,
+      "required": ["records", "attachments", "members", "json_member_bytes", "attachment_bytes", "total_uncompressed_bytes"],
+      "properties": {
+        "records": { "const": 100000 }, "attachments": { "const": 100 }, "members": { "const": 110 },
+        "json_member_bytes": { "const": 67108864 }, "attachment_bytes": { "const": 5242880 },
+        "total_uncompressed_bytes": { "const": 268435456 }
+      }
+    }
+  }
+}

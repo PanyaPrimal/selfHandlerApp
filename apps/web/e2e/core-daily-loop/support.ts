@@ -35,6 +35,13 @@ export function collectRuntimeIssues(page: Page): string[] {
       return
     }
 
+    // A hard navigation legitimately cancels read-only fetches owned by the
+    // document being replaced. Mutating requests remain reportable so an
+    // interrupted save can never be hidden by this navigation allowance.
+    if (request.method() === 'GET' && request.failure()?.errorText === 'net::ERR_ABORTED') {
+      return
+    }
+
     issues.push(`[requestfailed] ${request.method()} ${request.url()} ${request.failure()?.errorText}`)
   })
 

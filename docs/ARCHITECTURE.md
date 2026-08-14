@@ -56,6 +56,21 @@ Its stable 17-metric catalog and three correlation definitions are API metadata,
 No Analytics service imports source models or stores raw history, and every response contains only
 aggregate evidence rather than notes, journals, attachments, transactions, or identifiers.
 
+Reports are human-readable projections of that existing Analytics workspace, never a new calculation
+path. CSV and PDF reuse the same query validation, metric catalog, period comparison, evidence states,
+and Profile locale. PDF rendering is server-side with a bundled Cyrillic-capable font and remote
+resource access disabled.
+
+Portability is a separate schema-v1 boundary over the authoritative owner tables. Export assigns
+archive-local IDs, converts owned and polymorphic references explicitly, and uses stable system keys
+for shared Exercise/Food catalogue rows. The ZIP keeps `manifest.json`, Profile/settings JSON,
+record JSON, and private attachment bytes as separate checksum-declared members; database IDs,
+`user_id`, credentials, sessions, storage paths, and delivery/runtime rows never cross the boundary.
+Restore performs a read-only structural/content preflight, issues a short-lived HMAC token bound to
+the target user and archive digest, locks and rechecks that the target is empty, then replaces rows
+and private files atomically with newly allocated IDs/paths. It never changes target login identity
+and does not support merge semantics.
+
 ### `apps/web`
 
 Vue 3 SPA for desktop and mobile web usage.
@@ -71,6 +86,9 @@ existing-account credentials for one 30-day Sanctum token with exactly the `mobi
 that token from Android Keystore immediately before native HTTP calls, and revokes only that device
 token on sign-out. The plaintext token exists only across issue/write and just-in-time read/request
 boundaries. Browser Fetch, session cookies, and CSRF remain a separate unchanged transport.
+Capacitor's native HTTP fetch patch carries bounded report/archive Blob and multipart operations with
+that same bearer token; files remain explicit online WebView operations and are not an offline or
+native database authority.
 
 Android Local Notifications is a presentation adapter over feature 011: after explicit permission, it
 mirrors already-delivered unread inbox records when the app synchronises or resumes, then records the

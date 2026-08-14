@@ -110,7 +110,7 @@ test('debt payment reversal fund schedule goal and unified goal survive reload',
   await firstFundOccurrence.getByRole('button', { name: 'Clear skip' }).click()
   await expect(firstFundOccurrence.getByRole('button', { name: 'Top up' })).toBeVisible()
   await firstFundOccurrence.getByRole('button', { name: 'Top up' }).click()
-  await expect(fund).toContainText('25.00')
+  await expect(fund.locator('.finance-money')).toContainText('25.00')
 
   await page.getByTestId('finance-tab-goals').click()
   const goalEditor = page.getByRole('form', { name: 'Finance goal editor' })
@@ -127,6 +127,7 @@ test('debt payment reversal fund schedule goal and unified goal survive reload',
   await expect(page.getByRole('article').filter({ hasText: 'Build cushion safely' })).toBeVisible()
 
   await page.goto('/goals')
+  await page.waitForLoadState('networkidle')
   goal = page.getByRole('listitem', { name: 'Build cushion safely' })
   await expect(goal).toContainText('25.00')
   await goal.getByRole('link', { name: 'Open in Finance' }).click()

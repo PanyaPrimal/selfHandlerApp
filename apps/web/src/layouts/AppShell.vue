@@ -38,6 +38,7 @@ const desktopDestinations: Destination[] = [
 const utilityDestinations: Destination[] = [
   { name: 'notifications', to: '/notifications', label: 'nav.notifications' },
   { name: 'settings-appearance', to: '/settings/appearance', label: 'nav.settings' },
+  { name: 'settings-data', to: '/settings/data', label: 'nav.data' },
   { name: 'account', to: '/account', label: 'nav.account' },
   { name: 'changelog', to: '/changelog', label: 'nav.changelog' },
 ]

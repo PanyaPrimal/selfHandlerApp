@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AnalyticsController;
+use App\Http\Controllers\AnalyticsReportController;
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\BodyGoalController;
 use App\Http\Controllers\BodyMeasurementController;
@@ -38,6 +39,7 @@ use App\Http\Controllers\NutritionDayController;
 use App\Http\Controllers\NutritionSettingsController;
 use App\Http\Controllers\PeriodicReviewController;
 use App\Http\Controllers\PlannerController;
+use App\Http\Controllers\PortabilityController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\RecipeController;
@@ -75,6 +77,11 @@ Route::middleware(['auth:sanctum', 'mobile.token'])->group(function () {
 });
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/portability/backup', [PortabilityController::class, 'backup']);
+    Route::post('/portability/restore/validate', [PortabilityController::class, 'validateBackup']);
+    Route::post('/portability/restore', [PortabilityController::class, 'restore']);
+    Route::get('/reports/analytics.csv', [AnalyticsReportController::class, 'csv']);
+    Route::get('/reports/analytics.pdf', [AnalyticsReportController::class, 'pdf']);
     Route::get('/analytics/catalog', [AnalyticsController::class, 'catalog']);
     Route::get('/analytics/workspace', [AnalyticsController::class, 'workspace']);
     Route::get('/analytics/correlations', [AnalyticsController::class, 'correlations']);

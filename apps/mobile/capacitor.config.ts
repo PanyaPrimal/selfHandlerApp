@@ -8,6 +8,9 @@ const config: CapacitorConfig = {
     backgroundColor: '#ece9e2',
   },
   plugins: {
+    CapacitorHttp: {
+      enabled: true,
+    },
     Keyboard: {
       resize: 'native',
     },

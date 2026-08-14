@@ -202,4 +202,6 @@ return [
     'review_date_invalid' => 'Выберите корректную календарную дату.',
     'periodic_review_field_required' => 'Заполните хотя бы одно поле периодического обзора.',
     'analytics_range_invalid' => 'Выберите упорядоченный период аналитики не длиннее :days дней.',
+    'portability_archive_invalid' => 'Это не целая поддерживаемая резервная копия SelfHandler.',
+    'portability_target_not_empty' => 'Восстановление доступно только для пустого аккаунта.',
 ];

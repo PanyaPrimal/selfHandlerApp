@@ -202,4 +202,6 @@ return [
     'review_date_invalid' => 'Choose a valid calendar date.',
     'periodic_review_field_required' => 'Provide at least one periodic review field.',
     'analytics_range_invalid' => 'Choose an ordered Analytics date range of no more than :days days.',
+    'portability_archive_invalid' => 'This is not an intact supported SelfHandler backup.',
+    'portability_target_not_empty' => 'Restore is available only for an empty account.',
 ];

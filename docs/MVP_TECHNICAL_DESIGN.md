@@ -383,6 +383,12 @@ shifted through UTC as instants.
 
 ## Implemented Delivery Status
 
+The current product delivery baseline now includes features through `024-data-portability-reports`
+(2026-08-14). Feature 024 adds Analytics CSV/PDF plus a bounded, versioned, owner-safe ZIP export and
+read-only validation/empty-target atomic restore. It adds no migrations and performs no deployment;
+`025-calendar-integration` is the next increment. The historical first-slice evidence below remains
+the implementation record for feature 004.
+
 Feature `004-profile-settings` is complete as of 2026-08-12. It adds an additive one-to-one profile,
 existing-user backfill, registration provisioning and repair, full atomic profile GET/PUT contracts,
 regional preferences, canonical anthropometrics, formula readiness, a responsive Account editor, and

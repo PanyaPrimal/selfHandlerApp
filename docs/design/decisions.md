@@ -127,8 +127,14 @@
   composes those primitives into clipped daily/Monday-week/calendar-month buckets, equal-period
   comparison, OLS trends, and three pairwise-complete Pearson findings. Missing and incomplete
   evidence stays explicit, corrections are live on the next read, and raw source models and private
-  fields never cross the boundary. A persistent rollup cache waits for measured need. Exports,
-  restore, AI text, calendar/provider integrations, offline authority, and deployment remain deferred.
+  fields never cross the boundary. A persistent rollup cache waits for measured need.
+- **Feature 024 boundary (2026-08-14):** localized CSV/PDF are projections of the same Analytics
+  workspace, while machine portability is an independent schema-v1 ZIP. Portable IDs and explicit
+  owned/public/polymorphic reference maps replace database identifiers; attachment bytes are declared
+  members, never JSON blobs. Restore is validate-then-replace into an empty account using a short-lived
+  target/digest-bound token and one atomic transaction with file compensation. Login identity is never
+  imported. Merge restore, scheduled/server backups, legacy migration, AI text, calendar/provider
+  integrations, offline authority, and deployment remain deferred.
 
 ### Module 10 — Finance
 - **Multiple accounts + transfers** (cash/cards/savings/foreign-currency, each with its own balance; a transfer is a paired transaction, not income/expense).

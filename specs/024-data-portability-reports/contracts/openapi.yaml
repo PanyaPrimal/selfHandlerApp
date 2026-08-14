@@ -1,0 +1,210 @@
+openapi: 3.1.0
+info:
+  title: SelfHandler Data Portability and Reports
+  version: 1.0.0
+paths:
+  /api/reports/analytics.csv:
+    get:
+      operationId: downloadAnalyticsCsvReport
+      security: [{ sanctum: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/Metric' }
+        - { $ref: '#/components/parameters/From' }
+        - { $ref: '#/components/parameters/To' }
+        - { $ref: '#/components/parameters/Granularity' }
+        - { $ref: '#/components/parameters/Compare' }
+      responses:
+        '200':
+          description: Localized Analytics CSV report
+          headers:
+            Cache-Control: { schema: { type: string, const: 'private, no-store' } }
+            Content-Disposition: { schema: { type: string } }
+            X-Content-Type-Options: { schema: { type: string, const: nosniff } }
+          content:
+            text/csv:
+              schema: { type: string, contentEncoding: binary }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /api/reports/analytics.pdf:
+    get:
+      operationId: downloadAnalyticsPdfReport
+      security: [{ sanctum: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/Metric' }
+        - { $ref: '#/components/parameters/From' }
+        - { $ref: '#/components/parameters/To' }
+        - { $ref: '#/components/parameters/Granularity' }
+        - { $ref: '#/components/parameters/Compare' }
+      responses:
+        '200':
+          description: Localized Analytics PDF report
+          headers:
+            Cache-Control: { schema: { type: string, const: 'private, no-store' } }
+            Content-Disposition: { schema: { type: string } }
+            X-Content-Type-Options: { schema: { type: string, const: nosniff } }
+          content:
+            application/pdf:
+              schema: { type: string, contentEncoding: binary }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /api/portability/backup:
+    get:
+      operationId: downloadPortableBackup
+      security: [{ sanctum: [] }]
+      responses:
+        '200':
+          description: Versioned owner-only machine backup
+          headers:
+            Cache-Control: { schema: { type: string, const: 'private, no-store' } }
+            Content-Disposition: { schema: { type: string } }
+            X-Content-Type-Options: { schema: { type: string, const: nosniff } }
+          content:
+            application/zip:
+              schema: { type: string, contentEncoding: binary }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { $ref: '#/components/responses/PortabilityError' }
+  /api/portability/restore/validate:
+    post:
+      operationId: validatePortableBackup
+      security: [{ sanctum: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [backup]
+              properties:
+                backup: { type: string, format: binary }
+      responses:
+        '200':
+          description: Read-only validation and target eligibility
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RestoreValidationEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /api/portability/restore:
+    post:
+      operationId: restorePortableBackup
+      security: [{ sanctum: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [backup, restore_token, confirmation]
+              properties:
+                backup: { type: string, format: binary }
+                restore_token: { type: string, minLength: 40, maxLength: 2048 }
+                confirmation: { type: string, const: RESTORE }
+      responses:
+        '200':
+          description: Atomic restore result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/RestoreResult' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '409': { $ref: '#/components/responses/PortabilityError' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+components:
+  securitySchemes:
+    sanctum: { type: apiKey, in: cookie, name: selfhandler_session }
+  parameters:
+    Metric:
+      name: metric
+      in: query
+      required: false
+      schema: { type: string }
+    From:
+      name: from
+      in: query
+      required: false
+      schema: { type: string, format: date }
+    To:
+      name: to
+      in: query
+      required: false
+      schema: { type: string, format: date }
+    Granularity:
+      name: granularity
+      in: query
+      required: false
+      schema: { type: string, enum: [daily, weekly, monthly] }
+    Compare:
+      name: compare
+      in: query
+      required: false
+      schema: { type: boolean, default: true }
+  schemas:
+    Counts:
+      type: object
+      additionalProperties: false
+      required: [records_by_table, total_records, attachments, total_bytes]
+      properties:
+        records_by_table: { type: object, additionalProperties: { type: integer, minimum: 0 } }
+        total_records: { type: integer, minimum: 0, maximum: 100000 }
+        attachments: { type: integer, minimum: 0, maximum: 100 }
+        total_bytes: { type: integer, minimum: 0, maximum: 268435456 }
+    RestoreValidation:
+      type: object
+      additionalProperties: false
+      required: [valid, eligible, schema_version, archive_sha256, backup_id, created_at, counts, exclusions, issues, restore_token, expires_at]
+      properties:
+        valid: { type: boolean }
+        eligible: { type: boolean }
+        schema_version: { type: [integer, 'null'] }
+        archive_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+        backup_id: { type: [string, 'null'], format: uuid }
+        created_at: { type: [string, 'null'], format: date-time }
+        counts: { oneOf: [{ $ref: '#/components/schemas/Counts' }, { type: 'null' }] }
+        exclusions: { type: array, items: { type: string } }
+        issues: { type: array, items: { type: string }, uniqueItems: true }
+        restore_token: { type: [string, 'null'] }
+        expires_at: { type: [string, 'null'], format: date-time }
+    RestoreValidationEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/RestoreValidation' }
+    RestoreResult:
+      type: object
+      additionalProperties: false
+      required: [archive_sha256, records_by_table, total_records, attachments]
+      properties:
+        archive_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+        records_by_table: { type: object, additionalProperties: { type: integer, minimum: 0 } }
+        total_records: { type: integer, minimum: 0 }
+        attachments: { type: integer, minimum: 0 }
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [message]
+      properties:
+        message: { type: string }
+        errors: { type: object }
+  responses:
+    Unauthenticated:
+      description: Authentication required
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    ValidationError:
+      description: Closed request or archive validation failure
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    PortabilityError:
+      description: Safe export/restore conflict
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }

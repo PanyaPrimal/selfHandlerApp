@@ -120,6 +120,13 @@ complete prior local months and return an explicit unavailable state when histor
   without importing raw models. No `daily_metrics` table is justified by current measured demand.
 - A future rebuildable daily cache may preserve the same primitive contract if production evidence
   shows it is needed; it must not become a second source of truth.
+- **Portable archives are versioned projections, not database dumps.** Feature 024 assigns stable
+  archive-local IDs, records every allowed attribute/reference explicitly, and uses system keys for
+  public catalogue dependencies. Database IDs, owners, credentials, sessions, paths, and rebuildable
+  delivery/runtime rows are excluded. Private files remain separate hash-declared ZIP members.
+- Restore never merges ambiguous histories: validation is read-only, the target must have no
+  authoritative rows or attachments, and the empty state is rechecked under lock before one atomic
+  insert. Profile/name/preferences may be restored, but target authentication identity is retained.
 - ⚠️ This is the physical implementation of the principle in [Modules Spec](modules.md).
 
 ---

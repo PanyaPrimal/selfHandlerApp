@@ -1991,3 +1991,32 @@ export interface AnalyticsCorrelationWorkspace {
   period: { from: string, to: string, timezone: string }
   findings: AnalyticsCorrelationFinding[]
 }
+
+/* Human-readable reports and schema-v1 portability (feature 024) */
+export interface PortabilityCounts {
+  records_by_table: Record<string, number>
+  total_records: number
+  attachments: number
+  total_bytes: number
+}
+
+export interface PortabilityValidation {
+  valid: boolean
+  eligible: boolean
+  schema_version: number | null
+  archive_sha256: string
+  backup_id: string | null
+  created_at: string | null
+  counts: PortabilityCounts | null
+  exclusions: string[]
+  issues: string[]
+  restore_token: string | null
+  expires_at: string | null
+}
+
+export interface PortabilityRestoreResult {
+  archive_sha256: string
+  records_by_table: Record<string, number>
+  total_records: number
+  attachments: number
+}

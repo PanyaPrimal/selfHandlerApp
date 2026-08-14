@@ -120,6 +120,7 @@ for (const target of syncedFiles) {
 const generatedConfig = JSON.parse(read(resolve(android, 'app/src/main/assets/capacitor.config.json')))
 assert.equal(generatedConfig.server, undefined, 'Generated Capacitor config must not include server.url.')
 assert.equal(generatedConfig.appId, 'app.selfhandler.mobile')
+assert.equal(generatedConfig.plugins?.CapacitorHttp?.enabled, true, 'Native multipart/file fetch must use CapacitorHttp.')
 
 const generatedPlugins = read(resolve(android, 'app/src/main/assets/capacitor.plugins.json'))
 for (const plugin of ['App', 'Camera', 'Device', 'FileTransfer', 'Filesystem', 'Keyboard', 'LocalNotifications']) {

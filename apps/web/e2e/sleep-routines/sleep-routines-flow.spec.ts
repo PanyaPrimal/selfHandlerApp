@@ -145,12 +145,18 @@ test('day choices agree across Today Planner and Review summaries with rollback'
 
 test('workspace localizes in RU and UK and stays keyboard/mobile accessible', async ({ page }, testInfo) => {
   await registerViaUi(page, uniqueCredentials(testInfo, 'SleepLocales'))
+  const russianSaved = page.waitForResponse((response) => response.url().endsWith('/api/profile')
+    && response.request().method() === 'PATCH' && response.ok())
   await page.getByRole('button', { name: 'RU', exact: true }).click()
+  await russianSaved
   await page.goto('/routines')
   await expect(page.getByRole('heading', { name: 'Рутины и сон' })).toBeVisible()
   await expect(page.getByRole('form', { name: 'Создать план сна' })).toBeVisible()
 
+  const ukrainianSaved = page.waitForResponse((response) => response.url().endsWith('/api/profile')
+    && response.request().method() === 'PATCH' && response.ok())
   await page.getByRole('button', { name: 'UK', exact: true }).click()
+  await ukrainianSaved
   await expect(page.getByRole('heading', { name: 'Рутини та сон' })).toBeVisible()
   const name = page.getByRole('form', { name: 'Створити план сну' }).getByLabel('Назва плану')
   await name.focus()

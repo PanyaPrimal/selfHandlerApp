@@ -13,7 +13,8 @@ $speckit-analyze -> $speckit-implement` before application code changes.
 > `016-nutrition-meals-hydration-targets`, `017-supplements-courses-intake-stock`, and
 > `018-finance-ledger-foundation`, `019-budget-recurring-cash-flow`,
 > `020-debts-funds-financial-goals`, `021-private-attachments`, and
-> `022-cross-module-periodic-review` and `023-analytics-long-period-rollups` are complete. Native compilation and device installation evidence for 012 remains externally blocked in
+> `022-cross-module-periodic-review`, `023-analytics-long-period-rollups`, and
+> `024-data-portability-reports` are complete. Feature 025 is the next delivery increment. Native compilation and device installation evidence for 012 remains externally blocked in
 > this workspace because Android Studio, JDK, SDK, Gradle, and `adb` are absent; all repository-owned
 > server, web, configuration, sync, resource, and native-source gates pass.
 > `002-homelab-deployment` stops at T055 by product decision: the current homelab deployment is
@@ -525,6 +526,26 @@ Version the export schema and separate human reports from backup/restore. Includ
 manifest rather than embedding unbounded blobs into JSON.
 
 **Prerequisites:** 023 for consolidated reports and stable domain contracts for full backup/restore.
+
+Delivered as two deliberately separate boundaries. Human CSV/PDF downloads reuse the exact
+authenticated Analytics workspace, including Profile locale, grouping, comparison, and explicit
+evidence gaps. The machine backup is a bounded schema-v1 ZIP with closed manifest/Profile/record
+documents, deterministic portable IDs, stable keys for public catalogue references, and private
+attachments as separate checksum-verified members. It excludes credentials, sessions/tokens,
+invitations, framework runtime data, shared catalogue copies, server storage paths, and generated
+notification deliveries.
+
+Validation is read-only and checks archive paths, compression/encryption/symlink flags, member and
+byte bounds, closed JSON shapes, types, counts, hashes, references, image magic/dimensions, and target
+eligibility. An eligible validation issues a ten-minute HMAC token bound to schema, digest, and target
+user. Restore requires literal `RESTORE`, reparses the upload, locks and rechecks an empty target,
+allocates new database IDs/private paths, and compensates file writes if the atomic database restore
+fails. Profile/name/settings are restored while target email/password/authentication identity remain
+unchanged. The accessible EN/RU/UK desktop/exact-phone UI and synchronized Android WebView expose the
+same online workflow. Merge/overwrite restore, scheduled exports, server/deployment backups, legacy
+archive migration, native offline storage, and deployment remain deferred.
+
+**Status:** Complete on 2026-08-14 (`85/85` tasks; deployment was explicitly excluded).
 
 ### 025 — Calendar Integration
 

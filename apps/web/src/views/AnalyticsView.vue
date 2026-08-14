@@ -7,6 +7,7 @@ import {
   getAnalyticsCorrelations,
   getAnalyticsWorkspace,
   getToday,
+  downloadAnalyticsReport,
 } from '../api/client'
 import type {
   AnalyticsCatalog,
@@ -30,6 +31,7 @@ import MetricTrendTable from '../components/analytics/MetricTrendTable.vue'
 import { UiCheckbox, UiDatePicker, UiSelect } from '../components/ui'
 import { useI18n } from '../i18n'
 import { formatCalendarDate } from '../lib/format'
+import { saveDownloadedFile } from '../portability/files'
 
 const route = useRoute()
 const router = useRouter()
@@ -43,6 +45,10 @@ const isCorrelationLoading = ref(false)
 const loadError = ref<string | null>(null)
 const correlationError = ref<string | null>(null)
 const formError = ref<string | null>(null)
+const reportFormat = ref<'csv' | 'pdf' | null>(null)
+const reportRetryFormat = ref<'csv' | 'pdf' | null>(null)
+const reportError = ref<string | null>(null)
+const reportSuccess = ref<string | null>(null)
 const form = reactive<AnalyticsQueryState>({
   metric: 'sleep.duration_minutes',
   from: '',
@@ -241,6 +247,30 @@ function comparisonReason(): string | null {
     : i18n.t('analytics.comparisonUnavailable')
 }
 
+async function downloadReport(format: 'csv' | 'pdf'): Promise<void> {
+  if (!workspace.value || reportFormat.value) return
+  reportFormat.value = format
+  reportError.value = null
+  reportSuccess.value = null
+
+  try {
+    saveDownloadedFile(await downloadAnalyticsReport(format, {
+      metric: workspace.value.metric.key,
+      from: workspace.value.period.from,
+      to: workspace.value.period.to,
+      granularity: workspace.value.period.granularity,
+      compare: workspace.value.comparison !== null,
+    }))
+    reportRetryFormat.value = null
+    reportSuccess.value = i18n.t('analytics.reportReady', { format: format.toUpperCase() })
+  } catch {
+    reportRetryFormat.value = format
+    reportError.value = i18n.t('analytics.reportFailed')
+  } finally {
+    reportFormat.value = null
+  }
+}
+
 watch(() => route.fullPath, () => { void loadFromRoute() }, { immediate: true })
 </script>
 
@@ -295,6 +325,27 @@ watch(() => route.fullPath, () => { void loadFromRoute() }, { immediate: true })
       <button type="submit">{{ i18n.t('analytics.apply') }}</button>
       <p v-if="formError" class="notice error analytics-filter-error" role="alert">{{ formError }}</p>
     </form>
+
+    <section v-if="workspace && !isLoading" class="panel analytics-reports" aria-labelledby="analytics-reports-heading">
+      <div>
+        <p class="eyebrow">{{ i18n.t('analytics.reportFormats') }}</p>
+        <h2 id="analytics-reports-heading">{{ i18n.t('analytics.reports') }}</h2>
+        <p class="muted">{{ i18n.t('analytics.reportsBody') }}</p>
+      </div>
+      <div class="analytics-report-actions">
+        <button type="button" :disabled="Boolean(reportFormat)" @click="downloadReport('csv')">
+          {{ reportFormat === 'csv' ? i18n.t('analytics.downloadingCsv') : i18n.t('analytics.downloadCsv') }}
+        </button>
+        <button type="button" class="secondary" :disabled="Boolean(reportFormat)" @click="downloadReport('pdf')">
+          {{ reportFormat === 'pdf' ? i18n.t('analytics.downloadingPdf') : i18n.t('analytics.downloadPdf') }}
+        </button>
+        <button v-if="reportError && reportRetryFormat" type="button" class="ghost" :disabled="Boolean(reportFormat)" @click="downloadReport(reportRetryFormat)">
+          {{ i18n.t('common.retry') }}
+        </button>
+      </div>
+      <p v-if="reportError" class="notice error" role="alert">{{ reportError }}</p>
+      <p v-else-if="reportSuccess" class="notice success" role="status">{{ reportSuccess }}</p>
+    </section>
 
     <AsyncState
       :loading="isLoading"
