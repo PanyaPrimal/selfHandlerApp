@@ -17,6 +17,7 @@
 **/*.key
 **/*secret*
 **/*credential*
+!apps/web/src/mobile/credential-vault.ts
 
 # Dependency trees and generated output are rebuilt from lock files.
 **/node_modules/
