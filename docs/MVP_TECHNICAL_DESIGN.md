@@ -383,13 +383,15 @@ shifted through UTC as instants.
 
 ## Implemented Delivery Status
 
-The current product delivery baseline now includes features through `025-calendar-integration`
-(2026-08-14). Feature 025 adds encrypted optional Google OAuth and Apple CalDAV connections, bounded
-two-way calendar synchronization, read-only external Planner busy entries, opt-in category export,
-and local-authoritative conflict convergence. Provider-bound data is excluded from schema-v1 backup,
-and disconnect removes only local credentials/cache/mappings. It performs no deployment and live
-provider acceptance still needs operator credentials; `026-ai-assistant-foundation` is the next
-increment. The historical first-slice evidence below remains the implementation record for feature 004.
+The current product delivery baseline now includes features through `026-ai-assistant-foundation`
+(2026-08-14), completing the fixed roadmap queue. Feature 026 adds fixed-host Anthropic/OpenAI BYOK
+adapters, encrypted and masked owner connections, explicit external-processing consent, and one
+strict confirmed Storage Inbox triage scenario. The model can only propose; a separately authenticated,
+short-lived, one-use capability and Storage-owned transaction perform the write after confirmation.
+AI state is excluded from schema-v1 backup, no browser/native secret storage is added, and every
+deterministic module remains functional without a provider. It performs no deployment, and live
+provider acceptance still needs operator credentials. The historical first-slice evidence below
+remains the implementation record for feature 004.
 
 Feature `004-profile-settings` is complete as of 2026-08-12. It adds an additive one-to-one profile,
 existing-user backfill, registration provisioning and repair, full atomic profile GET/PUT contracts,

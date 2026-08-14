@@ -210,6 +210,14 @@ skipped occurrence facts alone may be cleared.
   projections are repaired from local facts, provider-origin events follow provider changes. Disconnect
   is local-only. Multiple calendars, webhooks, RRULE export, native OAuth callbacks, offline sync,
   fitness/bank adapters, and live-credential evidence remain deferred.
+- **The optional AI foundation** was delivered by feature 026 (2026-08-14): two fixed-host BYOK
+  adapters resolve at runtime from encrypted owner connections; readiness requires a real probe and
+  one active pointer. The only consent scope and tool are Storage Inbox triage. Exact minimal context
+  leaves only on a user request, strict provider output is revalidated locally, and a separate
+  encrypted ten-minute capability must be confirmed before the Storage-owned, at-most-once write.
+  Audit is content-free and portability excludes all AI state. Custom endpoints, model catalogues,
+  chat/RAG, streaming, vision, background calls, other tools, billing, and live-key evidence remain
+  deferred.
 - **Profile is the single source of user input** (anthropometry, **base currency**, timezone, units, tone). The modules do the computing. This closes the open question "where the base currency lives" → the profile.
 - **Supply forecasting (2a) ≠ recurring (5/10)** — different mechanisms; restocking a supplement is a one-off planned expense.
 - **Composite metrics (the day score, cash flow)** — a deliberate exception to "each module computes its own aggregates": an aggregator (Daily Review/Analytics) computes them on top of ready-made numbers.

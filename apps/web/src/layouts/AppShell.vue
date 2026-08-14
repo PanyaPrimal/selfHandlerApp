@@ -40,6 +40,7 @@ const utilityDestinations: Destination[] = [
   { name: 'settings-appearance', to: '/settings/appearance', label: 'nav.settings' },
   { name: 'settings-data', to: '/settings/data', label: 'nav.data' },
   { name: 'settings-integrations', to: '/settings/integrations', label: 'nav.integrations' },
+  { name: 'settings-ai', to: '/settings/ai', label: 'nav.ai' },
   { name: 'account', to: '/account', label: 'nav.account' },
   { name: 'changelog', to: '/changelog', label: 'nav.changelog' },
 ]

@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, reactive, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { RouterLink, useRoute } from 'vue-router'
 import {
+  confirmInboxTriageDraft,
+  createInboxTriageDraft,
   createStorageItem,
   createFinanceSourceExpense,
   createStorageProject,
@@ -12,6 +14,7 @@ import {
   getFinanceAccounts,
   getFinanceCategories,
   getFinanceCurrencies,
+  getAiSettings,
   updateStorageItem,
   validationErrors,
   type ValidationErrors,
@@ -20,6 +23,8 @@ import AsyncState from '../components/AsyncState.vue'
 import { UiDatePicker, UiSelect, UiTextInput } from '../components/ui'
 import type { UiOption } from '../components/ui'
 import type {
+  AiSettings,
+  InboxTriageDraft,
   ItemStatus,
   ItemType,
   FinanceAccount,
@@ -30,6 +35,7 @@ import type {
   StorageProject,
 } from '../api/types'
 import { useI18n } from '../i18n'
+import type { MessageKey } from '../i18n/locales/en'
 import { financeAmount } from '../finance/money'
 
 const isLoading = ref(true)
@@ -59,6 +65,14 @@ const financeCurrencies = ref<FinanceCurrency[]>([])
 const financing = ref<number | null>(null)
 const purchaseDrafts = reactive<Record<number, { amount: string, currency: FinanceCurrencyCode }>>({})
 const sourceDraft = reactive({ account_id: 0, category_id: 0, amount: '', occurred_on: '' })
+const aiSettings = ref<AiSettings | null>(null)
+const aiSettingsLoadError = ref(false)
+const aiBusyItem = ref<number | null>(null)
+const aiDraft = ref<InboxTriageDraft | null>(null)
+const aiError = ref<string | null>(null)
+const aiFeedback = ref<string | null>(null)
+const aiDraftExpired = ref(false)
+let aiExpiryTimer: ReturnType<typeof setTimeout> | undefined
 const highlightedItem = computed(() => typeof route.query.item === 'string' && /^\d+$/.test(route.query.item)
   ? Number(route.query.item) : null)
 
@@ -96,6 +110,18 @@ const roots = computed(() => items.value.filter((item) => item.parent_id === nul
 const inbox = computed(() => roots.value.filter((item) => item.status === 'inbox'))
 const active = computed(() => roots.value.filter((item) => item.status === 'active'))
 const closed = computed(() => roots.value.filter((item) => item.status === 'done' || item.status === 'dropped'))
+const aiActiveConnection = computed(() => aiSettings.value?.data.find(
+  (connection) => connection.id === aiSettings.value?.active_connection_id,
+) ?? null)
+const aiReady = computed(() => aiActiveConnection.value?.status === 'ready'
+  && aiSettings.value?.consents.storage_inbox.granted === true)
+const aiGuidanceKey = computed<MessageKey>(() => {
+  if (aiSettingsLoadError.value) return 'storage.aiUnavailable'
+  if (!aiActiveConnection.value) return 'storage.aiNeedsConnection'
+  if (aiActiveConnection.value.status !== 'ready') return 'storage.aiNeedsTest'
+  if (!aiSettings.value?.consents.storage_inbox.granted) return 'storage.aiNeedsConsent'
+  return 'storage.aiReady'
+})
 
 function childrenOf(item: StorageItem): StorageItem[] {
   return items.value.filter((candidate) => candidate.parent_id === item.id)
@@ -103,6 +129,111 @@ function childrenOf(item: StorageItem): StorageItem[] {
 
 function projectName(item: StorageItem): string | null {
   return projects.value.find((project) => project.id === item.project_id)?.name ?? null
+}
+
+function aiProposalProject(draft: InboxTriageDraft): string {
+  if (draft.proposal.project_id === null) return i18n.t('storage.noProject')
+  return projects.value.find((project) => project.id === draft.proposal.project_id)?.name
+    ?? i18n.t('storage.aiUnknownProject')
+}
+
+function formatAiDate(value: string | null): string {
+  if (!value) return i18n.t('common.notSet')
+  const date = new Date(`${value}T00:00:00`)
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(i18n.locale.value, {
+    dateStyle: 'medium',
+  }).format(date)
+}
+
+function formatAiTimestamp(value: string): string {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(i18n.locale.value, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date)
+}
+
+function aiPriorityLabel(priority: NonNullable<InboxTriageDraft['proposal']['priority']>): string {
+  const keys: Record<typeof priority, MessageKey> = {
+    low: 'storage.aiPriority.low',
+    normal: 'storage.aiPriority.normal',
+    high: 'storage.aiPriority.high',
+  }
+  return i18n.t(keys[priority])
+}
+
+async function loadAiSettings(): Promise<void> {
+  aiSettingsLoadError.value = false
+  try {
+    aiSettings.value = await getAiSettings()
+  } catch {
+    aiSettings.value = null
+    aiSettingsLoadError.value = true
+  }
+}
+
+function clearAiExpiryTimer(): void {
+  if (aiExpiryTimer !== undefined) clearTimeout(aiExpiryTimer)
+  aiExpiryTimer = undefined
+}
+
+function scheduleAiExpiry(draft: InboxTriageDraft): void {
+  clearAiExpiryTimer()
+  const delay = Math.max(0, new Date(draft.expires_at).getTime() - Date.now())
+  aiDraftExpired.value = delay === 0
+  if (delay > 0) {
+    aiExpiryTimer = setTimeout(() => {
+      aiDraftExpired.value = true
+    }, Math.min(delay, 2_147_483_647))
+  }
+}
+
+async function requestAiDraft(item: StorageItem): Promise<void> {
+  if (!aiReady.value || aiBusyItem.value !== null) return
+  aiBusyItem.value = item.id
+  aiError.value = null
+  aiFeedback.value = null
+  try {
+    const draft = await createInboxTriageDraft(item.id)
+    aiDraft.value = draft
+    scheduleAiExpiry(draft)
+    await nextTick()
+    document.querySelector<HTMLElement>('.storage-ai-proposal')?.focus()
+  } catch (current) {
+    aiError.value = current instanceof Error ? current.message : i18n.t('storage.aiDraftFailed')
+    await loadAiSettings()
+  } finally {
+    aiBusyItem.value = null
+  }
+}
+
+function dismissAiDraft(): void {
+  clearAiExpiryTimer()
+  aiDraft.value = null
+  aiDraftExpired.value = false
+  aiError.value = null
+  aiFeedback.value = i18n.t('storage.aiDismissed')
+}
+
+async function confirmAiDraft(): Promise<void> {
+  const draft = aiDraft.value
+  if (!draft || aiDraftExpired.value || aiBusyItem.value !== null) return
+  aiBusyItem.value = draft.item_id
+  aiError.value = null
+  aiFeedback.value = null
+  try {
+    const updated = await confirmInboxTriageDraft(draft.confirmation_token)
+    items.value = items.value.map((item) => item.id === updated.id ? updated : item)
+    inboxCount.value = Math.max(0, inboxCount.value - 1)
+    clearAiExpiryTimer()
+    aiDraft.value = null
+    aiFeedback.value = i18n.t('storage.aiApplied')
+  } catch (current) {
+    aiError.value = current instanceof Error ? current.message : i18n.t('storage.aiConfirmFailed')
+    await loadAiSettings()
+  } finally {
+    aiBusyItem.value = null
+  }
 }
 
 async function load(): Promise<void> {
@@ -288,6 +419,8 @@ async function postExpense(item: StorageItem): Promise<void> {
 }
 
 onMounted(load)
+onMounted(loadAiSettings)
+onBeforeUnmount(clearAiExpiryTimer)
 </script>
 
 <template>
@@ -302,6 +435,8 @@ onMounted(load)
 
     <div v-if="error" class="notice error" role="alert">{{ error }}</div>
     <div v-if="feedback" class="notice success" role="status">{{ feedback }}</div>
+    <div v-if="aiError" class="notice error" role="alert" aria-live="assertive">{{ aiError }}</div>
+    <div v-else-if="aiFeedback" class="notice success" role="status" aria-live="polite">{{ aiFeedback }}</div>
 
     <section class="panel" aria-labelledby="capture-heading">
       <h2 id="capture-heading">{{ i18n.t('storage.capture') }}</h2>
@@ -337,19 +472,62 @@ onMounted(load)
           <span class="kind-chip">{{ i18n.plural(inboxCount, { one: 'storage.unsorted.one', few: 'storage.unsorted.few', many: 'storage.unsorted.many', other: 'storage.unsorted.other' }) }}</span>
         </div>
 
+        <aside class="storage-ai-guidance" :class="{ 'is-ready': aiReady }" aria-labelledby="storage-ai-heading">
+          <div>
+            <h3 id="storage-ai-heading">{{ i18n.t('storage.aiTitle') }}</h3>
+            <p>{{ i18n.t(aiGuidanceKey) }}</p>
+            <p class="muted">{{ i18n.t('storage.aiDisclosure') }}</p>
+          </div>
+          <RouterLink class="button secondary" to="/settings/ai">{{ i18n.t(aiReady ? 'storage.aiManage' : 'storage.aiSetUp') }}</RouterLink>
+        </aside>
+
         <p v-if="inbox.length === 0" class="muted">
           {{ i18n.t('storage.inboxEmpty') }}
         </p>
         <ul v-else class="item-list">
-          <li v-for="item in inbox" :key="item.id" class="management-row" :class="{ 'is-deep-linked': item.id === highlightedItem }" :data-storage-item="item.id" :aria-label="item.title">
-            <div class="management-copy">
-              <strong>{{ item.title }}</strong>
-              <p class="muted">{{ typeLabel(item.type) }}</p>
+          <li v-for="item in inbox" :key="item.id" class="storage-inbox-item" :class="{ 'is-deep-linked': item.id === highlightedItem }" :data-storage-item="item.id" :aria-label="item.title">
+            <div class="management-row">
+              <div class="management-copy">
+                <strong>{{ item.title }}</strong>
+                <p class="muted">{{ typeLabel(item.type) }}</p>
+              </div>
+              <div class="button-row management-actions">
+                <button type="button" class="secondary" :disabled="!aiReady || aiBusyItem !== null" :aria-label="i18n.t('storage.aiDraftNamed', { name: item.title })" @click="requestAiDraft(item)">{{ i18n.t(aiBusyItem === item.id ? 'storage.aiDrafting' : 'storage.aiDraft') }}</button>
+                <button type="button" class="secondary" :aria-label="i18n.t('storage.triageNamed', { name: item.title })" @click="patch(item, { status: 'active' })">{{ i18n.t('storage.triage') }}</button>
+                <button type="button" class="secondary" :aria-label="i18n.t('storage.dropNamed', { name: item.title })" @click="patch(item, { status: 'dropped' })">{{ i18n.t('storage.drop') }}</button>
+              </div>
             </div>
-            <div class="button-row management-actions">
-              <button type="button" class="secondary" :aria-label="i18n.t('storage.triageNamed', { name: item.title })" @click="patch(item, { status: 'active' })">{{ i18n.t('storage.triage') }}</button>
-              <button type="button" class="secondary" :aria-label="i18n.t('storage.dropNamed', { name: item.title })" @click="patch(item, { status: 'dropped' })">{{ i18n.t('storage.drop') }}</button>
-            </div>
+
+            <section
+              v-if="aiDraft?.item_id === item.id"
+              class="storage-ai-proposal"
+              :aria-labelledby="`ai-proposal-${item.id}`"
+              tabindex="-1"
+            >
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">{{ i18n.t('storage.aiProposalEyebrow') }}</p>
+                  <h3 :id="`ai-proposal-${item.id}`">{{ i18n.t('storage.aiProposalTitle') }}</h3>
+                </div>
+                <span class="kind-chip">{{ aiDraft.provider === 'anthropic' ? 'Anthropic' : 'OpenAI' }} · {{ aiDraft.model }}</span>
+              </div>
+              <p class="notice">{{ i18n.t('storage.aiNoWriteNotice') }}</p>
+              <p>{{ aiDraft.proposal.rationale }}</p>
+              <dl class="storage-ai-facts">
+                <div><dt>{{ i18n.t('storage.type') }}</dt><dd>{{ typeLabel(aiDraft.proposal.type) }}</dd></div>
+                <div><dt>{{ i18n.t('storage.aiProject') }}</dt><dd>{{ aiProposalProject(aiDraft) }}</dd></div>
+                <div><dt>{{ i18n.t('storage.aiPriority') }}</dt><dd>{{ aiDraft.proposal.priority ? aiPriorityLabel(aiDraft.proposal.priority) : i18n.t('common.notSet') }}</dd></div>
+                <div><dt>{{ i18n.t('storage.aiDueDate') }}</dt><dd>{{ formatAiDate(aiDraft.proposal.due_on) }}</dd></div>
+                <div class="storage-ai-facts__wide"><dt>{{ i18n.t('storage.aiTags') }}</dt><dd>{{ aiDraft.proposal.tags.length ? aiDraft.proposal.tags.join(', ') : i18n.t('common.notSet') }}</dd></div>
+              </dl>
+              <p v-if="aiDraftExpired" class="notice error" role="status">{{ i18n.t('storage.aiExpired') }}</p>
+              <p v-else class="muted">{{ i18n.t('storage.aiExpires', { date: formatAiTimestamp(aiDraft.expires_at) }) }}</p>
+              <div class="button-row storage-ai-actions">
+                <button type="button" :disabled="aiDraftExpired || aiBusyItem !== null" @click="confirmAiDraft">{{ i18n.t(aiBusyItem === item.id ? 'storage.aiApplying' : 'storage.aiConfirm') }}</button>
+                <button type="button" class="secondary" :disabled="aiBusyItem !== null" @click="requestAiDraft(item)">{{ i18n.t('storage.aiRegenerate') }}</button>
+                <button type="button" class="ghost" :disabled="aiBusyItem !== null" @click="dismissAiDraft">{{ i18n.t('storage.aiDismiss') }}</button>
+              </div>
+            </section>
           </li>
         </ul>
       </section>

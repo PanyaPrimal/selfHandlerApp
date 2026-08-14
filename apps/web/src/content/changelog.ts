@@ -19,6 +19,15 @@ export interface ChangelogEntry {
 
 const entries: readonly ChangelogEntry[] = [
   {
+    id: 'ai-assistant-inbox-triage', date: '2026-08-14', feature: '026-ai-assistant-foundation',
+    titleKey: 'changelog.entry.ai.title', summaryKey: 'changelog.entry.ai.summary',
+    testKey: 'changelog.entry.ai.test', links: [
+      { labelKey: 'nav.ai', to: '/settings/ai' },
+      { labelKey: 'nav.storage', to: '/storage' },
+    ],
+    limitationKeys: ['changelog.entry.ai.limit'],
+  },
+  {
     id: 'calendar-integration', date: '2026-08-14', feature: '025-calendar-integration',
     titleKey: 'changelog.entry.calendar.title', summaryKey: 'changelog.entry.calendar.summary',
     testKey: 'changelog.entry.calendar.test', links: [

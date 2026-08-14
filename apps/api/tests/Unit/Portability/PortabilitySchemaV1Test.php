@@ -18,7 +18,8 @@ class PortabilitySchemaV1Test extends TestCase
             ->filter(fn (string $table): bool => collect(DB::select("pragma table_info('{$table}')"))
                 ->contains(fn (object $column): bool => $column->name === 'user_id'))
             ->sort()->values()->all();
-        $expectedExclusions = ['attachments', 'external_calendar_events', 'integrations', 'notification_settings',
+        $expectedExclusions = ['attachments', 'external_calendar_events', 'integrations', 'llm_audit_events',
+            'llm_connections', 'llm_consents', 'llm_settings', 'llm_tool_confirmations', 'notification_settings',
             'notifications', 'sessions', 'synced_items', 'user_profiles'];
 
         $this->assertSame($expectedExclusions, PortabilitySchemaV1::excludedOwnedTables());

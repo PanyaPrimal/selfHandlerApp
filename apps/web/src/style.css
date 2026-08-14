@@ -4157,6 +4157,156 @@ button.text-button {
   min-height: 44px;
 }
 
+/* AI settings and Storage review keep secret setup and proposed writes visibly separate. */
+.ai-settings-page {
+  max-width: 1040px;
+  min-width: 0;
+}
+
+.ai-disclosure,
+.storage-ai-guidance {
+  border-inline-start: 3px solid var(--accent);
+}
+
+.ai-connection-editor,
+.ai-consent-card,
+.ai-connection-card,
+.storage-ai-proposal {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.ai-connection-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ai-connection-form .form-actions,
+.ai-connection-form > :last-child {
+  grid-column: 1 / -1;
+}
+
+.ai-connection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  gap: var(--space-4);
+}
+
+.ai-connection-card,
+.storage-ai-proposal,
+.storage-ai-guidance {
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow-wrap: anywhere;
+  background: var(--paper-soft);
+}
+
+.ai-connection-card .definition-list,
+.storage-ai-facts {
+  margin: 0;
+}
+
+.ai-connection-card .kind-chip.is-ready,
+.storage-ai-guidance.is-ready {
+  border-color: var(--accent);
+}
+
+.ai-connection-actions > *,
+.ai-consent-card .form-actions > *,
+.storage-ai-guidance > .button,
+.storage-ai-actions > * {
+  min-height: 44px;
+}
+
+.storage-ai-guidance {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.storage-ai-guidance p {
+  margin: var(--space-2) 0 0;
+}
+
+.storage-inbox-item {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.storage-inbox-item > .management-row {
+  border: 0;
+  border-radius: 0;
+}
+
+.storage-ai-proposal {
+  margin: 0 var(--space-4) var(--space-4);
+}
+
+.storage-ai-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.storage-ai-facts div {
+  min-width: 0;
+}
+
+.storage-ai-facts dt {
+  color: var(--subtle);
+  font-size: 0.8rem;
+}
+
+.storage-ai-facts dd {
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
+  font-weight: 650;
+}
+
+.storage-ai-facts__wide {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 760px) {
+  .ai-connection-form,
+  .ai-connection-grid,
+  .storage-ai-facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .storage-ai-guidance {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .storage-ai-guidance > .button,
+  .storage-ai-actions > * {
+    width: 100%;
+  }
+
+  .ai-connection-actions,
+  .ai-consent-card .form-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ai-connection-actions > *,
+  .ai-consent-card .form-actions > * {
+    flex: 1 0 auto;
+    width: 100%;
+  }
+
+  .storage-ai-facts__wide {
+    grid-column: auto;
+  }
+}
+
 @media (max-width: 760px) {
   .integration-grid {
     grid-template-columns: minmax(0, 1fr);

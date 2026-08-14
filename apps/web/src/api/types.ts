@@ -1660,6 +1660,98 @@ export interface StorageProjectPayload {
 }
 
 /* ------------------------------------------------------------------ */
+/* Optional BYOK AI assistant (feature 026)                            */
+/* ------------------------------------------------------------------ */
+
+export type AiProvider = 'anthropic' | 'openai'
+export type AiConnectionStatus = 'untested' | 'ready' | 'invalid'
+export type AiConsentScope = 'storage_inbox'
+
+export type AiErrorCode =
+  | 'ai_active_connection_required'
+  | 'ai_connection_not_ready'
+  | 'ai_consent_required'
+  | 'ai_credentials_invalid'
+  | 'ai_provider_rate_limited'
+  | 'ai_provider_timeout'
+  | 'ai_provider_unavailable'
+  | 'ai_provider_unsupported_capability'
+  | 'ai_provider_refused'
+  | 'ai_provider_invalid_response'
+  | 'ai_tool_not_allowed'
+  | 'ai_tool_confirmation_required'
+  | 'ai_confirmation_expired'
+  | 'ai_confirmation_replayed'
+  | 'ai_confirmation_stale'
+
+export interface AiParameters {
+  max_output_tokens: number
+}
+
+export interface AiConnection {
+  id: number
+  name: string
+  provider: AiProvider
+  model: string
+  key_mask: string
+  parameters: AiParameters
+  status: AiConnectionStatus
+  last_tested_at: string | null
+  last_used_at: string | null
+  last_error_code: AiErrorCode | null
+  created_at: string
+  updated_at: string
+}
+
+export interface AiConnectionInput {
+  name: string
+  provider: AiProvider
+  model: string
+  api_key: string
+  parameters: AiParameters
+}
+
+export type AiConnectionUpdate = Partial<AiConnectionInput>
+
+export interface AiConsent {
+  scope: AiConsentScope
+  granted: boolean
+  granted_at: string | null
+  revoked_at: string | null
+}
+
+export interface AiSettings {
+  data: AiConnection[]
+  active_connection_id: number | null
+  consents: { storage_inbox: AiConsent }
+  providers: AiProvider[]
+}
+
+export interface InboxTriageProposal {
+  type: ItemType
+  project_id: number | null
+  tags: string[]
+  priority: ItemPriority | null
+  due_on: string | null
+  rationale: string
+}
+
+export interface InboxTriageDraft {
+  item_id: number
+  proposal: InboxTriageProposal
+  provider: AiProvider
+  model: string
+  confirmation_token: string
+  expires_at: string
+  shared_scope: AiConsentScope
+}
+
+export interface AiErrorResponse {
+  message: string
+  code: AiErrorCode
+}
+
+/* ------------------------------------------------------------------ */
 /* Planner                                                            */
 /* ------------------------------------------------------------------ */
 

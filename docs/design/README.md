@@ -38,7 +38,7 @@ implementation begins with the first real consumer to avoid unused frameworks:
 ## Status
 
 All 11 modules and cross-cutting mechanisms are designed. Product increments through
-`025-calendar-integration` are implemented; `026-ai-assistant-foundation` is next. The accepted
-homelab baseline is unchanged, and feature delivery does not imply deployment. Further Spec Kit
-increments follow the dependency order in [delivery-roadmap.md](delivery-roadmap.md). The schema rules
-remain in [data-conventions.md](data-conventions.md).
+`026-ai-assistant-foundation` are implemented, and the fixed queue in the delivery roadmap is
+complete. The accepted homelab baseline is unchanged, and feature delivery does not imply deployment
+or live-provider acceptance. Any further work starts as a new demand-driven Spec Kit increment. The
+schema rules remain in [data-conventions.md](data-conventions.md).

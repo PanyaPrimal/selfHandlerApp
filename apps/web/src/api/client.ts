@@ -111,6 +111,12 @@ import type {
   CalendarIntegrationCollection,
   CalendarSettingsInput,
   CalendarSyncResult,
+  AiConnection,
+  AiConnectionInput,
+  AiConnectionUpdate,
+  AiConsent,
+  AiSettings,
+  InboxTriageDraft,
 } from './types'
 import { downloadRequest, jsonRequest, multipartRequest, request } from './http'
 import type { DownloadedFile } from '../portability/files'
@@ -1057,6 +1063,53 @@ export async function createStorageProject(payload: StorageProjectPayload): Prom
 
 export function deleteStorageProject(projectId: number): Promise<void> {
   return request<void>(`/storage/projects/${projectId}`, { method: 'DELETE' })
+}
+
+export function getAiSettings(): Promise<AiSettings> {
+  return request<AiSettings>('/ai/settings')
+}
+
+export async function createLlmConnection(payload: AiConnectionInput): Promise<AiConnection> {
+  const response = await jsonRequest<ItemResponse<AiConnection>>('/ai/connections', 'POST', payload)
+  return response.data
+}
+
+export async function updateLlmConnection(
+  connectionId: number,
+  payload: AiConnectionUpdate,
+): Promise<AiConnection> {
+  const response = await jsonRequest<ItemResponse<AiConnection>>(`/ai/connections/${connectionId}`, 'PATCH', payload)
+  return response.data
+}
+
+export async function testLlmConnection(connectionId: number): Promise<AiConnection> {
+  const response = await jsonRequest<ItemResponse<AiConnection>>(`/ai/connections/${connectionId}/test`, 'POST', {})
+  return response.data
+}
+
+export function activateLlmConnection(connectionId: number): Promise<AiSettings> {
+  return jsonRequest<AiSettings>(`/ai/connections/${connectionId}/activate`, 'POST', {})
+}
+
+export function deleteLlmConnection(connectionId: number): Promise<void> {
+  return request<void>(`/ai/connections/${connectionId}`, { method: 'DELETE' })
+}
+
+export async function replaceStorageInboxConsent(granted: boolean): Promise<AiConsent> {
+  const response = await jsonRequest<ItemResponse<AiConsent>>('/ai/consents/storage-inbox', 'PUT', { granted })
+  return response.data
+}
+
+export async function createInboxTriageDraft(itemId: number): Promise<InboxTriageDraft> {
+  const response = await jsonRequest<ItemResponse<InboxTriageDraft>>('/ai/scenarios/storage-inbox/draft', 'POST', { item_id: itemId })
+  return response.data
+}
+
+export async function confirmInboxTriageDraft(confirmationToken: string): Promise<StorageItem> {
+  const response = await jsonRequest<ItemResponse<StorageItem>>('/ai/scenarios/storage-inbox/confirm', 'POST', {
+    confirmation_token: confirmationToken,
+  })
+  return response.data
 }
 
 export function getPlannerDay(date?: string): Promise<PlannerDayResponse> {

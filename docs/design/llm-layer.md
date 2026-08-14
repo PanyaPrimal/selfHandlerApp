@@ -19,9 +19,16 @@ Every smart feature has two tiers:
 
 ## How the AI layer works (technical contract)
 
-Grounded in the Claude API (reference provider; BYOK means the user can swap in any provider). Verify model/pricing facts against the `claude-api` reference, never from memory.
+Feature 026 delivers the first bounded implementation of this contract. BYOK means the user's own
+provider account supplies the key, model access, limits, and charges. SelfHandler deliberately stores
+no reference model or price catalogue because those facts change independently of the application.
 
-- **Reference model:** `claude-opus-4-8` (1M context window). The large context comfortably fits a day's — or week's — worth of cross-module aggregates as context. BYOK = the user's own key/account pays for tokens.
+- **Delivered providers:** Anthropic Messages and OpenAI Responses behind one backend contract. Their
+  API hosts are fixed in trusted configuration, redirects are disabled, and users choose only a model
+  identifier available to their own account. Arbitrary endpoints are not accepted.
+- **Delivered context:** the first scope sends only one selected Storage Inbox title/description,
+  bounded owned active-project and tag names, and Profile locale/timezone/tone. It sends no database
+  identifier or data from Finance, health, journal, attachments, credentials, or other Inbox items.
 - **Context assembly (RAG over the user's own data):** the backend selects relevant **ready-made aggregates** from modules (each module already computes its own totals — see [Each module computes its own aggregates](modules.md)) and feeds them as context. The LLM reads aggregates; it does **not** recompute them, and for most scenarios it never sees raw rows.
 - **Interaction types** (per scenario):
   - **chat** — conversational Q&A over supplied context.
@@ -29,9 +36,14 @@ Grounded in the Claude API (reference provider; BYOK means the user can swap in 
   - **structured-output (JSON)** — machine-readable result validated against an existing schema before any write (parsing, classification, plan generation). Uses the API's structured-output format.
   - **tool-calling** — the agent emits tool calls; **the SelfHandler backend executes them** against the domain modules / recurrence engine / notifications, then returns results. This is how the AI "takes actions" (plan a day, triage inbox, draft a transaction).
   - **vision** — image input (food photo, progress photo, receipt) → structured draft.
-- **Write discipline:** the LLM **never auto-commits**. Every recognition, plan, classification, or draft round-trips through user confirmation. Tool-calls are executed by the backend, which enforces domain invariants (e.g. blocker rules, "bought ⟺ transaction exists", recurrence materialization stays engine-owned).
+- **Write discipline:** the LLM **never auto-commits**. Every recognition, plan, classification, or draft round-trips through user confirmation. Tool-calls are executed by the backend, which enforces domain invariants (e.g. blocker rules, "bought ⟺ transaction exists", recurrence materialization stays engine-owned). Feature 026 additionally binds a ten-minute encrypted confirmation capability to the owner, source snapshot, active connection, and canonical proposal; one database row lock permits at most one application.
 - **Prompt caching:** the (large, stable) system prompt and tool definitions are cacheable; volatile per-request context goes last. Keeps BYOK token cost down.
 - **Cost/limits:** token budget and limits are the user's (BYOK). The backend should keep context lean (aggregates, not raw logs) — also the privacy default.
+
+Only the Storage Inbox triage scenario below is implemented. Chat/universal RAG, other scenario
+tools, streaming, vision, background calls, usage billing, and model catalogues remain future Spec Kit
+increments. Live acceptance also remains operator-owned because repository tests contain no provider
+credentials or user data.
 
 ---
 

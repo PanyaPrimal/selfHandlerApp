@@ -901,16 +901,17 @@ provider FX, integrations, export, AI, and native offline authority remain defer
 ### Provider abstraction — at the user level (BYOK)
 > **Bring Your Own Key.** The provider is configured NOT in the app's config, but by the user themselves through a form. The user connects THEIR OWN agent via API (their own paid Claude/OpenAI/other account). The user pays for the tokens.
 
-- The system is **not tied to a single LLM** — the provider choice is made by the user
+- Feature 026 implements two known providers: Anthropic Messages and OpenAI Responses. Provider hosts
+  are fixed by trusted application config; arbitrary/custom URLs are rejected.
 - LLM credentials = **the user's data** (a separate entity, tied to the user):
-  - the provider (Claude/Anthropic, OpenAI, a custom endpoint, etc.)
-  - the API key
-  - the model + parameters
-  - possibly several connections with a choice of the active one
-- A form in the settings: add/edit/delete a connection, choose the active one, test the connection
-- The pattern stays the same: a single **contract** (e.g. `LlmProvider`) + adapters for the providers
-- But the choice of implementation is **at runtime from the user's data**, NOT from a static config (a factory by the user's provider)
-- ⚠️ Support for a "custom agent/endpoint" — to think through: only known providers or an arbitrary OpenAI-compatible URL?
+  - the closed provider identifier
+  - an encrypted API key, exposed only as a last-four mask
+  - a user-supplied model identifier and bounded output-token parameter
+  - several owner connections with zero or one tested/ready active selection
+- `/settings/ai` supports add/edit/key rotation/delete, an explicit provider probe, and activation only
+  after a successful probe.
+- One `LlmProvider` contract plus runtime registry selects the adapter from owner data. Unknown
+  providers and capabilities fail closed.
 - Learning value: Strategy/Adapter + the Laravel Service Container, runtime resolution
 
 ### ⚠️ Security of users' API keys
@@ -919,12 +920,19 @@ provider FX, integrations, export, AI, and native offline authority remain defer
 - **Never return the key back to the frontend** in plaintext (only a mask `sk-...abcd`, the status "connected")
 - Protection against leaks, access auditing, key revocation
 
-### TODO
-- The `LlmProvider` contract (methods: chat/complete, passing context, streaming?)
-- Which system context and how it is assembled/passed (RAG over the user's data?)
-- Token/cost management, limits
-- The "user's LLM connection" entity: fields, key encryption, the active connection
-- The agent connection form + a connection test; masking the key on the frontend
-- Support for a custom OpenAI-compatible endpoint — yes/no?
-- The default/reference provider for the documentation: Claude API (Anthropic) — cross-check against models/pricing via the claude-api reference
-- Privacy: the user's data goes to an external LLM (their own) — a warning/consent
+### Delivered safety boundary (feature 026)
+
+- Explicit consent is closed to `storage_inbox`; revocation invalidates pending proposals.
+- The sole delivered scenario sends one selected Inbox item's title/description, bounded owned
+  project/tag names, and Profile locale/timezone/tone. The UI discloses this data and possible
+  provider charges before consent.
+- The provider must return exactly one strict `storage_triage_inbox_item` tool call. SelfHandler
+  independently validates its closed arguments and denies every unknown/unconfirmed tool.
+- A proposal performs no write. A separate encrypted ten-minute confirmation capability is bound to
+  owner, connection, source snapshot, and proposal; one locked transaction consumes it and delegates
+  the one Item/tag change to Storage.
+- Audit rows contain event/result identifiers and timestamps only, never keys, prompts, response
+  bodies, item text, or proposal content. All AI tables are excluded from schema-v1 portability.
+- Live-provider acceptance requires operator-supplied credentials. Custom endpoints, chat/universal
+  RAG, streaming, vision, background AI, other scenarios, model catalogues/pricing, usage billing, and
+  native provider/key logic remain deferred to separately specified increments.

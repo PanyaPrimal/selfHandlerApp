@@ -1,0 +1,364 @@
+openapi: 3.1.0
+info:
+  title: SelfHandler AI Assistant Foundation
+  version: 0.1.0
+  description: Owner-scoped BYOK settings and one confirmed Storage Inbox triage scenario.
+servers:
+  - url: /api
+security:
+  - sanctum: []
+paths:
+  /ai/settings:
+    get:
+      operationId: getAiSettings
+      responses:
+        '200':
+          description: Masked connections, active selection and closed consent states.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiSettings'
+  /ai/connections:
+    post:
+      operationId: createAiConnection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AiConnectionInput'
+      responses:
+        '201':
+          description: Encrypted untested owner connection; key is never returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/AiConnection' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /ai/connections/{connection}:
+    parameters:
+      - $ref: '#/components/parameters/ConnectionId'
+    patch:
+      operationId: updateAiConnection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AiConnectionUpdate'
+      responses:
+        '200':
+          description: Updated masked connection; changed execution fields reset readiness.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/AiConnection' }
+        '404': { description: Not found for absent or foreign owner connection. }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      operationId: deleteAiConnection
+      responses:
+        '204': { description: Local credential revoked; no provider request. }
+        '404': { description: Not found for absent or foreign owner connection. }
+  /ai/connections/{connection}/test:
+    parameters:
+      - $ref: '#/components/parameters/ConnectionId'
+    post:
+      operationId: testAiConnection
+      responses:
+        '200':
+          description: Fixed context-free probe succeeded.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/AiConnection' }
+        '404': { description: Not found for absent or foreign owner connection. }
+        '422': { $ref: '#/components/responses/AiError' }
+        '429': { $ref: '#/components/responses/AiError' }
+        '503': { $ref: '#/components/responses/AiError' }
+  /ai/connections/{connection}/activate:
+    parameters:
+      - $ref: '#/components/parameters/ConnectionId'
+    post:
+      operationId: activateAiConnection
+      responses:
+        '200':
+          description: Ready owner connection selected as active.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiSettings'
+        '404': { description: Not found for absent or foreign owner connection. }
+        '409': { $ref: '#/components/responses/AiError' }
+  /ai/consents/storage-inbox:
+    put:
+      operationId: replaceStorageInboxAiConsent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [granted]
+              properties:
+                granted: { type: boolean }
+      responses:
+        '200':
+          description: Current owner scope state.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/AiConsent' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /ai/scenarios/storage-inbox/draft:
+    post:
+      operationId: createStorageInboxAiDraft
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [item_id]
+              properties:
+                item_id: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Reviewed proposal only; Storage has not changed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/InboxTriageDraft' }
+        '404': { description: Not found for absent/non-Inbox/foreign source. }
+        '409': { $ref: '#/components/responses/AiError' }
+        '422': { $ref: '#/components/responses/AiError' }
+        '429': { $ref: '#/components/responses/AiError' }
+        '503': { $ref: '#/components/responses/AiError' }
+  /ai/scenarios/storage-inbox/confirm:
+    post:
+      operationId: confirmStorageInboxAiDraft
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [confirmation_token]
+              properties:
+                confirmation_token: { type: string, minLength: 40, maxLength: 20000 }
+      responses:
+        '200':
+          description: Exactly one confirmed Storage mutation.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/StorageItem' }
+        '404': { description: Not found for foreign/absent source or token. }
+        '409': { $ref: '#/components/responses/AiError' }
+        '422': { $ref: '#/components/responses/AiError' }
+components:
+  securitySchemes:
+    sanctum:
+      type: http
+      scheme: bearer
+  parameters:
+    ConnectionId:
+      name: connection
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+  responses:
+    ValidationError:
+      description: Localized validation error.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [message, errors]
+            properties:
+              message: { type: string }
+              errors:
+                type: object
+                additionalProperties:
+                  type: array
+                  items: { type: string }
+    AiError:
+      description: Closed safe AI/provider/tool error; no upstream body or secret.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AiError'
+  schemas:
+    AiProvider:
+      type: string
+      enum: [anthropic, openai]
+    AiConnectionStatus:
+      type: string
+      enum: [untested, ready, invalid]
+    AiConnectionInput:
+      type: object
+      additionalProperties: false
+      required: [name, provider, model, api_key, parameters]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        provider: { $ref: '#/components/schemas/AiProvider' }
+        model: { type: string, minLength: 1, maxLength: 160 }
+        api_key: { type: string, minLength: 8, maxLength: 1000, writeOnly: true }
+        parameters: { $ref: '#/components/schemas/AiParameters' }
+    AiConnectionUpdate:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        provider: { $ref: '#/components/schemas/AiProvider' }
+        model: { type: string, minLength: 1, maxLength: 160 }
+        api_key: { type: string, minLength: 8, maxLength: 1000, writeOnly: true }
+        parameters: { $ref: '#/components/schemas/AiParameters' }
+    AiParameters:
+      type: object
+      additionalProperties: false
+      required: [max_output_tokens]
+      properties:
+        max_output_tokens: { type: integer, minimum: 128, maximum: 2048 }
+    AiConnection:
+      type: object
+      additionalProperties: false
+      required: [id, name, provider, model, key_mask, parameters, status, last_tested_at, last_used_at, last_error_code, created_at, updated_at]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        provider: { $ref: '#/components/schemas/AiProvider' }
+        model: { type: string }
+        key_mask: { type: string, pattern: '^••••.{4}$' }
+        parameters: { $ref: '#/components/schemas/AiParameters' }
+        status: { $ref: '#/components/schemas/AiConnectionStatus' }
+        last_tested_at: { type: [string, 'null'], format: date-time }
+        last_used_at: { type: [string, 'null'], format: date-time }
+        last_error_code: { type: [string, 'null'] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    AiConsent:
+      type: object
+      additionalProperties: false
+      required: [scope, granted, granted_at, revoked_at]
+      properties:
+        scope: { type: string, enum: [storage_inbox] }
+        granted: { type: boolean }
+        granted_at: { type: [string, 'null'], format: date-time }
+        revoked_at: { type: [string, 'null'], format: date-time }
+    AiSettings:
+      type: object
+      additionalProperties: false
+      required: [data, active_connection_id, consents, providers]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/AiConnection' }
+        active_connection_id: { type: [integer, 'null'] }
+        consents:
+          type: object
+          additionalProperties: false
+          required: [storage_inbox]
+          properties:
+            storage_inbox: { $ref: '#/components/schemas/AiConsent' }
+        providers:
+          type: array
+          items:
+            type: string
+            enum: [anthropic, openai]
+    InboxTriageProposal:
+      type: object
+      additionalProperties: false
+      required: [type, project_id, tags, priority, due_on, rationale]
+      properties:
+        type: { type: string, enum: [task, idea, purchase] }
+        project_id: { type: [integer, 'null'] }
+        tags:
+          type: array
+          maxItems: 5
+          uniqueItems: true
+          items: { type: string, minLength: 1, maxLength: 64 }
+        priority: { type: [string, 'null'], enum: [low, normal, high, null] }
+        due_on: { type: [string, 'null'], format: date }
+        rationale: { type: string, minLength: 1, maxLength: 300 }
+    InboxTriageDraft:
+      type: object
+      additionalProperties: false
+      required: [item_id, proposal, provider, model, confirmation_token, expires_at, shared_scope]
+      properties:
+        item_id: { type: integer }
+        proposal: { $ref: '#/components/schemas/InboxTriageProposal' }
+        provider: { $ref: '#/components/schemas/AiProvider' }
+        model: { type: string }
+        confirmation_token: { type: string }
+        expires_at: { type: string, format: date-time }
+        shared_scope: { type: string, enum: [storage_inbox] }
+    StorageItem:
+      type: object
+      description: Existing feature-008 owned Item response with tags/children relations.
+      required: [id, type, title, description, status, priority, due_on, project_id, is_blocker, tags]
+      properties:
+        id: { type: integer }
+        type: { type: string, enum: [task, idea, purchase] }
+        title: { type: string }
+        description: { type: [string, 'null'] }
+        status: { type: string, enum: [inbox, active, done, dropped] }
+        priority: { type: [string, 'null'], enum: [low, normal, high, null] }
+        due_on: { type: [string, 'null'], format: date }
+        project_id: { type: [integer, 'null'] }
+        is_blocker: { type: boolean }
+        tags:
+          type: array
+          items:
+            type: object
+            required: [id, name]
+            properties:
+              id: { type: integer }
+              name: { type: string }
+    AiError:
+      type: object
+      additionalProperties: false
+      required: [message, code]
+      properties:
+        message: { type: string }
+        code:
+          type: string
+          enum:
+            - ai_active_connection_required
+            - ai_connection_not_ready
+            - ai_consent_required
+            - ai_credentials_invalid
+            - ai_provider_rate_limited
+            - ai_provider_timeout
+            - ai_provider_unavailable
+            - ai_provider_unsupported_capability
+            - ai_provider_refused
+            - ai_provider_invalid_response
+            - ai_tool_not_allowed
+            - ai_tool_confirmation_required
+            - ai_confirmation_expired
+            - ai_confirmation_replayed
+            - ai_confirmation_stale
+            - ai_scenario_failed

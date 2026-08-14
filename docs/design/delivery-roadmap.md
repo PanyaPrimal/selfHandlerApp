@@ -14,7 +14,9 @@ $speckit-analyze -> $speckit-implement` before application code changes.
 > `018-finance-ledger-foundation`, `019-budget-recurring-cash-flow`,
 > `020-debts-funds-financial-goals`, `021-private-attachments`, and
 > `022-cross-module-periodic-review`, `023-analytics-long-period-rollups`, and
-> `024-data-portability-reports` and `025-calendar-integration` are complete. Feature 026 is the next delivery increment. Native compilation and device installation evidence for 012 remains externally blocked in
+> `024-data-portability-reports`, `025-calendar-integration`, and
+> `026-ai-assistant-foundation` are complete. The fixed delivery queue in this roadmap is exhausted;
+> any further work requires a newly specified demand-driven increment. Native compilation and device installation evidence for 012 remains externally blocked in
 > this workspace because Android Studio, JDK, SDK, Gradle, and `adb` are absent; all repository-owned
 > server, web, configuration, sync, resource, and native-source gates pass.
 > `002-homelab-deployment` stops at T055 by product decision: the current homelab deployment is
@@ -304,7 +306,7 @@ FCM, and iOS. Camera/gallery arrives with 021; other native capabilities require
 
 ### 013 — Habits and Anti-Habits
 
-**Status:** complete (2026-08-13). Feature 014 is the next delivery increment.
+**Status:** complete (2026-08-13).
 
 **User outcome:** the user builds habits, records numeric or yes/no completion, tracks abstinence or a
 stepped limit, and sees deterministic streaks.
@@ -596,6 +598,28 @@ stable deterministic module; do not expose a universal agent over unfinished dom
 
 **Prerequisites:** stable domain APIs for the chosen scenario. Vision scenarios additionally require
 021; cross-domain insights require 023.
+
+**Delivered boundary:** two fixed-host BYOK adapters (Anthropic Messages and OpenAI Responses),
+several encrypted and last-four-masked owner connections with exactly one tested active selection,
+explicit `storage_inbox` consent, content-free audit metadata, and one strict
+`storage_triage_inbox_item` proposal flow. Only the selected Inbox item's title/description, bounded
+owned project/tag references, and Profile locale/timezone/tone leave the application. A proposal is
+independently validated and cannot mutate Storage until a second authenticated request presents its
+encrypted, owner/source/connection/proposal-bound, ten-minute, one-use confirmation capability.
+Storage remains the only source of Item/Tag truth and works unchanged without AI.
+
+**External acceptance caveat:** no live Anthropic or OpenAI credential or user data was available or
+used. Repository acceptance uses intercepted provider fixtures and proves fixed hosts, exact request
+shapes, redacted failures, refusal/truncation denial, replay/concurrency safety, and zero unexpected
+network traffic. A deployment operator must supply their own key/model to record live-provider
+acceptance under that provider's terms and charges.
+
+**Status:** Complete on 2026-08-14 (`104/104` tasks; deployment and live-provider acceptance are
+outside the repository-owned boundary).
+
+**Explicitly defer:** arbitrary/custom endpoints (until SSRF/egress policy is specified), model
+catalogues/pricing, chat or universal RAG, streaming, vision, background/autonomous calls, other
+module scenarios, usage billing, and native provider/key logic.
 
 ## Architecture Gates for Every Feature
 

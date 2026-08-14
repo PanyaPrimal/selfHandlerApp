@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Controllers\Ai\InboxTriageController;
+use App\Http\Controllers\Ai\LlmConnectionController;
+use App\Http\Controllers\Ai\LlmConsentController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AnalyticsReportController;
 use App\Http\Controllers\AttachmentController;
@@ -81,6 +84,19 @@ Route::middleware(['auth:sanctum', 'mobile.token'])->group(function () {
 });
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/ai/settings', [LlmConnectionController::class, 'index']);
+    Route::post('/ai/connections', [LlmConnectionController::class, 'store']);
+    Route::patch('/ai/connections/{connection}', [LlmConnectionController::class, 'update'])->whereNumber('connection');
+    Route::delete('/ai/connections/{connection}', [LlmConnectionController::class, 'destroy'])->whereNumber('connection');
+    Route::post('/ai/connections/{connection}/test', [LlmConnectionController::class, 'test'])
+        ->middleware('throttle:10,1')->whereNumber('connection');
+    Route::post('/ai/connections/{connection}/activate', [LlmConnectionController::class, 'activate'])->whereNumber('connection');
+    Route::put('/ai/consents/storage-inbox', [LlmConsentController::class, 'replaceStorageInbox']);
+    Route::post('/ai/scenarios/storage-inbox/draft', [InboxTriageController::class, 'draft'])
+        ->middleware('throttle:10,1');
+    Route::post('/ai/scenarios/storage-inbox/confirm', [InboxTriageController::class, 'confirm'])
+        ->middleware('throttle:20,1');
+
     Route::get('/integrations/calendars', [CalendarIntegrationController::class, 'index']);
     Route::post('/integrations/calendars/google/authorize', [CalendarIntegrationController::class, 'googleAuthorize']);
     Route::post('/integrations/calendars/apple/connect', [CalendarIntegrationController::class, 'appleConnect']);

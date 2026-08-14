@@ -24,6 +24,7 @@ import FinanceView from './views/FinanceView.vue'
 import AnalyticsView from './views/AnalyticsView.vue'
 import DataSettingsView from './views/DataSettingsView.vue'
 import IntegrationSettingsView from './views/IntegrationSettingsView.vue'
+import AiSettingsView from './views/AiSettingsView.vue'
 import { isAndroidNative } from './mobile/platform'
 
 declare module 'vue-router' {
@@ -144,6 +145,11 @@ export const router = createRouter({
           path: 'settings/integrations',
           name: 'settings-integrations',
           component: IntegrationSettingsView,
+        },
+        {
+          path: 'settings/ai',
+          name: 'settings-ai',
+          component: AiSettingsView,
         },
         {
           path: 'notifications',

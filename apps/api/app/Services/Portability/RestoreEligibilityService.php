@@ -15,8 +15,13 @@ class RestoreEligibilityService
             }
         }
 
-        return ! DB::table('attachments')->where('user_id', $user->id)->exists()
-            && ! DB::table('notifications')->where('user_id', $user->id)->exists()
-            && ! DB::table('integrations')->where('user_id', $user->id)->exists();
+        foreach (['attachments', 'notifications', 'integrations', 'llm_audit_events', 'llm_connections',
+            'llm_consents', 'llm_settings', 'llm_tool_confirmations'] as $table) {
+            if (DB::table($table)->where('user_id', $user->id)->exists()) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

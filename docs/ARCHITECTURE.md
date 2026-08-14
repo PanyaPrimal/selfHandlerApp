@@ -71,6 +71,15 @@ the target user and archive digest, locks and rechecks that the target is empty,
 and private files atomically with newly allocated IDs/paths. It never changes target login identity
 and does not support merge semantics.
 
+AI is an optional adapter boundary, not a domain authority. Two fixed-host provider adapters consume
+encrypted owner-supplied credentials selected at runtime; only a successful probe may make one
+connection active. Per-scope consent and a bounded context builder govern disclosure. Providers emit
+one closed tool proposal, while a backend registry, independent validator, encrypted one-use
+confirmation capability, and the owning domain service authorize and execute any later write. The
+first and only delivered tool triages one Storage Inbox item after explicit confirmation. Keys,
+prompts, response bodies, and proposal content never enter audit rows or schema-v1 portability, and
+the web/Android clients contain no provider logic or credential storage.
+
 ### `apps/web`
 
 Vue 3 SPA for desktop and mobile web usage.

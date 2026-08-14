@@ -11,8 +11,9 @@ class PortabilitySchemaV1
     /** @return list<string> */
     public static function excludedOwnedTables(): array
     {
-        return ['attachments', 'external_calendar_events', 'integrations', 'notification_settings',
-            'notifications', 'sessions', 'synced_items', 'user_profiles'];
+        return ['attachments', 'external_calendar_events', 'integrations', 'llm_audit_events', 'llm_connections',
+            'llm_consents', 'llm_settings', 'llm_tool_confirmations', 'notification_settings', 'notifications',
+            'sessions', 'synced_items', 'user_profiles'];
     }
 
     /** @return list<string> */
