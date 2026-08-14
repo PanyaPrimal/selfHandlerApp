@@ -2,8 +2,15 @@ FROM composer:2.8.12@sha256:5248900ab8b5f7f880c2d62180e40960cd87f60149ec9a1abfd6
 
 FROM php:8.4.24-fpm-alpine3.24@sha256:5992f8b7433fe7fa96dfbf67746c86d6c41bc91e686eac38fe531c72a02e40e4 AS php-base
 
-RUN apk add --no-cache --virtual .php-build-deps $PHPIZE_DEPS \
-    && docker-php-ext-install -j"$(nproc)" opcache pdo_mysql \
+RUN apk add --no-cache freetype libjpeg-turbo libpng libwebp \
+    && apk add --no-cache --virtual .php-build-deps \
+        $PHPIZE_DEPS \
+        freetype-dev \
+        libjpeg-turbo-dev \
+        libpng-dev \
+        libwebp-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
+    && docker-php-ext-install -j"$(nproc)" bcmath exif gd opcache pdo_mysql \
     && apk del .php-build-deps \
     && cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 
