@@ -11,6 +11,8 @@ const webPort = 15183
 const apiUrl = `http://127.0.0.1:${apiPort}`
 const webUrl = `http://127.0.0.1:${webPort}`
 const e2eDatabase = path.join(apiDir, 'database', 'e2e.sqlite')
+const phpBinary = process.env.PLAYWRIGHT_PHP ?? 'php'
+const phpArgs = process.env.PLAYWRIGHT_PHP_ARGS ?? ''
 
 const apiEnv = {
   APP_ENV: 'testing',
@@ -49,7 +51,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: `php artisan serve --host=127.0.0.1 --port=${apiPort}`,
+      command: `"${phpBinary}" ${phpArgs} artisan serve --host=127.0.0.1 --port=${apiPort}`,
       cwd: apiDir,
       env: apiEnv,
       url: `${apiUrl}/up`,

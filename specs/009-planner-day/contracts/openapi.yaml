@@ -242,8 +242,8 @@ components:
   schemas:
     PlannerSource:
       type: string
-      description: Which module a day entry came from. Planner owns only `time_block`.
-      enum: [routine, sleep, habit, workout, supplement, finance, training_goal, storage, time_block]
+      description: Which module a day entry came from. Planner owns only `time_block`; calendar entries are projections.
+      enum: [routine, sleep, habit, workout, supplement, finance, training_goal, storage, time_block, external_calendar]
 
     PlannerAction:
       type: string

@@ -19,6 +19,15 @@ export interface ChangelogEntry {
 
 const entries: readonly ChangelogEntry[] = [
   {
+    id: 'calendar-integration', date: '2026-08-14', feature: '025-calendar-integration',
+    titleKey: 'changelog.entry.calendar.title', summaryKey: 'changelog.entry.calendar.summary',
+    testKey: 'changelog.entry.calendar.test', links: [
+      { labelKey: 'nav.integrations', to: '/settings/integrations' },
+      { labelKey: 'nav.planner', to: '/planner' },
+    ],
+    limitationKeys: ['changelog.entry.calendar.limit'],
+  },
+  {
     id: 'data-portability-reports', date: '2026-08-14', feature: '024-data-portability-reports',
     titleKey: 'changelog.entry.portability.title', summaryKey: 'changelog.entry.portability.summary',
     testKey: 'changelog.entry.portability.test', links: [

@@ -105,6 +105,12 @@ import type {
   AnalyticsWorkspace,
   PortabilityRestoreResult,
   PortabilityValidation,
+  CalendarConnectResponse,
+  CalendarDescriptor,
+  CalendarIntegration,
+  CalendarIntegrationCollection,
+  CalendarSettingsInput,
+  CalendarSyncResult,
 } from './types'
 import { downloadRequest, jsonRequest, multipartRequest, request } from './http'
 import type { DownloadedFile } from '../portability/files'
@@ -159,6 +165,58 @@ import type {
 export { ApiError, validationErrors } from './http'
 export type { ValidationErrors } from './http'
 export type { DownloadedFile } from '../portability/files'
+
+export function getCalendarIntegrations(): Promise<CalendarIntegrationCollection> {
+  return request<CalendarIntegrationCollection>('/integrations/calendars')
+}
+
+export function startGoogleCalendarAuthorization(): Promise<{ authorization_url: string, expires_at: string }> {
+  return jsonRequest('/integrations/calendars/google/authorize', 'POST', {})
+}
+
+export function connectAppleCalendar(account: string, appSpecificPassword: string): Promise<CalendarConnectResponse> {
+  return jsonRequest('/integrations/calendars/apple/connect', 'POST', {
+    account,
+    app_specific_password: appSpecificPassword,
+  })
+}
+
+export async function getProviderCalendars(integrationId: number): Promise<CalendarDescriptor[]> {
+  return (await request<{ data: CalendarDescriptor[] }>(
+    `/integrations/calendars/${integrationId}/calendars`,
+  )).data
+}
+
+export async function selectProviderCalendar(integrationId: number, calendarId: string): Promise<CalendarIntegration> {
+  return (await jsonRequest<{ data: CalendarIntegration }>(
+    `/integrations/calendars/${integrationId}/selection`,
+    'PUT',
+    { calendar_id: calendarId },
+  )).data
+}
+
+export async function updateCalendarSettings(
+  integrationId: number,
+  settings: CalendarSettingsInput,
+): Promise<CalendarIntegration> {
+  return (await jsonRequest<{ data: CalendarIntegration }>(
+    `/integrations/calendars/${integrationId}`,
+    'PATCH',
+    settings,
+  )).data
+}
+
+export async function syncCalendar(integrationId: number): Promise<CalendarSyncResult> {
+  return (await jsonRequest<{ data: CalendarSyncResult }>(
+    `/integrations/calendars/${integrationId}/sync`,
+    'POST',
+    {},
+  )).data
+}
+
+export async function disconnectCalendar(integrationId: number): Promise<void> {
+  await jsonRequest(`/integrations/calendars/${integrationId}`, 'DELETE', { confirmation: 'DISCONNECT' })
+}
 
 export interface AnalyticsReportQuery {
   metric: AnalyticsMetricKey

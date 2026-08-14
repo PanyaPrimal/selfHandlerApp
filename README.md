@@ -113,6 +113,17 @@ account's email, password, and authentication identity. The responsive EN/RU/UK 
 the synchronized Android WebView share this online workflow. Merge restore, scheduled exports,
 server/deployment backups, legacy archive migration, offline authority, and deployment remain deferred.
 
+Feature 025 adds optional private calendar integration for one Google Calendar and one Apple CalDAV
+calendar per account. Imported provider events appear in Planner as read-only busy time, with titles
+shown only after an explicit privacy opt-in. Export starts disabled and publishes only selected
+TimeBlock or planned-occurrence categories; SelfHandler remains authoritative for its own projections.
+Credentials, provider identifiers, cursors, and imported titles are encrypted and excluded from
+schema-v1 backups. Manual and scheduled bounded sync, retry-safe mappings, local-only disconnect, the
+responsive EN/RU/UK settings surface, and the synchronized Android WebView are complete. Live-provider
+acceptance still requires operator-supplied Google OAuth configuration or an Apple app-specific
+password; native Google OAuth, multiple calendars, webhooks, RRULE export, offline sync, and later
+fitness/bank adapters remain deferred.
+
 The Android package in `apps/mobile` wraps the same production Vue bundle with Capacitor 8. Existing
 accounts use a separate 30-day, `mobile`-scoped Sanctum token stored by a custom Android Keystore
 AES-GCM plugin; browser cookie/CSRF auth is unchanged. Android local notifications are an opt-in

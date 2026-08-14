@@ -383,11 +383,13 @@ shifted through UTC as instants.
 
 ## Implemented Delivery Status
 
-The current product delivery baseline now includes features through `024-data-portability-reports`
-(2026-08-14). Feature 024 adds Analytics CSV/PDF plus a bounded, versioned, owner-safe ZIP export and
-read-only validation/empty-target atomic restore. It adds no migrations and performs no deployment;
-`025-calendar-integration` is the next increment. The historical first-slice evidence below remains
-the implementation record for feature 004.
+The current product delivery baseline now includes features through `025-calendar-integration`
+(2026-08-14). Feature 025 adds encrypted optional Google OAuth and Apple CalDAV connections, bounded
+two-way calendar synchronization, read-only external Planner busy entries, opt-in category export,
+and local-authoritative conflict convergence. Provider-bound data is excluded from schema-v1 backup,
+and disconnect removes only local credentials/cache/mappings. It performs no deployment and live
+provider acceptance still needs operator credentials; `026-ai-assistant-foundation` is the next
+increment. The historical first-slice evidence below remains the implementation record for feature 004.
 
 Feature `004-profile-settings` is complete as of 2026-08-12. It adds an additive one-to-one profile,
 existing-user backfill, registration provisioning and repair, full atomic profile GET/PUT contracts,

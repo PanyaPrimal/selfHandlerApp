@@ -1,8 +1,10 @@
 # SelfHandler — External Integrations
 
-> Cross-cutting mechanism for connecting external services via OAuth/tokens plus data synchronization. A single contract with per-provider adapters. The first member is **calendars (Google/Apple)**; Strava/Garmin/Apple Health (running) and bank statements (finances) will fit into the same layer.
+> Delivered calendar boundary for connecting external services via OAuth/credentials plus data
+> synchronization. One shared provider contract currently has **Google Calendar** and **Apple CalDAV**
+> adapters; later fitness and bank providers must arrive through their own feature boundaries.
 >
-> Related: [Recurrence Engine](recurrence-engine.md) · [Modules Spec](modules.md) · [Modules Spec](modules.md) · decisions: [Decisions Log](decisions.md)
+> Related: [Recurrence Engine](recurrence-engine.md) · [Modules Spec](modules.md) · decisions: [Decisions Log](decisions.md)
 
 ---
 
@@ -20,57 +22,79 @@ All of them are "an external source with OAuth/token + synchronization." **Same 
 
 ---
 
-## Decisions (locked in on 2026-06-13)
+## Delivery status and decisions
 
 - **Shared integration layer** — calendars are the first member, the contract is reusable.
-- **Two-way calendar sync:** SelfHandler events → external calendar AND external events → into the Planner (to see the full day's busy slots).
+- **Feature 025 complete on 2026-08-14:** repository-owned API, web, Android shared bundle,
+  scheduler, contract, provider-fixture, and browser evidence is green.
+- **Two-way calendar sync:** selected SelfHandler projections → one external calendar, and external
+  events → read-only Planner busy slots.
 - A connection is a **user choice** (optional, see [Modules Spec](modules.md)): app calendar only / app + external.
+- **Privacy first:** export starts disabled; busy-only import is the default; imported titles and each
+  export category require separate opt-ins.
+- **Origin authority:** SelfHandler-origin events are reconciled from local facts. Provider-origin
+  events follow provider updates/deletions. There is no launch-wide last-write-wins rule.
+- **Disconnect is local-only:** credentials, mappings, and imported cache are removed locally; neither
+  provider events nor SelfHandler domain facts are deleted.
 
 ---
 
 ## The `Integration` entity (connection)
 
 - `id`, `user_id`
-- `provider` (google_calendar / apple_calendar / strava / …)
-- `kind` (calendar / fitness / bank — domain type)
-- **OAuth data:** access_token, refresh_token, expires_at — **encrypted in the DB** (like BYOK keys, [Modules Spec](modules.md)); never exposed to the frontend in plaintext
-- `external_account` (which account/calendar is connected), optionally selecting a specific calendar
-- `status` (active / expired / revoked), `last_sync_at`
-- `settings` (JSON): sync direction, which event types to sync, conflict policy
+- `provider` is closed to `google_calendar` / `apple_calendar` in this boundary; `kind=calendar`
+- Google access/refresh tokens or Apple account/app-specific password are **encrypted at rest** and
+  never serialized back to clients
+- exactly one selected external calendar per user/provider, with encrypted external identifiers
+- status (`pending`, `active`, `expired`, `revoked`), last attempt/success/error, encrypted cursor
+- settings: `busy_only` plus an explicit export-category allowlist whose default is empty
 
 ## The `SyncedItem` entity (local ↔ external mapping)
 
-- Links a local record (event/occurrence) to an external ID: `integration_id`, a polymorphic local reference, `external_id`, `etag`/`updated_at` from both sides
-- Required for **deduplication and conflict resolution** (avoid creating duplicates, determine what changed)
+- Links a local TimeBlock/PlannedOccurrence projection or imported cached event to an encrypted external
+  identity, with origin, fingerprint, ETag and bounded timestamps.
+- Required for **deduplication and convergence** across retries and provider/database failure boundaries.
 
 ---
 
 ## Provider contract (Strategy/Adapter)
 
-- A single `CalendarProvider` interface (and the broader `IntegrationProvider`): `authUrl()` / `exchangeCode()` / `refresh()` / `pull(since)` / `push(event)` / `delete(externalId)`
-- Implementations: `GoogleCalendarProvider`, `AppleCalendarProvider` (CalDAV) — different APIs, one contract
-- Provider resolution at runtime by `Integration.provider` (factory) — like Notification channels and LLM providers
+- One `CalendarProvider` contract covers calendar discovery, bounded pull pages, event upsert and delete;
+  Google additionally supplies OAuth authorization/exchange/refresh.
+- `GoogleCalendarProvider` uses offline OAuth, paginated incremental sync and a safe full refresh after
+  an invalidated cursor.
+- `AppleCalendarProvider` uses bounded TLS Basic-auth CalDAV discovery, multistatus parsing,
+  sync-collection/calendar-query with ETag fallback, and RFC 5545 parsing/generation through VObject.
+- A closed provider registry resolves the adapter; automated tests fake/block all provider traffic.
 
 ---
 
 ## Two-way synchronization — mechanics
 
 ### Export (SelfHandler → external)
-- What we publish: events from the Planner and `PlannedOccurrence` ([Recurrence Engine](recurrence-engine.md)) — workouts, payments, measurements, deadlines (the user chooses what to sync)
-- Recurring rules → native RRULE of the external calendar (if supported) OR expanded instances
+- Export is disabled until the user selects categories. Current projections are owned TimeBlocks and
+  bounded concrete `PlannedOccurrence` instances; recurring rules are not published as RRULE.
+- Sensitive finance and supplement categories are independent opt-ins and are never implied by another
+  selection.
 
 ### Import (external → SelfHandler)
-- External events (meetings, birthdays) → into the Planner as "external busy slots" (not domain data, tagged with their source)
+- Timed and all-day external events → Integration-owned Planner `external_calendar` entries inside the
+  Profile-local rolling window (not domain data, tagged with their source).
 - They don't trigger domain logic — they only provide visibility into the day's busy slots (the day's time cash flow)
 
 ### Source of truth and conflicts
-- **Per-event source of truth:** created in SelfHandler — ours; imported from outside — external. `SyncedItem` records the owner
-- **Conflict** (changed on both sides between syncs): the strategy comes from `settings` — last-write-wins by `updated_at` OR manual resolution. At launch — keep it simple (last-write-wins), flag as open
-- Deletion on one side → delete/unlink on the other (per policy)
+- **Per-event source of truth:** created in SelfHandler — local; imported from outside — provider.
+  `SyncedItem.origin` records that authority.
+- A changed/deleted SelfHandler-origin provider event is republished from the current local projection.
+  A changed/deleted provider-origin event updates/removes only the imported cache and mapping.
+- Local facts are never overwritten or deleted by provider state.
 
 ### How the sync works technically
-- A periodic job (Laravel Scheduler + queue): `pull` changes since `last_sync_at`, `push` local ones. Incrementally (by etag/updated_at)
-- Webhook/push notifications from Google (where available) — later; polling at launch
+- One per-integration cache lock serializes manual and scheduled sync. A Laravel command polls eligible
+  active connections every 15 minutes; pages/cursors advance only after successful apply.
+- Pull and opt-in push are bounded by the Profile-local rolling window, request/page limits, timeouts,
+  and closed auth/rate/timeout/invalid-response errors.
+- Webhook/push notifications remain later work; polling is the delivered launch behavior.
 
 ---
 
@@ -100,11 +124,13 @@ erDiagram
 
 ---
 
-## Open questions
+## Deferred boundary and external evidence
 
-1. Apple Calendar — via CalDAV (more complex than OAuth) vs. Google only at launch.
-2. Conflict strategy: last-write-wins (simple) vs. manual resolution vs. per-provider.
-3. RRULE mapping: our engine ([Recurrence Engine](recurrence-engine.md) — its own set of fields) → the external calendar's RRULE. The rule's `rrule` output will come in handy here.
-4. Which local event types to export by default (privacy: should "supplement intake" be pushed to a shared Google calendar?).
-5. ICS feed (calendar subscription, read-only) as a cheap intermediate export option before full OAuth.
-6. OAuth scope — the minimum necessary.
+- Multiple calendars, native Google OAuth callbacks, webhooks, provider-event editing, RRULE export,
+  ICS feeds, offline synchronization, remote cleanup on disconnect, and fitness/bank adapters are not
+  part of feature 025.
+- Google requests the minimum Calendar scopes needed to identify the account, list calendars, and
+  synchronize the selected writable calendar; Apple uses one app-specific password over TLS CalDAV.
+- Live acceptance is external evidence because this workspace contains no provider credentials. An
+  operator must supply Google OAuth client configuration or an Apple account/app-specific password;
+  no tracked file may contain either.

@@ -1664,7 +1664,7 @@ export interface StorageProjectPayload {
 /* ------------------------------------------------------------------ */
 
 /** Which module a day entry came from. Planner owns only `time_block`. */
-export type PlannerSource = 'routine' | 'sleep' | 'habit' | 'workout' | 'supplement' | 'finance' | 'training_goal' | 'storage' | 'time_block'
+export type PlannerSource = 'routine' | 'sleep' | 'habit' | 'workout' | 'supplement' | 'finance' | 'training_goal' | 'storage' | 'time_block' | 'external_calendar'
 
 /** What the user may do with an entry from inside the planner. */
 export type PlannerAction = 'actualize' | 'skip' | 'reschedule' | 'move' | 'edit' | 'delete'
@@ -1990,6 +1990,86 @@ export interface AnalyticsCorrelationFinding {
 export interface AnalyticsCorrelationWorkspace {
   period: { from: string, to: string, timezone: string }
   findings: AnalyticsCorrelationFinding[]
+}
+
+/* ------------------------------------------------------------------ */
+/* External calendar integrations (feature 025)                       */
+/* ------------------------------------------------------------------ */
+
+export type CalendarProvider = 'google_calendar' | 'apple_calendar'
+export type CalendarIntegrationStatus = 'pending' | 'active' | 'expired' | 'revoked'
+export type CalendarImportDetail = 'busy_only' | 'title'
+export type CalendarExportCategory = 'time_block' | 'routine' | 'sleep' | 'habit' | 'workout' | 'supplement' | 'finance'
+export type CalendarErrorCode =
+  | 'calendar_provider_unavailable'
+  | 'calendar_oauth_invalid_state'
+  | 'calendar_oauth_denied'
+  | 'calendar_credentials_invalid'
+  | 'calendar_discovery_failed'
+  | 'calendar_not_found'
+  | 'calendar_read_only'
+  | 'calendar_connection_inactive'
+  | 'calendar_sync_busy'
+  | 'calendar_auth_expired'
+  | 'calendar_rate_limited'
+  | 'calendar_provider_timeout'
+  | 'calendar_provider_invalid_response'
+  | 'calendar_sync_failed'
+
+export interface CalendarSettings {
+  import_detail: CalendarImportDetail
+  export_categories: CalendarExportCategory[]
+}
+
+export type CalendarSettingsInput = Partial<CalendarSettings>
+
+export interface CalendarIntegration {
+  id: number
+  provider: CalendarProvider
+  status: CalendarIntegrationStatus
+  account: string | null
+  calendar: { name: string, timezone: string | null, writable: boolean } | null
+  settings: CalendarSettings
+  last_sync_at: string | null
+  last_success_at: string | null
+  last_error_code: CalendarErrorCode | null
+}
+
+export interface CalendarProviderAvailability {
+  provider: CalendarProvider
+  available: boolean
+  connection_mode: 'oauth_browser' | 'app_specific_password'
+  android_connect_supported: boolean
+  unavailable_code: CalendarErrorCode | null
+}
+
+export interface CalendarIntegrationCollection {
+  data: CalendarIntegration[]
+  providers: CalendarProviderAvailability[]
+}
+
+export interface CalendarDescriptor {
+  id: string
+  name: string
+  timezone: string | null
+  writable: boolean
+  is_default: boolean
+}
+
+export interface CalendarConnectResponse {
+  data: CalendarIntegration
+  calendars: CalendarDescriptor[]
+}
+
+export interface CalendarSyncResult {
+  imported: number
+  updated: number
+  removed: number
+  exported: number
+  deleted: number
+  conflicts: number
+  unchanged: number
+  completed_at: string
 }
 
 /* Human-readable reports and schema-v1 portability (feature 024) */

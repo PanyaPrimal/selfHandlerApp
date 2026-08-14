@@ -73,6 +73,11 @@ export function useAnchoredSurface(options: AnchoredSurfaceOptions = {}): Anchor
     open: isOpen,
     placement: options.placement ?? 'bottom-start',
     strategy: 'fixed',
+    // A transformed fixed surface keeps its layout box at (0, 0). Native
+    // scrollIntoView can then scroll the document to that invisible box and
+    // make Floating UI recalculate the popup outside the viewport. Real top/left
+    // coordinates keep browser actionability and the painted surface aligned.
+    transform: false,
     whileElementsMounted: autoUpdate,
     middleware,
   })

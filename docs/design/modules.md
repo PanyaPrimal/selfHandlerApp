@@ -414,7 +414,10 @@ presentation; the aggregate cannot be retargeted through the update contract.
 
 ### Sync with an external calendar (optional, user's choice)
 - Modes to choose from: app calendar only / app + external (Google / Apple Calendar)
-- ✅ Designed in **[Integrations](integrations.md)** (the shared integrations layer, calendars being the first representative): **two-way** sync, OAuth connection, local↔external mapping, conflicts. The Planner shows its own + imported external events in a single calendar
+- ✅ Delivered by feature 025 through **[Integrations](integrations.md)**: encrypted Google OAuth and
+  Apple CalDAV connections, one selected calendar per provider, bounded two-way sync, stable mappings,
+  origin-based conflict authority, and read-only imported Planner busy entries. Export is off by
+  default and limited to categories the user explicitly enables.
 
 ### Missed items — both options (the user decides)
 - **Record the skip** → "skipped," flows into "Module 9 — Analytics" / "Module 6 — Daily Review" (discipline)
@@ -428,7 +431,8 @@ presentation; the aggregate cannot be retargeted through the update contract.
 ### TODO / open questions
 - The "event" model: a common entity for module and user events? (candidate — a `Schedulable` contract, see [Recurrence Engine](recurrence-engine.md) open Q6)
 - ✅ Push infrastructure / channels / who sends → extracted into [Notifications](notifications.md) (Laravel Scheduler+queue, in-app now, push/Telegram later)
-- Sync with an external calendar (Google/Apple) — a separate integration, later
+- ✅ Google/Apple calendar sync is the separate feature 025 integration. Multiple calendars, webhooks,
+  RRULE export, native Google OAuth callbacks, and offline sync remain later work.
 
 ---
 

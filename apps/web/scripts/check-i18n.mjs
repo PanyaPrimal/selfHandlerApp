@@ -90,6 +90,16 @@ const dynamicKeys = new Set([
   'finance.fundState.under_funded', 'finance.fundState.over_reserved', 'finance.fundState.spent',
   'finance.fundState.unavailable', 'finance.movement.top_up', 'finance.movement.draw_down',
   'finance.movement.reverse',
+  'integrations.status.pending', 'integrations.status.active',
+  'integrations.status.expired', 'integrations.status.revoked',
+  'integrations.error.calendar_provider_unavailable',
+  'integrations.error.calendar_oauth_invalid_state', 'integrations.error.calendar_oauth_denied',
+  'integrations.error.calendar_credentials_invalid', 'integrations.error.calendar_discovery_failed',
+  'integrations.error.calendar_not_found', 'integrations.error.calendar_read_only',
+  'integrations.error.calendar_connection_inactive', 'integrations.error.calendar_sync_busy',
+  'integrations.error.calendar_auth_expired', 'integrations.error.calendar_rate_limited',
+  'integrations.error.calendar_provider_timeout', 'integrations.error.calendar_provider_invalid_response',
+  'integrations.error.calendar_sync_failed',
 ])
 
 function isAllowedText(value) {

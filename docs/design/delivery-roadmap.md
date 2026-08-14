@@ -14,7 +14,7 @@ $speckit-analyze -> $speckit-implement` before application code changes.
 > `018-finance-ledger-foundation`, `019-budget-recurring-cash-flow`,
 > `020-debts-funds-financial-goals`, `021-private-attachments`, and
 > `022-cross-module-periodic-review`, `023-analytics-long-period-rollups`, and
-> `024-data-portability-reports` are complete. Feature 025 is the next delivery increment. Native compilation and device installation evidence for 012 remains externally blocked in
+> `024-data-portability-reports` and `025-calendar-integration` are complete. Feature 026 is the next delivery increment. Native compilation and device installation evidence for 012 remains externally blocked in
 > this workspace because Android Studio, JDK, SDK, Gradle, and `adb` are absent; all repository-owned
 > server, web, configuration, sync, resource, and native-source gates pass.
 > `002-homelab-deployment` stops at T055 by product decision: the current homelab deployment is
@@ -558,8 +558,32 @@ first adapter, explicit conflict behavior, and privacy filters for sensitive eve
 **Prerequisites:** 006 and 009. This item may move earlier for product priority after those two are
 stable, but it must not precede them.
 
+Delivered as one optional, owner-scoped connection per Google Calendar and Apple CalDAV provider.
+Google uses short-lived one-time OAuth state and offline refresh; Apple uses an account plus
+app-specific password for bounded TLS CalDAV discovery. Provider secrets, external identities,
+cursors, mappings, and imported summaries are encrypted and excluded from schema-v1 portability.
+External timed/all-day events are normalized into read-only Planner entries inside a Profile-local
+rolling window. Busy-only display is the default and title display is a separate opt-in.
+
+Export is disabled by default and limited to explicitly selected TimeBlock or planned-occurrence
+categories. Stable mappings make retries idempotent; SelfHandler-origin projections stay locally
+authoritative, while provider-origin events stay provider-authoritative. Manual sync and a serialized
+15-minute scheduled command share bounded paging, cursor reset, closed retry/auth states, and safe
+local-only disconnect. The EN/RU/UK responsive web surface, mocked desktop/mobile provider journeys,
+visual matrix, and synchronized Android WebView are complete. Google connection from Android opens
+the browser honestly rather than claiming a native OAuth callback.
+
+**External acceptance caveat:** no live provider credentials are stored in or available to this
+workspace. A deployment operator must supply Google OAuth client configuration or an Apple account
+with an app-specific password to record live-provider acceptance.
+
+**Status:** Complete on 2026-08-14 (`87/87` tasks; deployment and live credentials were explicitly
+excluded from repository-owned evidence).
+
 **Explicitly defer:** Strava/Garmin/Apple Health and bank adapters until their owning local modules are
-stable and a separate feature specifies them.
+stable and a separate feature specifies them. Multiple calendars, native Google OAuth callbacks,
+webhooks, RRULE export, provider-event editing, offline synchronization, and remote deletion during
+disconnect also require later increments.
 
 ### 026 — AI Assistant Foundation with One Confirmed Scenario
 

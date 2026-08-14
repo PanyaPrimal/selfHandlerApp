@@ -202,7 +202,14 @@ skipped occurrence facts alone may be cleared.
   - **Dates in UTC**, the timezone from the profile. **Units in base units** (grams/ml/meters/seconds), converted on display.
   - **Aggregates:** a cached value + event-driven recompute (an Observer) for hot ones (balance/remaining/saved) + a daily rollup for analytics over long periods.
 - **Attachments** were delivered for body and meal photos by feature 021 (2026-08-14): **[Attachments](attachments.md)**. One polymorphic `Attachment` + one `FileStorage` service uses a private Laravel disk, opaque owner-partitioned paths, and authenticated no-store API streaming; neither public nor persistent signed URLs are exposed. Receipt/document/GPX consumers remain deferred.
-- **External integrations** are designed (2026-06-13): **[Integrations](integrations.md)**. A **shared layer** (a contract + adapters, like BYOK-LLM/channels), with calendars as the first member; later Strava/Garmin (fitness), bank statements. An `Integration` (encrypted OAuth tokens) + a `SyncedItem` (a local ↔ external mapping for dedup/conflicts). Calendars use **two-way** sync (exporting occurrences/events + importing external ones as "busy" time). Conflict handling at the start — last-write-wins.
+- **External calendar integrations** were delivered by feature 025 (2026-08-14):
+  **[Integrations](integrations.md)**. A shared provider contract has Google OAuth and Apple CalDAV
+  adapters, with encrypted credentials/cursors/identifiers/summaries and stable `SyncedItem` mappings.
+  Imported events are read-only Planner busy time; title display and every exported local category are
+  independent opt-ins. Conflict authority follows origin instead of last-write-wins: SelfHandler-origin
+  projections are repaired from local facts, provider-origin events follow provider changes. Disconnect
+  is local-only. Multiple calendars, webhooks, RRULE export, native OAuth callbacks, offline sync,
+  fitness/bank adapters, and live-credential evidence remain deferred.
 - **Profile is the single source of user input** (anthropometry, **base currency**, timezone, units, tone). The modules do the computing. This closes the open question "where the base currency lives" → the profile.
 - **Supply forecasting (2a) ≠ recurring (5/10)** — different mechanisms; restocking a supplement is a one-off planned expense.
 - **Composite metrics (the day score, cash flow)** — a deliberate exception to "each module computes its own aggregates": an aggregator (Daily Review/Analytics) computes them on top of ready-made numbers.

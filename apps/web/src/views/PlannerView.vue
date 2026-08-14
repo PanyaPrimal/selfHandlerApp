@@ -55,6 +55,7 @@ const sourceLabels = computed<Record<PlannerSource, string>>(() => ({
   training_goal: i18n.t('planner.trainingGoal'),
   storage: i18n.t('planner.task'),
   time_block: i18n.t('planner.block'),
+  external_calendar: i18n.t('planner.externalCalendar'),
 }))
 
 const isToday = computed(() => date.value !== null && date.value === today.value)
@@ -83,6 +84,9 @@ function metaText(entry: PlannerEntry): string | null {
     return i18n.t('planner.wakeAt', { time: entry.meta.planned_wake_time })
   }
   if (entry.source === 'time_block' && typeof entry.meta.ends_at === 'string') {
+    return i18n.t('planner.until', { time: entry.meta.ends_at })
+  }
+  if (entry.source === 'external_calendar' && typeof entry.meta.ends_at === 'string') {
     return i18n.t('planner.until', { time: entry.meta.ends_at })
   }
 

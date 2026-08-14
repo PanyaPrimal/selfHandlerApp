@@ -5,6 +5,7 @@ namespace Tests\Feature\Portability;
 use App\Exceptions\Attachments\AttachmentStorageException;
 use App\Models\Attachment;
 use App\Models\DailyReview;
+use App\Models\Integration;
 use App\Models\User;
 use App\Services\Attachments\AttachmentService;
 use App\Services\Attachments\FileStorage;
@@ -92,6 +93,21 @@ class PortabilitySecurityTest extends AttachmentTestCase
         $this->restoreBytes($target, $backup, $validation->json('data.restore_token'))->assertConflict();
         $this->assertDatabaseCount('daily_reviews', 2);
         $this->assertDatabaseMissing('daily_reviews', ['user_id' => $target->id, 'review_date' => '2026-08-01']);
+    }
+
+    public function test_calendar_connection_makes_restore_target_ineligible(): void
+    {
+        $target = $this->user('connected@example.test');
+        Integration::query()->create([
+            'user_id' => $target->id,
+            'provider' => Integration::PROVIDER_APPLE,
+            'kind' => Integration::KIND_CALENDAR,
+            'status' => Integration::STATUS_PENDING,
+            'access_token' => 'connected@example.test',
+            'secret' => 'app-specific-password',
+        ]);
+
+        $this->assertFalse(app(RestoreEligibilityService::class)->isEmpty($target));
     }
 
     public function test_unsupported_version_unsafe_member_and_checksum_tamper_are_rejected(): void

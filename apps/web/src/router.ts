@@ -23,6 +23,7 @@ import SupplementsView from './views/SupplementsView.vue'
 import FinanceView from './views/FinanceView.vue'
 import AnalyticsView from './views/AnalyticsView.vue'
 import DataSettingsView from './views/DataSettingsView.vue'
+import IntegrationSettingsView from './views/IntegrationSettingsView.vue'
 import { isAndroidNative } from './mobile/platform'
 
 declare module 'vue-router' {
@@ -138,6 +139,11 @@ export const router = createRouter({
           path: 'settings/data',
           name: 'settings-data',
           component: DataSettingsView,
+        },
+        {
+          path: 'settings/integrations',
+          name: 'settings-integrations',
+          component: IntegrationSettingsView,
         },
         {
           path: 'notifications',

@@ -4107,6 +4107,62 @@ button.text-button {
   min-width: 0;
 }
 
+.integrations-page {
+  max-width: 1160px;
+}
+
+.integration-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.integration-card {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.integration-card .definition-list,
+.integration-card .form-grid,
+.integration-selection,
+.integration-disconnect {
+  margin-top: var(--space-4);
+}
+
+.integration-card .form-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.integration-categories {
+  min-width: 0;
+  margin: var(--space-5) 0;
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--paper-soft);
+}
+
+.integration-categories legend {
+  padding: 0 var(--space-2);
+  font-weight: 700;
+}
+
+.integration-categories .ui-choice + .ui-choice {
+  margin-top: var(--space-3);
+}
+
+.integration-card button,
+.integration-card .ui-choice__row {
+  min-height: 44px;
+}
+
+@media (max-width: 760px) {
+  .integration-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .data-card__heading {
   display: flex;
   align-items: flex-start;

@@ -51,6 +51,7 @@ function exclusionLabel(code: string): string {
     framework_runtime: 'data.exclusion.framework_runtime',
     public_catalog_rows: 'data.exclusion.public_catalog_rows',
     notification_deliveries: 'data.exclusion.notification_deliveries',
+    external_integrations: 'data.exclusion.external_integrations',
   }
   return keys[code] ? i18n.t(keys[code]) : code
 }

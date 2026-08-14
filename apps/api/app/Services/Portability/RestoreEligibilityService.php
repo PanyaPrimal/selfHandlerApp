@@ -16,6 +16,7 @@ class RestoreEligibilityService
         }
 
         return ! DB::table('attachments')->where('user_id', $user->id)->exists()
-            && ! DB::table('notifications')->where('user_id', $user->id)->exists();
+            && ! DB::table('notifications')->where('user_id', $user->id)->exists()
+            && ! DB::table('integrations')->where('user_id', $user->id)->exists();
     }
 }

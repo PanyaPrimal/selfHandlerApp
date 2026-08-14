@@ -24,3 +24,8 @@ Schedule::command('notifications:process')
     ->everyMinute()
     ->withoutOverlapping()
     ->onOneServer();
+
+Schedule::command('integrations:sync-calendars')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping()
+    ->onOneServer();

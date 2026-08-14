@@ -29,6 +29,8 @@ use App\Http\Controllers\HabitLimitController;
 use App\Http\Controllers\HabitLogController;
 use App\Http\Controllers\HabitStatisticsController;
 use App\Http\Controllers\HealthController;
+use App\Http\Controllers\Integrations\CalendarIntegrationController;
+use App\Http\Controllers\Integrations\GoogleCalendarCallbackController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\MealController;
 use App\Http\Controllers\MobileNotificationController;
@@ -70,6 +72,8 @@ Route::get('/health', HealthController::class);
 
 Route::post('/mobile/session', [MobileSessionController::class, 'store']);
 
+Route::get('/integrations/calendars/google/callback', GoogleCalendarCallbackController::class);
+
 Route::middleware(['auth:sanctum', 'mobile.token'])->group(function () {
     Route::get('/mobile/session', [MobileSessionController::class, 'show']);
     Route::delete('/mobile/session', [MobileSessionController::class, 'destroy']);
@@ -77,6 +81,19 @@ Route::middleware(['auth:sanctum', 'mobile.token'])->group(function () {
 });
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/integrations/calendars', [CalendarIntegrationController::class, 'index']);
+    Route::post('/integrations/calendars/google/authorize', [CalendarIntegrationController::class, 'googleAuthorize']);
+    Route::post('/integrations/calendars/apple/connect', [CalendarIntegrationController::class, 'appleConnect']);
+    Route::get('/integrations/calendars/{integration}/calendars', [CalendarIntegrationController::class, 'calendars'])
+        ->whereNumber('integration');
+    Route::put('/integrations/calendars/{integration}/selection', [CalendarIntegrationController::class, 'select'])
+        ->whereNumber('integration');
+    Route::patch('/integrations/calendars/{integration}', [CalendarIntegrationController::class, 'update'])
+        ->whereNumber('integration');
+    Route::post('/integrations/calendars/{integration}/sync', [CalendarIntegrationController::class, 'sync'])
+        ->whereNumber('integration');
+    Route::delete('/integrations/calendars/{integration}', [CalendarIntegrationController::class, 'destroy'])
+        ->whereNumber('integration');
     Route::get('/portability/backup', [PortabilityController::class, 'backup']);
     Route::post('/portability/restore/validate', [PortabilityController::class, 'validateBackup']);
     Route::post('/portability/restore', [PortabilityController::class, 'restore']);

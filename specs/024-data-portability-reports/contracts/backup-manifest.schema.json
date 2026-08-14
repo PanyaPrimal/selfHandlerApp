@@ -13,7 +13,7 @@
     "members": { "type": "array", "minItems": 2, "maxItems": 102, "items": { "$ref": "#/$defs/member" } },
     "attachments": { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/attachment" } },
     "counts": { "$ref": "#/$defs/counts" },
-    "exclusions": { "type": "array", "items": { "type": "string", "enum": ["account_credentials", "auth_sessions_tokens", "invitations", "framework_runtime", "public_catalog_rows", "notification_deliveries"] }, "uniqueItems": true },
+    "exclusions": { "type": "array", "items": { "type": "string", "enum": ["account_credentials", "auth_sessions_tokens", "invitations", "framework_runtime", "public_catalog_rows", "notification_deliveries", "external_integrations"] }, "uniqueItems": true },
     "limits": { "$ref": "#/$defs/limits" }
   },
   "$defs": {

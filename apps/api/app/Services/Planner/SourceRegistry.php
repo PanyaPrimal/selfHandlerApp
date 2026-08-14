@@ -22,6 +22,7 @@ class SourceRegistry
         private readonly TrainingGoalSource $trainingGoals,
         private readonly StorageItemSource $storage,
         private readonly TimeBlockSource $blocks,
+        private readonly ExternalCalendarSource $externalCalendars,
     ) {}
 
     /**
@@ -31,7 +32,7 @@ class SourceRegistry
     {
         return [
             $this->routines, $this->sleep, $this->habits, $this->workouts, $this->supplements, $this->finance,
-            $this->trainingGoals, $this->storage, $this->blocks,
+            $this->trainingGoals, $this->storage, $this->blocks, $this->externalCalendars,
         ];
     }
 

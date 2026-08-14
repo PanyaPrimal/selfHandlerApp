@@ -11,14 +11,15 @@ class PortabilitySchemaV1
     /** @return list<string> */
     public static function excludedOwnedTables(): array
     {
-        return ['attachments', 'notification_settings', 'notifications', 'sessions', 'user_profiles'];
+        return ['attachments', 'external_calendar_events', 'integrations', 'notification_settings',
+            'notifications', 'sessions', 'synced_items', 'user_profiles'];
     }
 
     /** @return list<string> */
     public static function exclusionCodes(): array
     {
         return ['account_credentials', 'auth_sessions_tokens', 'invitations', 'framework_runtime',
-            'public_catalog_rows', 'notification_deliveries'];
+            'public_catalog_rows', 'notification_deliveries', 'external_integrations'];
     }
 
     /** @return array<string,array{attributes:list<string>,references:array<string,array<string,mixed>>,json:list<string>}> */
