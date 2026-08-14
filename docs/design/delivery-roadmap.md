@@ -12,7 +12,8 @@ $speckit-analyze -> $speckit-implement` before application code changes.
 > `013-habits-anti-habits`, `014-sleep-routine-templates`, `015-workouts-training-goals`, and
 > `016-nutrition-meals-hydration-targets`, `017-supplements-courses-intake-stock`, and
 > `018-finance-ledger-foundation`, `019-budget-recurring-cash-flow`,
-> `020-debts-funds-financial-goals`, and `021-private-attachments` are complete. Native compilation and device installation evidence for 012 remains externally blocked in
+> `020-debts-funds-financial-goals`, `021-private-attachments`, and
+> `022-cross-module-periodic-review` are complete. Native compilation and device installation evidence for 012 remains externally blocked in
 > this workspace because Android Studio, JDK, SDK, Gradle, and `adb` are absent; all repository-owned
 > server, web, configuration, sync, resource, and native-source gates pass.
 > `002-homelab-deployment` stops at T055 by product decision: the current homelab deployment is
@@ -65,6 +66,8 @@ The application already provides:
   Nutrition meal/hydration facts with stable daily targets;
 - neutral supplement references and bounded courses, correctable intake facts, exact stock history,
   bounded forecast/restock proposals, Planner entries, reminders, and daily adherence summaries.
+- one coherent daily/weekly/monthly Review workspace with eight module-owned aggregates, a transparent
+  five-component daily score, canonical periodic reflections, and Review-owned well-being averages.
 
 The shared recurrence boundary now exists and owns every routine schedule. A module that needs
 recurring behaviour uses it; no second scheduling table may be added.
@@ -482,6 +485,16 @@ controller.
 
 **Prerequisites:** enough real sources to make the review useful: at minimum 013-017, with Finance
 included only after 020.
+
+Delivered with a stable eight-source aggregate registry whose adapters delegate calculations to Routines,
+Sleep, Workouts, Nutrition, Supplements, Habits, Planner, and Finance. Daily Review preserves its existing
+reflection and module contracts while adding a non-persisted, equally weighted available-only score across
+Nutrition, Workouts, Supplements, Habits, and Planner with explicit coverage/reasons. Weekly reviews use one
+owner-scoped Monday-Sunday identity and monthly reviews one calendar-month identity; atomic upsert preserves
+the first completion while source aggregates and Review-owned well-being averages recompute on every read.
+The responsive EN/RU/UK browser workspace, synchronized Android bundle, closed authenticated API, fixed
+query budgets, and desktop/exact-mobile visual matrix are complete. Trends, comparisons, correlations,
+exports, AI narratives, offline writes, notifications, calendar integration, and deployment remain deferred.
 
 ### 023 — Analytics and Long-Period Rollups
 

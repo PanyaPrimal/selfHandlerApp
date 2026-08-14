@@ -9,8 +9,8 @@ import {
 } from '../interface/support'
 import { collectRuntimeIssues, expectNoRuntimeIssues } from '../core-daily-loop/support'
 
-const night = '2026-08-13'
-const wakeDate = '2026-08-14'
+const night = new Date().toISOString().slice(0, 10)
+const wakeDate = new Date(Date.now() + (24 * 60 * 60 * 1000)).toISOString().slice(0, 10)
 
 async function createSleepPlan(page: Page, name = 'Regular night'): Promise<void> {
   const form = page.getByRole('form', { name: 'Create sleep plan' })

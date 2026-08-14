@@ -8,6 +8,7 @@ import type {
   BodyTrend,
   DailyReview,
   DailyReviewPayload,
+  DailyReviewWorkspace,
   Goal,
   GoalCreatePayload,
   GoalUpdatePayload,
@@ -22,6 +23,10 @@ import type {
   ItemResponse,
   ListResponse,
   PlannerDayResponse,
+  PeriodicReview,
+  PeriodicReviewPayload,
+  PeriodicReviewType,
+  PeriodicReviewWorkspace,
   ProfileInput,
   ProfileResponse,
   Routine,
@@ -798,6 +803,36 @@ export async function getDailyReview(date: string): Promise<DailyReview | null> 
 export async function saveDailyReview(date: string, payload: DailyReviewPayload): Promise<DailyReview> {
   const response = await jsonRequest<ItemResponse<DailyReview>>(
     `/daily-reviews/${encodeURIComponent(date)}`,
+    'PUT',
+    payload,
+  )
+  return response.data
+}
+
+export async function getDailyReviewWorkspace(date: string): Promise<DailyReviewWorkspace> {
+  const response = await request<ItemResponse<DailyReviewWorkspace>>(
+    `/review-workspaces/daily/${encodeURIComponent(date)}`,
+  )
+  return response.data
+}
+
+export async function getPeriodicReviewWorkspace(
+  period: PeriodicReviewType,
+  anchor: string,
+): Promise<PeriodicReviewWorkspace> {
+  const response = await request<ItemResponse<PeriodicReviewWorkspace>>(
+    `/periodic-reviews/${period}/${encodeURIComponent(anchor)}`,
+  )
+  return response.data
+}
+
+export async function savePeriodicReview(
+  period: PeriodicReviewType,
+  anchor: string,
+  payload: PeriodicReviewPayload,
+): Promise<PeriodicReview> {
+  const response = await jsonRequest<ItemResponse<PeriodicReview>>(
+    `/periodic-reviews/${period}/${encodeURIComponent(anchor)}`,
     'PUT',
     payload,
   )

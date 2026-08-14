@@ -35,10 +35,12 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\NotificationSettingsController;
 use App\Http\Controllers\NutritionDayController;
 use App\Http\Controllers\NutritionSettingsController;
+use App\Http\Controllers\PeriodicReviewController;
 use App\Http\Controllers\PlannerController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\RecipeController;
+use App\Http\Controllers\ReviewWorkspaceController;
 use App\Http\Controllers\RoutineActivityController;
 use App\Http\Controllers\RoutineActivityLogController;
 use App\Http\Controllers\RoutineController;
@@ -207,6 +209,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/daily-reviews/{date}', [DailyReviewController::class, 'show']);
     Route::put('/daily-reviews/{date}', [DailyReviewController::class, 'upsert']);
+    Route::get('/review-workspaces/daily/{date}', [ReviewWorkspaceController::class, 'daily']);
+    Route::get('/periodic-reviews/{period}/{anchor}', [PeriodicReviewController::class, 'show']);
+    Route::put('/periodic-reviews/{period}/{anchor}', [PeriodicReviewController::class, 'upsert']);
 
     Route::get('/body/measurements', [BodyMeasurementController::class, 'index']);
     Route::put('/body/measurements', [BodyMeasurementController::class, 'upsert']);

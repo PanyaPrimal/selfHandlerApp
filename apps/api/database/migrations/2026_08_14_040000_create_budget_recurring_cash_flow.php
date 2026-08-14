@@ -69,8 +69,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->foreignId('planned_occurrence_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('finance_recurring_operation_id')
-                ->constrained('finance_recurring_operations')->restrictOnDelete();
+            $table->foreignId('finance_recurring_operation_id');
             $table->string('operation_name', 160);
             $table->string('direction', 12);
             $table->foreignId('account_id')->constrained('finance_accounts')->restrictOnDelete();
@@ -82,6 +81,8 @@ return new class extends Migration
 
             $table->foreign('currency_code', 'fin_occ_details_currency_fk')
                 ->references('code')->on('currencies')->restrictOnDelete();
+            $table->foreign('finance_recurring_operation_id', 'fin_occ_details_operation_fk')
+                ->references('id')->on('finance_recurring_operations')->restrictOnDelete();
             $table->unique('planned_occurrence_id', 'fin_occ_details_occurrence_uq');
             $table->index(
                 ['user_id', 'finance_recurring_operation_id'],

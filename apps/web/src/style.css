@@ -1148,6 +1148,97 @@ h3 {
   margin: 0;
 }
 
+.review-mode-nav {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.review-mode-nav a {
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  color: var(--subtle);
+  text-align: center;
+  text-decoration: none;
+}
+
+.review-mode-nav a[aria-current="page"] {
+  color: var(--ink);
+  background: var(--paper-soft);
+  font-weight: 650;
+}
+
+.day-score-card {
+  gap: 14px;
+}
+
+.day-score-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.day-score-heading > strong {
+  font-family: var(--font-numerals);
+  font-size: clamp(2.25rem, 8vw, 4.5rem);
+  line-height: 0.9;
+}
+
+.score-components {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.score-component {
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--paper-soft);
+}
+
+.score-component span,
+.score-component small {
+  color: var(--subtle);
+}
+
+.score-component strong {
+  font-family: var(--font-numerals);
+  font-size: 1.25rem;
+}
+
+.review-module-summaries {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.review-module-summaries .metric {
+  min-width: 0;
+}
+
+.well-being-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.periodic-review-form {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.periodic-next-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
 .field {
   display: grid;
   gap: 6px;
@@ -2789,6 +2880,14 @@ button.text-button {
   .review-form,
   .rating-grid {
     grid-template-columns: 1fr;
+  }
+
+  .review-page .view-header {
+    padding-top: 48px;
+  }
+
+  .score-components {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .management-row,

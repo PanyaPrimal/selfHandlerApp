@@ -1,9 +1,11 @@
 import { expect, test } from '@playwright/test'
 import { registerViaUi, uniqueCredentials } from '../support/auth'
-import { chooseOption, expectNoHorizontalOverflow, pickDate } from '../interface/support'
+import { chooseOption, expectNoHorizontalOverflow, pickDate, setTime } from '../interface/support'
 import { collectRuntimeIssues, expectNoRuntimeIssues } from '../core-daily-loop/support'
 
-const today = '2026-08-13'
+const today = new Date().toISOString().slice(0, 10)
+const courseEnd = new Date(Date.now() + (7 * 24 * 60 * 60 * 1000)).toISOString().slice(0, 10)
+const recordedTime = new Date(Date.now() - (60 * 1000)).toISOString().slice(11, 16)
 
 test('catalogue course intake stock and shared daily surfaces form one loop', async ({ page }, testInfo) => {
   test.setTimeout(90_000)
@@ -35,12 +37,13 @@ test('catalogue course intake stock and shared daily surfaces form one loop', as
   const course = page.getByRole('form', { name: 'Course editor' })
   await course.getByLabel('Course name').fill('Evening magnesium')
   await pickDate(page, 'Starts on', today)
-  await pickDate(page, 'Ends on', '2026-08-20')
+  await pickDate(page, 'Ends on', courseEnd)
   await course.getByRole('button', { name: 'Save' }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Course created.' })).toBeVisible()
 
   await page.getByRole('tab', { name: 'Day' }).click()
   const intake = page.getByRole('article').filter({ hasText: 'Evening magnesium' }).first()
+  await setTime(intake, 'Taken time', recordedTime)
   await intake.getByRole('button', { name: 'Mark taken' }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Intake fact saved.' })).toBeVisible()
   await expect(page.getByText('100%', { exact: true }).first()).toBeVisible()
@@ -50,7 +53,7 @@ test('catalogue course intake stock and shared daily surfaces form one loop', as
   await page.goto(`/review/${today}`)
   await expect(page.getByRole('region', { name: 'Supplements summary' })).toContainText('100%')
   await page.getByRole('link', { name: 'Open Supplements' }).click()
-  await expect(page).toHaveURL(/\/supplements\?date=2026-08-13/)
+  await expect(page).toHaveURL(new RegExp(`/supplements\\?date=${today}`))
   await expectNoHorizontalOverflow(page)
   expectNoRuntimeIssues(issues)
 })

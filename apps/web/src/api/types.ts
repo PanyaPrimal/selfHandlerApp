@@ -188,14 +188,14 @@ export interface DailyReviewFields {
 export interface DailyReview extends DailyReviewFields {
   id: number
   review_date: string
-  mood: Rating
-  energy: Rating
-  stress: Rating
-  day_rating: Rating
+  mood: Rating | null
+  energy: Rating | null
+  stress: Rating | null
+  day_rating: Rating | null
   went_well: string | null
   improve_tomorrow: string | null
   notes: string | null
-  completed_at: string
+  completed_at: string | null
 }
 
 export interface TodayRoutine extends Pick<Routine, 'id' | 'name' | 'description' | 'kind' | 'day_period' | 'preferred_time' | 'sort_order' | 'is_active' | 'is_archived' | 'activities'> {
@@ -225,6 +225,7 @@ export interface TodayResponse {
     seven_day: CompletionSummary
   }
   module_summaries: ModuleDaySummaries
+  day_score: DayScore
   routine_day: RoutineDayProjection
 }
 
@@ -431,11 +432,142 @@ export interface RoutineActivityLogPayload {
 }
 
 export interface ModuleDaySummaries {
+  routines: ReviewStatusSummary
   sleep: SleepStatistics & { selected_night: SleepNight | null }
   routine_activities: RoutineActivitySummary
   workouts: WorkoutSummary
   nutrition: NutritionSummary
   supplements: SupplementAdherenceSummary
+  habits: HabitReviewSummary
+  planner: PlannerReviewSummary
+  finance: FinanceActualSummary
+}
+
+export type ReviewPeriodType = 'daily' | 'weekly' | 'monthly'
+export type PeriodicReviewType = Exclude<ReviewPeriodType, 'daily'>
+
+export interface ReviewPeriod {
+  type: ReviewPeriodType
+  anchor: string
+  start: string
+  end: string
+  timezone: string
+}
+
+export interface ReviewStatusSummary {
+  scheduled: number
+  done: number
+  skipped: number
+  pending: number
+  completion_rate: number | null
+}
+
+export interface HabitReviewSummary extends ReviewStatusSummary {
+  successful: number
+  unsuccessful: number
+  habit_count: number
+}
+
+export interface PlannerReviewSummary extends ReviewStatusSummary {
+  time_blocks: number
+  due_items: number
+  open_blockers: number
+}
+
+export interface FinanceActualSummary {
+  from: string
+  to: string
+  base_currency: FinanceCurrencyCode
+  complete: boolean
+  income: string | null
+  expense: string | null
+  net: string | null
+  missing_currencies: FinanceCurrencyCode[]
+}
+
+export type DayScoreComponentKey = 'nutrition' | 'workouts' | 'supplements' | 'habits' | 'planner'
+export type DayScoreReason = 'available' | 'no_target_evidence' | 'no_workout' | 'no_scheduled_items' | 'no_planner_items'
+
+export interface DayScoreComponent {
+  key: DayScoreComponentKey
+  available: boolean
+  value: number | null
+  weight: number
+  reason: DayScoreReason
+}
+
+export interface DayScore {
+  value: number | null
+  available_components: number
+  total_components: 5
+  coverage_percentage: number
+  components: DayScoreComponent[]
+}
+
+export interface DailyReviewWorkspace {
+  period: ReviewPeriod & { type: 'daily' }
+  review: DailyReview | null
+  modules: ModuleDaySummaries
+  day_score: DayScore
+}
+
+export interface PeriodicReviewFields {
+  period_rating?: Rating | null
+  worked_well?: string | null
+  did_not_work?: string | null
+  learned?: string | null
+  next_focus?: string | null
+  notes?: string | null
+}
+
+export interface PeriodicReview extends Required<PeriodicReviewFields> {
+  id: number
+  period_type: PeriodicReviewType
+  period_start: string
+  period_end: string
+  completed_at: string
+  created_at: string
+  updated_at: string
+}
+
+export interface NutritionPeriodReviewSummary {
+  from: string
+  to: string
+  days: number
+  meal_count: number
+  entry_count: number
+  calories: string
+  protein_grams: string
+  fat_grams: string
+  carbs_grams: string
+  hydration_ml: string
+}
+
+export interface PeriodicReviewModules {
+  routines: ReviewStatusSummary
+  sleep: SleepStatistics & { selected_night: null }
+  workouts: WorkoutSummary
+  nutrition: NutritionPeriodReviewSummary
+  supplements: SupplementAdherenceSummary
+  habits: HabitReviewSummary
+  planner: PlannerReviewSummary
+  finance: FinanceActualSummary
+}
+
+export interface WellBeingSummary {
+  reviewed_days: number
+  period_days: number
+  mood: number | null
+  energy: number | null
+  stress: number | null
+  day_rating: number | null
+}
+
+export interface PeriodicReviewWorkspace {
+  period: ReviewPeriod & { type: PeriodicReviewType }
+  review: PeriodicReview | null
+  modules: PeriodicReviewModules
+  well_being: WellBeingSummary
 }
 
 /* ------------------------------------------------------------------ */
@@ -1319,6 +1451,8 @@ export interface GoalCreatePayload extends GoalInput {
 export type GoalUpdatePayload = AtLeastOne<GoalInput>
 
 export type DailyReviewPayload = AtLeastOne<DailyReviewFields>
+
+export type PeriodicReviewPayload = AtLeastOne<PeriodicReviewFields>
 
 /* ------------------------------------------------------------------ */
 /* Body measurements and body goals (feature 007)                      */

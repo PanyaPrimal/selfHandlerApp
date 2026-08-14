@@ -179,7 +179,8 @@ Constraints:
 Notes:
 
 - This is a daily cross-section, not analytics over time.
-- Weekly/monthly reviews are deferred.
+- Feature 022 additively delivers weekly/monthly reflections in `periodic_reviews`; trends and
+  correlations remain deferred to Analytics.
 
 ## Deferred Tables
 
@@ -255,6 +256,18 @@ Get review for a date.
 
 Upsert review for a date.
 
+`GET /api/review-workspaces/daily/{date}`
+
+Compose the saved daily reflection, eight live module summaries, and transparent day-score evidence.
+
+`GET /api/periodic-reviews/{weekly|monthly}/{anchor}`
+
+Compose the canonical period, saved reflection if present, eight live aggregates, and well-being averages.
+
+`PUT /api/periodic-reviews/{weekly|monthly}/{anchor}`
+
+Idempotently upsert the one owner/type/canonical-start reflection without snapshotting module values.
+
 ### Goals
 
 `GET /api/goals?archived=false|true`
@@ -324,6 +337,11 @@ Shows:
 - mood/energy/stress/day rating
 - text fields for went well, improve tomorrow, notes
 - save action
+
+Routes: `/review/weekly/:anchor?`, `/review/monthly/:anchor?`
+
+Show canonical bounds, well-being averages, eight live module summaries, a periodic reflection form,
+and navigation-only Planner/Goals follow-ups.
 
 ## Dashboard Metrics
 

@@ -3,7 +3,9 @@ import { registerViaUi, uniqueCredentials } from '../support/auth'
 import { chooseOption, expectNoHorizontalOverflow, pickDate } from '../interface/support'
 import { collectRuntimeIssues, expectNoRuntimeIssues } from '../core-daily-loop/support'
 
-const today = new Date().toISOString().slice(0, 10)
+const todayDate = new Date()
+const today = todayDate.toISOString().slice(0, 10)
+const todayDayOfMonth = String(todayDate.getUTCDate())
 const courseEnd = new Date(Date.now() + (7 * 24 * 60 * 60 * 1000)).toISOString().slice(0, 10)
 
 async function createWallet(page: import('@playwright/test').Page, name: string): Promise<void> {
@@ -94,7 +96,7 @@ test('debt payment reversal fund schedule goal and unified goal survive reload',
   await fundEditor.getByLabel('Top-up rule').selectOption({ label: 'Fixed amount' })
   await fundEditor.getByLabel('Top-up amount').fill('25.0000')
   await fundEditor.getByLabel('Starts on').fill(today)
-  await fundEditor.getByLabel('Day of month').fill('13')
+  await fundEditor.getByLabel('Day of month').fill(todayDayOfMonth)
   expect(await fundEditor.locator(':invalid').evaluateAll((elements) => elements.map((element) => ({
     label: element.parentElement?.textContent?.trim(),
     value: (element as HTMLInputElement).value,
@@ -191,7 +193,7 @@ test('purchase and restock expenses keep their source links without claiming sto
   await debt.getByLabel('Category').selectOption({ label: 'Food' })
   await debt.getByLabel('Installment amount').fill('40.0000')
   await debt.getByLabel('Installment count').fill('3')
-  await debt.getByLabel('Day of month').fill('13')
+  await debt.getByLabel('Day of month').fill(todayDayOfMonth)
   await debt.getByLabel('First due date').fill(today)
   await debt.getByRole('button', { name: 'Add debt' }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Debt created.' })).toBeVisible()

@@ -8,6 +8,8 @@ import {
 } from '../interface/support'
 import { collectRuntimeIssues, expectNoRuntimeIssues } from '../core-daily-loop/support'
 
+const todayWeekday = (['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const)[new Date().getUTCDay()]
+
 async function openCreate(page: Page): Promise<ReturnType<Page['getByRole']>> {
   await page.getByRole('button', { name: 'New habit' }).click()
   const form = page.getByRole('form', { name: 'Create habit' })
@@ -56,7 +58,7 @@ test('ordinary habit and numeric facts create, correct, clear and survive reload
   await form.getByLabel('Target').fill('20')
   await form.getByLabel('Unit').fill('pages')
   await chooseOption(form, 'Schedule', 'Selected weekdays')
-  await form.getByRole('button', { name: 'Thu', exact: true }).click()
+  await form.getByRole('button', { name: todayWeekday, exact: true }).click()
   await setTime(form, 'Time', '21:00')
   await form.getByLabel('Place').fill('Bedroom')
   await form.getByLabel('Two-minute starter').fill('Read one page')

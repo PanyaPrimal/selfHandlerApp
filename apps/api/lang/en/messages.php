@@ -198,4 +198,7 @@ return [
     'attachment_owner_quota' => 'Your private photo storage limit has been reached. Delete a photo before uploading another.',
     'attachment_upload_conflict' => 'This upload retry key was already used for a different photo or record.',
     'attachment_storage_unavailable' => 'Private photo storage is temporarily unavailable. Try again without changing your record.',
+    'review_period_invalid' => 'Choose a daily, weekly, or monthly review period.',
+    'review_date_invalid' => 'Choose a valid calendar date.',
+    'periodic_review_field_required' => 'Provide at least one periodic review field.',
 ];

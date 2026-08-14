@@ -140,6 +140,11 @@ class User extends Authenticatable
         return $this->hasMany(DailyReview::class);
     }
 
+    public function periodicReviews(): HasMany
+    {
+        return $this->hasMany(PeriodicReview::class);
+    }
+
     public function financeAccounts(): HasMany
     {
         return $this->hasMany(FinanceAccount::class);

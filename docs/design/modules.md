@@ -461,7 +461,18 @@ targets, so corrections remain consistent on every surface.
 ### The day score
 - ✅ The system computes a **day score** from completion: nutrition on target + a workout + supplements + habits + the plan
 - Gamification of discipline
-- ❓ the composition and weights of the score — fixed or configurable (for now: we compute it, refine the composition later)
+- Feature 022 closes the first composition: Nutrition target closeness/attainment, Workout completion,
+  Supplement adherence, successful Habits, and completed Planner items contribute equally when they
+  have evidence. Missing evidence is named and excluded rather than scored as failure; the response
+  exposes value, coverage, every component, reason, and effective weight. The score is recomputed on
+  read and is never stored.
+
+### Periodic review
+- Feature 022 adds one owner-scoped reflection per canonical Monday-Sunday week or calendar month.
+- Review stores only rating, what worked/did not work, lesson, next focus, notes, and first completion;
+  module period totals and daily well-being averages remain live read models.
+- Any date inside the period reopens the same reflection. Planner and Goals are follow-up links only;
+  Review never writes to those modules.
 
 ### Delivery
 - An evening **reminder** "fill out / look at the review" via "Module 5 — Planner"
@@ -471,7 +482,6 @@ targets, so corrections remain consistent on every surface.
 - All modules (summary sources), "Module 5 — Planner" (tomorrow's plan + reminder), "Module 9 — Analytics" (well-being/score over time)
 
 ### TODO / open questions
-- The composition and weights of the "day score"
 - Where the Review ↔ Analytics boundary lies (review = a single-day cross-section; analytics = trends over a period)
 
 ---

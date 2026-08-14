@@ -11,7 +11,9 @@ import {
 } from '../interface/support'
 import { collectRuntimeIssues, expectNoRuntimeIssues } from '../core-daily-loop/support'
 
-const today = '2026-08-13'
+const todayDate = new Date()
+const today = todayDate.toISOString().slice(0, 10)
+const todayWeekday = (['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const)[todayDate.getUTCDay()]
 
 async function createStrengthProgram(page: Page, name = 'Strength A'): Promise<void> {
   const form = page.getByRole('form', { name: 'Create workout program' })
@@ -19,7 +21,7 @@ async function createStrengthProgram(page: Page, name = 'Strength A'): Promise<v
   await chooseOption(form, 'Workout type', 'Strength')
   await chooseOption(form, 'Intensity', 'Moderate')
   await chooseSegment(form, 'Schedule', 'By weekdays')
-  await toggleOption(form, 'Weekdays', 'Thu')
+  await toggleOption(form, 'Weekdays', todayWeekday)
   await setTime(form, 'Preferred time', '18:00')
   await form.getByRole('button', { name: 'Create workout program' }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Workout program created.' })).toBeVisible()
@@ -72,7 +74,7 @@ test('catalogue and recurring strength program survive reload and lifecycle chan
   await setTime(programEditor, 'Preferred time', '19:00')
   await programEditor.getByRole('button', { name: 'Save program' }).click()
   card = page.getByRole('listitem', { name: 'Strength B' })
-  await expect(card).toContainText('Thu')
+  await expect(card).toContainText(todayWeekday)
   await expect(card).toContainText('19:00')
 
   await card.getByRole('button', { name: 'Pause Strength B' }).click()
@@ -164,7 +166,7 @@ test('Today Planner Review and notification settings share workout state and dee
   const entry = page.getByRole('listitem', { name: 'Evening strength' })
   await expect(entry).toContainText('18:00')
   await entry.getByRole('link', { name: 'Open workout' }).click()
-  await expect(page).toHaveURL(new RegExp('/workouts\\?date=2026-08-13&program='))
+  await expect(page).toHaveURL(new RegExp(`/workouts\\?date=${today}&program=`))
   await expect(page.getByRole('listitem', { name: 'Evening strength' })).toBeVisible()
 
   await page.goto(`/review/${today}`)

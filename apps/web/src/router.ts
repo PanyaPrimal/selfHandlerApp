@@ -12,6 +12,7 @@ import LoginView from './views/LoginView.vue'
 import PlannerView from './views/PlannerView.vue'
 import RegisterView from './views/RegisterView.vue'
 import ReviewView from './views/ReviewView.vue'
+import PeriodicReviewView from './views/PeriodicReviewView.vue'
 import RoutinesView from './views/RoutinesView.vue'
 import TodayView from './views/TodayView.vue'
 import AppearanceSettingsView from './views/AppearanceSettingsView.vue'
@@ -88,6 +89,18 @@ export const router = createRouter({
           path: 'goals',
           name: 'goals',
           component: GoalsView,
+        },
+        {
+          path: 'review/weekly/:anchor?',
+          name: 'review-weekly',
+          component: PeriodicReviewView,
+          props: { period: 'weekly' },
+        },
+        {
+          path: 'review/monthly/:anchor?',
+          name: 'review-monthly',
+          component: PeriodicReviewView,
+          props: { period: 'monthly' },
         },
         {
           path: 'review/:date?',

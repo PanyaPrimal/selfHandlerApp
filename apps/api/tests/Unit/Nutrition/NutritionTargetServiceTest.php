@@ -6,6 +6,7 @@ use App\Models\NutritionDailyTarget;
 use App\Services\NutritionSettingsService;
 use App\Services\NutritionTargetService;
 use App\Services\WorkoutSessionService;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Validation\ValidationException;
 use Tests\Feature\Nutrition\NutritionTestCase;
 
@@ -97,7 +98,7 @@ class NutritionTargetServiceTest extends NutritionTestCase
             try {
                 $service->update($owner, $invalid);
                 $this->fail('Expected invalid settings.');
-            } catch (ValidationException|\Illuminate\Database\Eloquent\ModelNotFoundException) {
+            } catch (ModelNotFoundException|ValidationException) {
                 $this->addToAssertionCount(1);
             }
         }

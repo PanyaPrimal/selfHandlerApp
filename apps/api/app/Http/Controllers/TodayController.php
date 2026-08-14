@@ -2,16 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\DailyReview;
 use App\Models\Routine;
 use App\Models\RoutineLog;
-use App\Services\NutritionSummaryService;
+use App\Services\Review\ReviewWorkspaceService;
 use App\Services\RoutineDayProjectionService;
 use App\Services\RoutineProgressService;
 use App\Services\RoutineScheduleService;
-use App\Services\SleepStatisticsService;
-use App\Services\SupplementAdherenceService;
-use App\Services\WorkoutStatisticsService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -22,10 +18,7 @@ class TodayController extends Controller
         private readonly RoutineDayProjectionService $routineDays,
         private readonly RoutineProgressService $progressService,
         private readonly RoutineScheduleService $scheduleService,
-        private readonly SleepStatisticsService $sleepStatistics,
-        private readonly WorkoutStatisticsService $workoutStatistics,
-        private readonly NutritionSummaryService $nutritionSummary,
-        private readonly SupplementAdherenceService $supplementAdherence,
+        private readonly ReviewWorkspaceService $reviews,
     ) {}
 
     public function __invoke(Request $request): JsonResponse
@@ -98,12 +91,8 @@ class TodayController extends Controller
         $skipped = $logs->where('status', 'skipped')->count();
         $scheduled = $routines->count();
 
-        $review = DailyReview::query()
-            ->ownedBy($user)
-            ->whereDate('review_date', $date)
-            ->first();
         $progress = $this->progressService->calculate($user, $date);
-        $workouts = $this->workoutStatistics->forRange($user, $dateValue, $dateValue);
+        $reviewWorkspace = $this->reviews->daily($user, $dateValue, legacyReviewEnvelope: true);
 
         return response()->json([
             'date' => $date->toDateString(),
@@ -164,20 +153,15 @@ class TodayController extends Controller
                     'status' => $goal->status,
                     'target_date' => $goal->target_date?->toDateString(),
                 ]),
-            'review' => $review,
+            'review' => $reviewWorkspace['review'],
             'progress' => [
                 'period_start' => $progress['period_start'],
                 'period_end' => $progress['period_end'],
                 'seven_day' => $progress['seven_day'],
             ],
             'routine_day' => $projection,
-            'module_summaries' => [
-                'sleep' => $this->sleepStatistics->summarize($user, $dateValue, $dateValue, $dateValue),
-                'routine_activities' => $projection['activity_summary'],
-                'workouts' => $workouts['summary'],
-                'nutrition' => $this->nutritionSummary->forDay($user, $dateValue),
-                'supplements' => $this->supplementAdherence->forDay($user, $dateValue),
-            ],
+            'module_summaries' => $reviewWorkspace['modules'],
+            'day_score' => $reviewWorkspace['day_score'],
         ]);
     }
 }

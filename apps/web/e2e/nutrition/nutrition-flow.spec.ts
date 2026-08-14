@@ -3,7 +3,7 @@ import { registerViaUi, uniqueCredentials } from '../support/auth'
 import { chooseOption, expectNoHorizontalOverflow, gotoDestination, pickDate } from '../interface/support'
 import { collectRuntimeIssues, expectNoRuntimeIssues } from '../core-daily-loop/support'
 
-const today = '2026-08-13'
+const today = new Date().toISOString().slice(0, 10)
 
 async function createFood(page: Page, name: string, calories = '100'): Promise<void> {
   const form = page.getByRole('form', { name: 'Create food' })
@@ -150,7 +150,7 @@ test('Today and Review present the Nutrition-owned selected-day summary', async 
   await page.goto(`/review/${today}`)
   await expect(page.getByRole('region', { name: 'Nutrition summary' })).toContainText('200 kcal')
   await page.getByRole('link', { name: 'Open Nutrition' }).click()
-  await expect(page).toHaveURL(new RegExp('/nutrition\\?date=2026-08-13'))
+  await expect(page).toHaveURL(new RegExp(`/nutrition\\?date=${today}`))
   await expect(page.getByRole('listitem', { name: 'Breakfast' })).toBeVisible()
 })
 

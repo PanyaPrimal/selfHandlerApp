@@ -19,6 +19,12 @@ export interface ChangelogEntry {
 
 const entries: readonly ChangelogEntry[] = [
   {
+    id: 'cross-module-periodic-review', date: '2026-08-14', feature: '022-cross-module-periodic-review',
+    titleKey: 'changelog.entry.periodicReview.title', summaryKey: 'changelog.entry.periodicReview.summary',
+    testKey: 'changelog.entry.periodicReview.test', links: [{ labelKey: 'nav.review', to: '/review' }],
+    limitationKeys: ['changelog.entry.periodicReview.limit'],
+  },
+  {
     id: 'private-body-meal-photos', date: '2026-08-14', feature: '021-private-attachments',
     titleKey: 'changelog.entry.attachments.title', summaryKey: 'changelog.entry.attachments.summary',
     testKey: 'changelog.entry.attachments.test', links: [

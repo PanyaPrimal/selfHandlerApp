@@ -87,6 +87,14 @@ The EN/RU/UK browser and Android clients support upload, preview, and deletion w
 uses Camera/Gallery URI transfer and temporary cache files instead of full-image base64. Recognition,
 health or macro inference, receipts, documents, GPX, sharing, and offline queues remain deferred.
 
+Feature 022 turns Review into one coherent daily, weekly, and monthly workspace. Eight module-owned
+sources provide live Routine, Sleep, Workout, Nutrition, Supplement, Habit, Planner, and Finance
+aggregates; Review stores only reflection fields and computes a transparent five-component day score
+from available evidence. Monday-Sunday and calendar-month reflections have canonical retry-safe
+identities, while corrections in source modules remain visible without rewriting saved journal text.
+Long-period trends, reports/exports, integrations, AI narratives, and native offline authority remain
+deferred to their owning features.
+
 The Android package in `apps/mobile` wraps the same production Vue bundle with Capacitor 8. Existing
 accounts use a separate 30-day, `mobile`-scoped Sanctum token stored by a custom Android Keystore
 AES-GCM plugin; browser cookie/CSRF auth is unchanged. Android local notifications are an opt-in

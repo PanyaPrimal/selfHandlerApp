@@ -1,0 +1,441 @@
+openapi: 3.1.0
+info:
+  title: SelfHandler Cross-Module and Periodic Review API
+  version: 0.22.0
+  description: Additive feature 022 contract. Existing DailyReview operations remain unchanged.
+servers:
+  - url: /api
+security:
+  - sanctum: []
+paths:
+  /review-workspaces/daily/{date}:
+    get:
+      operationId: getDailyReviewWorkspace
+      summary: Read current module aggregates, day score, and daily reflection
+      parameters:
+        - $ref: '#/components/parameters/Date'
+      responses:
+        '200':
+          description: Owner-scoped daily workspace
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyWorkspaceEnvelope'
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+  /periodic-reviews/{period}/{anchor}:
+    get:
+      operationId: getPeriodicReviewWorkspace
+      summary: Read a canonical weekly or monthly review workspace
+      parameters:
+        - $ref: '#/components/parameters/Period'
+        - $ref: '#/components/parameters/Anchor'
+      responses:
+        '200':
+          description: Owner-scoped periodic workspace
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PeriodicWorkspaceEnvelope'
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+    put:
+      operationId: upsertPeriodicReview
+      summary: Create or update the one reflection for the canonical period
+      parameters:
+        - $ref: '#/components/parameters/Period'
+        - $ref: '#/components/parameters/Anchor'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PeriodicReviewPayload'
+      responses:
+        '200':
+          description: Saved reflection using its canonical identity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PeriodicReviewEnvelope'
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+components:
+  securitySchemes:
+    sanctum:
+      type: http
+      scheme: bearer
+  parameters:
+    Date:
+      name: date
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/CalendarDate' }
+    Anchor:
+      name: anchor
+      in: path
+      required: true
+      description: Any calendar date inside the desired canonical period.
+      schema: { $ref: '#/components/schemas/CalendarDate' }
+    Period:
+      name: period
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/PeriodicReviewType' }
+  responses:
+    Unauthenticated:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [message]
+            properties:
+              message: { type: string }
+    ValidationFailed:
+      description: Invalid calendar period or payload
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [message, errors]
+            properties:
+              message: { type: string }
+              errors:
+                type: object
+                additionalProperties:
+                  type: array
+                  items: { type: string }
+  schemas:
+    CalendarDate:
+      type: string
+      format: date
+      pattern: '^\d{4}-\d{2}-\d{2}$'
+    DecimalString:
+      type: string
+      pattern: '^-?\d+\.\d+$'
+    NullableNumber:
+      type: [number, 'null']
+    PeriodicReviewType:
+      type: string
+      enum: [weekly, monthly]
+    ReviewPeriod:
+      type: object
+      additionalProperties: false
+      required: [type, anchor, start, end, timezone]
+      properties:
+        type: { type: string, enum: [daily, weekly, monthly] }
+        anchor: { $ref: '#/components/schemas/CalendarDate' }
+        start: { $ref: '#/components/schemas/CalendarDate' }
+        end: { $ref: '#/components/schemas/CalendarDate' }
+        timezone: { type: string, minLength: 1 }
+    DailyReview:
+      type: object
+      additionalProperties: false
+      required: [id, review_date, mood, energy, stress, day_rating, went_well, improve_tomorrow, notes, completed_at]
+      properties:
+        id: { type: integer, minimum: 1 }
+        review_date: { $ref: '#/components/schemas/CalendarDate' }
+        mood: { type: [integer, 'null'], minimum: 1, maximum: 10 }
+        energy: { type: [integer, 'null'], minimum: 1, maximum: 10 }
+        stress: { type: [integer, 'null'], minimum: 1, maximum: 10 }
+        day_rating: { type: [integer, 'null'], minimum: 1, maximum: 10 }
+        went_well: { type: [string, 'null'], maxLength: 5000 }
+        improve_tomorrow: { type: [string, 'null'], maxLength: 5000 }
+        notes: { type: [string, 'null'], maxLength: 10000 }
+        completed_at: { type: [string, 'null'], format: date-time }
+    PeriodicReview:
+      type: object
+      additionalProperties: false
+      required: [id, period_type, period_start, period_end, period_rating, worked_well, did_not_work, learned, next_focus, notes, completed_at, created_at, updated_at]
+      properties:
+        id: { type: integer, minimum: 1 }
+        period_type: { $ref: '#/components/schemas/PeriodicReviewType' }
+        period_start: { $ref: '#/components/schemas/CalendarDate' }
+        period_end: { $ref: '#/components/schemas/CalendarDate' }
+        period_rating: { type: [integer, 'null'], minimum: 1, maximum: 10 }
+        worked_well: { type: [string, 'null'], maxLength: 5000 }
+        did_not_work: { type: [string, 'null'], maxLength: 5000 }
+        learned: { type: [string, 'null'], maxLength: 5000 }
+        next_focus: { type: [string, 'null'], maxLength: 5000 }
+        notes: { type: [string, 'null'], maxLength: 10000 }
+        completed_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    PeriodicReviewPayload:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        period_rating: { type: [integer, 'null'], minimum: 1, maximum: 10 }
+        worked_well: { type: [string, 'null'], maxLength: 5000 }
+        did_not_work: { type: [string, 'null'], maxLength: 5000 }
+        learned: { type: [string, 'null'], maxLength: 5000 }
+        next_focus: { type: [string, 'null'], maxLength: 5000 }
+        notes: { type: [string, 'null'], maxLength: 10000 }
+    StatusSummary:
+      type: object
+      additionalProperties: false
+      required: [scheduled, done, skipped, pending, completion_rate]
+      properties:
+        scheduled: { type: integer, minimum: 0 }
+        done: { type: integer, minimum: 0 }
+        skipped: { type: integer, minimum: 0 }
+        pending: { type: integer, minimum: 0 }
+        completion_rate: { type: [number, 'null'], minimum: 0, maximum: 100 }
+    RoutineActivityTemplateSummary:
+      allOf:
+        - $ref: '#/components/schemas/StatusSummary'
+        - type: object
+          additionalProperties: false
+          required: [routine_id, name, scheduled, done, skipped, pending, completion_rate]
+          properties:
+            routine_id: { type: integer, minimum: 1 }
+            name: { type: string }
+            scheduled: { type: integer, minimum: 0 }
+            done: { type: integer, minimum: 0 }
+            skipped: { type: integer, minimum: 0 }
+            pending: { type: integer, minimum: 0 }
+            completion_rate: { type: [number, 'null'], minimum: 0, maximum: 100 }
+    RoutineActivitySummary:
+      allOf:
+        - $ref: '#/components/schemas/StatusSummary'
+        - type: object
+          additionalProperties: false
+          required: [scheduled, done, skipped, pending, completion_rate, templates]
+          properties:
+            scheduled: { type: integer, minimum: 0 }
+            done: { type: integer, minimum: 0 }
+            skipped: { type: integer, minimum: 0 }
+            pending: { type: integer, minimum: 0 }
+            completion_rate: { type: [number, 'null'], minimum: 0, maximum: 100 }
+            templates:
+              type: array
+              items: { $ref: '#/components/schemas/RoutineActivityTemplateSummary' }
+    SleepSummary:
+      type: object
+      additionalProperties: false
+      required: [period_start, period_end, planned_nights, recorded_nights, average_duration_minutes, average_quality, selected_night]
+      properties:
+        period_start: { $ref: '#/components/schemas/CalendarDate' }
+        period_end: { $ref: '#/components/schemas/CalendarDate' }
+        planned_nights: { type: integer, minimum: 0 }
+        recorded_nights: { type: integer, minimum: 0 }
+        average_duration_minutes: { $ref: '#/components/schemas/NullableNumber' }
+        average_quality: { $ref: '#/components/schemas/NullableNumber' }
+        selected_night: { type: [object, 'null'] }
+    WorkoutSummary:
+      type: object
+      additionalProperties: false
+      required: [planned, completed, skipped, unplanned, duration_seconds, distance_m, strength_volume_kg]
+      properties:
+        planned: { type: integer, minimum: 0 }
+        completed: { type: integer, minimum: 0 }
+        skipped: { type: integer, minimum: 0 }
+        unplanned: { type: integer, minimum: 0 }
+        duration_seconds: { type: integer, minimum: 0 }
+        distance_m: { type: integer, minimum: 0 }
+        strength_volume_kg: { $ref: '#/components/schemas/DecimalString' }
+    ProgressValue:
+      type: object
+      additionalProperties: false
+      required: [consumed, target, percent]
+      properties:
+        consumed: { type: [string, 'null'] }
+        target: { type: [string, 'null'] }
+        percent: { type: [string, 'null'] }
+    NutritionDailySummary:
+      type: object
+      additionalProperties: false
+      required: [date, meal_count, entry_count, calories, protein_grams, fat_grams, carbs_grams, hydration_ml, quality_score, progress]
+      properties:
+        date: { $ref: '#/components/schemas/CalendarDate' }
+        meal_count: { type: integer, minimum: 0 }
+        entry_count: { type: integer, minimum: 0 }
+        calories: { $ref: '#/components/schemas/DecimalString' }
+        protein_grams: { $ref: '#/components/schemas/DecimalString' }
+        fat_grams: { $ref: '#/components/schemas/DecimalString' }
+        carbs_grams: { $ref: '#/components/schemas/DecimalString' }
+        hydration_ml: { $ref: '#/components/schemas/DecimalString' }
+        quality_score: { type: [string, 'null'] }
+        progress:
+          type: object
+          additionalProperties: false
+          required: [calories, protein, fat, carbs, hydration, quality]
+          properties:
+            calories: { $ref: '#/components/schemas/ProgressValue' }
+            protein: { $ref: '#/components/schemas/ProgressValue' }
+            fat: { $ref: '#/components/schemas/ProgressValue' }
+            carbs: { $ref: '#/components/schemas/ProgressValue' }
+            hydration: { $ref: '#/components/schemas/ProgressValue' }
+            quality: { $ref: '#/components/schemas/ProgressValue' }
+    NutritionPeriodSummary:
+      type: object
+      additionalProperties: false
+      required: [from, to, days, meal_count, entry_count, calories, protein_grams, fat_grams, carbs_grams, hydration_ml]
+      properties:
+        from: { $ref: '#/components/schemas/CalendarDate' }
+        to: { $ref: '#/components/schemas/CalendarDate' }
+        days: { type: integer, minimum: 1, maximum: 31 }
+        meal_count: { type: integer, minimum: 0 }
+        entry_count: { type: integer, minimum: 0 }
+        calories: { $ref: '#/components/schemas/DecimalString' }
+        protein_grams: { $ref: '#/components/schemas/DecimalString' }
+        fat_grams: { $ref: '#/components/schemas/DecimalString' }
+        carbs_grams: { $ref: '#/components/schemas/DecimalString' }
+        hydration_ml: { $ref: '#/components/schemas/DecimalString' }
+    SupplementSummary:
+      type: object
+      additionalProperties: false
+      required: [done, skipped, overdue, pending, eligible, adherence_percentage]
+      properties:
+        done: { type: integer, minimum: 0 }
+        skipped: { type: integer, minimum: 0 }
+        overdue: { type: integer, minimum: 0 }
+        pending: { type: integer, minimum: 0 }
+        eligible: { type: integer, minimum: 0 }
+        adherence_percentage: { type: [number, 'null'], minimum: 0, maximum: 100 }
+    HabitSummary:
+      allOf:
+        - $ref: '#/components/schemas/StatusSummary'
+        - type: object
+          additionalProperties: false
+          required: [scheduled, successful, unsuccessful, skipped, pending, completion_rate, habit_count]
+          properties:
+            scheduled: { type: integer, minimum: 0 }
+            successful: { type: integer, minimum: 0 }
+            unsuccessful: { type: integer, minimum: 0 }
+            skipped: { type: integer, minimum: 0 }
+            pending: { type: integer, minimum: 0 }
+            completion_rate: { type: [number, 'null'], minimum: 0, maximum: 100 }
+            habit_count: { type: integer, minimum: 0 }
+    PlannerSummary:
+      allOf:
+        - $ref: '#/components/schemas/StatusSummary'
+        - type: object
+          additionalProperties: false
+          required: [scheduled, done, skipped, pending, completion_rate, time_blocks, due_items, open_blockers]
+          properties:
+            scheduled: { type: integer, minimum: 0 }
+            done: { type: integer, minimum: 0 }
+            skipped: { type: integer, minimum: 0 }
+            pending: { type: integer, minimum: 0 }
+            completion_rate: { type: [number, 'null'], minimum: 0, maximum: 100 }
+            time_blocks: { type: integer, minimum: 0 }
+            due_items: { type: integer, minimum: 0 }
+            open_blockers: { type: integer, minimum: 0 }
+    FinanceSummary:
+      type: object
+      additionalProperties: false
+      required: [from, to, base_currency, complete, income, expense, net, missing_currencies]
+      properties:
+        from: { $ref: '#/components/schemas/CalendarDate' }
+        to: { $ref: '#/components/schemas/CalendarDate' }
+        base_currency: { type: string, pattern: '^[A-Z]{3}$' }
+        complete: { type: boolean }
+        income: { type: [string, 'null'] }
+        expense: { type: [string, 'null'] }
+        net: { type: [string, 'null'] }
+        missing_currencies:
+          type: array
+          items: { type: string, pattern: '^[A-Z]{3}$' }
+    DailyModules:
+      type: object
+      additionalProperties: false
+      required: [routines, routine_activities, sleep, workouts, nutrition, supplements, habits, planner, finance]
+      properties:
+        routines: { $ref: '#/components/schemas/StatusSummary' }
+        routine_activities: { $ref: '#/components/schemas/RoutineActivitySummary' }
+        sleep: { $ref: '#/components/schemas/SleepSummary' }
+        workouts: { $ref: '#/components/schemas/WorkoutSummary' }
+        nutrition: { $ref: '#/components/schemas/NutritionDailySummary' }
+        supplements: { $ref: '#/components/schemas/SupplementSummary' }
+        habits: { $ref: '#/components/schemas/HabitSummary' }
+        planner: { $ref: '#/components/schemas/PlannerSummary' }
+        finance: { $ref: '#/components/schemas/FinanceSummary' }
+    PeriodModules:
+      type: object
+      additionalProperties: false
+      required: [routines, sleep, workouts, nutrition, supplements, habits, planner, finance]
+      properties:
+        routines: { $ref: '#/components/schemas/StatusSummary' }
+        sleep: { $ref: '#/components/schemas/SleepSummary' }
+        workouts: { $ref: '#/components/schemas/WorkoutSummary' }
+        nutrition: { $ref: '#/components/schemas/NutritionPeriodSummary' }
+        supplements: { $ref: '#/components/schemas/SupplementSummary' }
+        habits: { $ref: '#/components/schemas/HabitSummary' }
+        planner: { $ref: '#/components/schemas/PlannerSummary' }
+        finance: { $ref: '#/components/schemas/FinanceSummary' }
+    DayScoreComponent:
+      type: object
+      additionalProperties: false
+      required: [key, available, value, weight, reason]
+      properties:
+        key: { type: string, enum: [nutrition, workouts, supplements, habits, planner] }
+        available: { type: boolean }
+        value: { type: [number, 'null'], minimum: 0, maximum: 100 }
+        weight: { type: number, minimum: 0, maximum: 1 }
+        reason: { type: string, enum: [available, no_target_evidence, no_workout, no_scheduled_items, no_planner_items] }
+    DayScore:
+      type: object
+      additionalProperties: false
+      required: [value, available_components, total_components, coverage_percentage, components]
+      properties:
+        value: { type: [number, 'null'], minimum: 0, maximum: 100 }
+        available_components: { type: integer, minimum: 0, maximum: 5 }
+        total_components: { type: integer, const: 5 }
+        coverage_percentage: { type: number, minimum: 0, maximum: 100 }
+        components:
+          type: array
+          minItems: 5
+          maxItems: 5
+          items: { $ref: '#/components/schemas/DayScoreComponent' }
+    WellBeingSummary:
+      type: object
+      additionalProperties: false
+      required: [reviewed_days, period_days, mood, energy, stress, day_rating]
+      properties:
+        reviewed_days: { type: integer, minimum: 0, maximum: 31 }
+        period_days: { type: integer, minimum: 1, maximum: 31 }
+        mood: { $ref: '#/components/schemas/NullableNumber' }
+        energy: { $ref: '#/components/schemas/NullableNumber' }
+        stress: { $ref: '#/components/schemas/NullableNumber' }
+        day_rating: { $ref: '#/components/schemas/NullableNumber' }
+    DailyWorkspace:
+      type: object
+      additionalProperties: false
+      required: [period, review, modules, day_score]
+      properties:
+        period: { $ref: '#/components/schemas/ReviewPeriod' }
+        review: { anyOf: [{ $ref: '#/components/schemas/DailyReview' }, { type: 'null' }] }
+        modules: { $ref: '#/components/schemas/DailyModules' }
+        day_score: { $ref: '#/components/schemas/DayScore' }
+    PeriodicWorkspace:
+      type: object
+      additionalProperties: false
+      required: [period, review, modules, well_being]
+      properties:
+        period: { $ref: '#/components/schemas/ReviewPeriod' }
+        review: { anyOf: [{ $ref: '#/components/schemas/PeriodicReview' }, { type: 'null' }] }
+        modules: { $ref: '#/components/schemas/PeriodModules' }
+        well_being: { $ref: '#/components/schemas/WellBeingSummary' }
+    DailyWorkspaceEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/DailyWorkspace' }
+    PeriodicWorkspaceEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/PeriodicWorkspace' }
+    PeriodicReviewEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/PeriodicReview' }

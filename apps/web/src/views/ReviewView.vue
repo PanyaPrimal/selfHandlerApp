@@ -1,16 +1,19 @@
 <script setup lang="ts">
 import { computed, nextTick, reactive, ref, watch } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
 import {
   ApiError,
-  getDailyReview,
+  getDailyReviewWorkspace,
   getToday,
   saveDailyReview,
   validationErrors,
   type ValidationErrors,
 } from '../api/client'
-import type { DailyReview, DailyReviewPayload, ModuleDaySummaries } from '../api/types'
+import type { DailyReview, DailyReviewPayload, DayScore, ModuleDaySummaries } from '../api/types'
 import AsyncState from '../components/AsyncState.vue'
+import DayScoreCard from '../components/review/DayScoreCard.vue'
+import ReviewModeNav from '../components/review/ReviewModeNav.vue'
+import ReviewModuleGrid from '../components/review/ReviewModuleGrid.vue'
 import { formatCalendarDate } from '../lib/format'
 import { UiDatePicker, UiTextarea } from '../components/ui'
 import { useI18n } from '../i18n'
@@ -45,6 +48,7 @@ const canRetrySave = ref(false)
 const fieldErrors = ref<ValidationErrors>({})
 const form = reactive<ReviewForm>(emptyForm())
 const moduleSummaries = ref<ModuleDaySummaries | null>(null)
+const dayScore = ref<DayScore | null>(null)
 const savedSnapshot = ref(snapshot())
 const moodInput = ref<HTMLInputElement | null>(null)
 const energyInput = ref<HTMLInputElement | null>(null)
@@ -129,14 +133,16 @@ async function loadReview(): Promise<void> {
 
     if (routeDate) {
       date = routeDate
-      const [savedReview, today] = await Promise.all([getDailyReview(date), getToday(date)])
-      review = savedReview
-      moduleSummaries.value = today.module_summaries
+      const workspace = await getDailyReviewWorkspace(date)
+      review = workspace.review
+      moduleSummaries.value = workspace.modules
+      dayScore.value = workspace.day_score
     } else {
       const today = await getToday()
       date = today.date
       review = today.review
       moduleSummaries.value = today.module_summaries
+      dayScore.value = today.day_score
     }
 
     if (sequence !== loadSequence) {
@@ -256,10 +262,17 @@ watch(
   },
   { immediate: true },
 )
+
+function confirmDiscard(): boolean {
+  return !isDirty.value || window.confirm(i18n.t('review.discardChanges'))
+}
+
+onBeforeRouteUpdate(confirmDiscard)
+onBeforeRouteLeave(confirmDiscard)
 </script>
 
 <template>
-  <section class="view-stack">
+  <section class="view-stack review-page">
     <header class="view-header">
       <div>
         <p class="eyebrow">{{ i18n.t('review.eyebrow') }}</p>
@@ -277,6 +290,10 @@ watch(
       </div>
     </header>
 
+    <ReviewModeNav active="daily" :anchor="reviewDate" />
+
+    <DayScoreCard v-if="isReady && dayScore" :score="dayScore" />
+
     <section class="panel" :aria-label="i18n.t('review.workspace')">
       <AsyncState
         :loading="isLoading"
@@ -291,39 +308,12 @@ watch(
           :empty-description="i18n.t('review.emptyBody')"
         />
 
-        <div v-if="isReady && moduleSummaries" class="summary-grid wide-field review-module-summaries">
-          <section class="metric" :aria-label="i18n.t('review.sleepSummary')">
-            <span>{{ i18n.t('review.sleepSummary') }}</span>
-            <strong>{{ moduleSummaries.sleep.selected_night?.log ? i18n.t('review.sleepRecorded') : i18n.t('review.sleepNotRecorded') }}</strong>
-            <p v-if="moduleSummaries.sleep.selected_night?.log" class="muted">
-              {{ i18n.t('review.sleepQuality', { quality: i18n.number(moduleSummaries.sleep.selected_night.log.quality) }) }}
-            </p>
-          </section>
-          <section class="metric" :aria-label="i18n.t('review.routineActivitySummary')">
-            <span>{{ i18n.t('review.routineActivitySummary') }}</span>
-            <strong>{{ moduleSummaries.routine_activities.completion_rate === null ? i18n.t('review.noActivities') : `${i18n.number(moduleSummaries.routine_activities.completion_rate)}%` }}</strong>
-            <p v-for="template in moduleSummaries.routine_activities.templates" :key="template.routine_id" class="muted">
-              {{ template.name }} · {{ i18n.t('today.activitiesResolved', { resolved: template.done + template.skipped, total: template.scheduled }) }}
-            </p>
-          </section>
-          <section class="metric" :aria-label="i18n.t('review.workoutSummary')">
-            <span>{{ i18n.t('review.workoutSummary') }}</span>
-            <strong>{{ i18n.t('today.workoutPlanned', { count: moduleSummaries.workouts.planned }) }}</strong>
-            <p class="muted">{{ i18n.t('workouts.completed') }}: {{ moduleSummaries.workouts.completed }} · {{ i18n.number(moduleSummaries.workouts.distance_m / 1000) }} km</p>
-          </section>
-          <section class="metric" :aria-label="i18n.t('review.nutritionSummary')">
-            <span>{{ i18n.t('review.nutritionSummary') }}</span>
-            <strong>{{ i18n.number(Number(moduleSummaries.nutrition.calories)) }} kcal</strong>
-            <p class="muted">{{ i18n.t('nutrition.hydration') }}: {{ i18n.number(Number(moduleSummaries.nutrition.hydration_ml)) }} ml</p>
-            <RouterLink :to="`/nutrition?date=${reviewDate}`">{{ i18n.t('today.openNutrition') }}</RouterLink>
-          </section>
-          <section class="metric" :aria-label="i18n.t('review.supplementSummary')">
-            <span>{{ i18n.t('review.supplementSummary') }}</span>
-            <strong>{{ moduleSummaries.supplements.adherence_percentage === null ? '—' : `${i18n.number(moduleSummaries.supplements.adherence_percentage)}%` }}</strong>
-            <p class="muted">{{ i18n.t('supplements.done') }}: {{ moduleSummaries.supplements.done }} · {{ i18n.t('supplements.skipped') }}: {{ moduleSummaries.supplements.skipped }}</p>
-            <RouterLink :to="`/supplements?date=${reviewDate}`">{{ i18n.t('today.openSupplements') }}</RouterLink>
-          </section>
-        </div>
+        <ReviewModuleGrid
+          v-if="isReady && moduleSummaries"
+          class="wide-field"
+          :modules="moduleSummaries"
+          :review-date="reviewDate"
+        />
 
         <form
         v-if="isReady"

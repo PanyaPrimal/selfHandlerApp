@@ -93,6 +93,11 @@
 - A summary drawn from every module. Manual input: self-assessment + wellbeing (energy/stress/mood) + a journal entry.
 - **A day score** derived from completion. Delivery: a reminder + an optional LLM summary.
 - Boundary with Analytics: the review is a single-day slice; analytics is trends over time.
+- **Feature 022 boundary (2026-08-14):** Review composes eight stable module-owned daily/period
+  aggregates and stores no copies. Its five-component daily score weights only available Nutrition,
+  Workout, Supplement, Habit, and Planner evidence equally and publishes coverage/reasons. Weekly
+  identity is Monday-Sunday; monthly identity is first-last calendar day; one reflection is unique by
+  owner/type/start and preserves its first completion time. Period trends remain Analytics-owned.
 
 ### Module 7 — Storage
 - **Hybrid architecture:** a shared "Item" base (capture/title/status/inbox) plus polymorphic, type-specific detail (task/idea/purchase/list item). Same pattern as Goals/Debts. A single fast capture plus idea → task conversion.
@@ -191,7 +196,8 @@ skipped occurrence facts alone may be cleared.
 - ER open questions are partially closed with recommendations: a transfer = two linked records; a virtual envelope = "free balance"; money = DECIMAL(19,4) + a Money VO; currency conversion at read time.
 
 ### Identified gaps (NOT yet in the spec — next-phase backlog)
-- A weekly/monthly **review** as an entity (present in the Vision, but the spec has only the daily review).
+- ~~A weekly/monthly **review** as an entity.~~ Closed by feature 022 with canonical owner-scoped
+  weekly/monthly reflections over live module aggregates.
 - **Notifications** as a separate subsystem (not part of the Planner): channels + escalation + snooze.
 - **Import/export/backup** of everything (the Vision requires being able to "pull everything out of a dozen places").
 - A **"Today"** screen as the root + a single app-wide **quick capture** into one inbox (not buried inside M7).
