@@ -115,8 +115,11 @@ complete prior local months and return an explicit unavailable state when histor
 - **Grouped source-of-truth queries first.** Feature 018 account balances use indexed grouped ledger
   sums without a mutable cache. A later feature may add a rebuildable cache only after measured need;
   the append-only ledger remains authoritative.
-- **A daily-rollup layer** for analytics over long periods: a `daily_metrics` table (date, metric, value), populated on write or by a nightly job. Analytics reads the rollup, not years of raw logs.
-- Decide this before the "Today" dashboard and Module 9 (otherwise you'll be rewriting queries).
+- **Bounded module-owned daily primitives first.** Feature 023 keeps each formula beside its source
+  module, uses grouped indexed queries over strict maximum ranges, and lets Analytics compose buckets
+  without importing raw models. No `daily_metrics` table is justified by current measured demand.
+- A future rebuildable daily cache may preserve the same primitive contract if production evidence
+  shows it is needed; it must not become a second source of truth.
 - ⚠️ This is the physical implementation of the principle in [Modules Spec](modules.md).
 
 ---
@@ -129,11 +132,12 @@ complete prior local months and return an explicit unavailable state when histor
 - [ ] SoftDeletes vs is_archived — defined per entity
 - [ ] UTC + timezone from the profile — date policy
 - [ ] Base units of measurement fixed
-- [ ] Aggregate strategy (cache + rollup) — before analytics/dashboard
+- [x] Aggregate strategy — bounded grouped module primitives first; rebuildable cache only after measured need (feature 023)
 
 ## Open questions
 
 1. ✅ Money uses `DECIMAL(19,4)` plus the exact `Money` value object (feature 018).
-2. Daily-rollup: which metrics go in the rollup, and the recomputation frequency (nightly vs. on write).
+2. If measured demand requires a daily cache, define its rebuild/invalidation evidence and retain the
+   feature 023 source-contract semantics.
 3. Audit trail for changes to financial records (who edited a transaction and when) — do we need `laravel-auditable` selectively, or are timestamps enough?
 4. JSON vs. nullable columns for the specifics of similar types — finalize per entity at migration time.

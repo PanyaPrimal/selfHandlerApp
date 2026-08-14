@@ -201,4 +201,5 @@ return [
     'review_period_invalid' => 'Choose a daily, weekly, or monthly review period.',
     'review_date_invalid' => 'Choose a valid calendar date.',
     'periodic_review_field_required' => 'Provide at least one periodic review field.',
+    'analytics_range_invalid' => 'Choose an ordered Analytics date range of no more than :days days.',
 ];

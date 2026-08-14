@@ -98,6 +98,11 @@ import type {
   SupplementRestockProposal,
   SupplementStockMovement,
   SupplementStockMovementInput,
+  AnalyticsCatalog,
+  AnalyticsCorrelationWorkspace,
+  AnalyticsGranularity,
+  AnalyticsMetricKey,
+  AnalyticsWorkspace,
 } from './types'
 import { jsonRequest, request } from './http'
 import type {
@@ -150,6 +155,34 @@ import type {
 // validation errors of a 422 response.
 export { ApiError, validationErrors } from './http'
 export type { ValidationErrors } from './http'
+
+export async function getAnalyticsCatalog(): Promise<AnalyticsCatalog> {
+  return (await request<ItemResponse<AnalyticsCatalog>>('/analytics/catalog')).data
+}
+
+export async function getAnalyticsWorkspace(params: {
+  metric: AnalyticsMetricKey
+  from: string
+  to: string
+  granularity: AnalyticsGranularity
+  compare: boolean
+}): Promise<AnalyticsWorkspace> {
+  const query = new URLSearchParams({
+    metric: params.metric,
+    from: params.from,
+    to: params.to,
+    granularity: params.granularity,
+    compare: params.compare ? '1' : '0',
+  })
+
+  return (await request<ItemResponse<AnalyticsWorkspace>>(`/analytics/workspace?${query.toString()}`)).data
+}
+
+export async function getAnalyticsCorrelations(params: { from: string, to: string }): Promise<AnalyticsCorrelationWorkspace> {
+  const query = new URLSearchParams(params)
+
+  return (await request<ItemResponse<AnalyticsCorrelationWorkspace>>(`/analytics/correlations?${query.toString()}`)).data
+}
 
 export async function getFinanceCurrencies(): Promise<FinanceCurrency[]> {
   return (await request<ListResponse<FinanceCurrency>>('/finance/currencies')).data

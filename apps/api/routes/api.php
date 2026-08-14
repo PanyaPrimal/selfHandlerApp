@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\BodyGoalController;
 use App\Http\Controllers\BodyMeasurementController;
@@ -74,6 +75,10 @@ Route::middleware(['auth:sanctum', 'mobile.token'])->group(function () {
 });
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/analytics/catalog', [AnalyticsController::class, 'catalog']);
+    Route::get('/analytics/workspace', [AnalyticsController::class, 'workspace']);
+    Route::get('/analytics/correlations', [AnalyticsController::class, 'correlations']);
+
     Route::post('/attachments', [AttachmentController::class, 'store']);
     Route::get('/attachments/{attachment}/content', [AttachmentController::class, 'content'])
         ->whereNumber('attachment');

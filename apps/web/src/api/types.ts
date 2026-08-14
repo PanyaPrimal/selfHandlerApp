@@ -1867,3 +1867,127 @@ export interface FinanceGoalInput { name: string, description: string | null, ta
 export interface FinanceGoalUpdate { name?: string, description?: string | null, target_date?: string | null, status?: FinanceGoal['status'], archived?: boolean, milestones?: Array<{ target_value: string, target_date: string | null }> }
 export interface FinanceSourceExpenseInput { source_type: FinanceSourceType, source_id: number, account_id: number, category_id: number, amount: string, occurred_on: string, idempotency_key: string, note: string | null }
 export interface FinanceSourceExpenseResponse { transaction_public_id: string, source: FinanceSourceContext, reversed: boolean }
+
+/* Cross-module long-period analytics (feature 023) */
+export type AnalyticsMetricKey =
+  | 'routines.completion_rate'
+  | 'sleep.duration_minutes'
+  | 'sleep.quality'
+  | 'workouts.completed_sessions'
+  | 'workouts.duration_minutes'
+  | 'nutrition.calorie_target_adherence'
+  | 'supplements.adherence'
+  | 'habits.completion_rate'
+  | 'planner.completion_rate'
+  | 'finance.income'
+  | 'finance.expense'
+  | 'finance.net'
+  | 'review.energy'
+  | 'review.mood'
+  | 'review.stress'
+  | 'review.day_rating'
+  | 'body.body_mass'
+
+export type AnalyticsGranularity = 'daily' | 'weekly' | 'monthly'
+export type AnalyticsMetricUnit = 'percent' | 'minutes' | 'count' | 'currency' | 'rating_5' | 'rating_10' | 'kilograms'
+export type AnalyticsPointState = 'ready' | 'empty' | 'incomplete'
+export type AnalyticsCorrelationKey = 'sleep_energy' | 'sleep_quality_mood' | 'habit_completion_day_rating'
+
+export interface AnalyticsMetricDefinition {
+  key: AnalyticsMetricKey
+  module: 'routines' | 'sleep' | 'workouts' | 'nutrition' | 'supplements' | 'habits' | 'planner' | 'finance' | 'review' | 'body'
+  unit: AnalyticsMetricUnit
+  operator: 'sum' | 'mean' | 'percentage' | 'last'
+  precision: 0 | 2 | 4
+  empty_is_zero: boolean
+  sensitivity: 'standard' | 'well_being' | 'health' | 'finance'
+}
+
+export interface AnalyticsCorrelationDefinition {
+  key: AnalyticsCorrelationKey
+  left_metric: AnalyticsMetricKey
+  right_metric: AnalyticsMetricKey
+  minimum_samples: 7
+}
+
+export interface AnalyticsLimits {
+  daily_days: 93
+  weekly_days: 730
+  monthly_days: 3653
+  correlation_days: 366
+}
+
+export interface AnalyticsCatalog {
+  metrics: AnalyticsMetricDefinition[]
+  correlations: AnalyticsCorrelationDefinition[]
+  limits: AnalyticsLimits
+}
+
+export interface AnalyticsPoint {
+  bucket_start: string
+  bucket_end: string
+  state: AnalyticsPointState
+  value: string | null
+  sample_count: number
+  numerator: string | null
+  denominator: string | null
+  reasons: string[]
+}
+
+export interface AnalyticsTrend {
+  state: 'empty' | 'insufficient' | 'ready'
+  available_points: number
+  total_buckets: number
+  first: string | null
+  last: string | null
+  delta: string | null
+  slope_per_bucket: string | null
+}
+
+export interface AnalyticsPeriodAggregate {
+  from: string
+  to: string
+  state: AnalyticsPointState
+  value: string | null
+  sample_count: number
+  numerator: string | null
+  denominator: string | null
+  reasons: string[]
+}
+
+export interface AnalyticsComparison {
+  current: AnalyticsPeriodAggregate
+  previous: AnalyticsPeriodAggregate
+  absolute_delta: string | null
+  percentage_delta: string | null
+  percentage_delta_reason: 'available' | 'missing_value' | 'previous_zero'
+}
+
+export interface AnalyticsWorkspace {
+  period: { from: string, to: string, granularity: AnalyticsGranularity, timezone: string }
+  metric: AnalyticsMetricDefinition
+  currency: FinanceCurrencyCode | null
+  points: AnalyticsPoint[]
+  trend: AnalyticsTrend
+  comparison: AnalyticsComparison | null
+}
+
+export interface AnalyticsCorrelationFinding {
+  key: AnalyticsCorrelationKey
+  left_metric: AnalyticsMetricKey
+  right_metric: AnalyticsMetricKey
+  from: string
+  to: string
+  state: 'ready' | 'unavailable'
+  coefficient: string | null
+  direction: 'positive' | 'negative' | 'none' | null
+  strength: 'none' | 'weak' | 'moderate' | 'strong' | null
+  sample_count: number
+  minimum_samples: 7
+  reason: 'insufficient_samples' | 'zero_variance' | null
+}
+
+export interface AnalyticsCorrelationWorkspace {
+  period: { from: string, to: string, timezone: string }
+  findings: AnalyticsCorrelationFinding[]
+}

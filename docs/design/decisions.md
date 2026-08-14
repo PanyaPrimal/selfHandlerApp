@@ -122,6 +122,13 @@
 - Periods: day/week/month + custom + period-over-period comparison.
 - Conclusions: rules (always) + LLM (optional).
 - **Export** (important): CSV/PDF (for a doctor/coach, and backup).
+- **Feature 023 boundary (2026-08-14):** Analytics has no fact store. Ten module-owned source
+  adapters publish bounded owner-local daily primitives for a closed 17-metric catalog; Analytics
+  composes those primitives into clipped daily/Monday-week/calendar-month buckets, equal-period
+  comparison, OLS trends, and three pairwise-complete Pearson findings. Missing and incomplete
+  evidence stays explicit, corrections are live on the next read, and raw source models and private
+  fields never cross the boundary. A persistent rollup cache waits for measured need. Exports,
+  restore, AI text, calendar/provider integrations, offline authority, and deployment remain deferred.
 
 ### Module 10 — Finance
 - **Multiple accounts + transfers** (cash/cards/savings/foreign-currency, each with its own balance; a transfer is a paired transaction, not income/expense).

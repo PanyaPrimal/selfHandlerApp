@@ -180,7 +180,8 @@ Notes:
 
 - This is a daily cross-section, not analytics over time.
 - Feature 022 additively delivers weekly/monthly reflections in `periodic_reviews`; trends and
-  correlations remain deferred to Analytics.
+  correlations remain separate from Review. Feature 023 now computes them on read from bounded
+  module-owned daily primitives without adding an Analytics table.
 
 ## Deferred Tables
 
@@ -198,6 +199,8 @@ Reason:
 - The MVP can be built with direct routine logs and simple schedule fields.
 - The full recurrence engine is already designed, but implementing it before the first visible flow would make the first slice much larger.
 - The current model leaves a clear migration path: `Routine` can later own a `RecurringRule`.
+- Feature 023 deliberately leaves `daily_metrics` unimplemented: bounded grouped source queries meet
+  the current performance contract, and a rebuildable cache requires measured demand.
 
 ## API Endpoints
 

@@ -21,6 +21,7 @@ import WorkoutsView from './views/WorkoutsView.vue'
 import NutritionView from './views/NutritionView.vue'
 import SupplementsView from './views/SupplementsView.vue'
 import FinanceView from './views/FinanceView.vue'
+import AnalyticsView from './views/AnalyticsView.vue'
 import { isAndroidNative } from './mobile/platform'
 
 declare module 'vue-router' {
@@ -106,6 +107,11 @@ export const router = createRouter({
           path: 'review/:date?',
           name: 'review',
           component: ReviewView,
+        },
+        {
+          path: 'analytics',
+          name: 'analytics',
+          component: AnalyticsView,
         },
         {
           path: 'planner',

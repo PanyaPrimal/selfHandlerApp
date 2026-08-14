@@ -49,6 +49,13 @@ Profile, selected body goal, and effective Workout occurrences with explicit pla
 Workout energy only refines the read-time comparison. Nutrition computes selected-day and bounded
 range summaries; Today transports that DTO and Review presents it without persisting a second copy.
 
+Analytics is a read-only composition boundary over ten module-owned metric sources. Source modules
+produce bounded owner-local daily primitives; the Analytics core alone constructs clipped daily,
+Monday-week, and calendar-month buckets, comparisons, trends, and pairwise-complete correlations.
+Its stable 17-metric catalog and three correlation definitions are API metadata, not persisted facts.
+No Analytics service imports source models or stores raw history, and every response contains only
+aggregate evidence rather than notes, journals, attachments, transactions, or identifiers.
+
 ### `apps/web`
 
 Vue 3 SPA for desktop and mobile web usage.

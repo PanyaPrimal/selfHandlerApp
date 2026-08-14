@@ -1,0 +1,494 @@
+openapi: 3.1.0
+info:
+  title: SelfHandler Analytics API
+  version: 0.1.0
+  description: Aggregate-only deterministic trends, comparison, and selected correlations for feature 023.
+servers:
+  - url: /api
+security:
+  - sanctum: []
+paths:
+  /analytics/catalog:
+    get:
+      operationId: getAnalyticsCatalog
+      summary: List supported metric and correlation definitions
+      responses:
+        '200':
+          description: Closed Analytics catalog and request limits
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AnalyticsCatalog'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+  /analytics/workspace:
+    get:
+      operationId: getAnalyticsWorkspace
+      summary: Read one derived metric trend and optional previous-period comparison
+      parameters:
+        - $ref: '#/components/parameters/Metric'
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+        - $ref: '#/components/parameters/Granularity'
+        - name: compare
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: Selected aggregate trend workspace
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AnalyticsWorkspace'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+  /analytics/correlations:
+    get:
+      operationId: getAnalyticsCorrelations
+      summary: Read the three fixed deterministic correlation findings
+      parameters:
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+      responses:
+        '200':
+          description: Aggregate-only pairwise correlation findings
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/CorrelationWorkspace'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+components:
+  securitySchemes:
+    sanctum:
+      type: apiKey
+      in: cookie
+      name: selfhandler_session
+      description: Existing stateful first-party session or mobile Sanctum bearer transport.
+  parameters:
+    Metric:
+      name: metric
+      in: query
+      required: false
+      schema:
+        $ref: '#/components/schemas/MetricKey'
+        default: sleep.duration_minutes
+    From:
+      name: from
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date
+    To:
+      name: to
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date
+    Granularity:
+      name: granularity
+      in: query
+      required: false
+      schema:
+        $ref: '#/components/schemas/Granularity'
+        default: daily
+  responses:
+    Unauthenticated:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [message]
+            properties:
+              message:
+                type: string
+    ValidationFailed:
+      description: Strict query validation failed
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [message, errors]
+            properties:
+              message:
+                type: string
+              errors:
+                type: object
+                minProperties: 1
+                additionalProperties:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: string
+  schemas:
+    MetricKey:
+      type: string
+      enum:
+        - routines.completion_rate
+        - sleep.duration_minutes
+        - sleep.quality
+        - workouts.completed_sessions
+        - workouts.duration_minutes
+        - nutrition.calorie_target_adherence
+        - supplements.adherence
+        - habits.completion_rate
+        - planner.completion_rate
+        - finance.income
+        - finance.expense
+        - finance.net
+        - review.energy
+        - review.mood
+        - review.stress
+        - review.day_rating
+        - body.body_mass
+    Granularity:
+      type: string
+      enum: [daily, weekly, monthly]
+    MetricDefinition:
+      type: object
+      additionalProperties: false
+      required: [key, module, unit, operator, precision, empty_is_zero, sensitivity]
+      properties:
+        key:
+          $ref: '#/components/schemas/MetricKey'
+        module:
+          type: string
+          enum: [routines, sleep, workouts, nutrition, supplements, habits, planner, finance, review, body]
+        unit:
+          type: string
+          enum: [percent, minutes, count, currency, rating_5, rating_10, kilograms]
+        operator:
+          type: string
+          enum: [sum, mean, percentage, last]
+        precision:
+          type: integer
+          enum: [0, 2, 4]
+        empty_is_zero:
+          type: boolean
+        sensitivity:
+          type: string
+          enum: [standard, well_being, health, finance]
+    CorrelationDefinition:
+      type: object
+      additionalProperties: false
+      required: [key, left_metric, right_metric, minimum_samples]
+      properties:
+        key:
+          type: string
+          enum: [sleep_energy, sleep_quality_mood, habit_completion_day_rating]
+        left_metric:
+          $ref: '#/components/schemas/MetricKey'
+        right_metric:
+          $ref: '#/components/schemas/MetricKey'
+        minimum_samples:
+          type: integer
+          const: 7
+    AnalyticsLimits:
+      type: object
+      additionalProperties: false
+      required: [daily_days, weekly_days, monthly_days, correlation_days]
+      properties:
+        daily_days:
+          type: integer
+          const: 93
+        weekly_days:
+          type: integer
+          const: 730
+        monthly_days:
+          type: integer
+          const: 3653
+        correlation_days:
+          type: integer
+          const: 366
+    AnalyticsCatalog:
+      type: object
+      additionalProperties: false
+      required: [metrics, correlations, limits]
+      properties:
+        metrics:
+          type: array
+          minItems: 17
+          maxItems: 17
+          items:
+            $ref: '#/components/schemas/MetricDefinition'
+        correlations:
+          type: array
+          minItems: 3
+          maxItems: 3
+          items:
+            $ref: '#/components/schemas/CorrelationDefinition'
+        limits:
+          $ref: '#/components/schemas/AnalyticsLimits'
+    Period:
+      type: object
+      additionalProperties: false
+      required: [from, to, granularity, timezone]
+      properties:
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+        granularity:
+          $ref: '#/components/schemas/Granularity'
+        timezone:
+          type: string
+          minLength: 1
+          maxLength: 64
+    MetricPoint:
+      type: object
+      additionalProperties: false
+      required: [bucket_start, bucket_end, state, value, sample_count, numerator, denominator, reasons]
+      properties:
+        bucket_start:
+          type: string
+          format: date
+        bucket_end:
+          type: string
+          format: date
+        state:
+          type: string
+          enum: [ready, empty, incomplete]
+        value:
+          oneOf:
+            - $ref: '#/components/schemas/Decimal'
+            - type: 'null'
+        sample_count:
+          type: integer
+          minimum: 0
+        numerator:
+          oneOf:
+            - $ref: '#/components/schemas/Decimal'
+            - type: 'null'
+        denominator:
+          oneOf:
+            - $ref: '#/components/schemas/Decimal'
+            - type: 'null'
+        reasons:
+          type: array
+          maxItems: 3
+          uniqueItems: true
+          items:
+            type: string
+            pattern: '^(missing_evidence|missing_fx:[A-Z]{3})$'
+    TrendSummary:
+      type: object
+      additionalProperties: false
+      required: [state, available_points, total_buckets, first, last, delta, slope_per_bucket]
+      properties:
+        state:
+          type: string
+          enum: [empty, insufficient, ready]
+        available_points:
+          type: integer
+          minimum: 0
+        total_buckets:
+          type: integer
+          minimum: 1
+        first:
+          oneOf:
+            - $ref: '#/components/schemas/Decimal'
+            - type: 'null'
+        last:
+          oneOf:
+            - $ref: '#/components/schemas/Decimal'
+            - type: 'null'
+        delta:
+          oneOf:
+            - $ref: '#/components/schemas/Decimal'
+            - type: 'null'
+        slope_per_bucket:
+          oneOf:
+            - $ref: '#/components/schemas/Decimal'
+            - type: 'null'
+    PeriodAggregate:
+      type: object
+      additionalProperties: false
+      required: [from, to, state, value, sample_count, numerator, denominator, reasons]
+      properties:
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+        state:
+          type: string
+          enum: [ready, empty, incomplete]
+        value:
+          oneOf:
+            - $ref: '#/components/schemas/Decimal'
+            - type: 'null'
+        sample_count:
+          type: integer
+          minimum: 0
+        numerator:
+          oneOf:
+            - $ref: '#/components/schemas/Decimal'
+            - type: 'null'
+        denominator:
+          oneOf:
+            - $ref: '#/components/schemas/Decimal'
+            - type: 'null'
+        reasons:
+          type: array
+          maxItems: 3
+          uniqueItems: true
+          items:
+            type: string
+            pattern: '^(missing_evidence|missing_fx:[A-Z]{3})$'
+    PeriodComparison:
+      type: object
+      additionalProperties: false
+      required: [current, previous, absolute_delta, percentage_delta, percentage_delta_reason]
+      properties:
+        current:
+          $ref: '#/components/schemas/PeriodAggregate'
+        previous:
+          $ref: '#/components/schemas/PeriodAggregate'
+        absolute_delta:
+          oneOf:
+            - $ref: '#/components/schemas/Decimal'
+            - type: 'null'
+        percentage_delta:
+          oneOf:
+            - $ref: '#/components/schemas/Decimal'
+            - type: 'null'
+        percentage_delta_reason:
+          type: string
+          enum: [available, missing_value, previous_zero]
+    AnalyticsWorkspace:
+      type: object
+      additionalProperties: false
+      required: [period, metric, currency, points, trend, comparison]
+      properties:
+        period:
+          $ref: '#/components/schemas/Period'
+        metric:
+          $ref: '#/components/schemas/MetricDefinition'
+        currency:
+          type: [string, 'null']
+          pattern: '^[A-Z]{3}$'
+        points:
+          type: array
+          minItems: 1
+          maxItems: 121
+          items:
+            $ref: '#/components/schemas/MetricPoint'
+        trend:
+          $ref: '#/components/schemas/TrendSummary'
+        comparison:
+          oneOf:
+            - $ref: '#/components/schemas/PeriodComparison'
+            - type: 'null'
+    CorrelationFinding:
+      type: object
+      additionalProperties: false
+      required:
+        - key
+        - left_metric
+        - right_metric
+        - from
+        - to
+        - state
+        - coefficient
+        - direction
+        - strength
+        - sample_count
+        - minimum_samples
+        - reason
+      properties:
+        key:
+          type: string
+          enum: [sleep_energy, sleep_quality_mood, habit_completion_day_rating]
+        left_metric:
+          $ref: '#/components/schemas/MetricKey'
+        right_metric:
+          $ref: '#/components/schemas/MetricKey'
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+        state:
+          type: string
+          enum: [ready, unavailable]
+        coefficient:
+          oneOf:
+            - type: string
+              pattern: '^-?(?:0(?:\.\d{4})?|1(?:\.0000)?)$'
+            - type: 'null'
+        direction:
+          type: [string, 'null']
+          enum: [positive, negative, none, null]
+        strength:
+          type: [string, 'null']
+          enum: [none, weak, moderate, strong, null]
+        sample_count:
+          type: integer
+          minimum: 0
+          maximum: 366
+        minimum_samples:
+          type: integer
+          const: 7
+        reason:
+          type: [string, 'null']
+          enum: [insufficient_samples, zero_variance, null]
+    CorrelationWorkspace:
+      type: object
+      additionalProperties: false
+      required: [period, findings]
+      properties:
+        period:
+          type: object
+          additionalProperties: false
+          required: [from, to, timezone]
+          properties:
+            from:
+              type: string
+              format: date
+            to:
+              type: string
+              format: date
+            timezone:
+              type: string
+              minLength: 1
+              maxLength: 64
+        findings:
+          type: array
+          minItems: 3
+          maxItems: 3
+          items:
+            $ref: '#/components/schemas/CorrelationFinding'
+    Decimal:
+      type: string
+      pattern: '^-?(?:0|[1-9][0-9]*)(?:\.[0-9]{1,4})?$'

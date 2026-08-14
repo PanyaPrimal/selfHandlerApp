@@ -618,7 +618,9 @@ shape but never mutate Supplement stock or proposal lifecycle.
 
 ## Module 9 — Analytics
 
-> In design (2026-06-07). A display layer: it gathers ready-made totals from the modules (see "Each module computes its own aggregates"), it does not duplicate the aggregation.
+> Delivered in feature 023 (2026-08-14). A read-only display/composition layer: it gathers bounded
+> daily primitives from module-owned aggregate services (see "Each module computes its own
+> aggregates"); it does not own or duplicate source facts.
 > The boundary with "Module 6 — Daily Review": the review = a single-day cross-section; analytics = trends over a period.
 
 ### The core — trends + correlations
@@ -630,6 +632,22 @@ shape but never mutate Supplement stock or proposal lifecycle.
 ### Periods and cross-sections
 - Day / week / month + **an arbitrary date range**
 - **Period comparison** (this month vs last)
+
+### Delivered feature 023 boundary
+- The closed catalog exposes 17 metrics from Routines, Sleep, Workouts, Nutrition, Supplements,
+  Habits, Planner, Finance, Review, and Body. Each source is called through a stable aggregate
+  contract; Analytics imports no raw source models and has no persistence or migration.
+- Bounded ranges are 93 days for daily buckets, 730 for Monday-week buckets, 3653 for calendar-month
+  buckets, and 366 for correlations. Buckets use the Profile timezone and retain explicit available,
+  empty, or incomplete evidence instead of filling gaps.
+- Trends publish first/last/delta and ordinary-least-squares slope from available points. Comparison
+  uses the immediately preceding equal inclusive date range and guards a zero previous value.
+- The first deterministic correlation set is sleep duration ↔ energy, sleep quality ↔ mood, and
+  habit completion ↔ day rating. Pearson uses pairwise-complete daily values, requires seven samples,
+  rejects zero variance, rounds to four decimals, and always shows an association-not-causation notice.
+- The responsive EN/RU/UK browser and synchronized Android bundle provide exact accessible tables and
+  dependency-free SVG charts. Exports/reports, AI conclusions, provider imports, offline authority,
+  calendar integration, and deployment remain outside this feature.
 
 ### Conclusions — rules + LLM (the "layer" pattern)
 - **Level 1 (rules, mandatory):** deterministic correlations/conclusions by rules (a threshold, a trend, a comparison with a target) — works without AI
@@ -645,9 +663,11 @@ shape but never mutate Supplement stock or proposal lifecycle.
 - "Module 0 — User Profile" (body measurements), "Module 6 — Daily Review" (well-being/score), "Module 4 — Goals" (progress), "Module 11 — AI Assistant (cross-cutting layer)" (insights)
 
 ### TODO / open questions
-- Exactly which correlations we compute by rules (a list of metric pairs)
-- Performance over large periods (precomputation/caching of aggregates?)
-- Export formats
+- Whether measured production demand justifies rebuildable precomputation beyond the current bounded
+  grouped source queries.
+- Export/report formats and restore boundaries are owned by feature 024.
+- Additional correlation pairs require their own validated semantics and must not be inferred from
+  the first fixed set.
 
 ---
 

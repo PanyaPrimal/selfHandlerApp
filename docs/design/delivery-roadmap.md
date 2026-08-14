@@ -13,7 +13,7 @@ $speckit-analyze -> $speckit-implement` before application code changes.
 > `016-nutrition-meals-hydration-targets`, `017-supplements-courses-intake-stock`, and
 > `018-finance-ledger-foundation`, `019-budget-recurring-cash-flow`,
 > `020-debts-funds-financial-goals`, `021-private-attachments`, and
-> `022-cross-module-periodic-review` are complete. Native compilation and device installation evidence for 012 remains externally blocked in
+> `022-cross-module-periodic-review` and `023-analytics-long-period-rollups` are complete. Native compilation and device installation evidence for 012 remains externally blocked in
 > this workspace because Android Studio, JDK, SDK, Gradle, and `adb` are absent; all repository-owned
 > server, web, configuration, sync, resource, and native-source gates pass.
 > `002-homelab-deployment` stops at T055 by product decision: the current homelab deployment is
@@ -506,6 +506,15 @@ correlates module-owned values; it does not become the owner of nutrition, worko
 calculations.
 
 **Prerequisites:** 022 and at least two meaningful time-series source modules.
+
+Delivered as a migration-free read boundary over ten module-owned daily primitive sources and a
+closed 17-metric catalog. Strict Profile-local ranges produce clipped day/Monday-week/calendar-month
+rollups, exact tables, OLS trends, and immediately preceding equal-period comparisons with explicit
+missing/incomplete evidence. Three fixed Pearson correlations use pairwise-complete daily samples,
+minimum-sample/zero-variance states, and a non-causality disclosure. The authenticated aggregate-only
+API, responsive accessible EN/RU/UK browser surface, synchronized Android bundle, bounded query
+budgets, correction freshness, and desktop/exact-mobile visual matrix are complete. Persistence,
+exports/restore, calendar/provider integrations, AI, offline authority, and deployment remain deferred.
 
 ### 024 — Data Portability and Reports
 

@@ -95,6 +95,14 @@ identities, while corrections in source modules remain visible without rewriting
 Long-period trends, reports/exports, integrations, AI narratives, and native offline authority remain
 deferred to their owning features.
 
+Feature 023 adds authenticated long-period Analytics without a second fact store. Seventeen metrics
+come from bounded, owner-scoped daily primitives maintained by their source modules and are composed
+into daily, Monday-week, or calendar-month rollups with explicit ready, empty, and incomplete evidence.
+Users can inspect exact tables and accessible SVG trends, compare the preceding equal-length period,
+and view three deterministic Pearson correlations with sample and causality disclosures. Corrections
+are reflected on the next read; exports/reports, calendar integrations, AI narratives, provider data,
+offline authority, and deployment remain deferred.
+
 The Android package in `apps/mobile` wraps the same production Vue bundle with Capacitor 8. Existing
 accounts use a separate 30-day, `mobile`-scoped Sanctum token stored by a custom Android Keystore
 AES-GCM plugin; browser cookie/CSRF auth is unchanged. Android local notifications are an opt-in
