@@ -1,0 +1,1433 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #ece9e2; }
+  body { font-family: 'Hanken Grotesk', system-ui, sans-serif; color: #232220; -webkit-font-smoothing: antialiased; }
+  ::selection { background: #d3e2d6; }
+  input[type=range] { -webkit-appearance: none; appearance: none; height: 4px; border-radius: 3px; background: #e2ddd3; outline: none; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #3d6b4e; cursor: pointer; border: 3px solid #fff; box-shadow: 0 1px 3px rgba(30,28,24,.3); }
+  textarea, input[type=text] { font-family: inherit; }
+  textarea:focus, input:focus { outline: none; }
+</style>
+</helmet>
+
+<template id="__bundler_thumbnail">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100" height="100" fill="#ece9e2"/>
+    <rect x="30" y="30" width="40" height="40" rx="11" fill="#3d6b4e"/>
+    <rect x="44" y="44" width="12" height="12" rx="3" fill="#fff"/>
+  </svg>
+</template>
+<div style="min-height:100vh; background:#ece9e2; background-image: radial-gradient(circle at 1px 1px, rgba(30,28,24,.05) 1px, transparent 0); background-size: 28px 28px;">
+<div style="max-width:1180px; margin:0 auto; padding:0 28px 120px;">
+
+  <!-- ============ MASTHEAD ============ -->
+  <header style="padding:64px 0 40px;">
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:28px;">
+      <div style="width:22px; height:22px; border-radius:6px; background:#3d6b4e; display:flex; align-items:center; justify-content:center;">
+        <div style="width:8px; height:8px; border-radius:2px; background:#fff;"></div>
+      </div>
+      <span style="font-family:'JetBrains Mono',monospace; font-size:13px; letter-spacing:.18em; text-transform:uppercase; color:#3d6b4e; font-weight:600;">SelfHandler</span>
+    </div>
+    <h1 style="font-size:54px; line-height:1.04; letter-spacing:-.02em; margin:0 0 20px; max-width:780px; font-weight:600;">MVP UI/UX — the daily operating system.</h1>
+    <p style="font-size:19px; line-height:1.55; color:#56524b; max-width:620px; margin:0 0 32px; text-wrap:pretty;">A focused first slice: open to <strong style="color:#232220; font-weight:600;">Today</strong>, run your routines, link them to goals, and close the day with an evening review. Calm, repeat-use, built for the long haul — not a habit toy.</p>
+    <div style="display:flex; flex-wrap:wrap; gap:8px;">
+      <span style="font-family:'JetBrains Mono',monospace; font-size:12px; padding:7px 12px; border-radius:7px; background:#fff; border:1px solid #e0dcd2; color:#56524b;">Hi-fi · production-ready</span>
+      <span style="font-family:'JetBrains Mono',monospace; font-size:12px; padding:7px 12px; border-radius:7px; background:#fff; border:1px solid #e0dcd2; color:#56524b;">Mobile + Desktop</span>
+      <span style="font-family:'JetBrains Mono',monospace; font-size:12px; padding:7px 12px; border-radius:7px; background:#fff; border:1px solid #e0dcd2; color:#56524b;">Vue 3 SPA · Laravel REST</span>
+      <span style="font-family:'JetBrains Mono',monospace; font-size:12px; padding:7px 12px; border-radius:7px; background:#eef3ef; border:1px solid #cfe0d3; color:#3d6b4e;">Interactive — tap the Today checklist</span>
+    </div>
+  </header>
+
+  <!-- index strip -->
+  <nav style="display:grid; grid-template-columns:repeat(4, 1fr); gap:1px; background:#e0dcd2; border:1px solid #e0dcd2; border-radius:12px; overflow:hidden; margin-bottom:8px;">
+    <div style="background:#f7f5f1; padding:14px 16px;"><div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#9a948a;">01 — 02</div><div style="font-size:14px; font-weight:500; margin-top:3px;">Screen map · Flows</div></div>
+    <div style="background:#f7f5f1; padding:14px 16px;"><div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#9a948a;">03 — 04</div><div style="font-size:14px; font-weight:500; margin-top:3px;">Mobile · Desktop</div></div>
+    <div style="background:#f7f5f1; padding:14px 16px;"><div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#9a948a;">05 — 06</div><div style="font-size:14px; font-weight:500; margin-top:3px;">Components · States</div></div>
+    <div style="background:#f7f5f1; padding:14px 16px;"><div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#9a948a;">07 — 08</div><div style="font-size:14px; font-weight:500; margin-top:3px;">Vue notes · Deferred</div></div>
+  </nav>
+
+  <!-- ============ DESIGN SYSTEM ============ -->
+  <section style="margin-top:64px;">
+    <div style="display:flex; align-items:baseline; gap:14px; margin-bottom:24px;">
+      <span style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#3d6b4e; font-weight:600;">00</span>
+      <h2 style="font-size:13px; font-family:'JetBrains Mono',monospace; letter-spacing:.14em; text-transform:uppercase; color:#56524b; margin:0; font-weight:600;">Visual system</h2>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1.2fr 1fr; gap:16px;">
+      <!-- palette + tone -->
+      <div style="background:#fff; border:1px solid #e0dcd2; border-radius:14px; padding:24px;">
+        <div style="font-size:15px; font-weight:600; margin-bottom:4px;">Palette — warm paper, muted forest</div>
+        <p style="font-size:13.5px; color:#76716a; margin:0 0 18px; line-height:1.5;">Near-monochrome warm neutrals so the content carries; one calm green for "done", active and progress. No alarm colors except a single soft red for true errors.</p>
+        <div style="display:grid; grid-template-columns:repeat(6,1fr); gap:8px;">
+          <div><div style="height:48px; border-radius:8px; background:#ece9e2; border:1px solid #e0dcd2;"></div><div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#9a948a; margin-top:6px;">paper</div></div>
+          <div><div style="height:48px; border-radius:8px; background:#ffffff; border:1px solid #e0dcd2;"></div><div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#9a948a; margin-top:6px;">surface</div></div>
+          <div><div style="height:48px; border-radius:8px; background:#3d6b4e;"></div><div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#9a948a; margin-top:6px;">accent</div></div>
+          <div><div style="height:48px; border-radius:8px; background:#eef3ef; border:1px solid #cfe0d3;"></div><div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#9a948a; margin-top:6px;">accent/8</div></div>
+          <div><div style="height:48px; border-radius:8px; background:#232220;"></div><div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#9a948a; margin-top:6px;">ink</div></div>
+          <div><div style="height:48px; border-radius:8px; background:#b5705a;"></div><div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#9a948a; margin-top:6px;">error</div></div>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:18px;">
+          <div style="flex:1; padding:10px 12px; border-radius:9px; background:#eef3ef; border:1px solid #cfe0d3;"><div style="font-size:12px; font-weight:600; color:#3d6b4e;">Done</div><div style="font-size:11px; color:#6f8a76;">forest, filled</div></div>
+          <div style="flex:1; padding:10px 12px; border-radius:9px; background:#f3f1ec; border:1px solid #e2ddd3;"><div style="font-size:12px; font-weight:600; color:#8c8377;">Skipped</div><div style="font-size:11px; color:#9a948a;">neutral, struck</div></div>
+          <div style="flex:1; padding:10px 12px; border-radius:9px; background:#fff; border:1px dashed #cfcabf;"><div style="font-size:12px; font-weight:600; color:#56524b;">To do</div><div style="font-size:11px; color:#9a948a;">open ring</div></div>
+        </div>
+      </div>
+
+      <!-- type -->
+      <div style="background:#fff; border:1px solid #e0dcd2; border-radius:14px; padding:24px;">
+        <div style="font-size:15px; font-weight:600; margin-bottom:14px;">Type — Hanken Grotesk + JetBrains Mono</div>
+        <div style="border-bottom:1px solid #efece5; padding-bottom:14px; margin-bottom:14px;">
+          <div style="font-size:32px; font-weight:600; letter-spacing:-.02em; line-height:1.1;">Close your day</div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#9a948a; margin-top:6px;">Display / 600 / -2% tracking</div>
+        </div>
+        <div style="border-bottom:1px solid #efece5; padding-bottom:14px; margin-bottom:14px;">
+          <div style="font-size:16px; line-height:1.5; color:#3f3b35;">UI body and labels stay in the humanist grotesque — quiet, legible at small sizes, friendly under daily repetition.</div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#9a948a; margin-top:6px;">Body / 400–500</div>
+        </div>
+        <div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:20px; font-weight:600; color:#3d6b4e;">80% · 4/5 · 12d streak</div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#9a948a; margin-top:6px;">Mono — every number, time, metric & code label</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 01 SCREEN MAP ============ -->
+  <section style="margin-top:72px;">
+    <div style="display:flex; align-items:baseline; gap:14px; margin-bottom:8px;">
+      <span style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#3d6b4e; font-weight:600;">01</span>
+      <h2 style="font-size:13px; font-family:'JetBrains Mono',monospace; letter-spacing:.14em; text-transform:uppercase; color:#56524b; margin:0; font-weight:600;">MVP screen map</h2>
+    </div>
+    <p style="font-size:16px; color:#56524b; max-width:620px; margin:0 0 28px; line-height:1.55;">Four routes, one hub. The app opens on <strong style="color:#232220;">Today</strong> — the workspace, not a landing page. Everything else exists to feed Today or be configured occasionally.</p>
+
+    <div style="background:#fff; border:1px solid #e0dcd2; border-radius:16px; padding:32px;">
+      <!-- entry -->
+      <div style="display:flex; justify-content:center; margin-bottom:10px;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#9a948a; padding:6px 12px; border:1px dashed #cfcabf; border-radius:20px;">app open · single-user session</div>
+      </div>
+      <div style="display:flex; justify-content:center;"><div style="width:1px; height:22px; background:#d8d2c7;"></div></div>
+
+      <!-- TODAY hub -->
+      <div style="max-width:520px; margin:0 auto;">
+        <div style="background:#eef3ef; border:1.5px solid #3d6b4e; border-radius:14px; padding:20px 22px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+            <div style="font-size:18px; font-weight:600; color:#2f5740;">Today  ·  /</div>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#3d6b4e; background:#fff; border:1px solid #cfe0d3; padding:4px 9px; border-radius:6px;">default route</span>
+          </div>
+          <div style="font-size:13.5px; color:#56655a; line-height:1.5;">Routine checklist · completion rate · streak summary · evening-review entry · goal context. Reads <code style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#3d6b4e;">GET /api/today</code>.</div>
+        </div>
+      </div>
+
+      <!-- connectors -->
+      <div style="display:flex; justify-content:center;"><div style="width:1px; height:22px; background:#d8d2c7;"></div></div>
+      <div style="max-width:840px; margin:0 auto; height:1px; background:#d8d2c7;"></div>
+      <div style="max-width:840px; margin:0 auto; display:grid; grid-template-columns:repeat(3,1fr);">
+        <div style="display:flex; justify-content:center;"><div style="width:1px; height:22px; background:#d8d2c7;"></div></div>
+        <div style="display:flex; justify-content:center;"><div style="width:1px; height:22px; background:#d8d2c7;"></div></div>
+        <div style="display:flex; justify-content:center;"><div style="width:1px; height:22px; background:#d8d2c7;"></div></div>
+      </div>
+
+      <!-- satellites -->
+      <div style="max-width:840px; margin:0 auto; display:grid; grid-template-columns:repeat(3,1fr); gap:16px;">
+        <div style="background:#faf8f4; border:1px solid #e6e2d8; border-radius:12px; padding:18px;">
+          <div style="font-size:15.5px; font-weight:600; margin-bottom:4px;">Routines  <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#9a948a; font-weight:400;">/routines</span></div>
+          <div style="font-size:13px; color:#76716a; line-height:1.5;">Create &amp; edit repeatable actions. Schedule: daily / weekdays. Activate or hide.</div>
+        </div>
+        <div style="background:#faf8f4; border:1px solid #e6e2d8; border-radius:12px; padding:18px;">
+          <div style="font-size:15.5px; font-weight:600; margin-bottom:4px;">Review  <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#9a948a; font-weight:400;">/review/:date?</span></div>
+          <div style="font-size:13px; color:#76716a; line-height:1.5;">One evening review per day — mood, energy, stress, rating, reflections.</div>
+        </div>
+        <div style="background:#faf8f4; border:1px solid #e6e2d8; border-radius:12px; padding:18px;">
+          <div style="font-size:15.5px; font-weight:600; margin-bottom:4px;">Goals  <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#9a948a; font-weight:400;">/goals</span></div>
+          <div style="font-size:13px; color:#76716a; line-height:1.5;">Active goals and the routines linked to each (many-to-many pivot).</div>
+        </div>
+      </div>
+
+      <div style="margin-top:24px; padding-top:18px; border-top:1px solid #efece5; display:flex; flex-wrap:wrap; gap:18px;">
+        <div style="display:flex; align-items:center; gap:8px;"><div style="width:10px; height:10px; border-radius:3px; background:#3d6b4e;"></div><span style="font-size:12.5px; color:#76716a;">Daily-loop screen (high frequency)</span></div>
+        <div style="display:flex; align-items:center; gap:8px;"><div style="width:10px; height:10px; border-radius:3px; background:#cdbf9c;"></div><span style="font-size:12.5px; color:#76716a;">Management screen (occasional)</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 02 FLOWS ============ -->
+  <section style="margin-top:72px;">
+    <div style="display:flex; align-items:baseline; gap:14px; margin-bottom:8px;">
+      <span style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#3d6b4e; font-weight:600;">02</span>
+      <h2 style="font-size:13px; font-family:'JetBrains Mono',monospace; letter-spacing:.14em; text-transform:uppercase; color:#56524b; margin:0; font-weight:600;">Core user flows</h2>
+    </div>
+    <p style="font-size:16px; color:#56524b; max-width:620px; margin:0 0 28px; line-height:1.55;">Four loops carry the whole MVP. Two run every day (morning, evening); two are setup, done occasionally.</p>
+
+    <div style="display:grid; gap:14px;">
+      <!-- flow A -->
+      <div style="background:#fff; border:1px solid #e0dcd2; border-radius:14px; padding:22px 24px;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:600; color:#3d6b4e; background:#eef3ef; border:1px solid #cfe0d3; padding:4px 9px; border-radius:6px;">DAILY · AM</span>
+          <span style="font-size:15px; font-weight:600;">Run the morning routine</span>
+        </div>
+        <div style="display:flex; align-items:center; flex-wrap:wrap; gap:6px; font-size:13.5px;">
+          <span style="padding:8px 13px; background:#f3f1ec; border-radius:8px;">Open app → Today</span>
+          <span style="color:#bdb7aa; font-family:'JetBrains Mono',monospace;">→</span>
+          <span style="padding:8px 13px; background:#f3f1ec; border-radius:8px;">See today's items + 0% bar</span>
+          <span style="color:#bdb7aa; font-family:'JetBrains Mono',monospace;">→</span>
+          <span style="padding:8px 13px; background:#eef3ef; border:1px solid #cfe0d3; border-radius:8px; color:#2f5740;">Tap row = done</span>
+          <span style="color:#bdb7aa; font-family:'JetBrains Mono',monospace;">→</span>
+          <span style="padding:8px 13px; background:#f3f1ec; border-radius:8px;">Completion + streak update</span>
+          <span style="color:#bdb7aa; font-family:'JetBrains Mono',monospace;">→</span>
+          <span style="padding:8px 13px; background:#f3f1ec; border-radius:8px;">Optimistic <code style="font-family:'JetBrains Mono',monospace; font-size:12px;">PUT …/logs/{date}</code></span>
+        </div>
+      </div>
+
+      <!-- flow B -->
+      <div style="background:#fff; border:1px solid #e0dcd2; border-radius:14px; padding:22px 24px;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:600; color:#8c7a52; background:#f6f1e6; border:1px solid #e6d9bf; padding:4px 9px; border-radius:6px;">DAILY · EDGE</span>
+          <span style="font-size:15px; font-weight:600;">Skip a routine deliberately</span>
+        </div>
+        <div style="display:flex; align-items:center; flex-wrap:wrap; gap:6px; font-size:13.5px;">
+          <span style="padding:8px 13px; background:#f3f1ec; border-radius:8px;">Long-press row <span style="color:#9a948a;">(mobile)</span> / Skip control <span style="color:#9a948a;">(desktop)</span></span>
+          <span style="color:#bdb7aa; font-family:'JetBrains Mono',monospace;">→</span>
+          <span style="padding:8px 13px; background:#f3f1ec; border-radius:8px;">Choose “Skip”, optional note</span>
+          <span style="color:#bdb7aa; font-family:'JetBrains Mono',monospace;">→</span>
+          <span style="padding:8px 13px; background:#f3f1ec; border-radius:8px;">Row struck, neutral — not a failure</span>
+          <span style="color:#bdb7aa; font-family:'JetBrains Mono',monospace;">→</span>
+          <span style="padding:8px 13px; background:#f3f1ec; border-radius:8px;">Excluded from completion rate</span>
+        </div>
+      </div>
+
+      <!-- flow C -->
+      <div style="background:#fff; border:1px solid #e0dcd2; border-radius:14px; padding:22px 24px;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:600; color:#3d6b4e; background:#eef3ef; border:1px solid #cfe0d3; padding:4px 9px; border-radius:6px;">DAILY · PM</span>
+          <span style="font-size:15px; font-weight:600;">Close the day with an evening review</span>
+        </div>
+        <div style="display:flex; align-items:center; flex-wrap:wrap; gap:6px; font-size:13.5px;">
+          <span style="padding:8px 13px; background:#f3f1ec; border-radius:8px;">Today → “Close your day”</span>
+          <span style="color:#bdb7aa; font-family:'JetBrains Mono',monospace;">→</span>
+          <span style="padding:8px 13px; background:#f3f1ec; border-radius:8px;">Mood · energy · stress · rating</span>
+          <span style="color:#bdb7aa; font-family:'JetBrains Mono',monospace;">→</span>
+          <span style="padding:8px 13px; background:#f3f1ec; border-radius:8px;">Went well · improve · notes</span>
+          <span style="color:#bdb7aa; font-family:'JetBrains Mono',monospace;">→</span>
+          <span style="padding:8px 13px; background:#eef3ef; border:1px solid #cfe0d3; border-radius:8px; color:#2f5740;">Save <code style="font-family:'JetBrains Mono',monospace; font-size:12px;">PUT /daily-reviews/{date}</code></span>
+        </div>
+      </div>
+
+      <!-- flow D -->
+      <div style="background:#fff; border:1px solid #e0dcd2; border-radius:14px; padding:22px 24px;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:600; color:#6a6256; background:#f0ede6; border:1px solid #ddd7cb; padding:4px 9px; border-radius:6px;">SETUP</span>
+          <span style="font-size:15px; font-weight:600;">Create a routine &amp; link it to a goal</span>
+        </div>
+        <div style="display:flex; align-items:center; flex-wrap:wrap; gap:6px; font-size:13.5px;">
+          <span style="padding:8px 13px; background:#f3f1ec; border-radius:8px;">Routines → New</span>
+          <span style="color:#bdb7aa; font-family:'JetBrains Mono',monospace;">→</span>
+          <span style="padding:8px 13px; background:#f3f1ec; border-radius:8px;">Name · kind · daily/weekdays · time</span>
+          <span style="color:#bdb7aa; font-family:'JetBrains Mono',monospace;">→</span>
+          <span style="padding:8px 13px; background:#f3f1ec; border-radius:8px;">Save → appears on Today</span>
+          <span style="color:#bdb7aa; font-family:'JetBrains Mono',monospace;">→</span>
+          <span style="padding:8px 13px; background:#f3f1ec; border-radius:8px;">Goals → link routine (pivot)</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 03 MOBILE ============ -->
+  <section style="margin-top:72px;">
+    <div style="display:flex; align-items:baseline; gap:14px; margin-bottom:8px;">
+      <span style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#3d6b4e; font-weight:600;">03</span>
+      <h2 style="font-size:13px; font-family:'JetBrains Mono',monospace; letter-spacing:.14em; text-transform:uppercase; color:#56524b; margin:0; font-weight:600;">Mobile — quick daily action</h2>
+    </div>
+    <p style="font-size:16px; color:#56524b; max-width:640px; margin:0 0 32px; line-height:1.55;">Thumb-first. One screen of intent: today's items, one tap to mark done, completion at a glance. The two Today frames below are <strong style="color:#232220;">live and share state with desktop</strong> — tap a row to toggle done, hit <em>skip</em> on the right.</p>
+
+    <div style="display:flex; flex-wrap:wrap; gap:36px; align-items:flex-start;">
+
+      <!-- PHONE 1: TODAY (interactive) -->
+      <div style="width:312px; flex:none;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#9a948a; margin-bottom:12px; display:flex; align-items:center; gap:8px;"><span style="width:6px;height:6px;border-radius:50%;background:#3d6b4e;"></span>TODAY · /  — interactive</div>
+        <div style="background:#dcd8cf; border-radius:40px; padding:9px; box-shadow:0 1px 2px rgba(30,28,24,.06), 0 30px 60px -30px rgba(30,28,24,.4);">
+          <div style="background:#f6f5f1; border-radius:32px; overflow:hidden;">
+            <!-- status bar -->
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 22px 4px;">
+              <span style="font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600;">9:41</span>
+              <div style="display:flex; gap:4px; align-items:center;"><div style="width:16px;height:9px;border:1px solid #232220;border-radius:2px;"></div><div style="width:2px;height:5px;background:#232220;"></div></div>
+            </div>
+            <!-- header -->
+            <div style="padding:14px 20px 8px; display:flex; justify-content:space-between; align-items:flex-start;">
+              <div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#9a948a; letter-spacing:.04em;">SAT · JUN 21</div>
+                <div style="font-size:24px; font-weight:600; letter-spacing:-.02em; margin-top:2px;">Today</div>
+              </div>
+              <div style="width:34px; height:34px; border-radius:50%; background:#e7e2d8; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; color:#6a6256;">A</div>
+            </div>
+            <!-- completion card -->
+            <div style="margin:8px 16px 4px; background:#fff; border:1px solid #e6e2d8; border-radius:16px; padding:16px;">
+              <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:12px;">
+                <span style="font-size:13px; color:#76716a;">Completion</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#3d6b4e; font-weight:600;">{{ handledStr }} handled</span>
+              </div>
+              <div style="display:flex; align-items:flex-end; gap:10px; margin-bottom:12px;">
+                <span style="font-family:'JetBrains Mono',monospace; font-size:38px; font-weight:600; line-height:.9; color:#232220;">{{ pctStr }}</span>
+                <span style="font-size:13px; color:#9a948a; margin-bottom:4px;">{{ doneCount }} of {{ total }} done</span>
+              </div>
+              <div style="height:8px; background:#efece5; border-radius:5px; overflow:hidden;">
+                <div style="height:100%; background:#3d6b4e; border-radius:5px; width:{{ barWidth }}; transition:width .35s cubic-bezier(.2,.7,.2,1);"></div>
+              </div>
+            </div>
+            <!-- checklist -->
+            <div style="padding:8px 12px 4px;">
+              <sc-for list="{{ routines }}" as="r" hint-placeholder-count="5">
+                <div onClick="{{ r.onCycle }}" style="display:flex; align-items:center; gap:12px; padding:11px 8px; border-radius:12px; cursor:pointer;">
+                  <div style="width:24px; height:24px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; border:2px {{ r.boxStyle }} {{ r.boxBorder }}; background:{{ r.boxBg }}; color:{{ r.boxColor }};">{{ r.mark }}</div>
+                  <div style="flex:1; min-width:0;">
+                    <div style="font-size:14.5px; font-weight:500; color:{{ r.nameColor }}; text-decoration:{{ r.nameDecoration }}; text-decoration-color:#c4beb2;">{{ r.name }}</div>
+                    <div style="display:flex; align-items:center; gap:7px; margin-top:3px;">
+                      <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#a59d91;">{{ r.time }}</span>
+                      <span style="width:5px;height:5px;border-radius:50%;background:{{ r.dot }};"></span>
+                      <span style="font-size:11px; color:#a59d91;">{{ r.goalLabel }}</span>
+                    </div>
+                  </div>
+                  <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex:none;">
+                    <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#76716a; font-weight:600;">{{ r.streak }}d</span>
+                    <span onClick="{{ r.onSkip }}" style="font-size:10px; color:#b0a99d; padding:1px 5px; border-radius:5px; cursor:pointer;" style-hover="background:#efece5;">skip</span>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+            <!-- review entry -->
+            <div style="padding:6px 16px 0;">
+              <div style="background:#eef3ef; border:1px solid #cfe0d3; border-radius:14px; padding:14px 16px; display:flex; align-items:center; justify-content:space-between; cursor:pointer;">
+                <div>
+                  <div style="font-size:14px; font-weight:600; color:#2f5740;">Close your day</div>
+                  <div style="font-size:11.5px; color:#6f8a76; margin-top:1px;">Evening review · not yet logged</div>
+                </div>
+                <span style="font-family:'JetBrains Mono',monospace; color:#3d6b4e; font-size:16px;">→</span>
+              </div>
+            </div>
+            <!-- bottom nav -->
+            <div style="display:flex; justify-content:space-around; padding:14px 8px 18px; margin-top:14px; border-top:1px solid #e9e5dd; background:#fbfaf7;">
+              <div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><div style="width:18px;height:18px;border-radius:5px;background:#3d6b4e;"></div><span style="font-size:10px; color:#3d6b4e; font-weight:600;">Today</span></div>
+              <div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><div style="width:18px;height:18px;border-radius:5px;border:1.5px solid #c4beb2;"></div><span style="font-size:10px; color:#a59d91;">Routines</span></div>
+              <div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><div style="width:18px;height:18px;border-radius:50%;border:1.5px solid #c4beb2;"></div><span style="font-size:10px; color:#a59d91;">Goals</span></div>
+              <div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><div style="width:18px;height:18px;border-radius:5px;border:1.5px solid #c4beb2;"></div><span style="font-size:10px; color:#a59d91;">Review</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PHONE 2: EVENING REVIEW (interactive sliders) -->
+      <div style="width:312px; flex:none;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#9a948a; margin-bottom:12px; display:flex; align-items:center; gap:8px;"><span style="width:6px;height:6px;border-radius:50%;background:#3d6b4e;"></span>REVIEW · /review/:date — interactive</div>
+        <div style="background:#dcd8cf; border-radius:40px; padding:9px; box-shadow:0 1px 2px rgba(30,28,24,.06), 0 30px 60px -30px rgba(30,28,24,.4);">
+          <div style="background:#f6f5f1; border-radius:32px; overflow:hidden;">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 22px 4px;">
+              <span style="font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600;">22:48</span>
+              <div style="display:flex; gap:4px; align-items:center;"><div style="width:16px;height:9px;border:1px solid #232220;border-radius:2px;"></div><div style="width:2px;height:5px;background:#232220;"></div></div>
+            </div>
+            <div style="padding:14px 20px 10px; display:flex; align-items:center; gap:12px;">
+              <span style="font-family:'JetBrains Mono',monospace; color:#9a948a; font-size:18px;">←</span>
+              <div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#9a948a;">SAT · JUN 21</div>
+                <div style="font-size:22px; font-weight:600; letter-spacing:-.02em;">Evening review</div>
+              </div>
+            </div>
+            <div style="padding:4px 18px 18px;">
+              <!-- sliders -->
+              <div style="background:#fff; border:1px solid #e6e2d8; border-radius:16px; padding:16px; margin-bottom:12px;">
+                <div style="margin-bottom:16px;">
+                  <div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span style="font-size:13px; color:#56524b;">Mood</span><span style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:600; color:#3d6b4e;">{{ moodStr }}/10</span></div>
+                  <input type="range" min="1" max="10" value="{{ moodStr }}" onChange="{{ setMood }}" style="width:100%;" />
+                </div>
+                <div style="margin-bottom:16px;">
+                  <div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span style="font-size:13px; color:#56524b;">Energy</span><span style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:600; color:#3d6b4e;">{{ energyStr }}/10</span></div>
+                  <input type="range" min="1" max="10" value="{{ energyStr }}" onChange="{{ setEnergy }}" style="width:100%;" />
+                </div>
+                <div style="margin-bottom:16px;">
+                  <div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span style="font-size:13px; color:#56524b;">Stress</span><span style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:600; color:#3d6b4e;">{{ stressStr }}/10</span></div>
+                  <input type="range" min="1" max="10" value="{{ stressStr }}" onChange="{{ setStress }}" style="width:100%;" />
+                </div>
+                <div>
+                  <div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span style="font-size:13px; color:#56524b;">Day rating</span><span style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:600; color:#3d6b4e;">{{ dayStr }}/10</span></div>
+                  <input type="range" min="1" max="10" value="{{ dayStr }}" onChange="{{ setDay }}" style="width:100%;" />
+                </div>
+              </div>
+              <!-- text -->
+              <div style="background:#fff; border:1px solid #e6e2d8; border-radius:16px; padding:14px;">
+                <div style="font-size:12px; color:#76716a; margin-bottom:6px;">What went well</div>
+                <textarea value="{{ review.wentWell }}" onChange="{{ setWell }}" placeholder="One good thing…" style="width:100%; border:none; resize:none; height:34px; font-size:13.5px; color:#26241f; background:transparent;"></textarea>
+                <div style="height:1px; background:#efece5; margin:8px 0;"></div>
+                <div style="font-size:12px; color:#76716a; margin-bottom:6px;">Improve tomorrow</div>
+                <textarea value="{{ review.improve }}" onChange="{{ setImprove }}" placeholder="One change…" style="width:100%; border:none; resize:none; height:34px; font-size:13.5px; color:#26241f; background:transparent;"></textarea>
+              </div>
+              <button style="width:100%; margin-top:14px; padding:14px; border:none; border-radius:13px; background:#3d6b4e; color:#fff; font-size:15px; font-weight:600; font-family:inherit; cursor:pointer; box-shadow:0 6px 16px -8px rgba(61,107,78,.7);">Save review</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PHONE 3: ROUTINES list -->
+      <div style="width:312px; flex:none;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#9a948a; margin-bottom:12px;">ROUTINES · /routines — manage</div>
+        <div style="background:#dcd8cf; border-radius:40px; padding:9px; box-shadow:0 1px 2px rgba(30,28,24,.06), 0 30px 60px -30px rgba(30,28,24,.4);">
+          <div style="background:#f6f5f1; border-radius:32px; overflow:hidden;">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 22px 4px;">
+              <span style="font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600;">9:41</span>
+              <div style="display:flex; gap:4px; align-items:center;"><div style="width:16px;height:9px;border:1px solid #232220;border-radius:2px;"></div><div style="width:2px;height:5px;background:#232220;"></div></div>
+            </div>
+            <div style="padding:14px 20px 12px; display:flex; justify-content:space-between; align-items:center;">
+              <div style="font-size:22px; font-weight:600; letter-spacing:-.02em;">Routines</div>
+              <div style="width:32px;height:32px;border-radius:50%;background:#3d6b4e;color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:400;line-height:0;">+</div>
+            </div>
+            <div style="padding:0 16px;">
+              <div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#a59d91; letter-spacing:.06em; padding:8px 4px;">ACTIVE · 5</div>
+              <div style="background:#fff; border:1px solid #e6e2d8; border-radius:14px; overflow:hidden;">
+                <div style="padding:13px 14px; border-bottom:1px solid #f1eee7; display:flex; justify-content:space-between; align-items:center;"><div><div style="font-size:14px;font-weight:500;">Morning sunlight walk</div><div style="font-size:11px;color:#a59d91;margin-top:2px;"><span style="font-family:'JetBrains Mono',monospace;">DAILY · 07:00</span> · habit</div></div><div style="width:34px;height:20px;border-radius:11px;background:#3d6b4e;position:relative;"><div style="position:absolute;top:2px;right:2px;width:16px;height:16px;border-radius:50%;background:#fff;"></div></div></div>
+                <div style="padding:13px 14px; border-bottom:1px solid #f1eee7; display:flex; justify-content:space-between; align-items:center;"><div><div style="font-size:14px;font-weight:500;">Deep work block</div><div style="font-size:11px;color:#a59d91;margin-top:2px;"><span style="font-family:'JetBrains Mono',monospace;">WEEKDAYS · 09:00</span> · routine</div></div><div style="width:34px;height:20px;border-radius:11px;background:#3d6b4e;position:relative;"><div style="position:absolute;top:2px;right:2px;width:16px;height:16px;border-radius:50%;background:#fff;"></div></div></div>
+                <div style="padding:13px 14px; border-bottom:1px solid #f1eee7; display:flex; justify-content:space-between; align-items:center;"><div><div style="font-size:14px;font-weight:500;">Strength training</div><div style="font-size:11px;color:#a59d91;margin-top:2px;"><span style="font-family:'JetBrains Mono',monospace;">MO·WE·FR · 18:00</span> · routine</div></div><div style="width:34px;height:20px;border-radius:11px;background:#3d6b4e;position:relative;"><div style="position:absolute;top:2px;right:2px;width:16px;height:16px;border-radius:50%;background:#fff;"></div></div></div>
+                <div style="padding:13px 14px; display:flex; justify-content:space-between; align-items:center;"><div><div style="font-size:14px;font-weight:500;">Lights out by 23:00</div><div style="font-size:11px;color:#a59d91;margin-top:2px;"><span style="font-family:'JetBrains Mono',monospace;">DAILY · 23:00</span> · sleep</div></div><div style="width:34px;height:20px;border-radius:11px;background:#3d6b4e;position:relative;"><div style="position:absolute;top:2px;right:2px;width:16px;height:16px;border-radius:50%;background:#fff;"></div></div></div>
+              </div>
+              <div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#a59d91; letter-spacing:.06em; padding:14px 4px 8px;">HIDDEN · 1</div>
+              <div style="background:#faf8f4; border:1px solid #ece8de; border-radius:14px; padding:13px 14px; display:flex; justify-content:space-between; align-items:center; opacity:.7;"><div><div style="font-size:14px;font-weight:500;color:#8c8377;">Cold shower</div><div style="font-size:11px;color:#b0a99d;margin-top:2px;"><span style="font-family:'JetBrains Mono',monospace;">DAILY</span> · paused</div></div><div style="width:34px;height:20px;border-radius:11px;background:#ddd7cb;position:relative;"><div style="position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;"></div></div></div>
+            </div>
+            <div style="height:18px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PHONE 4: GOALS -->
+      <div style="width:312px; flex:none;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#9a948a; margin-bottom:12px;">GOALS · /goals — link routines</div>
+        <div style="background:#dcd8cf; border-radius:40px; padding:9px; box-shadow:0 1px 2px rgba(30,28,24,.06), 0 30px 60px -30px rgba(30,28,24,.4);">
+          <div style="background:#f6f5f1; border-radius:32px; overflow:hidden;">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 22px 4px;">
+              <span style="font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600;">9:41</span>
+              <div style="display:flex; gap:4px; align-items:center;"><div style="width:16px;height:9px;border:1px solid #232220;border-radius:2px;"></div><div style="width:2px;height:5px;background:#232220;"></div></div>
+            </div>
+            <div style="padding:14px 20px 12px; display:flex; justify-content:space-between; align-items:center;">
+              <div style="font-size:22px; font-weight:600; letter-spacing:-.02em;">Goals</div>
+              <div style="width:32px;height:32px;border-radius:50%;background:#3d6b4e;color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;line-height:0;">+</div>
+            </div>
+            <div style="padding:0 16px 18px;">
+              <div style="background:#fff; border:1px solid #e6e2d8; border-radius:14px; padding:16px; margin-bottom:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;"><div style="font-size:15px; font-weight:600;">Ship SelfHandler MVP</div><span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#3d6b4e; background:#eef3ef; border:1px solid #cfe0d3; padding:3px 7px; border-radius:5px;">ACTIVE</span></div>
+                <div style="font-size:11.5px; color:#a59d91; margin-top:3px; font-family:'JetBrains Mono',monospace;">TARGET · AUG 31</div>
+                <div style="height:1px; background:#efece5; margin:12px 0;"></div>
+                <div style="font-size:11px; color:#9a948a; margin-bottom:8px;">Linked routines · 1</div>
+                <div style="display:flex; flex-wrap:wrap; gap:6px;"><span style="display:flex;align-items:center;gap:6px;font-size:12px;background:#f3f1ec;padding:5px 10px;border-radius:7px;"><span style="width:6px;height:6px;border-radius:50%;background:#3d6b4e;"></span>Deep work block</span><span style="font-size:12px;color:#3d6b4e;padding:5px 8px;border:1px dashed #cfe0d3;border-radius:7px;">+ link</span></div>
+              </div>
+              <div style="background:#fff; border:1px solid #e6e2d8; border-radius:14px; padding:16px;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;"><div style="font-size:15px; font-weight:600;">Sleep 7.5h consistently</div><span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#3d6b4e; background:#eef3ef; border:1px solid #cfe0d3; padding:3px 7px; border-radius:5px;">ACTIVE</span></div>
+                <div style="height:1px; background:#efece5; margin:12px 0;"></div>
+                <div style="font-size:11px; color:#9a948a; margin-bottom:8px;">Linked routines · 2</div>
+                <div style="display:flex; flex-wrap:wrap; gap:6px;"><span style="display:flex;align-items:center;gap:6px;font-size:12px;background:#f3f1ec;padding:5px 10px;border-radius:7px;"><span style="width:6px;height:6px;border-radius:50%;background:#c2843f;"></span>Morning walk</span><span style="display:flex;align-items:center;gap:6px;font-size:12px;background:#f3f1ec;padding:5px 10px;border-radius:7px;"><span style="width:6px;height:6px;border-radius:50%;background:#c2843f;"></span>Lights out</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============ 04 DESKTOP ============ -->
+  <section style="margin-top:72px;">
+    <div style="display:flex; align-items:baseline; gap:14px; margin-bottom:8px;">
+      <span style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#3d6b4e; font-weight:600;">04</span>
+      <h2 style="font-size:13px; font-family:'JetBrains Mono',monospace; letter-spacing:.14em; text-transform:uppercase; color:#56524b; margin:0; font-weight:600;">Desktop — context &amp; control</h2>
+    </div>
+    <p style="font-size:16px; color:#56524b; max-width:640px; margin:0 0 32px; line-height:1.55;">More room means more context: persistent nav rail, the day's metrics surfaced, goal context and streaks alongside the checklist — and inline management. The checklist below shares state with the mobile frames above.</p>
+
+    <!-- DESKTOP TODAY -->
+    <div style="background:#dcd8cf; border-radius:16px; padding:8px; box-shadow:0 1px 2px rgba(30,28,24,.06), 0 40px 80px -40px rgba(30,28,24,.35); margin-bottom:32px;">
+      <div style="display:flex; align-items:center; gap:8px; padding:7px 12px 11px;">
+        <div style="display:flex; gap:6px;"><span style="width:11px;height:11px;border-radius:50%;background:#cfc8bb;"></span><span style="width:11px;height:11px;border-radius:50%;background:#cfc8bb;"></span><span style="width:11px;height:11px;border-radius:50%;background:#cfc8bb;"></span></div>
+        <div style="flex:1; max-width:280px; margin-left:8px; background:#efece5; border-radius:7px; padding:5px 12px; font-family:'JetBrains Mono',monospace; font-size:11px; color:#9a948a;">selfhandler.app / today</div>
+      </div>
+      <div style="border-radius:11px; overflow-x:auto; overflow-y:hidden;"><div style="background:#f6f5f1; display:flex; min-height:560px; min-width:1040px;">
+        <!-- nav rail -->
+        <div style="width:208px; flex:none; background:#fbfaf7; border-right:1px solid #e9e5dd; padding:22px 16px; display:flex; flex-direction:column;">
+          <div style="display:flex; align-items:center; gap:9px; padding:0 8px 24px;">
+            <div style="width:22px; height:22px; border-radius:6px; background:#3d6b4e; display:flex; align-items:center; justify-content:center;"><div style="width:8px;height:8px;border-radius:2px;background:#fff;"></div></div>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:.1em; color:#3d6b4e; font-weight:600;">SELFHANDLER</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:10px; background:#eef3ef; color:#2f5740; font-weight:600; font-size:14px; margin-bottom:4px;"><div style="width:16px;height:16px;border-radius:4px;background:#3d6b4e;"></div>Today</div>
+          <div style="display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:10px; color:#76716a; font-size:14px; margin-bottom:4px;"><div style="width:16px;height:16px;border-radius:4px;border:1.5px solid #c4beb2;"></div>Routines</div>
+          <div style="display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:10px; color:#76716a; font-size:14px; margin-bottom:4px;"><div style="width:16px;height:16px;border-radius:50%;border:1.5px solid #c4beb2;"></div>Goals</div>
+          <div style="display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:10px; color:#76716a; font-size:14px;"><div style="width:16px;height:16px;border-radius:4px;border:1.5px solid #c4beb2;"></div>Review</div>
+          <div style="margin-top:auto; display:flex; align-items:center; gap:10px; padding:10px 8px; border-top:1px solid #efece5;">
+            <div style="width:30px;height:30px;border-radius:50%;background:#e7e2d8;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#6a6256;">A</div>
+            <div><div style="font-size:13px; font-weight:500;">Alex</div><div style="font-size:11px; color:#a59d91; font-family:'JetBrains Mono',monospace;">single-user</div></div>
+          </div>
+        </div>
+        <!-- main -->
+        <div style="flex:1; padding:28px 32px; overflow:hidden;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px;">
+            <div>
+              <div style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#9a948a; letter-spacing:.04em;">SATURDAY · JUNE 21, 2026</div>
+              <div style="font-size:30px; font-weight:600; letter-spacing:-.02em; margin-top:3px;">Good evening, Alex</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <button style="border:1px solid #ddd7cb; background:#fff; border-radius:9px; padding:9px 14px; font-size:13px; font-family:inherit; color:#56524b; cursor:pointer;">‹ Yesterday</button>
+              <button style="border:1px solid #ddd7cb; background:#fff; border-radius:9px; padding:9px 14px; font-size:13px; font-family:inherit; color:#56524b; cursor:pointer;">Today ›</button>
+            </div>
+          </div>
+          <!-- stat row -->
+          <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:22px;">
+            <div style="background:#fff; border:1px solid #e6e2d8; border-radius:13px; padding:18px;">
+              <div style="font-size:12px; color:#76716a; margin-bottom:10px;">Today's completion</div>
+              <div style="display:flex; align-items:flex-end; gap:8px;"><span style="font-family:'JetBrains Mono',monospace; font-size:32px; font-weight:600; line-height:.9;">{{ pctStr }}</span><span style="font-size:12px; color:#a59d91; margin-bottom:3px;">{{ doneCount }}/{{ total }} done</span></div>
+              <div style="height:6px; background:#efece5; border-radius:4px; overflow:hidden; margin-top:12px;"><div style="height:100%; background:#3d6b4e; border-radius:4px; width:{{ barWidth }}; transition:width .35s cubic-bezier(.2,.7,.2,1);"></div></div>
+            </div>
+            <div style="background:#fff; border:1px solid #e6e2d8; border-radius:13px; padding:18px;">
+              <div style="font-size:12px; color:#76716a; margin-bottom:10px;">Longest active streak</div>
+              <div style="display:flex; align-items:flex-end; gap:8px;"><span style="font-family:'JetBrains Mono',monospace; font-size:32px; font-weight:600; line-height:.9;">21d</span><span style="font-size:12px; color:#a59d91; margin-bottom:3px;">Read 20 pages</span></div>
+              <div style="font-size:11.5px; color:#a59d91; margin-top:12px;">Streaks per routine · from routine_logs</div>
+            </div>
+            <div style="background:#fff; border:1px solid #e6e2d8; border-radius:13px; padding:18px;">
+              <div style="font-size:12px; color:#76716a; margin-bottom:10px;">Last 7 days</div>
+              <div style="display:flex; align-items:flex-end; gap:8px;"><span style="font-family:'JetBrains Mono',monospace; font-size:32px; font-weight:600; line-height:.9;">86%</span><span style="font-size:12px; color:#a59d91; margin-bottom:3px;">avg completion</span></div>
+              <div style="display:flex; gap:3px; align-items:flex-end; height:22px; margin-top:10px;">
+                <div style="flex:1;background:#cfe0d3;border-radius:2px;height:70%;"></div><div style="flex:1;background:#cfe0d3;border-radius:2px;height:90%;"></div><div style="flex:1;background:#cfe0d3;border-radius:2px;height:60%;"></div><div style="flex:1;background:#cfe0d3;border-radius:2px;height:100%;"></div><div style="flex:1;background:#cfe0d3;border-radius:2px;height:80%;"></div><div style="flex:1;background:#cfe0d3;border-radius:2px;height:100%;"></div><div style="flex:1;background:#3d6b4e;border-radius:2px;height:60%;"></div>
+              </div>
+            </div>
+          </div>
+          <!-- two col -->
+          <div style="display:grid; grid-template-columns:1.6fr 1fr; gap:20px;">
+            <!-- checklist -->
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <span style="font-size:15px; font-weight:600;">Today's routines</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#9a948a;">{{ handledStr }} handled</span>
+              </div>
+              <div style="background:#fff; border:1px solid #e6e2d8; border-radius:13px; overflow:hidden;">
+                <sc-for list="{{ routines }}" as="r" hint-placeholder-count="5">
+                  <div onClick="{{ r.onCycle }}" style="display:flex; align-items:center; gap:13px; padding:14px 16px; border-bottom:1px solid #f1eee7; cursor:pointer;" style-hover="background:#faf8f4;">
+                    <div style="width:22px; height:22px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; border:2px {{ r.boxStyle }} {{ r.boxBorder }}; background:{{ r.boxBg }}; color:{{ r.boxColor }};">{{ r.mark }}</div>
+                    <div style="flex:1; min-width:0;">
+                      <div style="font-size:14.5px; font-weight:500; color:{{ r.nameColor }}; text-decoration:{{ r.nameDecoration }}; text-decoration-color:#c4beb2;">{{ r.name }}</div>
+                    </div>
+                    <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#a59d91;">{{ r.time }}</span>
+                    <span style="display:flex; align-items:center; gap:6px; font-size:12px; color:#76716a; background:#f3f1ec; padding:4px 9px; border-radius:7px;"><span style="width:6px;height:6px;border-radius:50%;background:{{ r.dot }};"></span>{{ r.goalLabel }}</span>
+                    <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#76716a; font-weight:600; width:32px; text-align:right;">{{ r.streak }}d</span>
+                    <span onClick="{{ r.onSkip }}" style="font-size:12px; color:#b0a99d; padding:3px 8px; border-radius:6px; cursor:pointer;" style-hover="background:#efece5; color:#8c8377;">skip</span>
+                  </div>
+                </sc-for>
+                <div style="padding:12px 16px; display:flex; align-items:center; gap:8px; color:#a59d91; font-size:13px; cursor:pointer;"><span style="font-family:'JetBrains Mono',monospace; font-size:16px;">+</span> Quick-add a one-off for today</div>
+              </div>
+            </div>
+            <!-- right context -->
+            <div style="display:flex; flex-direction:column; gap:16px;">
+              <div style="background:#eef3ef; border:1px solid #cfe0d3; border-radius:13px; padding:16px; display:flex; align-items:center; justify-content:space-between; cursor:pointer;">
+                <div><div style="font-size:14px; font-weight:600; color:#2f5740;">Close your day</div><div style="font-size:12px; color:#6f8a76; margin-top:2px;">Evening review · not logged</div></div>
+                <span style="font-family:'JetBrains Mono',monospace; color:#3d6b4e; font-size:18px;">→</span>
+              </div>
+              <div style="background:#fff; border:1px solid #e6e2d8; border-radius:13px; padding:16px;">
+                <div style="font-size:13px; font-weight:600; margin-bottom:12px;">Goal context</div>
+                <div style="display:flex; flex-direction:column; gap:12px;">
+                  <div><div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="font-size:13px;">Ship MVP</span><span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#3d6b4e;">1/1</span></div><div style="height:5px;background:#efece5;border-radius:3px;overflow:hidden;"><div style="height:100%;width:100%;background:#3d6b4e;"></div></div></div>
+                  <div><div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="font-size:13px;">Sleep 7.5h</span><span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#9a948a;">1/2</span></div><div style="height:5px;background:#efece5;border-radius:3px;overflow:hidden;"><div style="height:100%;width:50%;background:#c2843f;"></div></div></div>
+                  <div><div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="font-size:13px;">Sub-50 10K</span><span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#9a948a;">0/1</span></div><div style="height:5px;background:#efece5;border-radius:3px;overflow:hidden;"><div style="height:100%;width:6%;background:#4f6d8a;"></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </div>
+    </div>
+
+    <!-- DESKTOP ROUTINES MANAGEMENT -->
+    <div style="background:#dcd8cf; border-radius:16px; padding:8px; box-shadow:0 1px 2px rgba(30,28,24,.06), 0 40px 80px -40px rgba(30,28,24,.35);">
+      <div style="display:flex; align-items:center; gap:8px; padding:7px 12px 11px;">
+        <div style="display:flex; gap:6px;"><span style="width:11px;height:11px;border-radius:50%;background:#cfc8bb;"></span><span style="width:11px;height:11px;border-radius:50%;background:#cfc8bb;"></span><span style="width:11px;height:11px;border-radius:50%;background:#cfc8bb;"></span></div>
+        <div style="flex:1; max-width:280px; margin-left:8px; background:#efece5; border-radius:7px; padding:5px 12px; font-family:'JetBrains Mono',monospace; font-size:11px; color:#9a948a;">selfhandler.app / routines</div>
+      </div>
+      <div style="border-radius:11px; overflow-x:auto; overflow-y:hidden;"><div style="background:#f6f5f1; display:flex; min-height:460px; min-width:1040px;">
+        <div style="width:208px; flex:none; background:#fbfaf7; border-right:1px solid #e9e5dd; padding:22px 16px;">
+          <div style="display:flex; align-items:center; gap:9px; padding:0 8px 24px;">
+            <div style="width:22px; height:22px; border-radius:6px; background:#3d6b4e; display:flex; align-items:center; justify-content:center;"><div style="width:8px;height:8px;border-radius:2px;background:#fff;"></div></div>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:.1em; color:#3d6b4e; font-weight:600;">SELFHANDLER</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:10px; color:#76716a; font-size:14px; margin-bottom:4px;"><div style="width:16px;height:16px;border-radius:4px;border:1.5px solid #c4beb2;"></div>Today</div>
+          <div style="display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:10px; background:#eef3ef; color:#2f5740; font-weight:600; font-size:14px; margin-bottom:4px;"><div style="width:16px;height:16px;border-radius:4px;background:#3d6b4e;"></div>Routines</div>
+          <div style="display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:10px; color:#76716a; font-size:14px; margin-bottom:4px;"><div style="width:16px;height:16px;border-radius:50%;border:1.5px solid #c4beb2;"></div>Goals</div>
+          <div style="display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:10px; color:#76716a; font-size:14px;"><div style="width:16px;height:16px;border-radius:4px;border:1.5px solid #c4beb2;"></div>Review</div>
+        </div>
+        <div style="flex:1; padding:28px 32px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:22px;">
+            <div style="font-size:26px; font-weight:600; letter-spacing:-.02em;">Routines</div>
+            <button style="border:none; background:#3d6b4e; color:#fff; border-radius:10px; padding:10px 16px; font-size:13.5px; font-weight:600; font-family:inherit; cursor:pointer;">+ New routine</button>
+          </div>
+          <div style="display:grid; grid-template-columns:1.5fr 1fr; gap:24px;">
+            <!-- table -->
+            <div style="background:#fff; border:1px solid #e6e2d8; border-radius:13px; overflow:hidden;">
+              <div style="display:grid; grid-template-columns:2fr 1.4fr 1fr 0.6fr; padding:11px 16px; background:#faf8f4; border-bottom:1px solid #efece5; font-family:'JetBrains Mono',monospace; font-size:10px; color:#a59d91; letter-spacing:.06em;"><span>NAME</span><span>SCHEDULE</span><span>KIND</span><span>ACTIVE</span></div>
+              <div style="display:grid; grid-template-columns:2fr 1.4fr 1fr 0.6fr; padding:14px 16px; border-bottom:1px solid #f1eee7; align-items:center; font-size:13.5px;"><span style="font-weight:500;">Morning sunlight walk</span><span style="font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#76716a;">Daily · 07:00</span><span style="color:#76716a;">habit</span><span><span style="width:30px;height:18px;border-radius:10px;background:#3d6b4e;display:inline-block;position:relative;"><span style="position:absolute;top:2px;right:2px;width:14px;height:14px;border-radius:50%;background:#fff;"></span></span></span></div>
+              <div style="display:grid; grid-template-columns:2fr 1.4fr 1fr 0.6fr; padding:14px 16px; border-bottom:1px solid #f1eee7; align-items:center; font-size:13.5px;"><span style="font-weight:500;">Deep work block</span><span style="font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#76716a;">Weekdays · 09:00</span><span style="color:#76716a;">routine</span><span><span style="width:30px;height:18px;border-radius:10px;background:#3d6b4e;display:inline-block;position:relative;"><span style="position:absolute;top:2px;right:2px;width:14px;height:14px;border-radius:50%;background:#fff;"></span></span></span></div>
+              <div style="display:grid; grid-template-columns:2fr 1.4fr 1fr 0.6fr; padding:14px 16px; border-bottom:1px solid #f1eee7; align-items:center; font-size:13.5px;"><span style="font-weight:500;">Strength training</span><span style="font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#76716a;">Mo·We·Fr · 18:00</span><span style="color:#76716a;">routine</span><span><span style="width:30px;height:18px;border-radius:10px;background:#3d6b4e;display:inline-block;position:relative;"><span style="position:absolute;top:2px;right:2px;width:14px;height:14px;border-radius:50%;background:#fff;"></span></span></span></div>
+              <div style="display:grid; grid-template-columns:2fr 1.4fr 1fr 0.6fr; padding:14px 16px; align-items:center; font-size:13.5px; opacity:.6;"><span style="font-weight:500;">Cold shower</span><span style="font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#76716a;">Daily</span><span style="color:#76716a;">habit</span><span><span style="width:30px;height:18px;border-radius:10px;background:#ddd7cb;display:inline-block;position:relative;"><span style="position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;"></span></span></span></div>
+            </div>
+            <!-- edit form -->
+            <div style="background:#fff; border:1px solid #e6e2d8; border-radius:13px; padding:18px;">
+              <div style="font-size:14px; font-weight:600; margin-bottom:16px;">Edit routine</div>
+              <div style="font-size:11.5px; color:#76716a; margin-bottom:6px;">Name</div>
+              <div style="border:1px solid #e0dcd2; border-radius:9px; padding:9px 12px; font-size:13.5px; margin-bottom:14px;">Strength training</div>
+              <div style="font-size:11.5px; color:#76716a; margin-bottom:6px;">Kind</div>
+              <div style="display:flex; gap:6px; margin-bottom:14px;"><span style="font-size:12px; padding:6px 11px; border-radius:7px; background:#3d6b4e; color:#fff;">routine</span><span style="font-size:12px; padding:6px 11px; border-radius:7px; background:#f3f1ec; color:#76716a;">habit</span><span style="font-size:12px; padding:6px 11px; border-radius:7px; background:#f3f1ec; color:#76716a;">sleep</span></div>
+              <div style="font-size:11.5px; color:#76716a; margin-bottom:6px;">Schedule</div>
+              <div style="display:flex; gap:6px; margin-bottom:10px;"><span style="font-size:12px; padding:6px 11px; border-radius:7px; background:#f3f1ec; color:#76716a;">Daily</span><span style="font-size:12px; padding:6px 11px; border-radius:7px; background:#eef3ef; border:1px solid #cfe0d3; color:#3d6b4e;">Weekdays</span></div>
+              <div style="display:flex; gap:5px; margin-bottom:14px;">
+                <span style="width:28px;height:28px;border-radius:7px;background:#3d6b4e;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-family:'JetBrains Mono',monospace;">Mo</span>
+                <span style="width:28px;height:28px;border-radius:7px;background:#f3f1ec;color:#a59d91;display:flex;align-items:center;justify-content:center;font-size:11px;font-family:'JetBrains Mono',monospace;">Tu</span>
+                <span style="width:28px;height:28px;border-radius:7px;background:#3d6b4e;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-family:'JetBrains Mono',monospace;">We</span>
+                <span style="width:28px;height:28px;border-radius:7px;background:#f3f1ec;color:#a59d91;display:flex;align-items:center;justify-content:center;font-size:11px;font-family:'JetBrains Mono',monospace;">Th</span>
+                <span style="width:28px;height:28px;border-radius:7px;background:#3d6b4e;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-family:'JetBrains Mono',monospace;">Fr</span>
+              </div>
+              <div style="font-size:11.5px; color:#76716a; margin-bottom:6px;">Preferred time</div>
+              <div style="border:1px solid #e0dcd2; border-radius:9px; padding:9px 12px; font-size:13.5px; font-family:'JetBrains Mono',monospace; margin-bottom:18px;">18:00</div>
+              <button style="width:100%; border:none; background:#3d6b4e; color:#fff; border-radius:9px; padding:11px; font-size:13.5px; font-weight:600; font-family:inherit; cursor:pointer;">Save changes</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 05 COMPONENTS ============ -->
+  <section style="margin-top:72px;">
+    <div style="display:flex; align-items:baseline; gap:14px; margin-bottom:8px;">
+      <span style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#3d6b4e; font-weight:600;">05</span>
+      <h2 style="font-size:13px; font-family:'JetBrains Mono',monospace; letter-spacing:.14em; text-transform:uppercase; color:#56524b; margin:0; font-weight:600;">Component list</h2>
+    </div>
+    <p style="font-size:16px; color:#56524b; max-width:640px; margin:0 0 28px; line-height:1.55;">A small, reusable kit. Shared primitives, then screen-level components mapped to routes.</p>
+
+    <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:16px;">
+      <div style="background:#fff; border:1px solid #e0dcd2; border-radius:14px; padding:22px;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#3d6b4e; letter-spacing:.06em; margin-bottom:14px;">SHARED PRIMITIVES</div>
+        <div style="display:flex; flex-direction:column; gap:0;">
+          <div style="display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid #f1eee7;"><span style="font-size:13.5px; font-weight:500;">RoutineRow</span><span style="font-size:12px; color:#9a948a;">tap-to-done · skip · streak</span></div>
+          <div style="display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid #f1eee7;"><span style="font-size:13.5px; font-weight:500;">CompletionBar / RingStat</span><span style="font-size:12px; color:#9a948a;">% + handled count</span></div>
+          <div style="display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid #f1eee7;"><span style="font-size:13.5px; font-weight:500;">StreakBadge</span><span style="font-size:12px; color:#9a948a;">mono Nd</span></div>
+          <div style="display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid #f1eee7;"><span style="font-size:13.5px; font-weight:500;">GoalChip</span><span style="font-size:12px; color:#9a948a;">dot + name, linkable</span></div>
+          <div style="display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid #f1eee7;"><span style="font-size:13.5px; font-weight:500;">ScoreSlider</span><span style="font-size:12px; color:#9a948a;">1–10, review fields</span></div>
+          <div style="display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid #f1eee7;"><span style="font-size:13.5px; font-weight:500;">ScheduleControl</span><span style="font-size:12px; color:#9a948a;">daily / weekdays + day picker</span></div>
+          <div style="display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid #f1eee7;"><span style="font-size:13.5px; font-weight:500;">Toggle · SegmentedControl</span><span style="font-size:12px; color:#9a948a;">active state, kind</span></div>
+          <div style="display:flex; justify-content:space-between; padding:9px 0;"><span style="font-size:13.5px; font-weight:500;">StateBlock</span><span style="font-size:12px; color:#9a948a;">empty / loading / error / saved</span></div>
+        </div>
+      </div>
+      <div style="background:#fff; border:1px solid #e0dcd2; border-radius:14px; padding:22px;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#3d6b4e; letter-spacing:.06em; margin-bottom:14px;">SCREEN / LAYOUT</div>
+        <div style="display:flex; flex-direction:column; gap:0;">
+          <div style="display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid #f1eee7;"><span style="font-size:13.5px; font-weight:500;">AppShell</span><span style="font-size:12px; color:#9a948a; font-family:'JetBrains Mono',monospace;">rail ⟷ tab-bar</span></div>
+          <div style="display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid #f1eee7;"><span style="font-size:13.5px; font-weight:500;">TodayView</span><span style="font-size:12px; color:#9a948a; font-family:'JetBrains Mono',monospace;">/</span></div>
+          <div style="display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid #f1eee7;"><span style="font-size:13.5px; font-weight:500;">RoutinesView + RoutineForm</span><span style="font-size:12px; color:#9a948a; font-family:'JetBrains Mono',monospace;">/routines</span></div>
+          <div style="display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid #f1eee7;"><span style="font-size:13.5px; font-weight:500;">ReviewView</span><span style="font-size:12px; color:#9a948a; font-family:'JetBrains Mono',monospace;">/review/:date?</span></div>
+          <div style="display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid #f1eee7;"><span style="font-size:13.5px; font-weight:500;">GoalsView + GoalForm</span><span style="font-size:12px; color:#9a948a; font-family:'JetBrains Mono',monospace;">/goals</span></div>
+          <div style="display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid #f1eee7;"><span style="font-size:13.5px; font-weight:500;">DateNavigator</span><span style="font-size:12px; color:#9a948a;">prev / today / next</span></div>
+          <div style="display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid #f1eee7;"><span style="font-size:13.5px; font-weight:500;">StatCard</span><span style="font-size:12px; color:#9a948a;">completion · streak · 7-day</span></div>
+          <div style="display:flex; justify-content:space-between; padding:9px 0;"><span style="font-size:13.5px; font-weight:500;">GoalContextPanel</span><span style="font-size:12px; color:#9a948a;">desktop right rail</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 06 STATES ============ -->
+  <section style="margin-top:72px;">
+    <div style="display:flex; align-items:baseline; gap:14px; margin-bottom:8px;">
+      <span style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#3d6b4e; font-weight:600;">06</span>
+      <h2 style="font-size:13px; font-family:'JetBrains Mono',monospace; letter-spacing:.14em; text-transform:uppercase; color:#56524b; margin:0; font-weight:600;">Empty · loading · error · saved</h2>
+    </div>
+    <p style="font-size:16px; color:#56524b; max-width:640px; margin:0 0 28px; line-height:1.55;">Every fetch and write has a defined state. Calm copy, no alarm — absence of a log means "not handled yet", never "failed".</p>
+
+    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:16px;">
+      <!-- empty -->
+      <div style="background:#fff; border:1px solid #e0dcd2; border-radius:14px; overflow:hidden;">
+        <div style="padding:10px 16px; background:#faf8f4; border-bottom:1px solid #efece5; font-family:'JetBrains Mono',monospace; font-size:10px; color:#a59d91; letter-spacing:.06em;">EMPTY</div>
+        <div style="padding:22px 18px; text-align:center;">
+          <div style="width:40px; height:40px; border-radius:11px; border:1.5px dashed #cfcabf; margin:0 auto 14px;"></div>
+          <div style="font-size:14px; font-weight:600; margin-bottom:6px;">No routines yet</div>
+          <div style="font-size:12.5px; color:#8c8377; line-height:1.5; margin-bottom:14px;">Add your first routine and it'll show up here every day.</div>
+          <span style="display:inline-block; font-size:12.5px; font-weight:600; color:#fff; background:#3d6b4e; padding:8px 14px; border-radius:8px;">+ New routine</span>
+        </div>
+      </div>
+      <!-- loading -->
+      <div style="background:#fff; border:1px solid #e0dcd2; border-radius:14px; overflow:hidden;">
+        <div style="padding:10px 16px; background:#faf8f4; border-bottom:1px solid #efece5; font-family:'JetBrains Mono',monospace; font-size:10px; color:#a59d91; letter-spacing:.06em;">LOADING</div>
+        <div style="padding:22px 18px;">
+          <div style="height:14px; width:60%; background:#efece5; border-radius:5px; margin-bottom:14px;"></div>
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;"><div style="width:22px;height:22px;border-radius:50%;background:#efece5;"></div><div style="height:11px; flex:1; background:#efece5; border-radius:5px;"></div></div>
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;"><div style="width:22px;height:22px;border-radius:50%;background:#efece5;"></div><div style="height:11px; flex:1; background:#efece5; border-radius:5px;"></div></div>
+          <div style="display:flex; align-items:center; gap:10px;"><div style="width:22px;height:22px;border-radius:50%;background:#efece5;"></div><div style="height:11px; width:70%; background:#efece5; border-radius:5px;"></div></div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#b0a99d; margin-top:16px;">skeleton · GET /api/today</div>
+        </div>
+      </div>
+      <!-- error -->
+      <div style="background:#fff; border:1px solid #e0dcd2; border-radius:14px; overflow:hidden;">
+        <div style="padding:10px 16px; background:#faf2ef; border-bottom:1px solid #ecdcd5; font-family:'JetBrains Mono',monospace; font-size:10px; color:#b5705a; letter-spacing:.06em;">ERROR</div>
+        <div style="padding:22px 18px; text-align:center;">
+          <div style="width:40px; height:40px; border-radius:11px; background:#faf2ef; border:1px solid #ecdcd5; margin:0 auto 14px; display:flex; align-items:center; justify-content:center; color:#b5705a; font-size:20px;">!</div>
+          <div style="font-size:14px; font-weight:600; margin-bottom:6px;">Couldn't load today</div>
+          <div style="font-size:12.5px; color:#8c8377; line-height:1.5; margin-bottom:14px;">Your last changes are saved locally and will sync.</div>
+          <span style="display:inline-block; font-size:12.5px; font-weight:600; color:#b5705a; background:#faf2ef; border:1px solid #ecdcd5; padding:8px 14px; border-radius:8px;">Retry</span>
+        </div>
+      </div>
+      <!-- saved -->
+      <div style="background:#fff; border:1px solid #e0dcd2; border-radius:14px; overflow:hidden;">
+        <div style="padding:10px 16px; background:#eef3ef; border-bottom:1px solid #cfe0d3; font-family:'JetBrains Mono',monospace; font-size:10px; color:#3d6b4e; letter-spacing:.06em;">SAVED</div>
+        <div style="padding:22px 18px; text-align:center;">
+          <div style="width:40px; height:40px; border-radius:50%; background:#3d6b4e; margin:0 auto 14px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:18px; font-weight:700;">✓</div>
+          <div style="font-size:14px; font-weight:600; margin-bottom:6px;">Review saved</div>
+          <div style="font-size:12.5px; color:#8c8377; line-height:1.5; margin-bottom:14px;">Optimistic UI · upsert confirmed for Jun 21.</div>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#3d6b4e; background:#eef3ef; border:1px solid #cfe0d3; padding:6px 11px; border-radius:7px;">200 · PUT /daily-reviews</span>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:14px; background:#fff; border:1px solid #e0dcd2; border-radius:12px; padding:16px 20px; font-size:13px; color:#76716a; line-height:1.6;">
+      <strong style="color:#232220;">Write semantics —</strong> routine done/skip and review edits are <strong style="color:#3d6b4e;">optimistic</strong>: UI updates instantly, the <code style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#3d6b4e;">PUT</code> upsert reconciles in the background, and a failure rolls the row back with an inline retry. No spinners block the daily tap.
+    </div>
+  </section>
+
+  <!-- ============ 07 VUE NOTES ============ -->
+  <section style="margin-top:72px;">
+    <div style="display:flex; align-items:baseline; gap:14px; margin-bottom:8px;">
+      <span style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#3d6b4e; font-weight:600;">07</span>
+      <h2 style="font-size:13px; font-family:'JetBrains Mono',monospace; letter-spacing:.14em; text-transform:uppercase; color:#56524b; margin:0; font-weight:600;">Vue implementation notes</h2>
+    </div>
+    <p style="font-size:16px; color:#56524b; max-width:640px; margin:0 0 28px; line-height:1.55;">Vue 3 SPA in <code style="font-family:'JetBrains Mono',monospace; font-size:14px; color:#3d6b4e;">apps/web</code>, Capacitor-wrapped for Android. One responsive codebase — the AppShell swaps rail ⟷ tab-bar at the breakpoint.</p>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+      <div style="background:#fff; border:1px solid #e0dcd2; border-radius:14px; padding:22px;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#3d6b4e; letter-spacing:.06em; margin-bottom:14px;">ROUTER ↔ API</div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:12.5px; line-height:2; color:#56524b;">
+          <div style="display:flex; justify-content:space-between; border-bottom:1px solid #f1eee7; padding:3px 0;"><span style="color:#232220;">/</span><span style="color:#9a948a;">GET /api/today?date</span></div>
+          <div style="display:flex; justify-content:space-between; border-bottom:1px solid #f1eee7; padding:3px 0;"><span style="color:#232220;">/routines</span><span style="color:#9a948a;">GET·POST·PATCH /routines</span></div>
+          <div style="display:flex; justify-content:space-between; border-bottom:1px solid #f1eee7; padding:3px 0;"><span style="color:#232220;">routine done</span><span style="color:#9a948a;">PUT /routines/{id}/logs/{date}</span></div>
+          <div style="display:flex; justify-content:space-between; border-bottom:1px solid #f1eee7; padding:3px 0;"><span style="color:#232220;">/review/:date</span><span style="color:#9a948a;">PUT /daily-reviews/{date}</span></div>
+          <div style="display:flex; justify-content:space-between; padding:3px 0;"><span style="color:#232220;">/goals link</span><span style="color:#9a948a;">POST /goals/{g}/routines/{r}</span></div>
+        </div>
+      </div>
+      <div style="background:#fff; border:1px solid #e0dcd2; border-radius:14px; padding:22px;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#3d6b4e; letter-spacing:.06em; margin-bottom:14px;">STATE &amp; PATTERNS</div>
+        <ul style="margin:0; padding-left:18px; font-size:13.5px; color:#56524b; line-height:1.7;">
+          <li>Pinia stores: <code style="font-family:'JetBrains Mono',monospace; font-size:12px;">useToday</code>, <code style="font-family:'JetBrains Mono',monospace; font-size:12px;">useRoutines</code>, <code style="font-family:'JetBrains Mono',monospace; font-size:12px;">useGoals</code> — Today is the only one fetched on load.</li>
+          <li>Thin <code style="font-family:'JetBrains Mono',monospace; font-size:12px;">api/client.ts</code> wraps the REST contract; <code style="font-family:'JetBrains Mono',monospace; font-size:12px;">CurrentUser</code> header during dev.</li>
+          <li>Completion % &amp; streaks are <strong style="color:#232220;">computed</strong> from <code style="font-family:'JetBrains Mono',monospace; font-size:12px;">routine_logs</code> in the store — no <code style="font-family:'JetBrains Mono',monospace; font-size:12px;">daily_metrics</code> table yet.</li>
+          <li>Done/skip toggles dispatch the upsert optimistically; rollback on reject.</li>
+          <li>Date in the route is the single source of truth for Today &amp; Review.</li>
+          <li>One log per routine per date enforced by the unique key — PUT is idempotent.</li>
+        </ul>
+      </div>
+    </div>
+    <div style="margin-top:16px; background:#26302a; border-radius:14px; padding:22px 24px;">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#a8c4b0; letter-spacing:.06em; margin-bottom:14px;">BUILD ORDER (from MVP_TECHNICAL_DESIGN)</div>
+      <div style="display:flex; flex-wrap:wrap; gap:8px; font-family:'JetBrains Mono',monospace; font-size:12.5px;">
+        <span style="color:#dfe9e2; background:#33403a; padding:6px 11px; border-radius:7px;">1 · migrations</span>
+        <span style="color:#dfe9e2; background:#33403a; padding:6px 11px; border-radius:7px;">2 · models</span>
+        <span style="color:#dfe9e2; background:#33403a; padding:6px 11px; border-radius:7px;">3 · controllers</span>
+        <span style="color:#dfe9e2; background:#33403a; padding:6px 11px; border-radius:7px;">4 · feature tests</span>
+        <span style="color:#dfe9e2; background:#33403a; padding:6px 11px; border-radius:7px;">5 · API client</span>
+        <span style="color:#9be0b0; background:#3d6b4e; padding:6px 11px; border-radius:7px;">6 · Today</span>
+        <span style="color:#9be0b0; background:#3d6b4e; padding:6px 11px; border-radius:7px;">7 · Routines</span>
+        <span style="color:#9be0b0; background:#3d6b4e; padding:6px 11px; border-radius:7px;">8 · Review</span>
+        <span style="color:#9be0b0; background:#3d6b4e; padding:6px 11px; border-radius:7px;">9 · Goals linking</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 08 DEFERRED ============ -->
+  <section style="margin-top:72px;">
+    <div style="display:flex; align-items:baseline; gap:14px; margin-bottom:8px;">
+      <span style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#3d6b4e; font-weight:600;">08</span>
+      <h2 style="font-size:13px; font-family:'JetBrains Mono',monospace; letter-spacing:.14em; text-transform:uppercase; color:#56524b; margin:0; font-weight:600;">Deferred — kept out on purpose</h2>
+    </div>
+    <p style="font-size:16px; color:#56524b; max-width:640px; margin:0 0 28px; line-height:1.55;">The full system has 11 modules. This slice stays narrow so one vertical path ships end-to-end. Everything below is designed but not built yet — the model leaves a clean migration path (e.g. a Routine can later own a RecurringRule).</p>
+    <div style="background:#fff; border:1px solid #e0dcd2; border-radius:14px; padding:8px;">
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:1px;">
+        <div style="padding:16px;"><div style="font-size:13.5px; font-weight:500; color:#8c8377;">Finance &amp; wishlists</div></div>
+        <div style="padding:16px;"><div style="font-size:13.5px; font-weight:500; color:#8c8377;">Meal / nutrition planning</div></div>
+        <div style="padding:16px;"><div style="font-size:13.5px; font-weight:500; color:#8c8377;">AI &amp; integrations</div></div>
+        <div style="padding:16px;"><div style="font-size:13.5px; font-weight:500; color:#8c8377;">Notifications &amp; reminders</div></div>
+        <div style="padding:16px;"><div style="font-size:13.5px; font-weight:500; color:#8c8377;">Recurrence engine · planned_occurrences</div></div>
+        <div style="padding:16px;"><div style="font-size:13.5px; font-weight:500; color:#8c8377;">daily_metrics rollups</div></div>
+        <div style="padding:16px;"><div style="font-size:13.5px; font-weight:500; color:#8c8377;">Weekly / monthly reviews</div></div>
+        <div style="padding:16px;"><div style="font-size:13.5px; font-weight:500; color:#8c8377;">Deep analytics &amp; trends</div></div>
+        <div style="padding:16px;"><div style="font-size:13.5px; font-weight:500; color:#8c8377;">Multi-user &amp; collaboration</div></div>
+      </div>
+    </div>
+    <div style="margin-top:16px; display:flex; flex-wrap:wrap; gap:10px;">
+      <div style="flex:1; min-width:240px; background:#eef3ef; border:1px solid #cfe0d3; border-radius:12px; padding:16px 18px;"><div style="font-size:13px; font-weight:600; color:#2f5740; margin-bottom:4px;">Auth — deferred but decided</div><div style="font-size:12.5px; color:#56655a; line-height:1.5;">Temporary <code style="font-family:'JetBrains Mono',monospace; font-size:12px;">CurrentUser</code> resolver now; Sanctum SPA auth once the first loop works. <code style="font-family:'JetBrains Mono',monospace; font-size:12px;">user_id</code> on every table from day one.</div></div>
+      <div style="flex:1; min-width:240px; background:#faf8f4; border:1px solid #e6e2d8; border-radius:12px; padding:16px 18px;"><div style="font-size:13px; font-weight:600; margin-bottom:4px;">Online-only, single-user</div><div style="font-size:12.5px; color:#76716a; line-height:1.5;">No offline sync engine in the MVP. Optimistic writes + retry cover the daily loop; Capacitor ships the same web client to Android.</div></div>
+    </div>
+  </section>
+
+  <!-- ============ 09 APPEARANCE SETTINGS ============ -->
+  <section style="margin-top:72px;">
+    <div style="display:flex; align-items:baseline; gap:14px; margin-bottom:8px;">
+      <span style="font-family:'JetBrains Mono',monospace; font-size:13px; color:#3d6b4e; font-weight:600;">09</span>
+      <h2 style="font-size:13px; font-family:'JetBrains Mono',monospace; letter-spacing:.14em; text-transform:uppercase; color:#56524b; margin:0; font-weight:600;">Settings → Appearance</h2>
+    </div>
+    <p style="font-size:16px; color:#56524b; max-width:660px; margin:0 0 20px; line-height:1.55;">Per <code style="font-family:'JetBrains Mono',monospace; font-size:14px; color:#3d6b4e;">ui-tokens.md</code> there is no theming mechanism yet — so this screen introduces one. Only <strong style="color:#232220;">colour</strong> tokens switch; radii, type, spacing and control metrics stay fixed, so a scheme never becomes a layout change.</p>
+    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:28px;">
+      <span style="font-family:'JetBrains Mono',monospace; font-size:12px; padding:7px 12px; border-radius:7px; background:#eef3ef; border:1px solid #cfe0d3; color:#3d6b4e;">Fully interactive — switch scheme &amp; accent</span>
+      <span style="font-family:'JetBrains Mono',monospace; font-size:12px; padding:7px 12px; border-radius:7px; background:#fff; border:1px solid #e0dcd2; color:#56524b;">--focus-halo derived from --accent</span>
+      <span style="font-family:'JetBrains Mono',monospace; font-size:12px; padding:7px 12px; border-radius:7px; background:#fff; border:1px solid #e0dcd2; color:#56524b;">Mobile frame = 390×844</span>
+    </div>
+
+    <!-- ===== DESKTOP SETTINGS ===== -->
+    <div style="{{ deskChromeStyle }}">
+      <div style="display:flex; align-items:center; gap:8px; padding:7px 12px 11px;">
+        <div style="display:flex; gap:6px;"><span style="width:11px;height:11px;border-radius:50%;background:var(--sh-border-strong,#cfc8bb);"></span><span style="width:11px;height:11px;border-radius:50%;background:var(--sh-border-strong,#cfc8bb);"></span><span style="width:11px;height:11px;border-radius:50%;background:var(--sh-border-strong,#cfc8bb);"></span></div>
+        <div style="flex:1; max-width:300px; margin-left:8px; background:var(--sh-paper-soft,#efece5); border-radius:7px; padding:5px 12px; font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--sh-subtle,#9a948a);">selfhandler.app / settings / appearance</div>
+      </div>
+
+      <div style="border-radius:11px; overflow-x:auto; overflow-y:hidden;"><div style="display:flex; min-height:660px; min-width:1040px; background-color:var(--sh-paper,#f6f5f1); background-image:{{ pageTexture }}; background-size:28px 28px; transition:background-color .3s ease;">
+        <!-- rail -->
+        <div style="width:248px; flex:none; background:var(--sh-rail,#fbfaf7); border-right:1px solid var(--sh-border,#e9e5dd); padding:22px 16px; display:flex; flex-direction:column;">
+          <div style="display:flex; align-items:center; gap:9px; padding:0 8px 24px;">
+            <div style="width:22px; height:22px; border-radius:6px; background:var(--sh-accent,#3d6b4e); display:flex; align-items:center; justify-content:center;"><div style="width:8px;height:8px;border-radius:2px;background:var(--sh-surface,#fff);"></div></div>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:.18em; color:var(--sh-accent,#3d6b4e); font-weight:700;">SELFHANDLER</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:8px; color:var(--sh-muted,#76716a); font-size:14px; min-height:44px; margin-bottom:2px;"><div style="width:16px;height:16px;border-radius:4px;border:1.5px solid var(--sh-border-strong,#c4beb2);"></div>Today</div>
+          <div style="display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:8px; color:var(--sh-muted,#76716a); font-size:14px; min-height:44px; margin-bottom:2px;"><div style="width:16px;height:16px;border-radius:4px;border:1.5px solid var(--sh-border-strong,#c4beb2);"></div>Routines</div>
+          <div style="display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:8px; color:var(--sh-muted,#76716a); font-size:14px; min-height:44px; margin-bottom:2px;"><div style="width:16px;height:16px;border-radius:50%;border:1.5px solid var(--sh-border-strong,#c4beb2);"></div>Goals</div>
+          <div style="display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:8px; color:var(--sh-muted,#76716a); font-size:14px; min-height:44px;"><div style="width:16px;height:16px;border-radius:4px;border:1.5px solid var(--sh-border-strong,#c4beb2);"></div>Review</div>
+          <div style="height:1px; background:var(--sh-border,#efece5); margin:14px 4px;"></div>
+          <div style="display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:8px; background:var(--sh-accent-soft,#eef3ef); border:1px solid var(--sh-accent-border,#cfe0d3); color:var(--sh-accent,#2f5740); font-size:14px; font-weight:600; min-height:44px;"><div style="width:16px;height:16px;border-radius:4px;background:var(--sh-accent,#3d6b4e);"></div>Settings</div>
+          <div style="margin-top:auto; display:flex; align-items:center; gap:10px; padding:10px 8px; border-top:1px solid var(--sh-border,#efece5);">
+            <div style="width:30px;height:30px;border-radius:50%;background:var(--sh-paper-soft,#e7e2d8);border:1px solid var(--sh-border,#e0dcd2);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--sh-muted,#6a6256);">A</div>
+            <div><div style="font-size:13px; font-weight:500; color:var(--sh-ink,#232220);">Alex</div><div style="font-size:11px; color:var(--sh-subtle,#a59d91); font-family:'JetBrains Mono',monospace;">single-user</div></div>
+          </div>
+        </div>
+
+        <!-- content -->
+        <div style="flex:1; padding:40px 32px 64px; min-width:0;">
+          <div style="max-width:880px;">
+            <div style="font-family:'JetBrains Mono',monospace; font-size:12.5px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--sh-accent,#3d6b4e); margin-bottom:8px;">Settings</div>
+            <h3 style="font-size:32px; font-weight:600; letter-spacing:-.02em; line-height:1.04; margin:0 0 8px; color:var(--sh-ink,#232220);">Appearance</h3>
+            <p style="font-size:14.5px; color:var(--sh-muted,#56524b); margin:0 0 22px; max-width:560px; line-height:1.5;">Colour only. Your choice is stored on the profile under <code style="font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--sh-accent,#3d6b4e);">preferences.theme</code>, so it follows you across devices.</p>
+
+            <!-- settings sub-tabs -->
+            <div style="display:flex; gap:6px; margin-bottom:22px; flex-wrap:wrap;">
+              <span style="font-size:13px; padding:7px 13px; border-radius:8px; background:var(--sh-accent-soft,#eef3ef); border:1px solid var(--sh-accent-border,#cfe0d3); color:var(--sh-accent,#3d6b4e); font-weight:600;">Appearance</span>
+              <span style="font-size:13px; padding:7px 13px; border-radius:8px; background:var(--sh-paper-soft,#faf8f4); border:1px solid var(--sh-border,#e0dcd2); color:var(--sh-muted,#56524b);">Profile</span>
+              <span style="font-size:13px; padding:7px 13px; border-radius:8px; background:var(--sh-paper-soft,#faf8f4); border:1px solid var(--sh-border,#e0dcd2); color:var(--sh-muted,#56524b);">Preferences</span>
+              <span style="font-size:13px; padding:7px 13px; border-radius:8px; background:var(--sh-paper-soft,#faf8f4); border:1px solid var(--sh-border,#e0dcd2); color:var(--sh-muted,#56524b);">Data</span>
+            </div>
+
+            <div style="display:grid; grid-template-columns:minmax(0,1fr) minmax(280px,320px); gap:20px; align-items:start;">
+              <!-- left: controls -->
+              <div style="display:flex; flex-direction:column; gap:20px; min-width:0;">
+                <!-- scheme -->
+                <div style="background:var(--sh-surface,#fff); border:1px solid var(--sh-border,#e0dcd2); border-radius:14px; padding:20px; box-shadow:var(--sh-shadow,none);">
+                  <div style="display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:4px;">
+                    <h4 style="font-size:16.6px; font-weight:650; margin:0; color:var(--sh-ink,#232220);">Colour scheme</h4>
+                    <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--sh-subtle,#6b645b);">UiToggleGroup</span>
+                  </div>
+                  <div style="font-size:13.1px; color:var(--sh-subtle,#6b645b); margin-bottom:14px;">{{ systemNote }}</div>
+                  <div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px;">
+                    <sc-for list="{{ schemeList }}" as="o" hint-placeholder-count="3">
+                      <div onClick="{{ o.onPick }}" style="{{ o.styleDesk }}">
+                        <span style="font-size:14px;">{{ o.label }}</span>
+                        <span style="font-size:11.6px; opacity:.75;">{{ o.hint }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                  <div onClick="{{ toggleSystem }}" style="margin-top:12px; display:inline-flex; align-items:center; gap:8px; font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--sh-subtle,#6b645b); border:1px dashed var(--sh-field-border,#cfcabf); border-radius:6px; padding:5px 9px; cursor:pointer;">
+                    <span style="width:6px;height:6px;border-radius:50%;background:var(--sh-accent,#3d6b4e);"></span>simulate {{ simLabel }}
+                  </div>
+                </div>
+
+                <!-- accent -->
+                <div style="background:var(--sh-surface,#fff); border:1px solid var(--sh-border,#e0dcd2); border-radius:14px; padding:20px; box-shadow:var(--sh-shadow,none);">
+                  <div style="display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:4px;">
+                    <h4 style="font-size:16.6px; font-weight:650; margin:0; color:var(--sh-ink,#232220);">Accent</h4>
+                    <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--sh-subtle,#6b645b);">--accent · --accent-soft · --accent-border · --focus-halo</span>
+                  </div>
+                  <div style="font-size:13.1px; color:var(--sh-subtle,#6b645b); margin-bottom:14px;">Each accent ships a per-scheme value so contrast holds in both. The focus halo is generated at 22% (light) / 28% (dark) — never hard-coded.</div>
+                  <div style="display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px;">
+                    <sc-for list="{{ accentList }}" as="a" hint-placeholder-count="4">
+                      <div onClick="{{ a.onPick }}" style="border:1px solid var(--sh-border,#e0dcd2); background:var(--sh-paper-soft,#faf8f4); border-radius:8px; padding:12px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:8px; box-shadow:0 0 0 2px {{ a.ringColor }}; transition:box-shadow .18s ease;">
+                        <span style="width:30px; height:30px; border-radius:999px; background:{{ a.swatch }};"></span>
+                        <span style="font-size:12.6px; font-weight:500; color:var(--sh-ink,#232220);">{{ a.label }}</span>
+                        <span style="font-family:'JetBrains Mono',monospace; font-size:9.6px; color:var(--sh-subtle,#6b645b);">{{ a.hex }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+
+                  <!-- manual colour -->
+                  <div style="{{ customCardStyle }}">
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;">
+                      <div style="min-width:0;">
+                        <div style="font-size:13.8px; font-weight:600; color:var(--sh-ink,#232220);">Custom colour</div>
+                        <div style="font-size:12.4px; color:var(--sh-subtle,#6b645b); margin-top:1px;">Pick any hex — the soft fill, border and focus halo are derived from it.</div>
+                      </div>
+                      <div style="{{ contrastStyle }}"><span style="{{ contrastDot }}"></span>{{ contrastStr }}</div>
+                    </div>
+
+                    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                      <label style="position:relative; width:44px; height:44px; border-radius:8px; overflow:hidden; border:1px solid var(--sh-field-border,#cfcabf); cursor:pointer; flex:none; background:{{ customHex }};">
+                        <input type="color" value="{{ customHex }}" onInput="{{ onPickColor }}" onChange="{{ onPickColor }}" style="position:absolute; inset:-8px; width:200%; height:200%; border:none; padding:0; background:transparent; cursor:pointer; opacity:0;" />
+                      </label>
+                      <div style="flex:1; min-width:120px;">
+                        <div style="font-size:11.6px; color:var(--sh-subtle,#6b645b); margin-bottom:4px;">Hex</div>
+                        <input type="text" value="{{ customDraft }}" onChange="{{ onTypeHex }}" onInput="{{ onTypeHex }}" placeholder="#6D5AC4" style="width:100%; min-height:42px; padding:10px 12px; border-radius:8px; border:1px solid var(--sh-field-border,#cfcabf); background:var(--sh-surface,#fff); color:var(--sh-ink,#232220); font-family:'JetBrains Mono',monospace; font-size:13.4px; text-transform:uppercase;" />
+                      </div>
+                      <div onClick="{{ pickCustom }}" style="min-height:42px; display:flex; align-items:center; padding:0 15px; border-radius:8px; cursor:pointer; background:{{ customHex }}; color:#fff; font-size:13.2px; font-weight:600; flex:none; margin-top:16px;">Use</div>
+                    </div>
+
+                    <div style="display:flex; align-items:center; gap:14px; margin-top:14px; flex-wrap:wrap;">
+                      <div style="display:flex; align-items:center; gap:7px;">
+                        <span style="width:18px;height:18px;border-radius:5px;background:{{ customHex }};"></span>
+                        <span style="font-family:'JetBrains Mono',monospace; font-size:10.4px; color:var(--sh-subtle,#6b645b);">--accent</span>
+                      </div>
+                      <div style="display:flex; align-items:center; gap:7px;">
+                        <span style="width:18px;height:18px;border-radius:5px;background:{{ customSoft }}; border:1px solid var(--sh-border,#e0dcd2);"></span>
+                        <span style="font-family:'JetBrains Mono',monospace; font-size:10.4px; color:var(--sh-subtle,#6b645b);">--accent-soft</span>
+                      </div>
+                      <div style="display:flex; align-items:center; gap:7px;">
+                        <span style="width:18px;height:18px;border-radius:5px;background:{{ customBorder }};"></span>
+                        <span style="font-family:'JetBrains Mono',monospace; font-size:10.4px; color:var(--sh-subtle,#6b645b);">--accent-border</span>
+                      </div>
+                      <div style="display:flex; align-items:center; gap:7px;">
+                        <span style="width:18px;height:18px;border-radius:5px;background:var(--sh-surface,#fff); box-shadow:0 0 0 3px {{ customHalo }};"></span>
+                        <span style="font-family:'JetBrains Mono',monospace; font-size:10.4px; color:var(--sh-subtle,#6b645b);">--focus-halo</span>
+                      </div>
+                    </div>
+                    <div style="font-size:12.2px; color:var(--sh-subtle,#6b645b); margin-top:12px; line-height:1.5;">{{ contrastLabel }} · stored as <code style="font-family:'JetBrains Mono',monospace; font-size:11.5px;">preferences.theme.accentHex</code></div>
+                  </div>
+                </div>
+
+                <!-- switches -->
+                <div style="background:var(--sh-surface,#fff); border:1px solid var(--sh-border,#e0dcd2); border-radius:14px; padding:4px 20px; box-shadow:var(--sh-shadow,none);">
+                  <div onClick="{{ toggleTexture }}" style="display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px 0; border-bottom:1px solid var(--sh-border,#efece5); cursor:pointer; min-height:44px;">
+                    <div style="min-width:0;">
+                      <div style="font-size:14.4px; font-weight:500; color:var(--sh-ink,#232220);">Dotted page texture</div>
+                      <div style="font-size:13.1px; color:var(--sh-subtle,#6b645b); margin-top:2px;">The 28px dot grid over <code style="font-family:'JetBrains Mono',monospace; font-size:12px;">--paper</code>. Tints itself per scheme.</div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:10px; flex:none;">
+                      <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--sh-subtle,#6b645b); width:22px;">{{ textureLabel }}</span>
+                      <div style="{{ textureSwitch }}"><div style="width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);"></div></div>
+                    </div>
+                  </div>
+                  <div onClick="{{ toggleMono }}" style="display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px 0; border-bottom:1px solid var(--sh-border,#efece5); cursor:pointer; min-height:44px;">
+                    <div style="min-width:0;">
+                      <div style="font-size:14.4px; font-weight:500; color:var(--sh-ink,#232220);">Monospace numerals</div>
+                      <div style="font-size:13.1px; color:var(--sh-subtle,#6b645b); margin-top:2px;">Metrics, times and streaks in <code style="font-family:'JetBrains Mono',monospace; font-size:12px;">--font-mono</code> so columns don't jitter.</div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:10px; flex:none;">
+                      <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--sh-subtle,#6b645b); width:22px;">{{ monoLabel }}</span>
+                      <div style="{{ monoSwitch }}"><div style="width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);"></div></div>
+                    </div>
+                  </div>
+                  <div style="padding:16px 0;">
+                    <div style="font-size:14.4px; font-weight:500; color:var(--sh-ink,#232220); margin-bottom:2px;">Motion</div>
+                    <div style="font-size:13.1px; color:var(--sh-subtle,#6b645b); margin-bottom:12px;">Progress bars and row transitions. <code style="font-family:'JetBrains Mono',monospace; font-size:12px;">prefers-reduced-motion</code> is already honoured.</div>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                      <sc-for list="{{ motionList }}" as="m" hint-placeholder-count="2">
+                        <div onClick="{{ m.onPick }}" style="{{ m.style }}">{{ m.label }}</div>
+                      </sc-for>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- contrast note -->
+                <div style="background:var(--sh-accent-soft,#eef3ef); border:1px solid var(--sh-accent-border,#cfe0d3); border-radius:14px; padding:16px 18px;">
+                  <div style="font-size:13.4px; font-weight:600; color:var(--sh-accent,#2f5740); margin-bottom:4px;">Contrast is validated, not trusted</div>
+                  <div style="font-size:13px; color:var(--sh-muted,#56655a); line-height:1.5;">Each scheme is checked for ink-on-surface, accent-on-surface (field edges) and the focus ring against both <code style="font-family:'JetBrains Mono',monospace; font-size:12px;">--surface</code> and <code style="font-family:'JetBrains Mono',monospace; font-size:12px;">--paper</code>. A custom colour below the 3:1 floor is flagged before you save, so a scheme never ships unreadable.</div>
+                </div>
+              </div>
+
+              <!-- right: live preview (sticky) -->
+              <div style="background:var(--sh-surface,#fff); border:1px solid var(--sh-border,#e0dcd2); border-radius:14px; padding:20px; box-shadow:var(--sh-shadow,none);">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+                  <h4 style="font-size:16.6px; font-weight:650; margin:0; color:var(--sh-ink,#232220);">Live preview</h4>
+                  <span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.06em; padding:4px 8px; border-radius:999px; background:var(--sh-accent-soft,#eef3ef); border:1px solid var(--sh-accent-border,#cfe0d3); color:var(--sh-accent,#3d6b4e);">{{ resolvedLabel }}</span>
+                </div>
+
+                <!-- preview: panel on paper -->
+                <div style="border-radius:12px; padding:14px; border:1px solid var(--sh-border,#e0dcd2); background-color:var(--sh-paper,#ece9e2); background-image:{{ pageTexture }}; background-size:28px 28px;">
+                  <div style="background:var(--sh-surface,#fff); border:1px solid var(--sh-border,#e0dcd2); border-radius:14px; padding:14px;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+                      <span style="font-size:14px; font-weight:650; color:var(--sh-ink,#232220);">Today</span>
+                      <span style="font-family:{{ metricFont }}; font-size:19px; font-weight:600; color:var(--sh-accent,#3d6b4e);">{{ pctStr }}</span>
+                    </div>
+                    <div style="height:6px; background:var(--sh-paper-soft,#efece5); border-radius:999px; overflow:hidden; margin-bottom:14px;"><div style="height:100%; border-radius:999px; background:var(--sh-accent,#3d6b4e); width:{{ barWidth }};"></div></div>
+
+                    <div style="font-size:12.8px; color:var(--sh-subtle,#6b645b); margin-bottom:5px;">Field at rest</div>
+                    <div style="min-height:42px; padding:10px 12px; border:1px solid var(--sh-field-border,#cfcabf); border-radius:8px; background:var(--sh-surface,#fff); font-size:13.4px; color:var(--sh-ink,#232220); margin-bottom:12px;">Strength training</div>
+
+                    <div onClick="{{ toggleFocus }}" style="cursor:pointer;">
+                      <div style="font-size:12.8px; color:var(--sh-subtle,#6b645b); margin-bottom:5px; display:flex; justify-content:space-between;"><span>Field focused</span><span style="font-family:'JetBrains Mono',monospace; font-size:10px;">tap to toggle</span></div>
+                      <div style="min-height:42px; padding:10px 12px; border-radius:8px; background:var(--sh-surface-warm,#fffaf2); font-size:13.4px; color:var(--sh-ink,#232220); border:1px solid {{ focusBorder }}; box-shadow:{{ focusShadow }}; outline:2px solid transparent; transition:box-shadow .18s ease;">18:00</div>
+                    </div>
+
+                    <div style="display:flex; align-items:center; gap:8px; margin-top:14px; flex-wrap:wrap;">
+                      <span style="min-height:40px; display:inline-flex; align-items:center; padding:0 16px; border-radius:8px; background:var(--sh-accent,#3d6b4e); color:#fff; font-size:13.4px; font-weight:600;">Save</span>
+                      <span style="min-height:40px; display:inline-flex; align-items:center; padding:0 16px; border-radius:8px; background:var(--sh-paper-soft,#faf8f4); border:1px solid var(--sh-border,#e0dcd2); color:var(--sh-muted,#56524b); font-size:13.4px;">Cancel</span>
+                      <span style="min-height:40px; display:inline-flex; align-items:center; padding:0 14px; border-radius:8px; border:1px solid var(--sh-accent-border,#cfe0d3); color:var(--sh-accent,#3d6b4e); font-size:13.4px;">Ghost</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px; margin-top:12px; flex-wrap:wrap;">
+                      <span style="min-height:26px; display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:999px; background:var(--sh-paper-soft,#faf8f4); border:1px solid var(--sh-border,#e0dcd2); font-size:12.5px; color:var(--sh-muted,#56524b);"><span style="width:6px;height:6px;border-radius:50%;background:var(--sh-accent,#3d6b4e);"></span>Ship MVP</span>
+                      <span style="min-height:26px; display:inline-flex; align-items:center; padding:4px 8px; border-radius:999px; background:var(--sh-accent-soft,#eef3ef); border:1px solid var(--sh-accent-border,#cfe0d3); font-size:12.5px; color:var(--sh-accent,#3d6b4e); font-family:{{ metricFont }};">12d</span>
+                    </div>
+                    <div style="margin-top:12px; padding:9px 11px; border-radius:8px; background:var(--sh-error-soft,#faf2ef); border:1px solid var(--sh-error,#9a553f); font-size:12.6px; color:var(--sh-error,#9a553f);">Couldn't reach the server — retrying</div>
+                  </div>
+                </div>
+
+                <div style="display:flex; gap:8px; margin-top:16px;">
+                  <span style="flex:1; min-height:40px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; background:var(--sh-accent,#3d6b4e); color:#fff; font-size:13.4px; font-weight:600;">Save appearance</span>
+                  <span style="min-height:40px; display:inline-flex; align-items:center; padding:0 16px; border-radius:8px; background:var(--sh-paper-soft,#faf8f4); border:1px solid var(--sh-border,#e0dcd2); color:var(--sh-muted,#56524b); font-size:13.4px;">Reset</span>
+                </div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:10.4px; color:var(--sh-subtle,#6b645b); margin-top:10px; text-align:center;">PATCH /api/profile · preferences.theme</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </div>
+    </div>
+
+    <!-- ===== MOBILE SETTINGS + DARK TOKENS ===== -->
+    <div style="display:flex; flex-wrap:wrap; gap:32px; align-items:flex-start;">
+      <div style="width:312px; flex:none;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#9a948a; margin-bottom:12px; display:flex; align-items:center; gap:8px;"><span style="width:6px;height:6px;border-radius:50%;background:#3d6b4e;"></span>MOBILE · 390×844 — same state</div>
+        <div style="{{ phoneChromeStyle }}">
+          <div style="border-radius:32px; overflow:hidden; background-color:var(--sh-paper,#f6f5f1); background-image:{{ pageTexture }}; background-size:28px 28px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 22px 4px;">
+              <span style="font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600; color:var(--sh-ink,#232220);">9:41</span>
+              <div style="display:flex; gap:4px; align-items:center;"><div style="width:16px;height:9px;border:1px solid var(--sh-ink,#232220);border-radius:2px;"></div><div style="width:2px;height:5px;background:var(--sh-ink,#232220);"></div></div>
+            </div>
+            <div style="padding:14px 18px 10px; display:flex; align-items:center; gap:12px;">
+              <span style="font-family:'JetBrains Mono',monospace; color:var(--sh-subtle,#9a948a); font-size:18px;">←</span>
+              <div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:10.5px; font-weight:700; letter-spacing:.14em; color:var(--sh-accent,#3d6b4e);">SETTINGS</div>
+                <div style="font-size:22px; font-weight:600; letter-spacing:-.02em; color:var(--sh-ink,#232220);">Appearance</div>
+              </div>
+            </div>
+            <div style="padding:0 16px 16px;">
+              <!-- scheme -->
+              <div style="background:var(--sh-surface,#fff); border:1px solid var(--sh-border,#e0dcd2); border-radius:14px; padding:16px; margin-bottom:12px;">
+                <div style="font-size:14.4px; font-weight:650; color:var(--sh-ink,#232220); margin-bottom:3px;">Colour scheme</div>
+                <div style="font-size:12.4px; color:var(--sh-subtle,#6b645b); margin-bottom:12px;">{{ systemNote }}</div>
+                <div style="display:flex; flex-direction:column; gap:7px;">
+                  <sc-for list="{{ schemeList }}" as="o" hint-placeholder-count="3">
+                    <div onClick="{{ o.onPick }}" style="{{ o.styleMob }}">
+                      <span style="font-size:14px;">{{ o.label }}</span>
+                      <span style="font-size:11.6px; opacity:.7;">{{ o.hint }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+              <!-- accent -->
+              <div style="background:var(--sh-surface,#fff); border:1px solid var(--sh-border,#e0dcd2); border-radius:14px; padding:16px; margin-bottom:12px;">
+                <div style="font-size:14.4px; font-weight:650; color:var(--sh-ink,#232220); margin-bottom:12px;">Accent</div>
+                <div style="display:flex; gap:8px;">
+                  <sc-for list="{{ accentList }}" as="a" hint-placeholder-count="4">
+                    <div onClick="{{ a.onPick }}" style="flex:1; border:1px solid var(--sh-border,#e0dcd2); background:var(--sh-paper-soft,#faf8f4); border-radius:8px; padding:9px 4px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:5px; box-shadow:0 0 0 2px {{ a.ringColor }}; transition:box-shadow .18s ease;">
+                      <span style="width:24px; height:24px; border-radius:999px; background:{{ a.swatch }};"></span>
+                      <span style="font-size:10.6px; color:var(--sh-muted,#56524b);">{{ a.label }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+                <div style="display:flex; align-items:center; gap:9px; margin-top:10px; padding-top:12px; border-top:1px solid var(--sh-border,#efece5);">
+                  <label style="position:relative; width:36px; height:36px; border-radius:8px; overflow:hidden; border:1px solid var(--sh-field-border,#cfcabf); cursor:pointer; flex:none; background:{{ customHex }};">
+                    <input type="color" value="{{ customHex }}" onInput="{{ onPickColor }}" onChange="{{ onPickColor }}" style="position:absolute; inset:-8px; width:200%; height:200%; border:none; padding:0; background:transparent; cursor:pointer; opacity:0;" />
+                  </label>
+                  <div style="flex:1; min-width:0;">
+                    <div style="font-size:12.8px; color:var(--sh-ink,#232220);">Custom</div>
+                    <div style="font-family:'JetBrains Mono',monospace; font-size:10.6px; color:var(--sh-subtle,#6b645b);">{{ customHexUpper }} · {{ contrastStr }}</div>
+                  </div>
+                  <div onClick="{{ pickCustom }}" style="min-height:36px; display:flex; align-items:center; padding:0 13px; border-radius:8px; background:{{ customHex }}; color:#fff; font-size:12.6px; font-weight:600; cursor:pointer; flex:none;">Use</div>
+                </div>
+              </div>
+              <!-- switches -->
+              <div style="background:var(--sh-surface,#fff); border:1px solid var(--sh-border,#e0dcd2); border-radius:14px; padding:4px 16px; margin-bottom:12px;">
+                <div onClick="{{ toggleTexture }}" style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:13px 0; border-bottom:1px solid var(--sh-border,#efece5); min-height:44px; cursor:pointer;">
+                  <span style="font-size:13.8px; color:var(--sh-ink,#232220);">Dotted texture</span>
+                  <div style="{{ textureSwitch }}"><div style="width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);"></div></div>
+                </div>
+                <div onClick="{{ toggleMono }}" style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:13px 0; min-height:44px; cursor:pointer;">
+                  <span style="font-size:13.8px; color:var(--sh-ink,#232220);">Mono numerals</span>
+                  <div style="{{ monoSwitch }}"><div style="width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);"></div></div>
+                </div>
+              </div>
+              <!-- preview -->
+              <div style="background:var(--sh-surface,#fff); border:1px solid var(--sh-border,#e0dcd2); border-radius:14px; padding:16px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:11px;">
+                  <span style="font-size:13.4px; font-weight:650; color:var(--sh-ink,#232220);">Preview</span>
+                  <span style="font-family:{{ metricFont }}; font-size:17px; font-weight:600; color:var(--sh-accent,#3d6b4e);">{{ pctStr }}</span>
+                </div>
+                <div style="min-height:42px; padding:10px 12px; border-radius:8px; background:var(--sh-surface-warm,#fffaf2); font-size:13.2px; color:var(--sh-ink,#232220); border:1px solid {{ focusBorder }}; box-shadow:{{ focusShadow }}; margin-bottom:11px;">Focused field</div>
+                <div style="display:flex; gap:7px;">
+                  <span style="flex:1; min-height:40px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; background:var(--sh-accent,#3d6b4e); color:#fff; font-size:13.4px; font-weight:600;">Save</span>
+                  <span style="min-height:40px; display:inline-flex; align-items:center; padding:0 14px; border-radius:8px; background:var(--sh-paper-soft,#faf8f4); border:1px solid var(--sh-border,#e0dcd2); color:var(--sh-muted,#56524b); font-size:13.4px;">Reset</span>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex; justify-content:space-around; padding:12px 8px 16px; border-top:1px solid var(--sh-border,#e9e5dd); background:var(--sh-rail,#fbfaf7);">
+              <div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><div style="width:18px;height:18px;border-radius:5px;border:1.5px solid var(--sh-border-strong,#c4beb2);"></div><span style="font-size:10px; color:var(--sh-subtle,#a59d91);">Today</span></div>
+              <div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><div style="width:18px;height:18px;border-radius:5px;border:1.5px solid var(--sh-border-strong,#c4beb2);"></div><span style="font-size:10px; color:var(--sh-subtle,#a59d91);">Routines</span></div>
+              <div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><div style="width:18px;height:18px;border-radius:50%;border:1.5px solid var(--sh-border-strong,#c4beb2);"></div><span style="font-size:10px; color:var(--sh-subtle,#a59d91);">Goals</span></div>
+              <div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><div style="width:18px;height:18px;border-radius:5px;background:var(--sh-accent,#3d6b4e);"></div><span style="font-size:10px; color:var(--sh-accent,#3d6b4e); font-weight:600;">More</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- dark palette + impl notes -->
+      <div style="flex:1; min-width:420px; display:flex; flex-direction:column; gap:16px;">
+        <div style="background:#fff; border:1px solid #e0dcd2; border-radius:14px; padding:22px;">
+          <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#3d6b4e; letter-spacing:.06em; margin-bottom:6px;">NEW — DARK COUNTERPART</div>
+          <p style="font-size:13.4px; color:#76716a; margin:0 0 14px; line-height:1.5;">Warm charcoal, not blue-black — the light palette's warmth carried over. Same token names, same roles.</p>
+          <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:0 24px; font-family:'JetBrains Mono',monospace; font-size:11.6px;">
+            <div style="display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid #f1eee7;"><span style="width:14px;height:14px;border-radius:4px;background:#171613;border:1px solid #e0dcd2;"></span><span style="color:#232220;">--paper</span><span style="color:#9a948a; margin-left:auto;">#171613</span></div>
+            <div style="display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid #f1eee7;"><span style="width:14px;height:14px;border-radius:4px;background:#1f1e1a;border:1px solid #e0dcd2;"></span><span style="color:#232220;">--paper-soft</span><span style="color:#9a948a; margin-left:auto;">#1F1E1A</span></div>
+            <div style="display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid #f1eee7;"><span style="width:14px;height:14px;border-radius:4px;background:#24231f;border:1px solid #e0dcd2;"></span><span style="color:#232220;">--surface</span><span style="color:#9a948a; margin-left:auto;">#24231F</span></div>
+            <div style="display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid #f1eee7;"><span style="width:14px;height:14px;border-radius:4px;background:#2b2823;border:1px solid #e0dcd2;"></span><span style="color:#232220;">--surface-warm</span><span style="color:#9a948a; margin-left:auto;">#2B2823</span></div>
+            <div style="display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid #f1eee7;"><span style="width:14px;height:14px;border-radius:4px;background:#f1eee7;border:1px solid #e0dcd2;"></span><span style="color:#232220;">--ink</span><span style="color:#9a948a; margin-left:auto;">#F1EEE7</span></div>
+            <div style="display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid #f1eee7;"><span style="width:14px;height:14px;border-radius:4px;background:#b9b3a7;border:1px solid #e0dcd2;"></span><span style="color:#232220;">--muted</span><span style="color:#9a948a; margin-left:auto;">#B9B3A7</span></div>
+            <div style="display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid #f1eee7;"><span style="width:14px;height:14px;border-radius:4px;background:#968f83;border:1px solid #e0dcd2;"></span><span style="color:#232220;">--subtle</span><span style="color:#9a948a; margin-left:auto;">#968F83</span></div>
+            <div style="display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid #f1eee7;"><span style="width:14px;height:14px;border-radius:4px;background:#35332d;border:1px solid #e0dcd2;"></span><span style="color:#232220;">--border</span><span style="color:#9a948a; margin-left:auto;">#35332D</span></div>
+            <div style="display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid #f1eee7;"><span style="width:14px;height:14px;border-radius:4px;background:#433f38;border:1px solid #e0dcd2;"></span><span style="color:#232220;">--field-border</span><span style="color:#9a948a; margin-left:auto;">#433F38</span></div>
+            <div style="display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid #f1eee7;"><span style="width:14px;height:14px;border-radius:4px;background:#6fa982;border:1px solid #e0dcd2;"></span><span style="color:#232220;">--accent</span><span style="color:#9a948a; margin-left:auto;">#6FA982</span></div>
+            <div style="display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid #f1eee7;"><span style="width:14px;height:14px;border-radius:4px;background:#22302a;border:1px solid #e0dcd2;"></span><span style="color:#232220;">--accent-soft</span><span style="color:#9a948a; margin-left:auto;">#22302A</span></div>
+            <div style="display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid #f1eee7;"><span style="width:14px;height:14px;border-radius:4px;background:#d08a72;border:1px solid #e0dcd2;"></span><span style="color:#232220;">--error</span><span style="color:#9a948a; margin-left:auto;">#D08A72</span></div>
+          </div>
+          <div style="margin-top:12px; font-family:'JetBrains Mono',monospace; font-size:11.4px; color:#76716a; background:#faf8f4; border:1px solid #efece5; border-radius:8px; padding:10px 12px; line-height:1.7;">
+            --focus-halo: 0 0 0 3px rgba(111,169,130,.28)<br>--shadow: 0 18px 50px rgba(0,0,0,.45)<br>texture dot: rgba(255,255,255,.055)
+          </div>
+        </div>
+
+        <div style="background:#26302a; border-radius:14px; padding:22px 24px;">
+          <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#a8c4b0; letter-spacing:.06em; margin-bottom:12px;">HOW TO WIRE IT</div>
+          <ul style="margin:0; padding-left:18px; font-size:13.4px; color:#dfe9e2; line-height:1.75;">
+            <li>Move the colour tokens out of bare <code style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#9be0b0;">:root</code> into <code style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#9be0b0;">:root[data-theme="light"]</code> / <code style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#9be0b0;">["dark"]</code>. Radii, fonts, spacing, control metrics stay on <code style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#9be0b0;">:root</code> — untouched.</li>
+            <li>Accent is a second axis: <code style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#9be0b0;">[data-accent]</code> redefines <code style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#9be0b0;">--accent</code>, <code style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#9be0b0;">--accent-soft</code>, <code style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#9be0b0;">--accent-border</code> <em>and</em> <code style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#9be0b0;">--focus-halo</code> together — never one without the other.</li>
+            <li><code style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#9be0b0;">useTheme()</code> composable writes both attributes on <code style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#9be0b0;">documentElement</code>; <code style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#9be0b0;">system</code> subscribes to <code style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#9be0b0;">matchMedia('(prefers-color-scheme: dark)')</code>.</li>
+            <li>Persist to <code style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#9be0b0;">preferences.theme</code> on the profile (alongside locale, units, tone). Mirror to <code style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#9be0b0;">localStorage</code> only as a pre-hydration cache so the first paint isn't a flash.</li>
+            <li>Set the attribute in a tiny inline script in <code style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#9be0b0;">index.html</code> before the app mounts — prevents the light-to-dark flash.</li>
+            <li>Reuse <code style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#9be0b0;">UiToggleGroup</code> (scheme, motion), <code style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#9be0b0;">UiSwitch</code> (texture, numerals), <code style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#9be0b0;">UiField</code> (labels + helper). The accent picker is the one new control: <code style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#9be0b0;">UiSwatchGroup</code>, radio semantics, 44px targets.</li>
+            <li>Saves are optimistic like the rest of the app — the theme applies on tap, <code style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#9be0b0;">PATCH /api/profile</code> reconciles, failure rolls back with an inline notice.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- footer -->
+  <footer style="margin-top:80px; padding-top:28px; border-top:1px solid #ddd7cb; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+    <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#9a948a;">SelfHandler · MVP UI/UX · first product slice</span>
+    <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#9a948a;">Today · Routines · Review · Goals</span>
+  </footer>
+
+</div></div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {
+    routines: [
+      { id:'walk',  name:'Morning sunlight walk', time:'07:00', kind:'habit',   goal:'Sleep 7.5h',  dot:'#c2843f', streak:12, status:'done' },
+      { id:'deep',  name:'Deep work block',       time:'09:00', kind:'routine', goal:'Ship MVP',    dot:'#3d6b4e', streak:8,  status:'done' },
+      { id:'train', name:'Strength training',     time:'18:00', kind:'routine', goal:'Sub-50 10K',  dot:'#4f6d8a', streak:5,  status:'todo' },
+      { id:'read',  name:'Read 20 pages',         time:'21:30', kind:'habit',   goal:null,          dot:'#9a948a', streak:21, status:'done' },
+      { id:'sleep', name:'Lights out by 23:00',   time:'23:00', kind:'sleep',   goal:'Sleep 7.5h',  dot:'#c2843f', streak:3,  status:'todo' },
+    ],
+    review: { mood:7, energy:6, stress:4, day:8, wentWell:'', improve:'', notes:'' },
+    scheme: 'light',
+    systemIsDark: true,
+    accent: 'forest',
+    customHex: '#6d5ac4',
+    customDraft: '#6d5ac4',
+    texture: true,
+    motion: 'system',
+    monoNumerals: true,
+    focusDemo: true,
+  };
+
+  static PALETTES = {
+    light: {
+      paper:'#ece9e2', paperSoft:'#faf8f4', surface:'#ffffff', surfaceWarm:'#fffaf2',
+      ink:'#232220', muted:'#56524b', subtle:'#6b645b',
+      border:'#e0dcd2', borderStrong:'#c4beb2', fieldBorder:'#cfcabf',
+      error:'#9a553f', errorSoft:'#faf2ef', dot:'rgba(30,28,24,.05)',
+      shadow:'0 18px 50px rgba(38,34,28,.08)', chrome:'#dcd8cf', railWash:'#fbfaf7',
+    },
+    dark: {
+      paper:'#171613', paperSoft:'#1f1e1a', surface:'#24231f', surfaceWarm:'#2b2823',
+      ink:'#f1eee7', muted:'#b9b3a7', subtle:'#968f83',
+      border:'#35332d', borderStrong:'#4b473f', fieldBorder:'#433f38',
+      error:'#d08a72', errorSoft:'#2e211d', dot:'rgba(255,255,255,.055)',
+      shadow:'0 18px 50px rgba(0,0,0,.45)', chrome:'#100f0d', railWash:'#1c1b17',
+    },
+  };
+
+  static ACCENTS = {
+    forest: { label:'Forest',  light:{accent:'#3d6b4e', accentSoft:'#eef3ef', accentBorder:'#cfe0d3', halo:'rgba(61,107,78,.22)'},   dark:{accent:'#6fa982', accentSoft:'#22302a', accentBorder:'#35503f', halo:'rgba(111,169,130,.28)'} },
+    blue:   { label:'Slate',   light:{accent:'#4f6d8a', accentSoft:'#eef1f5', accentBorder:'#cfd9e4', halo:'rgba(79,109,138,.22)'},  dark:{accent:'#7f9fc0', accentSoft:'#1f2733', accentBorder:'#33465c', halo:'rgba(127,159,192,.28)'} },
+    gold:   { label:'Gold',    light:{accent:'#b57a2f', accentSoft:'#f7f1e6', accentBorder:'#e6d9bf', halo:'rgba(181,122,47,.22)'},  dark:{accent:'#d8a45f', accentSoft:'#2d2519', accentBorder:'#4d3d23', halo:'rgba(216,164,95,.28)'} },
+    brick:  { label:'Brick',   light:{accent:'#9a553f', accentSoft:'#faf2ef', accentBorder:'#ecdcd5', halo:'rgba(154,85,63,.22)'},   dark:{accent:'#c9836a', accentSoft:'#2e211d', accentBorder:'#4d332b', halo:'rgba(201,131,106,.28)'} },
+  };
+
+  cycle(id){
+    this.setState(s => ({ routines: s.routines.map(r => r.id===id ? { ...r, status: r.status==='done' ? 'todo' : 'done' } : r) }));
+  }
+  skip(id){
+    this.setState(s => ({ routines: s.routines.map(r => r.id===id ? { ...r, status: r.status==='skipped' ? 'todo' : 'skipped' } : r) }));
+  }
+  setR(k, v){ this.setState(s => ({ review: { ...s.review, [k]: v } })); }
+
+  decorate(r){
+    const isDone = r.status==='done', isSkip = r.status==='skipped';
+    return {
+      ...r,
+      goalLabel: r.goal || 'unlinked',
+      isDone, isSkip, isTodo: !isDone && !isSkip,
+      mark: isDone ? '✓' : (isSkip ? '–' : ''),
+      boxBg: isDone ? '#3d6b4e' : '#ffffff',
+      boxBorder: isDone ? '#3d6b4e' : (isSkip ? '#d8d2c7' : '#c4beb2'),
+      boxColor: isDone ? '#ffffff' : '#8c8377',
+      boxStyle: isSkip ? 'solid' : (isTodoDash(r.status)),
+      nameColor: isDone ? '#7a8f80' : (isSkip ? '#a59d91' : '#26241f'),
+      nameDecoration: (isDone || isSkip) ? 'line-through' : 'none',
+      onCycle: () => this.cycle(r.id),
+      onSkip: (e) => { if (e && e.stopPropagation) e.stopPropagation(); this.skip(r.id); },
+    };
+    function isTodoDash(st){ return st==='todo' ? 'dashed' : 'solid'; }
+  }
+
+  set(k, v){ this.setState({ [k]: v }); }
+
+  static toRgb(hex){
+    let h = String(hex || '').replace('#','').trim();
+    if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+    if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
+    return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+  }
+  static mix(a, b, t){
+    const A = Component.toRgb(a), B = Component.toRgb(b);
+    if (!A || !B) return a;
+    const c = A.map((v,i) => Math.round(v + (B[i]-v)*t));
+    return '#' + c.map(v => v.toString(16).padStart(2,'0')).join('');
+  }
+  // Relative luminance → contrast ratio, used to flag unusable custom accents.
+  static lum(hex){
+    const r = Component.toRgb(hex);
+    if (!r) return 0;
+    const s = r.map(v => { v/=255; return v <= .03928 ? v/12.92 : Math.pow((v+.055)/1.055, 2.4); });
+    return .2126*s[0] + .7152*s[1] + .0722*s[2];
+  }
+  static ratio(a, b){
+    const L1 = Component.lum(a), L2 = Component.lum(b);
+    return ((Math.max(L1,L2) + .05) / (Math.min(L1,L2) + .05));
+  }
+
+  /** Derive the full accent token set from a single hex, per scheme. */
+  customSet(hex, resolved, base){
+    const isDark = resolved === 'dark';
+    const rgb = Component.toRgb(hex) || [61,107,78];
+    return {
+      accent: hex,
+      accentSoft: Component.mix(hex, base.surface, isDark ? 0.82 : 0.92),
+      accentBorder: Component.mix(hex, base.surface, isDark ? 0.62 : 0.72),
+      halo: 'rgba(' + rgb.join(',') + ',' + (isDark ? '.28' : '.22') + ')',
+    };
+  }
+
+  commitHex(raw){
+    const v = String(raw || '').trim();
+    const norm = v.startsWith('#') ? v : '#' + v;
+    this.setState({ customDraft: v });
+    if (Component.toRgb(norm)) this.setState({ customHex: norm.toLowerCase(), accent: 'custom' });
+  }
+
+  themeVals(){
+    const P = Component.PALETTES, A = Component.ACCENTS;
+    const resolved = this.state.scheme === 'system'
+      ? (this.state.systemIsDark ? 'dark' : 'light')
+      : this.state.scheme;
+    const base = P[resolved];
+    const acc = this.state.accent === 'custom'
+      ? this.customSet(this.state.customHex, resolved, base)
+      : A[this.state.accent][resolved];
+    const t = { ...base, ...acc };
+    const vars = {
+      '--sh-paper': t.paper, '--sh-paper-soft': t.paperSoft, '--sh-surface': t.surface,
+      '--sh-surface-warm': t.surfaceWarm, '--sh-ink': t.ink, '--sh-muted': t.muted,
+      '--sh-subtle': t.subtle, '--sh-border': t.border, '--sh-border-strong': t.borderStrong,
+      '--sh-field-border': t.fieldBorder, '--sh-accent': t.accent, '--sh-accent-soft': t.accentSoft,
+      '--sh-accent-border': t.accentBorder, '--sh-halo': '0 0 0 3px ' + t.halo,
+      '--sh-error': t.error, '--sh-error-soft': t.errorSoft, '--sh-shadow': t.shadow,
+      '--sh-chrome': t.chrome, '--sh-rail': t.railWash,
+      '--sh-texture': 'radial-gradient(circle at 1px 1px, ' + t.dot + ' 1px, transparent 0)',
+    };
+    return { resolved, t, vars };
+  }
+
+  optionStyle(active, t){
+    return active
+      ? { background: t.accentSoft, borderColor: t.accent, color: t.accent, fontWeight: 600 }
+      : { background: t.paperSoft, borderColor: t.border, color: t.muted, fontWeight: 500 };
+  }
+
+  renderVals(){
+    const rs = this.state.routines;
+    const decorated = rs.map(r => this.decorate(r));
+    const done = rs.filter(r => r.status==='done').length;
+    const skipped = rs.filter(r => r.status==='skipped').length;
+    const total = rs.length;
+    const actionable = total; // handled = done+skipped
+    const pct = Math.round((done / total) * 100);
+    const rv = this.state.review;
+    return {
+      routines: decorated,
+      doneCount: done,
+      skipCount: skipped,
+      todoCount: total - done - skipped,
+      total,
+      pct,
+      pctStr: pct + '%',
+      barWidth: pct + '%',
+      handledStr: (done + skipped) + '/' + total,
+      review: rv,
+      moodStr: rv.mood, energyStr: rv.energy, stressStr: rv.stress, dayStr: rv.day,
+      setMood:   e => this.setR('mood',   +e.target.value),
+      setEnergy: e => this.setR('energy', +e.target.value),
+      setStress: e => this.setR('stress', +e.target.value),
+      setDay:    e => this.setR('day',    +e.target.value),
+      setWell:   e => this.setR('wentWell', e.target.value),
+      setImprove:e => this.setR('improve', e.target.value),
+      setNotes:  e => this.setR('notes', e.target.value),
+      ...this.appearanceVals(),
+    };
+  }
+
+  appearanceVals(){
+    const A = Component.ACCENTS;
+    const { resolved, t, vars } = this.themeVals();
+    const s = this.state;
+    const os = (a) => this.optionStyle(a, t);
+    const accentList = ['forest','blue','gold','brick'].map(k => ({
+      key: k,
+      label: A[k].label,
+      swatch: A[k][resolved].accent,
+      hex: A[k][resolved].accent.toUpperCase(),
+      ringColor: s.accent === k ? A[k][resolved].accent : 'transparent',
+      onPick: () => this.set('accent', k),
+    }));
+    const optBase = { borderWidth:'1px', borderStyle:'solid', borderRadius:'8px', cursor:'pointer', transition:'all .18s ease', display:'flex' };
+    const schemeList = [
+      { key:'light',  label:'Light',  hint:'Warm paper' },
+      { key:'dark',   label:'Dark',   hint:'Warm charcoal' },
+      { key:'system', label:'System', hint:'Follow device' },
+    ].map(o => ({
+      ...o,
+      styleDesk: { ...optBase, ...os(s.scheme === o.key), padding:'12px 13px', minHeight:'42px', flexDirection:'column', gap:'2px' },
+      styleMob:  { ...optBase, ...os(s.scheme === o.key), padding:'11px 13px', minHeight:'44px', alignItems:'center', justifyContent:'space-between' },
+      onPick: () => this.set('scheme', o.key),
+    }));
+    const motionList = [
+      { key:'system', label:'Follow system' },
+      { key:'always', label:'Always reduce' },
+    ].map(o => ({
+      ...o,
+      style: { ...optBase, ...os(s.motion === o.key), padding:'9px 14px', fontSize:'13.4px', minHeight:'40px', alignItems:'center' },
+      onPick: () => this.set('motion', o.key),
+    }));
+
+    const sw = (on) => ({
+      background: on ? t.accent : t.borderStrong,
+      justifyContent: on ? 'flex-end' : 'flex-start',
+      width:'44px', height:'26px', borderRadius:'999px', display:'flex',
+      alignItems:'center', padding:'3px', flex:'none', transition:'all .2s ease',
+    });
+
+    return {
+      themeVars: vars,
+      deskChromeStyle: { ...vars, background: t.chrome, borderRadius:'16px', padding:'8px',
+        boxShadow:'0 1px 2px rgba(30,28,24,.06), 0 40px 80px -40px rgba(30,28,24,.35)',
+        marginBottom:'32px', transition:'background .3s ease' },
+      phoneChromeStyle: { ...vars, background: t.chrome, borderRadius:'40px', padding:'9px',
+        boxShadow:'0 1px 2px rgba(30,28,24,.06), 0 30px 60px -30px rgba(30,28,24,.4)',
+        transition:'background .3s ease' },
+      resolvedLabel: resolved === 'dark' ? 'Dark' : 'Light',
+      schemeList, accentList, motionList,
+      systemNote: s.scheme === 'system'
+        ? 'Device reports ' + (s.systemIsDark ? 'dark' : 'light') + ' — showing ' + (resolved === 'dark' ? 'Dark' : 'Light')
+        : 'Fixed to ' + (s.scheme === 'light' ? 'Light' : 'Dark') + ', ignores the device',
+      textureOn: s.texture,
+      textureSwitch: sw(s.texture),
+      textureLabel: s.texture ? 'On' : 'Off',
+      pageTexture: s.texture ? vars['--sh-texture'] : 'none',
+      monoOn: s.monoNumerals,
+      monoSwitch: sw(s.monoNumerals),
+      monoLabel: s.monoNumerals ? 'On' : 'Off',
+      metricFont: s.monoNumerals ? "'JetBrains Mono', monospace" : "'Hanken Grotesk', sans-serif",
+      focusOn: s.focusDemo,
+      focusSwitch: sw(s.focusDemo),
+      focusShadow: s.focusDemo ? vars['--sh-halo'] : 'none',
+      focusBorder: s.focusDemo ? t.accent : t.fieldBorder,
+      simLabel: s.systemIsDark ? 'device: dark' : 'device: light',
+      ...(() => {
+        const isCustom = s.accent === 'custom';
+        const isDarkScheme = resolved === 'dark';
+        const hex = s.customHex;
+        const der = this.customSet(hex, resolved, t);
+        const onSurface = Component.ratio(hex, t.surface);
+        const onPaper = Component.ratio(hex, t.paper);
+        const worst = Math.min(onSurface, onPaper);
+        const ok = worst >= 3;
+        return {
+          customIsActive: isCustom,
+          customHex: hex,
+          customHexUpper: hex.toUpperCase(),
+          customDraft: s.customDraft,
+          customRing: isCustom ? hex : 'transparent',
+          customCardStyle: {
+            border: '1px solid ' + (isCustom ? hex : t.border),
+            background: isCustom ? der.accentSoft : t.paperSoft,
+            borderRadius: '8px', padding: '14px', transition: 'all .18s ease',
+          },
+          customSoft: der.accentSoft,
+          customBorder: der.accentBorder,
+          customHalo: der.halo,
+          contrastStr: worst.toFixed(1) + ':1',
+          contrastLabel: ok
+            ? 'passes on surface + paper'
+            : 'too low — pick a ' + (isDarkScheme ? 'lighter' : 'deeper') + ' tone for this scheme',
+          contrastStyle: {
+            display: 'inline-flex', alignItems: 'center', gap: '6px',
+            fontFamily: "'JetBrains Mono', monospace", fontSize: '10.5px',
+            padding: '4px 8px', borderRadius: '999px',
+            background: ok ? der.accentSoft : t.errorSoft,
+            border: '1px solid ' + (ok ? der.accentBorder : t.error),
+            color: ok ? t.ink : t.error,
+          },
+          contrastDot: { width:'6px', height:'6px', borderRadius:'50%', background: ok ? hex : t.error },
+          pickCustom: () => this.set('accent', 'custom'),
+          onPickColor: e => { const v = e.target.value; this.setState({ customHex: v, customDraft: v, accent: 'custom' }); },
+          onTypeHex: e => this.commitHex(e.target.value),
+        };
+      })(),
+      toggleTexture: () => this.set('texture', !s.texture),
+      toggleMono: () => this.set('monoNumerals', !s.monoNumerals),
+      toggleFocus: () => this.set('focusDemo', !s.focusDemo),
+      toggleSystem: () => this.set('systemIsDark', !s.systemIsDark),
+    };
+  }
+}
+</script>
+</body>
+</html>
