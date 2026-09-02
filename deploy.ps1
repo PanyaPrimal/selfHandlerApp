@@ -103,7 +103,10 @@ function ConvertFrom-JsonArray {
     if ([String]::IsNullOrWhiteSpace($Json) -or $Json.Trim() -eq '[]') {
         return
     }
-    return @($Json | ConvertFrom-Json)
+    $parsed = $Json | ConvertFrom-Json
+    foreach ($item in @($parsed)) {
+        Write-Output $item
+    }
 }
 
 Push-Location $RepositoryRoot
