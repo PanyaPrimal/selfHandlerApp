@@ -29,7 +29,7 @@ test('budget recurring plan cash flow and explicit outcome form one loop', async
   await plan.getByLabel('Amount').fill('100.0000')
   const startsOn = await plan.getByLabel('Starts on').inputValue()
   const currentDay = Number(startsOn.slice(8, 10))
-  await plan.getByLabel(`Day ${currentDay}`).check()
+  await plan.getByLabel(`Day ${currentDay}`, { exact: true }).check()
   await plan.getByRole('button', { name: 'Add recurring operation' }).click()
   await expect(page.getByText('Groceries plan', { exact: true }).first()).toBeVisible()
   await expect(page.getByTestId('finance-cash-flow')).toContainText('Mandatory expenses')
