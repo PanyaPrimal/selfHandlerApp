@@ -54,7 +54,7 @@ current SHA.
   days for non-secret inspection reports.
 - `deploy-selfhandler.yml`, `backup-selfhandler.yml`, and any future restore workflow share the
   repository concurrency group `selfhandler-production-operations`; host scripts additionally use
-  `C:\Homelab\.locks\selfhandler-production.lock` because GitHub concurrency is repository-scoped.
+  `C:\Homelab\SelfHandlerApp\.locks\selfhandler-production.lock` because GitHub concurrency is repository-scoped.
 
 ## One-time runner bootstrap
 
@@ -114,7 +114,7 @@ C:\Homelab\SelfHandlerApp\ops\secrets\backup-hmac.key
 C:\Homelab\SelfHandlerApp\ops\secrets\probe-account-password.txt
 C:\Homelab\SelfHandlerApp\state
 C:\Homelab\SelfHandlerApp\staging
-C:\Homelab\.locks
+C:\Homelab\SelfHandlerApp\.locks
 ```
 
 `ops\config.env` contains non-application operational values such as the age recipient, its

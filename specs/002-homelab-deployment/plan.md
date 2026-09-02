@@ -241,7 +241,7 @@ into the app container or copied into release artifacts.
    records immutable digests, OCI revision labels, workflow identity, attestations, and deployment
    bundle checksum in a release manifest.
 3. The trusted private workflow accepts no host/port/project inputs, acquires the exclusive
-   `C:\Homelab\.locks\selfhandler-production.lock` used by every SelfHandler deploy/backup/restore,
+   `C:\Homelab\SelfHandlerApp\.locks\selfhandler-production.lock` used by every SelfHandler deploy/backup/restore,
    validates actor/revision/manifest, and checks Docker, Caddy-backed public readiness, disk, memory, current health,
    and resource isolation. Before fallible host operations it writes an ACL-protected immutable
    prepared-release journal containing the exact bundle, manifest, private-workflow identity, and

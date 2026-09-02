@@ -48,7 +48,7 @@ user story.
 - [X] T011 [P] Configure non-root PHP-FPM and runtime-only Laravel writable-path initialization/optimization in `deployment/docker/php-fpm.conf` and `deployment/docker/app-entrypoint.sh` (FR-016, FR-017)
 - [X] T012 Create the fixed production `web`/`app`/`db` topology, networks, volumes, healthchecks, resource/log bounds, read-only filesystems, and loopback-only binding in `deployment/compose.production.yaml` (FR-010, FR-012, FR-015, FR-016)
 - [X] T013 Create the generated-name disposable override with no production resource references in `deployment/compose.validation.yaml` (FR-025, SC-010)
-- [X] T014 Implement shared fixed constants, secret-safe logging, the exclusive `C:\Homelab\.locks\selfhandler-production.lock`, Compose-label lookup, capacity checks, schema fingerprinting, and atomic JSON state writes in `deployment/scripts/shared.ps1` (FR-001, FR-005, FR-017, FR-019, FR-021)
+- [X] T014 Implement shared fixed constants, secret-safe logging, the exclusive `C:\Homelab\SelfHandlerApp\.locks\selfhandler-production.lock`, Compose-label lookup, capacity checks, schema fingerprinting, and atomic JSON state writes in `deployment/scripts/shared.ps1` (FR-001, FR-005, FR-017, FR-019, FR-021)
 
 **Checkpoint**: Runtime images and readiness can be validated without creating any production resource.
 

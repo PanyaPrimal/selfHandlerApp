@@ -25,6 +25,10 @@ class PublicIngressTests(unittest.TestCase):
             '$script:SelfHandlerPublicOrigin = "https://selfhandler.drpanya.uk"',
             shared,
         )
+        self.assertIn(
+            '$script:SelfHandlerLockPath = "C:\\Homelab\\SelfHandlerApp\\.locks\\selfhandler-production.lock"',
+            shared,
+        )
         self.assertIn("APP_URL=https://selfhandler.drpanya.uk", env_example)
         self.assertIn("SANCTUM_STATEFUL_DOMAINS=selfhandler.drpanya.uk", env_example)
         self.assertIn("PUBLIC_ORIGIN=https://selfhandler.drpanya.uk", ops_example)

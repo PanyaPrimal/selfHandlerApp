@@ -16,7 +16,7 @@ hosts, Compose projects, ports, volume names, or release refs.
 | Public origin | `https://selfhandler.drpanya.uk` |
 | Database volume | `selfhandler_mysql_data` |
 | Private-files volume | `selfhandler_private_files` |
-| Operations lock | `C:\Homelab\.locks\selfhandler-production.lock` |
+| Operations lock | `C:\Homelab\SelfHandlerApp\.locks\selfhandler-production.lock` |
 
 Compose and operation scripts always resolve relative to the currently executing
 qualified bundle. Deploy uses the freshly checksum-verified staging bundle;
@@ -125,7 +125,7 @@ and `trust-metadata.json` may inherit only those trusted entries. Scripts reject
 an untrusted owner/allow SID, reparse point, missing trusted identity, path
 escape, or checksum mismatch before reading release state or selecting code.
 
-Also pre-create `C:\Homelab\.locks` with inheritance disabled, no reparse point,
+Also pre-create `C:\Homelab\SelfHandlerApp\.locks` with inheritance disabled, no reparse point,
 trusted owner, and allow entries only for the dedicated SelfHandler runner,
 Administrators, and SYSTEM. `C:\Homelab` itself must not grant any other SID
 write/create/delete-child/change-permission/take-ownership rights; another

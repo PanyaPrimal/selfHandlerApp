@@ -197,7 +197,7 @@ production for validation, and accepting arbitrary archive paths were rejected.
 ## 11. Serialization and host capacity
 
 **Decision**: Use `cancel-in-progress: false` in workflow concurrency and the host-side exclusive lock
-`C:\Homelab\.locks\selfhandler-production.lock` for every SelfHandler deploy, backup, and restore.
+`C:\Homelab\SelfHandlerApp\.locks\selfhandler-production.lock` for every SelfHandler deploy, backup, and restore.
 Before staging, verify Docker and public-ingress availability,
 free disk for backup plus both release pairs, bounded host memory/CPU, and healthy current production.
 SelfHandler services start with web `0.25 CPU/128 MiB/64 PIDs`, app `0.75 CPU/512 MiB/128 PIDs`,
