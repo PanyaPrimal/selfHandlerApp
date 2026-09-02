@@ -34,6 +34,7 @@ class FixedLauncherTests(unittest.TestCase):
         self.assertIn('Deploy SelfHandler $remoteSha request $requestId', source)
         self.assertIn("displayTitle", source)
         self.assertIn("$script:GitHubCliRoot", source)
+        self.assertIn("Join-Path $extractRoot 'bin\\gh.exe'", source)
         self.assertIn("Remove-Item -LiteralPath $cliRoot -Recurse -Force", source)
         self.assertIn("--event', 'repository_dispatch", source)
         self.assertIn("'run', 'rerun'", source)

@@ -40,7 +40,7 @@ function Get-VerifiedGitHubCli {
     $extractRoot = Join-Path ([IO.Path]::GetTempPath()) ("selfhandler-gh-$version-" + [guid]::NewGuid().ToString('N'))
     $script:GitHubCliRoot = $extractRoot
     Expand-Archive -LiteralPath $archive -DestinationPath $extractRoot
-    $executable = Join-Path $extractRoot "gh_${version}_windows_amd64\bin\gh.exe"
+    $executable = Join-Path $extractRoot 'bin\gh.exe'
     if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
         throw 'The verified portable GitHub CLI archive contains no gh.exe.'
     }
