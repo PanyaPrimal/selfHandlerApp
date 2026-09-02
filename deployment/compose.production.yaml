@@ -57,7 +57,7 @@ services:
       APP_NAME: ${APP_NAME:-SelfHandler}
       APP_ENV: production
       APP_DEBUG: "false"
-      APP_URL: https://homelab.tail31a802.ts.net:8443
+      APP_URL: https://selfhandler.drpanya.uk
       APP_KEY: ${APP_KEY:?APP_KEY is required}
       APP_RELEASE_SHA: ${APP_RELEASE_SHA:?APP_RELEASE_SHA is required}
       APP_LOCALE: ${APP_LOCALE:-en}
@@ -83,8 +83,11 @@ services:
       SESSION_HTTP_ONLY: "true"
       SESSION_SAME_SITE: lax
       QUEUE_CONNECTION: database
-      SANCTUM_STATEFUL_DOMAINS: homelab.tail31a802.ts.net:8443
+      SANCTUM_STATEFUL_DOMAINS: selfhandler.drpanya.uk
       FILESYSTEM_DISK: local
+      GOOGLE_CALENDAR_CLIENT_ID: ${GOOGLE_CALENDAR_CLIENT_ID:-}
+      GOOGLE_CALENDAR_CLIENT_SECRET: ${GOOGLE_CALENDAR_CLIENT_SECRET:-}
+      GOOGLE_CALENDAR_REDIRECT_URI: ${GOOGLE_CALENDAR_REDIRECT_URI:-https://selfhandler.drpanya.uk/api/integrations/calendars/google/callback}
     depends_on:
       db:
         condition: service_healthy
@@ -142,6 +145,7 @@ services:
 networks:
   app:
     name: selfhandler_app
+    external: true
   data:
     name: selfhandler_data
     internal: true

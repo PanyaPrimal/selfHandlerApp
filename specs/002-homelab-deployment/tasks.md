@@ -75,7 +75,7 @@ data during paired replacement, exposes only its generated web port, and reports
 - [X] T020 [US1] Implement fixed-target preflight, exact digest pull, current-release verification, and bootstrap/routine mode detection in `deployment/scripts/deploy-production.ps1` (FR-001, FR-003, FR-005)
 - [X] T021 [US1] Implement one-shot candidate migration with migration-state evidence and explicit prohibition of seeding/entrypoint migrations in `deployment/scripts/deploy-production.ps1` (FR-011)
 - [X] T022 [US1] Implement paired web/app replacement preserving named volumes and verifying actual digests in `deployment/scripts/deploy-production.ps1` (FR-010, FR-012)
-- [X] T023 [US1] Implement local readiness, private-route readiness, runtime-isolation, and real session-auth smoke gates in `deployment/scripts/deploy-production.ps1` and `deployment/scripts/auth-smoke.ps1` (FR-012, FR-015, FR-016; SC-004, SC-006)
+- [X] T023 [US1] Implement local readiness, public-route readiness, runtime-isolation, and real session-auth smoke gates in `deployment/scripts/deploy-production.ps1` and `deployment/scripts/auth-smoke.ps1` (FR-012, FR-015, FR-016; SC-004, SC-006)
 - [X] T024 [US1] Implement protected prepared/pending journals keyed by immutable release identity, append-only release attempts, cross-run resume, and trusted atomic active-release/finalization in `deployment/private-ops/.github/workflows/deploy-selfhandler.yml`, `deployment/scripts/shared.ps1`, `deployment/scripts/deploy-production.ps1`, and `deployment/scripts/finalize-release.ps1` (FR-021)
 - [X] T025 [P] [US1] Add a private-operations repository template whose hosted job checks out only canonical `master` and whose homelab job performs no public checkout and executes only its checksum-verified qualified bundle in `deployment/private-ops/.github/workflows/deploy-selfhandler.yml` (FR-002, FR-004, FR-018, FR-019)
 - [X] T026 [P] [US1] Add a checksum-pinned one-time private runner/bootstrap guide and workflow contract in `deployment/private-ops/README.md` (FR-018)
@@ -140,23 +140,23 @@ record/file without touching either production stack.
 
 ## Phase 6: User Story 4 - Inspect Production State (Priority: P4)
 
-**Goal**: Report exact release, local/private health, stores, backup freshness, isolation, and alerts
+**Goal**: Report exact release, local/public health, stores, backup freshness, isolation, and alerts
 without revealing protected values.
 
-**Independent Test**: Healthy, private-route-failed, backup-overdue, and secret-canary scenarios yield
+**Independent Test**: Healthy, public-route-failed, backup-overdue, and secret-canary scenarios yield
 the expected separate statuses with no canary in output.
 
 ### Tests for User Story 4
 
 - [X] T045 [P] [US4] Write failing healthy/degraded/overdue/secret-canary inspection tests in `deployment/tests/test_inspect.py` (FR-017, FR-020, FR-022; SC-008, SC-009)
-- [X] T046 [P] [US4] Write failing additive Tailscale Serve configuration tests that preserve DealFlow HTTPS 443 and change only SelfHandler 8443 in `deployment/tests/test_tailscale.py` (FR-015, FR-025)
+- [X] T046 [P] [US4] Write fixed public Caddy ingress contract tests that preserve loopback-only web access and private database/runtime ports in `deployment/tests/test_public_ingress.py` (FR-015, FR-025)
 
 ### Implementation for User Story 4
 
-- [X] T047 [US4] Implement secret-safe structured inspection validated by `contracts/health-report.schema.json` for actual digests, local/private readiness, database, stores, isolation, capacity, history, and backup age in `deployment/scripts/inspect-production.ps1` (FR-020, FR-022)
-- [X] T048 [US4] Implement additive Tailscale Serve 8443 configuration, before/after snapshot comparison, scoped rollback, and DealFlow 443 verification in `deployment/scripts/configure-private-route.ps1` (FR-012, FR-015, FR-025)
+- [X] T047 [US4] Implement secret-safe structured inspection validated by `contracts/health-report.schema.json` for actual digests, local/public readiness, database, stores, isolation, capacity, history, and backup age in `deployment/scripts/inspect-production.ps1` (FR-020, FR-022)
+- [X] T048 [US4] Implement fixed public-route readiness and authentication verification for `https://selfhandler.drpanya.uk` without granting the runner shared-ingress mutation rights (FR-012, FR-015, FR-025)
 - [X] T049 [P] [US4] Add the trusted private manual inspection workflow with artifact output and no public checkout in `deployment/private-ops/.github/workflows/inspect-selfhandler.yml` (FR-018, FR-022)
-- [X] T050 [US4] Exercise separate local/private-route failure and overdue-backup cases and record expected alert codes in `specs/002-homelab-deployment/quickstart.md` (SC-008, SC-009)
+- [X] T050 [US4] Exercise separate local/public-route failure and overdue-backup cases and record expected alert codes in `specs/002-homelab-deployment/quickstart.md` (SC-008, SC-009)
 
 **Checkpoint**: Operators can distinguish application, route, backup, capacity, and isolation failures safely.
 
@@ -168,7 +168,7 @@ the expected separate statuses with no canary in output.
 fixed production rollout.
 
 - [X] T051 [P] Pin every third-party GitHub Action and container base/database image to reviewed immutable commits/digests in `.github/workflows/*.yml`, `deployment/private-ops/.github/workflows/*.yml`, and `deployment/docker/Dockerfile` (FR-003, FR-018)
-- [X] T052 [P] Document fixed target, secret names, runner boundary, backups, recovery, Tailscale coexistence, and break-glass behavior in `deployment/README.md` and `README.md` (FR-001, FR-014, FR-017, FR-018)
+- [X] T052 [P] Document fixed target, secret names, runner boundary, backups, recovery, shared Caddy coexistence, and break-glass behavior in `deployment/README.md` and `README.md` (FR-001, FR-014, FR-017, FR-018)
 - [X] T053 Run `composer validate --strict`, `php artisan test`, `npm run typecheck`, `npm run build`, and `npm run test:e2e` and record no unresolved regression in `specs/002-homelab-deployment/tasks.md` (FR-004)
 - [X] T054 Run all deployment unit/contract tests, Compose config checks, image builds, production smoke, rollback injection, and encrypted recovery smoke in `deployment/tests/` and mark their tasks complete (FR-004, FR-025)
 - [X] T055 Execute a read-only Spec Kit cross-artifact coverage/constitution audit for `specs/002-homelab-deployment/spec.md`, `plan.md`, and `tasks.md`, resolving any critical/high gap before live rollout (FR-004)
@@ -230,7 +230,7 @@ fixed production rollout.
 - T002–T004 can run in parallel after T001.
 - T006, T007, and T009–T011 touch independent files and can run in parallel.
 - US1 manifest/workflow work can run alongside Docker smoke implementation after Foundational.
-- US3 recovery library/tests and US4 inspection/Tailscale tests can run alongside US2 rollback work.
+- US3 recovery library/tests and US4 inspection/public-ingress tests can run alongside US2 rollback work.
 - Documentation and immutable-pin review can run in parallel after implementations stabilize.
 
 ---
@@ -251,7 +251,7 @@ Task T025: trusted private workflow template
 ```text
 Track A: T029–T034 paired rollback
 Track B: T035–T044 encrypted backup and restore
-Track C: T045–T050 inspection and private ingress
+Track C: T045–T050 inspection and public ingress
 ```
 
 ---
@@ -273,7 +273,7 @@ Track C: T045–T050 inspection and private ingress
 3. Failure injection proves paired rollback.
 4. Encrypted round trip proves recovery.
 5. Inspection fixtures prove observable failure separation.
-6. Live rollout proves private HTTPS authentication and DealFlow coexistence.
+6. Live rollout proves public HTTPS authentication and shared Caddy coexistence.
 
 ## Notes
 

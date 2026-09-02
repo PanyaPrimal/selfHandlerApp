@@ -17,7 +17,7 @@ class InspectionReportTests(unittest.TestCase):
     def report(
         self,
         *,
-        private: str = "healthy",
+        public: str = "healthy",
         backup: str = "valid",
         canary: str = "",
         pending: int = 0,
@@ -27,10 +27,10 @@ class InspectionReportTests(unittest.TestCase):
 . '{escaped}'
 $active = [pscustomobject]@{{source_revision='{'a' * 40}';web_digest='sha256:{'b' * 64}';app_digest='sha256:{'c' * 64}'}}
 $local = [pscustomobject]@{{status='healthy';latency_ms=12}}
-$private = [pscustomobject]@{{status='{private}';latency_ms=23}}
+$public = [pscustomobject]@{{status='{public}';latency_ms=23}}
 $backup = [pscustomobject]@{{status='{backup}';age_hours=$(if ('{backup}' -eq 'missing') {{$null}} else {{25.5}});reference=$(if ('{backup}' -eq 'missing') {{$null}} else {{'artifact-selfhandler'}})}}
 $runtime = @{{non_root='passed';read_only='passed';ports='passed'}}
-$report = New-SelfHandlerHealthReport -ObservedAt '2026-08-09T12:00:00Z' -ActiveRelease $active -LocalReadiness $local -PrivateRoute $private -DatabaseStatus 'healthy' -DatabaseVolumeStatus 'present' -PrivateFilesVolumeStatus 'present' -LatestBackup $backup -RuntimeIsolation $runtime -CapacityStatus 'sufficient' -PendingReleaseCount {pending}
+$report = New-SelfHandlerHealthReport -ObservedAt '2026-08-09T12:00:00Z' -ActiveRelease $active -LocalReadiness $local -PublicRoute $public -DatabaseStatus 'healthy' -DatabaseVolumeStatus 'present' -PrivateFilesVolumeStatus 'present' -LatestBackup $backup -RuntimeIsolation $runtime -CapacityStatus 'sufficient' -PendingReleaseCount {pending}
 $report | ConvertTo-Json -Depth 10 -Compress
 """
         env = os.environ.copy()
@@ -65,12 +65,12 @@ $report | ConvertTo-Json -Depth 10 -Compress
         )
         Draft202012Validator(schema, format_checker=FormatChecker()).validate(report)
 
-    def test_private_route_failure_is_separate_from_local_health(self) -> None:
-        report = self.report(private="unreachable")
+    def test_public_route_failure_is_separate_from_local_health(self) -> None:
+        report = self.report(public="unreachable")
 
         self.assertEqual(report["local_readiness"]["status"], "healthy")
-        self.assertEqual(report["private_route"]["status"], "unreachable")
-        self.assertIn("private_route_unreachable", report["alerts"])
+        self.assertEqual(report["public_route"]["status"], "unreachable")
+        self.assertIn("public_route_unreachable", report["alerts"])
         self.assertNotIn("local_unhealthy", report["alerts"])
 
     def test_overdue_backup_has_stable_alert(self) -> None:

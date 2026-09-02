@@ -76,21 +76,20 @@ https://laravel.com/docs/12.x/deployment.
 the image, generic optimization/route caching, and skipping configuration caching entirely were
 rejected.
 
-## 5. Private Tailscale ingress without disturbing DealFlow
+## 5. Public Caddy ingress without sharing application state
 
-**Decision**: Preserve DealFlow's existing public Funnel on
-`https://homelab.tail31a802.ts.net:443`. Add a tailnet-only Tailscale Serve HTTPS listener on port 8443
-that proxies to `http://127.0.0.1:18080`. Snapshot and compare the current Serve/Funnel configuration;
-never run a global `tailscale serve reset` during SelfHandler deployment.
+**Decision**: Publish SelfHandler at `https://selfhandler.drpanya.uk` through the existing homelab
+Caddy listener on router-forwarded TCP `80`/`443`. Caddy joins only external Docker network
+`selfhandler_app` and proxies to `web:8080`; MySQL and PHP-FPM retain no host/WAN ports. The release
+runner verifies the public route but does not mutate shared ingress.
 
-**Rationale**: Tailscale Serve is tailnet-only and can expose a specified HTTPS port with automatic
-TLS termination, while Funnel is explicitly public. See
-https://tailscale.com/docs/reference/tailscale-cli/serve. A separate origin avoids SPA fallback,
-cookie, CSRF, and route-prefix collisions.
+**Rationale**: One domain with per-project subdomains provides stable HTTPS without a tunnel or
+project-specific WAN port. A separate hostname avoids SPA fallback, cookie, CSRF, and route-prefix
+collisions while keeping project data networks and volumes isolated.
 
-**Alternatives considered**: Reusing the DealFlow root path or Funnel, publishing Nginx on the LAN,
-and introducing a shared Caddy/Traefik proxy were rejected for privacy or because they add a shared
-failure domain.
+**Alternatives considered**: Reusing the CRM root path, publishing Nginx directly on the LAN/WAN,
+and retaining a Tailscale-only production origin were rejected because they create routing/security
+coupling or do not meet the public-address requirement.
 
 ## 6. Public-repository trust boundary
 
@@ -199,7 +198,7 @@ production for validation, and accepting arbitrary archive paths were rejected.
 
 **Decision**: Use `cancel-in-progress: false` in workflow concurrency and the host-side exclusive lock
 `C:\Homelab\.locks\selfhandler-production.lock` for every SelfHandler deploy, backup, and restore.
-Before staging, verify Docker/Tailscale availability,
+Before staging, verify Docker and public-ingress availability,
 free disk for backup plus both release pairs, bounded host memory/CPU, and healthy current production.
 SelfHandler services start with web `0.25 CPU/128 MiB/64 PIDs`, app `0.75 CPU/512 MiB/128 PIDs`,
 database `0.75 CPU/768 MiB/256 PIDs`, 10 MiB × 5 JSON logs, and 64 MiB tmpfs mounts. Backup runs daily,
@@ -235,7 +234,7 @@ route verification were rejected.
 
 ## 13. Production authentication settings
 
-**Decision**: Configure `APP_ENV=production`, `APP_DEBUG=false`, the exact private HTTPS `APP_URL`,
+**Decision**: Configure `APP_ENV=production`, `APP_DEBUG=false`, the exact public HTTPS `APP_URL`,
 database-backed session/cache, `SESSION_COOKIE=selfhandler_session`, Secure and HttpOnly cookies,
 SameSite Lax, and the exact host-with-port in `SANCTUM_STATEFUL_DOMAINS`. A visible probe account
 email/password lives only in the private ops secret store: bootstrap registers it only if the user

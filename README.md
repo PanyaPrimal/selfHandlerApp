@@ -163,8 +163,9 @@ the user; project automation must not create or switch branches.
 Feature [`002-homelab-deployment`](specs/002-homelab-deployment/spec.md) defines the fixed private
 production target. SelfHandler runs beside DealFlow as the isolated Docker Compose project
 `selfhandler`: Nginx/Vue on loopback port 18080, internal PHP-FPM, internal MySQL 8.4, and separate
-database/private-file volumes. Private HTTPS is provided by tailnet-only Tailscale Serve on port 8443;
-the existing DealFlow Funnel on 443 is not shared or reset.
+database/private-file volumes. Public HTTPS is provided by the shared homelab Caddy ingress at
+`https://selfhandler.drpanya.uk`; only Caddy joins the application ingress network, and MySQL remains
+internal.
 
 Public-repository code is qualified only on GitHub-hosted runners. The homelab runner belongs to a
 separate private operations repository and accepts only the exact reviewed image digests plus its

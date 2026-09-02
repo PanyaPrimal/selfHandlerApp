@@ -19,7 +19,6 @@ param(
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "shared.ps1")
-. (Join-Path $PSScriptRoot "configure-private-route.ps1")
 
 function Get-FinalizerCandidate {
     param([Parameter(Mandatory = $true)][psobject]$Manifest)
@@ -97,9 +96,8 @@ function Assert-FinalizerHealth {
     if ([string]$local.status -ne "healthy") {
         throw "finalization_health_failed"
     }
-    Invoke-ConfigureSelfHandlerPrivateRoute -Mode Verify -LockAlreadyHeld | Out-Null
-    $private = Test-SelfHandlerReadiness -Scope Private -ExpectedRevision $ExpectedRevision -TimeoutSeconds 20
-    if ([string]$private.status -ne "healthy") {
+    $public = Test-SelfHandlerReadiness -Scope Public -ExpectedRevision $ExpectedRevision -TimeoutSeconds 20
+    if ([string]$public.status -ne "healthy") {
         throw "finalization_health_failed"
     }
     $arguments = @(
@@ -366,7 +364,7 @@ $lock = $null
 try {
     $lock = Enter-SelfHandlerProductionLock
     Assert-SelfHandlerStateRootIntegrity | Out-Null
-    Assert-RequiredCommands -Names @("docker", "tailscale", "powershell")
+    Assert-RequiredCommands -Names @("docker", "powershell")
     $manifest = Read-ValidatedReleaseManifest -Path $ReleaseManifestPath
     $manifestSha256 = (Get-FileHash -LiteralPath $ReleaseManifestPath -Algorithm SHA256).Hash.ToLowerInvariant()
     $candidate = Get-FinalizerCandidate -Manifest $manifest

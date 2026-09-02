@@ -197,7 +197,7 @@ jobs:
               }
           }
           Assert-Probe -Value $report.local_readiness -Path '$.local_readiness'
-          Assert-Probe -Value $report.private_route -Path '$.private_route'
+          Assert-Probe -Value $report.public_route -Path '$.public_route'
           if ([string]$report.database -notin @($schema.properties.database.enum)) { throw '$.database is invalid.' }
           Assert-ExactProperties -Value $report.persistent_stores -Required @($schema.properties.persistent_stores.required) -Path '$.persistent_stores'
           Assert-Store -Value $report.persistent_stores.database_volume -Path '$.persistent_stores.database_volume'
@@ -224,7 +224,7 @@ jobs:
               throw '$.alerts is invalid.'
           }
           [IO.File]::WriteAllText($reportPath, $json, (New-Object Text.UTF8Encoding($false)))
-          Write-Host "Inspection status: local=$([string]$report.local_readiness.status), private=$([string]$report.private_route.status), backup=$([string]$report.latest_backup.status)"
+          Write-Host "Inspection status: local=$([string]$report.local_readiness.status), public=$([string]$report.public_route.status), backup=$([string]$report.latest_backup.status)"
           "report_path=$reportPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
       - name: Publish the non-secret inspection report

@@ -76,6 +76,7 @@ class FixedTargetContractTests(unittest.TestCase):
             "migrate:rollback",
             "db:seed",
             "tailscale serve reset",
+            "tailscale ",
         )
         implementation_files = [REPO_ROOT / "deploy.ps1", REPO_ROOT / "deployment" / "compose.production.yaml"]
         implementation_files.extend((REPO_ROOT / "deployment" / "scripts").glob("*.ps1"))

@@ -8,7 +8,7 @@ function New-SelfHandlerHealthReport {
         [Parameter(Mandatory = $true)][string]$ObservedAt,
         [AllowNull()][psobject]$ActiveRelease,
         [Parameter(Mandatory = $true)][psobject]$LocalReadiness,
-        [Parameter(Mandatory = $true)][psobject]$PrivateRoute,
+        [Parameter(Mandatory = $true)][psobject]$PublicRoute,
         [Parameter(Mandatory = $true)][ValidateSet("healthy", "unhealthy", "absent")][string]$DatabaseStatus,
         [Parameter(Mandatory = $true)][ValidateSet("present", "missing", "unexpected")][string]$DatabaseVolumeStatus,
         [Parameter(Mandatory = $true)][ValidateSet("present", "missing", "unexpected")][string]$PrivateFilesVolumeStatus,
@@ -21,10 +21,10 @@ function New-SelfHandlerHealthReport {
 
     $alerts = New-Object System.Collections.Generic.List[string]
     if ($LocalReadiness.status -ne "healthy") { $alerts.Add("local_unhealthy") }
-    if ($PrivateRoute.status -eq "unreachable") {
-        $alerts.Add("private_route_unreachable")
-    } elseif ($PrivateRoute.status -ne "healthy") {
-        $alerts.Add("private_route_unhealthy")
+    if ($PublicRoute.status -eq "unreachable") {
+        $alerts.Add("public_route_unreachable")
+    } elseif ($PublicRoute.status -ne "healthy") {
+        $alerts.Add("public_route_unhealthy")
     }
     if ($DatabaseStatus -eq "absent") {
         $alerts.Add("database_absent")
@@ -62,9 +62,9 @@ function New-SelfHandlerHealthReport {
             status = [string]$LocalReadiness.status
             latency_ms = $LocalReadiness.latency_ms
         }
-        private_route = [pscustomobject][ordered]@{
-            status = [string]$PrivateRoute.status
-            latency_ms = $PrivateRoute.latency_ms
+        public_route = [pscustomobject][ordered]@{
+            status = [string]$PublicRoute.status
+            latency_ms = $PublicRoute.latency_ms
         }
         database = $DatabaseStatus
         persistent_stores = [pscustomobject][ordered]@{
@@ -199,7 +199,7 @@ function Invoke-SelfHandlerInspection {
     $expectedRevision = $null
     if ($null -ne $active) { $expectedRevision = [string]$active.source_revision }
     $local = Test-SelfHandlerReadiness -Scope Local -ExpectedRevision $expectedRevision
-    $private = Test-SelfHandlerReadiness -Scope Private -ExpectedRevision $expectedRevision -TimeoutSeconds 20
+    $public = Test-SelfHandlerReadiness -Scope Public -ExpectedRevision $expectedRevision -TimeoutSeconds 20
     $database = "absent"
     try {
         $db = Get-SelfHandlerContainerId -Service db -AllowMissing -RunningOnly
@@ -219,7 +219,7 @@ function Invoke-SelfHandlerInspection {
         -ObservedAt $observedAt `
         -ActiveRelease $active `
         -LocalReadiness $local `
-        -PrivateRoute $private `
+        -PublicRoute $public `
         -DatabaseStatus $database `
         -DatabaseVolumeStatus (Get-VolumeInspectionStatus -Name $script:SelfHandlerDatabaseVolume) `
         -PrivateFilesVolumeStatus (Get-VolumeInspectionStatus -Name $script:SelfHandlerPrivateFilesVolume) `
@@ -232,6 +232,6 @@ function Invoke-SelfHandlerInspection {
 
 if ($MyInvocation.InvocationName -ne ".") {
     $report = Invoke-SelfHandlerInspection
-    Write-Host ("SelfHandler inspection: local={0}; private={1}; database={2}; backup={3}; alerts={4}" -f $report.local_readiness.status, $report.private_route.status, $report.database, $report.latest_backup.status, @($report.alerts).Count)
+    Write-Host ("SelfHandler inspection: local={0}; public={1}; database={2}; backup={3}; alerts={4}" -f $report.local_readiness.status, $report.public_route.status, $report.database, $report.latest_backup.status, @($report.alerts).Count)
     Write-Output ($report | ConvertTo-Json -Depth 20 -Compress)
 }

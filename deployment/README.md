@@ -13,7 +13,7 @@ hosts, Compose projects, ports, volume names, or release refs.
 | Host root | `C:\Homelab\SelfHandlerApp` |
 | Compose definition | `compose.production.yaml` from the checksum-verified qualified bundle only |
 | Local origin | `http://127.0.0.1:18080` |
-| Private origin | `https://homelab.tail31a802.ts.net:8443` |
+| Public origin | `https://selfhandler.drpanya.uk` |
 | Database volume | `selfhandler_mysql_data` |
 | Private-files volume | `selfhandler_private_files` |
 | Operations lock | `C:\Homelab\.locks\selfhandler-production.lock` |
@@ -191,7 +191,7 @@ identifier—adopts exactly one journal only when source, paired digests, manife
 bytes, bundle hash, original backup, actor, and workflow evidence all match. It
 then safely replays the explicit migration container and paired
 replacement; it never republishes images or invents a new release identity.
-After local/private/authentication/isolation gates, deploy changes the journal
+After local/public/authentication/isolation gates, deploy changes the journal
 to `awaiting_completion` and exits successfully, but does **not** write a
 terminal release record or change `active-release.json`.
 
@@ -210,7 +210,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 ```
 
 The finalizer rechecks the installed bundle/manifest checksums, exact local
-images and running pair, schema, isolation, local/private health, and real
+images and running pair, schema, isolation, local/public health, and real
 session authentication. The version-2 `active-operations.json` pointer and its
 exact-hash `trust-metadata.json` bind the original attempt/actor, manifest and
 bundle hashes, fixed private workflow repository/ref, immutable workflow SHA,
@@ -283,7 +283,7 @@ remains absent, `-Reason bootstrap` derives its source only from exactly one
 and schema. The finalizer binds this backup before it can make the candidate
 active or terminally successful.
 
-## Inspection and private ingress
+## Inspection and public ingress
 
 Run inspection only from the trusted homelab executor:
 
@@ -293,37 +293,40 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
 ```
 
 The final line is a secret-safe structured health report. It distinguishes local
-readiness from private-route readiness and reports actual image digests, database
+readiness from public-route readiness and reports actual image digests, database
 and volume state, runtime isolation, capacity, release history, and latest valid
 backup age. Alert codes are stable automation inputs; do not treat an unhealthy
-private route as a healthy deployment merely because loopback succeeds.
+public route as a healthy deployment merely because loopback succeeds.
 `pending_release` and `deployment_incomplete` explicitly report an unfinished
 two-phase release; the actual pair versus still-active pointer is also reported
 as a failed `release_pair_matches` isolation check where applicable.
 
-On Windows, `tailscale serve` mutation requires an Administrator terminal. It is
-therefore a one-time RDP/admin bootstrap, never a capability granted to or used
-by the non-admin GitHub runner. The administrator applies the additive route
-(this may happen before SelfHandler starts):
+Public ingress is shared with the other `drpanya.uk` services and is configured once by an
+administrator before the first release. Pre-create Docker network `selfhandler_app`, attach Caddy to
+it as an external network, and add this site to `C:\Homelab\Ingress\Caddyfile`:
 
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass `
-  -File deployment\scripts\configure-private-route.ps1 `
-  -Mode Apply
+```caddyfile
+selfhandler.drpanya.uk {
+    reverse_proxy web:8080
+}
 ```
 
-The script snapshots Tailscale Serve and Funnel state, adds only HTTPS 8443 for
-`http://127.0.0.1:18080`, compares before/after state, and proves DealFlow HTTPS
-443 is still healthy. On failure it removes only the SelfHandler 8443 listener.
-Never use a global Serve/Funnel reset or replace the existing DealFlow route.
-The admin-applied after-snapshot becomes the exact baseline.
+Validate and reload Caddy after updating its Compose definition. The route may return `502` until the
+first SelfHandler web container starts. The router continues to forward only shared TCP `80` and
+`443` to `192.168.1.9`; do not expose loopback TCP `18080`, PHP-FPM, or MySQL `3306` on the WAN.
+Deployments verify `https://selfhandler.drpanya.uk/api/health` and real cookie/CSRF authentication
+after local readiness. They do not mutate Caddy, router, DNS, or Tailscale state.
 
-Deployments call `-Mode Verify` internally after loopback readiness. Verify mode
-is read-only with respect to Tailscale: it requires the exact private 8443
-TCP/Web mapping, rejects Funnel exposure, compares the complete Serve config and
-`AllowFunnel` subtree with the admin baseline, and checks both DealFlow 443 and
-SelfHandler 8443 health. The runner must not be configured as a Tailscale
-operator; Tailscale's `--operator` delegation is not the Windows control model.
+Google Calendar is optional. To enable it, store `GOOGLE_CALENDAR_CLIENT_ID` and
+`GOOGLE_CALENDAR_CLIENT_SECRET` only in the protected production `.env`, and register this exact Google
+Cloud Web application redirect URI:
+
+```text
+https://selfhandler.drpanya.uk/api/integrations/calendars/google/callback
+```
+
+If those two values are empty, the rest of SelfHandler remains available and the Google Calendar provider
+reports itself as unconfigured.
 
 ## Recovery and break glass
 

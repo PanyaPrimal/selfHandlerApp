@@ -70,11 +70,11 @@ GOOGLE_CALENDAR_REDIRECT_URI=http://localhost:8000/api/integrations/calendars/go
 
 Run: `php artisan serve` (API on 8000) and `npm --prefix apps/web run dev` (Vite proxies `/api` to it).
 
-**Alternative host — the live Funnel stack.** `_local-deploy/compose.local.yaml` does not currently pass
-`GOOGLE_CALENDAR_*` into the `app` container, so this needs a variable passthrough added to its `&app-env`
-block — a tracked deployment path that every prior feature deliberately left untouched. Do this only with
-explicit approval. The secret values would live in the untracked `_local-deploy/.env.funnel`, and the
-redirect URI would be `https://desktop-gh03uov.tail31a802.ts.net/api/integrations/calendars/google/callback`.
+**Production host.** Put the secret values only in the ACL-protected
+`C:\Homelab\SelfHandlerApp\.env`; the production Compose file passes them to the app container. Register
+the redirect URI as
+`https://selfhandler.drpanya.uk/api/integrations/calendars/google/callback`. Leave the client ID and secret
+empty when Google Calendar is intentionally disabled.
 
 ### Journey
 
@@ -97,7 +97,7 @@ Fill this in during the run, then copy the summary into `tasks.md` and `quicksta
 Date:
 Operator:
 Path: (Apple | Google | both)
-Host: (local dev | live funnel | local 18080)
+Host: (local dev | production | local 18080)
 Account (masked):              Calendars discovered: ___
 Bad-credential attempt rejected and cleaned up: yes/no
 Selected calendar: 1           First sync: ___ events in ___ s

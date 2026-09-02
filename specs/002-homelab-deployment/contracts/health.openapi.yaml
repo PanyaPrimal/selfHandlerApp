@@ -4,8 +4,8 @@ info:
   version: 1.0.0
   description: Non-secret readiness contract used by Docker, release verification, and inspection.
 servers:
-  - url: https://homelab.tail31a802.ts.net:8443
-    description: Fixed private production origin; reachable only inside the owner's tailnet.
+  - url: https://selfhandler.drpanya.uk
+    description: Fixed public production origin behind the shared homelab Caddy HTTPS ingress.
 paths:
   /api/health:
     get:

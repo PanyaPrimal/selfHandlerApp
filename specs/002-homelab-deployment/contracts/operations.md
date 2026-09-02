@@ -18,7 +18,7 @@ deployment_id: selfhandler-production
 compose_project: selfhandler
 root: C:\Homelab\SelfHandlerApp
 local_origin: http://127.0.0.1:18080
-private_origin: https://homelab.tail31a802.ts.net:8443
+public_origin: https://selfhandler.drpanya.uk
 ```
 
 They never accept host, port, project, environment, profile, volume, or deployment-mode arguments.
@@ -55,7 +55,7 @@ moving-branch manual release action.
 **Inputs**: none.
 
 **Output**: one non-secret structured report plus a human summary covering release digests, local and
-private readiness, database/container health, expected volumes/networks, runtime isolation, capacity
+public readiness, database/container health, expected volumes/networks, runtime isolation, capacity
 status, latest validated backup age, and alert codes. Secret values and environment contents are never
 printed.
 
@@ -105,4 +105,4 @@ in the future are refused. Drill mode always retains the 24-hour freshness limit
 | recovery required | Previous pair also failed verification | Workflow fails visibly; bundle and manual entry point reported |
 
 No routine operation removes a production volume, runs `docker compose down -v`, invokes a database
-seeder, runs a destructive migration rollback, or resets the host-wide Tailscale Serve configuration.
+seeder, runs a destructive migration rollback, or mutates the shared Caddy/router ingress.

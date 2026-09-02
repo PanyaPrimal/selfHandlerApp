@@ -343,6 +343,27 @@ def _assert_auth_and_persistence(
     _request_json(opener, origin, "/sanctum/csrf-cookie", expected_status=204)
     csrf = _csrf_token(jar)
 
+    invite_output = _run(
+        compose
+        + [
+            "exec",
+            "-T",
+            "app",
+            "php",
+            "artisan",
+            "invite:create",
+            "--note=disposable-production-smoke",
+            "--no-ansi",
+        ],
+        env=env,
+        redactions=redactions,
+    )
+    invite_match = re.search(r"\b[A-HJ-NP-Z2-9]{4}(?:-[A-HJ-NP-Z2-9]{4}){2}\b", invite_output)
+    if invite_match is None:
+        raise SmokeFailure("The disposable runtime did not create a registration invite")
+    invite_code = invite_match.group(0)
+    redactions.add(invite_code)
+
     email = f"runtime-smoke-{uuid.uuid4().hex[:12]}@example.test"
     password = "runtime smoke password 2026"
     registered = _request_json(
@@ -357,6 +378,7 @@ def _assert_auth_and_persistence(
             "email": email,
             "password": password,
             "password_confirmation": password,
+            "invite_code": invite_code,
         },
     )
     if not registered or registered.get("data", {}).get("email") != email:

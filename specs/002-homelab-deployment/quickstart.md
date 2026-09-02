@@ -11,7 +11,7 @@ run from the repository root unless stated otherwise. Secret values are represen
 - Python 3 for deployment contract tests
 - Windows PowerShell 5.1 or newer for operational scripts
 - checksum-pinned portable Python and `age` binaries for deployment validation and recovery
-- access to the tailnet only for live private-route checks
+- external network access for live public-route checks
 
 Never copy the production `.env`, age identity, database volume, or private-files volume into a
 validation workspace.
@@ -137,13 +137,13 @@ ACL-protected host-only secret files; the age private identity remains off-host;
 ephemeral trusted-workflow credential/Docker credential store. None is injected into the application
 container.
 
-Non-secret fixed values must include production environment/debug settings, the private HTTPS URL,
+Non-secret fixed values must include production environment/debug settings, the public HTTPS URL,
 database session/cache drivers, `selfhandler_session`, Secure/HttpOnly/SameSite cookie settings, and
-the exact Sanctum host with port.
+the exact Sanctum hostname.
 
-Before adding ingress, capture the existing configuration. Add only the HTTPS 8443 Serve listener for
-`http://127.0.0.1:18080`; do not reset or replace the existing DealFlow Funnel on 443. Compare status
-afterward and prove the DealFlow route still returns healthy.
+Before bootstrap, pre-create Docker network `selfhandler_app`, attach the shared Caddy service to it,
+and add `selfhandler.drpanya.uk { reverse_proxy web:8080 }`. Keep the router limited to shared TCP
+`80`/`443`; do not publish MySQL `3306`, PHP-FPM, or the loopback-only web port `18080` on the WAN.
 
 Bootstrap succeeds only after the pre-migration empty baseline and a second post-authentication
 recovery point are both stored off-host and Sections 7–8 pass. It records `previous_release=null`
@@ -151,10 +151,10 @@ explicitly.
 
 ## 7. Live release verification
 
-On a machine inside the tailnet:
+From an external network:
 
 ```powershell
-$origin = 'https://homelab.tail31a802.ts.net:8443'
+$origin = 'https://selfhandler.drpanya.uk'
 Invoke-RestMethod "$origin/api/health"
 ```
 
@@ -188,7 +188,7 @@ Run only on the trusted homelab executor:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File deployment/scripts/inspect-production.ps1
 ```
 
-Expected: exact paired digests, local/private readiness, database health, expected volume identities,
+Expected: exact paired digests, local/public readiness, database health, expected volume identities,
 latest valid backup age, isolation checks, and no alerts. Output may name required secret variables but
 must never include their values.
 
@@ -226,12 +226,12 @@ touched zero production projects, and removed its generated resources.
 
 A rejected preflight must show zero production mutations. A failed candidate must result in either:
 
-- `rolled_back`, with the previous paired digests healthy through both local and private routes; or
+- `rolled_back`, with the previous paired digests healthy through both local and public routes; or
 - `recovery_required`, with a validated bundle reference and deterministic manual recovery entry point.
 
 Neither result may delete volumes, run `migrate:rollback`, run a seeder, expose a secret, or report a
-failed private route as successful.
+failed public route as successful.
 
-Inspection keeps local, private-route, backup, and interrupted-deployment failures distinct. The
-exercised stable alert codes are `local_unhealthy`, `private_route_unreachable`, `backup_overdue`,
-`deployment_incomplete`, and `pending_release`; a private-route failure must not imply local failure.
+Inspection keeps local, public-route, backup, and interrupted-deployment failures distinct. The
+exercised stable alert codes are `local_unhealthy`, `public_route_unreachable`, `backup_overdue`,
+`deployment_incomplete`, and `pending_release`; a public-route failure must not imply local failure.

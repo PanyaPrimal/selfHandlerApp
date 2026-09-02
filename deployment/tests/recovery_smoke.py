@@ -77,7 +77,9 @@ def _wait_mysql(docker: str, container: str) -> None:
             container,
             "sh",
             "-c",
-            'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; mysql --batch --skip-column-names -uroot -e "SELECT 1" >/dev/null',
+            '[ "$(cat /proc/1/comm)" = "mysqld" ] || exit 1; '
+            'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; '
+            'mysql --batch --skip-column-names -uroot -e "SELECT 1" >/dev/null',
             check=False,
         )
         if result.returncode == 0:

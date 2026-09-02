@@ -19,7 +19,6 @@ param(
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "shared.ps1")
-. (Join-Path $PSScriptRoot "configure-private-route.ps1")
 
 $script:TerminalOutcomes = @("succeeded", "rejected", "failed_before_replace", "rolled_back", "recovery_required")
 $script:StableFailureCodes = @(
@@ -188,16 +187,8 @@ function Test-ReleaseHealth {
     if ($local.status -ne "healthy") {
         return $false
     }
-    try {
-        # Bootstrap cannot have private readiness until the additive 8443 Serve
-        # route exists. The deploy entry point already owns the production lock.
-        Invoke-ConfigureSelfHandlerPrivateRoute -Mode Verify -LockAlreadyHeld | Out-Null
-    }
-    catch {
-        return $false
-    }
-    $private = Test-SelfHandlerReadiness -Scope Private -ExpectedRevision $ExpectedRevision -TimeoutSeconds 20
-    if ($private.status -ne "healthy") {
+    $public = Test-SelfHandlerReadiness -Scope Public -ExpectedRevision $ExpectedRevision -TimeoutSeconds 20
+    if ($public.status -ne "healthy") {
         return $false
     }
     try {
@@ -375,7 +366,7 @@ function Invoke-DeploymentPreflight {
         [Parameter(Mandatory = $true)][string]$OffHostReference
     )
 
-    Assert-RequiredCommands -Names @("docker", "tailscale", "powershell")
+    Assert-RequiredCommands -Names @("docker", "powershell")
     Assert-SelfHandlerCapacity | Out-Null
     if (-not (Test-Path -LiteralPath $script:SelfHandlerEnvironmentPath -PathType Leaf)) {
         throw "dependency_unavailable"
@@ -451,8 +442,8 @@ function Invoke-DeploymentPreflight {
         Assert-ExpectedVolumes
         Assert-ActualReleasePair -Release $active
         $local = Test-SelfHandlerReadiness -Scope Local -ExpectedRevision ([string]$active.source_revision)
-        $private = Test-SelfHandlerReadiness -Scope Private -ExpectedRevision ([string]$active.source_revision) -TimeoutSeconds 20
-        if ($local.status -ne "healthy" -or $private.status -ne "healthy") {
+        $public = Test-SelfHandlerReadiness -Scope Public -ExpectedRevision ([string]$active.source_revision) -TimeoutSeconds 20
+        if ($local.status -ne "healthy" -or $public.status -ne "healthy") {
             throw "current_health_failed"
         }
     }
@@ -546,7 +537,7 @@ $checks = @{
     migration = "not_run"
     replacement = "not_run"
     local_readiness = "not_run"
-    private_route = "not_run"
+    public_route = "not_run"
     runtime_isolation = "not_run"
     authentication = "not_run"
     operations_bundle = "not_run"
@@ -641,7 +632,7 @@ try {
         $checks.migration = "passed"
         $checks.replacement = "passed"
         $checks.local_readiness = "passed"
-        $checks.private_route = "passed"
+        $checks.public_route = "passed"
         $checks.runtime_isolation = "passed"
         $checks.authentication = "passed"
         Write-Output ($context.Pending | ConvertTo-Json -Depth 20 -Compress)
@@ -711,7 +702,7 @@ try {
             throw "replacement_failed"
         }
         $checks.local_readiness = "passed"
-        $checks.private_route = "passed"
+        $checks.public_route = "passed"
         $checks.authentication = "passed"
         Assert-ActualReleasePair -Release $candidateRelease
         Assert-RuntimeIsolation

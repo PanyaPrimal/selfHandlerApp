@@ -4,7 +4,7 @@ DEPLOYMENT_ID=selfhandler-production
 COMPOSE_PROJECT=selfhandler
 PRODUCTION_ROOT=C:\Homelab\SelfHandlerApp
 LOCAL_ORIGIN=http://127.0.0.1:18080
-PRIVATE_ORIGIN=https://homelab.tail31a802.ts.net:8443
+PUBLIC_ORIGIN=https://selfhandler.drpanya.uk
 
 # Public encryption recipient only. The age private identity stays off-host.
 AGE_RECIPIENT=age1SET_ME_OPERATOR_CONTROLLED_RECIPIENT

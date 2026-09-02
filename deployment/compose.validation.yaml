@@ -41,6 +41,7 @@ services:
 networks:
   app:
     name: ${SELFHANDLER_VALIDATION_PROJECT:?SELFHANDLER_VALIDATION_PROJECT is required}_app
+    external: false
   data:
     name: ${SELFHANDLER_VALIDATION_PROJECT:?SELFHANDLER_VALIDATION_PROJECT is required}_data
 

@@ -9,8 +9,8 @@
 Package the Laravel API and Vue SPA as one reviewed release made of two immutable Linux container
 images. Deploy that pair beside DealFlow as the fixed Docker Compose project `selfhandler`, with a
 dedicated MySQL 8.4 database, dedicated private-file storage, and only an Nginx entry point bound to
-`127.0.0.1:18080`. Tailscale Serve exposes that entry point only inside the tailnet at
-`https://homelab.tail31a802.ts.net:8443`; the existing DealFlow Funnel on HTTPS port 443 is preserved.
+`127.0.0.1:18080`. The shared homelab Caddy ingress also joins `selfhandler_app` and exposes the web
+service at `https://selfhandler.drpanya.uk`; the existing CRM and pgAdmin sites remain independent.
 
 GitHub-hosted runners execute every checkout and all qualification of public-repository code, tests,
 image builds, and registry publishing. A separately trusted private operations workflow on the
@@ -18,7 +18,7 @@ homelab runner consumes only an approved manifest, exact image digests, and the 
 deployment bundle produced from that reviewed revision; it never executes a pull request, fork,
 arbitrary ref, or unqualified checkout. Each production mutation is serialized, preceded by a
 validated encrypted off-host database-and-files backup, followed by a one-shot migration and full
-local/private-route verification. Application rollback swaps the complete previous image pair and
+local/public-route verification. Application rollback swaps the complete previous image pair and
 never deletes or automatically rolls back persistent data.
 
 ## Technical Context
@@ -43,19 +43,20 @@ flows, Python deployment contract tests, Docker Compose configuration checks, an
 production-shaped MySQL/Nginx/PHP-FPM smoke and rollback/restore drill
 
 **Target Platform**: Linux containers on the existing Windows homelab Docker Desktop/WSL2 engine;
-private HTTPS through the existing Windows Tailscale peer; GitHub-hosted Ubuntu runners for
+public HTTPS through the existing Caddy ingress; GitHub-hosted Ubuntu runners for
 application CI and private qualification, plus hosted Windows Server 2025 for the public deployment
 contracts and mandatory Windows PowerShell 5.1 evidence
 
 **Project Type**: Monorepo web application plus fixed-target operational tooling
 
-**Performance Goals**: A normal replacement passes migration and local/private-route verification
+**Performance Goals**: A normal replacement passes migration and local/public-route verification
 within 15 minutes; an intentionally unhealthy replacement restores the previous application within
 5 minutes; a controlled recovery drill finishes within 60 minutes; readiness responds within 5
 seconds under normal homelab conditions
 
-**Constraints**: One fixed production target; brief maintenance is acceptable; no public SelfHandler
-Funnel; no shared DealFlow networks, volumes, database, port, state, or secrets; no public-repository
+**Constraints**: One fixed production target; brief maintenance is acceptable; only the dedicated
+SelfHandler ingress network is shared with Caddy; no shared DealFlow volumes, database, application
+network, state, or secrets; no public-repository
 checkout or unqualified code execution on the production runner (only the checksum-verified bundle
 from the exact qualified revision may execute there); no `latest` tags; no production seeding;
 no destructive schema rollback; secrets are runtime-only; database and PHP-FPM publish no host ports;
@@ -70,7 +71,7 @@ it does not claim isolation from another Docker administrator. A separate daemon
 increment.
 
 **Scale/Scope**: One homelab installation, two long-running application images plus MySQL, a small
-number of users, one daily encrypted backup, one fixed private origin, and append-only release history
+number of users, one daily encrypted backup, one fixed public origin, and append-only release history
 
 ## Constitution Check
 
@@ -88,7 +89,7 @@ number of users, one daily encrypted backup, one fixed private origin, and appen
 - **Deterministic Core**: PASS. Deployment, validation, migration, backup, rollback, and recovery are
   deterministic scripts with no AI dependency.
 - **User-Owned Data and Privacy**: PASS. Database and private files are isolated in dedicated named
-  volumes, backups are encrypted before leaving protected staging, the HTTPS route is tailnet-only,
+  volumes, backups are encrypted before leaving protected staging, the HTTPS route is terminated by Caddy,
   and secret values are excluded from artifacts and reports.
 - **Contracts and Tests**: PASS. Operational command contracts, health and manifest schemas, static
   contract tests, production-shaped smoke tests, failure injection, and live auth/cookie checks move
@@ -106,12 +107,11 @@ required by FR-018 because the source repository is public; it is not a generali
 ## Architecture and Release Boundaries
 
 ```text
-Tailscale tailnet only
-https://homelab.tail31a802.ts.net:8443
+Public Internet -> Caddy :443 -> selfhandler_app network
+https://selfhandler.drpanya.uk
                     |
                     v
-Docker host: 127.0.0.1:18080
-  selfhandler_web (Nginx :8080, Vue dist, /api + /sanctum + /up proxy)
+  selfhandler_web (Nginx :8080, plus host loopback 127.0.0.1:18080)
                     |
           selfhandler_app network
                     |
@@ -122,7 +122,7 @@ Docker host: 127.0.0.1:18080
   selfhandler_db (MySQL 8.4 :3306, no host port)
 
 Persistent: selfhandler_mysql_data + selfhandler_private_files
-Separate existing stack: dealflow_* resources and Funnel HTTPS :443
+Separate existing stack: dealflow_* resources behind the same Caddy 80/443 listener
 ```
 
 The release unit is the tuple `(source SHA, web digest, app digest, schema fingerprint)`. Web and app
@@ -182,7 +182,6 @@ deployment/
 ├── scripts/
 │   ├── backup-production.ps1
 │   ├── auth-smoke.ps1
-│   ├── configure-private-route.ps1
 │   ├── deploy-production.ps1
 │   ├── finalize-release.ps1
 │   ├── inspect-production.ps1
@@ -199,7 +198,7 @@ deployment/
 │   ├── test_inspect.py
 │   ├── test_recovery.py
 │   ├── test_release.py
-│   ├── test_tailscale.py
+│   ├── test_public_ingress.py
 │   └── production_smoke.py
 └── private-ops/
     ├── .github/
@@ -243,7 +242,7 @@ into the app container or copied into release artifacts.
    bundle checksum in a release manifest.
 3. The trusted private workflow accepts no host/port/project inputs, acquires the exclusive
    `C:\Homelab\.locks\selfhandler-production.lock` used by every SelfHandler deploy/backup/restore,
-   validates actor/revision/manifest, and checks Docker, Tailscale, disk, memory, current health,
+   validates actor/revision/manifest, and checks Docker, Caddy-backed public readiness, disk, memory, current health,
    and resource isolation. Before fallible host operations it writes an ACL-protected immutable
    prepared-release journal containing the exact bundle, manifest, private-workflow identity, and
    checksums so another run can resume without trusting previous job outputs.
@@ -253,7 +252,7 @@ into the app container or copied into release artifacts.
 5. It pulls exact digests, verifies the candidate pair, stops only SelfHandler web/app for the allowed
    maintenance window, runs the candidate app migration container once, and replaces the pair while
    preserving both named volumes.
-6. It verifies container health, database readiness, local readiness, private HTTPS readiness,
+6. It verifies container health, database readiness, local readiness, public HTTPS readiness,
    release identity, runtime hardening, port isolation, and a real session-auth smoke without seeding.
    A visible probe account is configured as private ops credentials; bootstrap registers it only when
    the database has no users, routine releases only log it in, and bootstrap creates a second encrypted

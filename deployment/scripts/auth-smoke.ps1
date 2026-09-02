@@ -53,6 +53,22 @@ function Assert-BootstrapUserTableEmpty {
     }
 }
 
+function New-BootstrapInvitation {
+    [CmdletBinding()]
+    param()
+
+    $application = Get-SelfHandlerContainerId -Service app -RunningOnly
+    $output = [string](& docker exec $application php artisan invite:create --note=selfhandler-probe-bootstrap --no-ansi)
+    if ($LASTEXITCODE -ne 0) {
+        throw "Bootstrap probe invitation creation failed."
+    }
+    $match = [regex]::Match($output, '\b[A-HJ-NP-Z2-9]{4}(?:-[A-HJ-NP-Z2-9]{4}){2}\b')
+    if (-not $match.Success) {
+        throw "Bootstrap probe invitation creation failed."
+    }
+    return $match.Value
+}
+
 function Invoke-AuthenticationSmoke {
     [CmdletBinding()]
     param(
@@ -81,7 +97,7 @@ function Invoke-AuthenticationSmoke {
         throw "The configured probe credential does not meet the application minimum."
     }
 
-    $origin = [Uri]$script:SelfHandlerPrivateOrigin
+    $origin = [Uri]$script:SelfHandlerPublicOrigin
     $originText = $origin.GetLeftPart([UriPartial]::Authority)
     $statefulHeaders = @{
         Accept = "application/json"
@@ -117,11 +133,13 @@ function Invoke-AuthenticationSmoke {
 
     if (-not $authenticated) {
         Assert-BootstrapUserTableEmpty
+        $inviteCode = New-BootstrapInvitation
         $registerBody = ConvertTo-CompactJson -Value ([ordered]@{
             name = $name
             email = $email
             password = $password
             password_confirmation = $password
+            invite_code = $inviteCode
         })
         try {
             $registerResponse = Invoke-WebRequest -Uri ("{0}/api/auth/register" -f $origin.AbsoluteUri.TrimEnd("/")) -Method Post -WebSession $session -Headers $headers -Body $registerBody -TimeoutSec 20 -UseBasicParsing
@@ -136,7 +154,7 @@ function Invoke-AuthenticationSmoke {
 
     $health = Invoke-RestMethod -Uri ("{0}/api/health" -f $origin.AbsoluteUri.TrimEnd("/")) -Method Get -Headers $statefulHeaders -WebSession $session -TimeoutSec 20
     if ($health.status -ne "ok" -or [string]$health.release -ne $Revision) {
-        throw "Private authentication smoke observed an unexpected release."
+        throw "Public authentication smoke observed an unexpected release."
     }
     $date = [DateTime]::UtcNow.ToString("yyyy-MM-dd")
     try {

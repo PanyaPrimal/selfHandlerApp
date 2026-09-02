@@ -91,7 +91,7 @@ Fill this in during the run, then copy the summary into `tasks.md` and `quicksta
 ```
 Date:
 Operator:
-Host: (live funnel | local 18080 | local dev)
+Host: (production | local 18080 | local dev)
 Provider:                      Model:
 Probe: pass/fail               round-trip: ___ ms
 Wrong-key test: credentials_invalid yes/no

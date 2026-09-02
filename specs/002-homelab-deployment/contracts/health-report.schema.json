@@ -10,7 +10,7 @@
     "observed_at",
     "active_release",
     "local_readiness",
-    "private_route",
+    "public_route",
     "database",
     "persistent_stores",
     "latest_backup",
@@ -24,7 +24,7 @@
     "observed_at": { "type": "string", "format": "date-time" },
     "active_release": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/releasePair" }] },
     "local_readiness": { "$ref": "#/$defs/probe" },
-    "private_route": { "$ref": "#/$defs/probe" },
+    "public_route": { "$ref": "#/$defs/probe" },
     "database": { "type": "string", "enum": ["healthy", "unhealthy", "absent"] },
     "persistent_stores": {
       "type": "object",

@@ -6,8 +6,8 @@ $script:SelfHandlerDeploymentId = "selfhandler-production"
 $script:SelfHandlerComposeProject = "selfhandler"
 $script:SelfHandlerProductionRoot = "C:\Homelab\SelfHandlerApp"
 $script:SelfHandlerLocalOrigin = "http://127.0.0.1:18080"
-$script:SelfHandlerPrivateOrigin = "https://homelab.tail31a802.ts.net:8443"
-$script:SelfHandlerDealFlowOrigin = "https://homelab.tail31a802.ts.net"
+$script:SelfHandlerPublicOrigin = "https://selfhandler.drpanya.uk"
+$script:SelfHandlerDealFlowOrigin = "https://crm.drpanya.uk"
 $script:SelfHandlerDatabaseVolume = "selfhandler_mysql_data"
 $script:SelfHandlerPrivateFilesVolume = "selfhandler_private_files"
 $script:SelfHandlerAppNetwork = "selfhandler_app"
@@ -34,7 +34,7 @@ function Get-SelfHandlerConstants {
         ComposeProject = $script:SelfHandlerComposeProject
         ProductionRoot = $script:SelfHandlerProductionRoot
         LocalOrigin = $script:SelfHandlerLocalOrigin
-        PrivateOrigin = $script:SelfHandlerPrivateOrigin
+        PublicOrigin = $script:SelfHandlerPublicOrigin
         DatabaseVolume = $script:SelfHandlerDatabaseVolume
         PrivateFilesVolume = $script:SelfHandlerPrivateFilesVolume
         AppNetwork = $script:SelfHandlerAppNetwork
@@ -1025,7 +1025,7 @@ function Assert-SelfHandlerCapacity {
 
 function Assert-RequiredCommands {
     [CmdletBinding()]
-    param([string[]]$Names = @("docker", "tailscale"))
+    param([string[]]$Names = @("docker"))
 
     foreach ($name in $Names) {
         if (-not (Get-Command $name -ErrorAction SilentlyContinue)) {
@@ -1272,7 +1272,7 @@ function Test-SelfHandlerReadiness {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
-        [ValidateSet("Local", "Private")]
+        [ValidateSet("Local", "Public")]
         [string]$Scope,
         [string]$ExpectedRevision,
         [ValidateRange(1, 30)]
@@ -1280,8 +1280,8 @@ function Test-SelfHandlerReadiness {
     )
 
     $origin = $script:SelfHandlerLocalOrigin
-    if ($Scope -eq "Private") {
-        $origin = $script:SelfHandlerPrivateOrigin
+    if ($Scope -eq "Public") {
+        $origin = $script:SelfHandlerPublicOrigin
     }
     $stopwatch = [Diagnostics.Stopwatch]::StartNew()
     try {

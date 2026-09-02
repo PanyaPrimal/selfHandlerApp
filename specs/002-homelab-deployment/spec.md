@@ -18,12 +18,12 @@ project while accounting for SelfHandler's public source repository and personal
   multi-user email-and-password authentication and registration feature before live homelab rollout.
 - Q: Is that application prerequisite now satisfied? → A: Feature `003-multi-user-auth` is
   implemented and passes backend plus desktop/mobile browser acceptance. Live rollout must still
-  verify the fixed private HTTPS origin, `selfhandler_session` as a Secure and HttpOnly cookie, the
+  verify the fixed public HTTPS origin, `selfhandler_session` as a Secure and HttpOnly cookie, the
   matching stateful-domain configuration, and that production seeding is not invoked.
 - Q: How can the first deployment satisfy the pre-mutation recovery requirement without an existing
   release? → A: After proving the new production stores are empty, bootstrap starts only the database
   and uploads a validated encrypted empty baseline before the first migration. It then creates a
-  second recovery point after the visible probe account and private HTTPS authentication flow pass.
+  second recovery point after the visible probe account and public HTTPS authentication flow pass.
 - Q: What public-repository code may execute on the homelab runner? → A: No pull request, fork,
   arbitrary ref, or unqualified checkout may execute there. The private trusted workflow may execute
   only the checksum-verified deployment bundle produced by its hosted qualification job from the
@@ -45,7 +45,7 @@ the existing production data.
 operations depend on having one deterministic production target and release procedure.
 
 **Independent Test**: Start a release for an exact reviewed revision, verify that all pre-release
-checks pass, and confirm that the private production URL serves that revision while existing records
+checks pass, and confirm that the public production URL serves that revision while existing records
 remain unchanged.
 
 **Acceptance Scenarios**:
@@ -117,7 +117,7 @@ status without exposing secrets so I can identify operational problems before da
 lost.
 
 **Why this priority**: Observable state reduces recovery time and prevents an apparently successful
-workflow from hiding a broken private route or stale backup.
+workflow from hiding a broken public route or stale backup.
 
 **Independent Test**: Inspect a running production-equivalent stack and confirm that the report names
 the active release, health state, persistent resources, latest backup time, and any actionable alert
@@ -125,9 +125,9 @@ without printing secret values.
 
 **Acceptance Scenarios**:
 
-1. **Given** production is healthy, **When** the operator inspects it, **Then** local and private-route
+1. **Given** production is healthy, **When** the operator inspects it, **Then** local and public-route
    health, active release identity, and backup freshness are reported.
-2. **Given** the local application is healthy but the private route is unavailable, **When** inspection
+2. **Given** the local application is healthy but the public route is unavailable, **When** inspection
    runs, **Then** the route failure is reported separately from application health.
 3. **Given** protected configuration exists, **When** inspection or deployment logs are produced,
    **Then** secret names may be reported but secret values are not exposed.
@@ -136,7 +136,7 @@ without printing secret values.
 
 - The production target has insufficient space for a new release, rollback artifacts, and backup
   staging at the same time.
-- The container runtime, private network agent, off-host destination, or release registry is
+- The container runtime, shared HTTPS ingress, off-host destination, or release registry is
   unavailable.
 - The release identifier or immutable artifact already exists and would otherwise be overwritten.
 - A schema change succeeds but the replacement application fails, making application-only rollback
@@ -178,7 +178,7 @@ without printing secret values.
 - **FR-011**: Approved schema changes MUST run exactly once per release and MUST be compatible with
   application rollback, or the release MUST stop before the incompatible mutation.
 - **FR-012**: The release flow MUST verify application startup, database connectivity, local health,
-  and private-route health before declaring success.
+  and public-route health before declaring success.
 - **FR-013**: If replacement startup or verification fails, the flow MUST attempt automatic rollback
   to the complete previous application release without deleting persistent data.
 - **FR-014**: If automatic rollback cannot restore health, the flow MUST fail visibly, preserve the
@@ -200,7 +200,7 @@ without printing secret values.
   release, schema state, backup reference, operator or automation identity, start and completion time,
   and final outcome.
 - **FR-022**: Operators MUST be able to inspect production health, release identity, storage identity,
-  backup freshness, and private-route reachability without exposing protected values.
+  backup freshness, and public-route reachability without exposing protected values.
 - **FR-023**: A recovery procedure MUST validate bundle identity, age, sizes, integrity metadata,
   database contents, private-file archive contents, and target identity before overwriting any target
   state.
@@ -212,8 +212,8 @@ without printing secret values.
 
 ### Scope Boundaries
 
-This feature includes one production installation, immutable release packaging, a private application
-entry point, deployment checks, persistent storage, schema application, health verification,
+This feature includes one production installation, immutable release packaging, a public HTTPS
+application entry point, deployment checks, persistent storage, schema application, health verification,
 application rollback, encrypted backup, restore drills, inspection, and operational documentation.
 
 Feature `003-multi-user-auth` satisfies the application behavior prerequisite for live rollout.
@@ -221,7 +221,7 @@ Deployment validation includes a smoke check that an existing account can sign i
 owned-data endpoint, and sign out, plus a check of the production HTTPS session-cookie and stateful-
 origin configuration. The authentication behavior and screens remain owned by feature 003.
 
-It excludes automatic deployment on every push, public internet exposure, high availability,
+It excludes automatic deployment on every push, direct database/runtime port exposure, high availability,
 multi-host orchestration, horizontal scaling, fleet/profile management, zero-downtime schema migration,
 production data cloning into development, native mobile packaging, application authentication screens,
 Redis, queue workers, scheduled product jobs, external observability platforms, and deployment of
@@ -229,7 +229,7 @@ modules outside an approved product feature.
 
 ### Key Entities
 
-- **Production Target**: The single owner-approved homelab installation with a fixed identity, private
+- **Production Target**: The single owner-approved homelab installation with a fixed identity, public HTTPS
   entry point, persistent stores, protected configuration, and current health state.
 - **Release**: One immutable, reviewed application version with source identity, artifact identities,
   schema state, predecessor, timestamps, and outcome.
@@ -237,7 +237,7 @@ modules outside an approved product feature.
   private-file state for one production target at a point in time.
 - **Release Record**: Append-only operational evidence connecting a release attempt to its checks,
   backup, previous version, migration state, operator, and final result.
-- **Health Report**: A non-secret view of local application, database, private-route, backup-freshness,
+- **Health Report**: A non-secret view of local application, database, public-route, backup-freshness,
   capacity, and runtime-isolation status.
 
 ## Success Criteria *(mandatory)*
@@ -250,7 +250,7 @@ modules outside an approved product feature.
   mutations in every tested failure scenario.
 - **SC-003**: 100% of production replacement attempts have a validated encrypted off-host recovery
   bundle completed before the first production mutation.
-- **SC-004**: A healthy replacement becomes available through the private production route within 15
+- **SC-004**: A healthy replacement becomes available through the public production route within 15
   minutes after production mutation begins under normal homelab conditions.
 - **SC-005**: An intentionally unhealthy replacement returns to the previous healthy application
   release within 5 minutes in every application-rollback acceptance test.
@@ -260,7 +260,7 @@ modules outside an approved product feature.
   controlled records and files verified within 60 minutes.
 - **SC-008**: The latest valid off-host backup is no more than 24 hours old during normal operation,
   and an overdue backup produces an explicit alert in the next inspection.
-- **SC-009**: Production inspection reports the exact active release, local health, private-route
+- **SC-009**: Production inspection reports the exact active release, local health, public-route
   health, backup freshness, and persistent-store identities while exposing zero protected values.
 - **SC-010**: Automated deployment and recovery tests create, mutate, and remove zero real SelfHandler
   or DealFlow production containers, networks, or persistent stores.
@@ -275,9 +275,8 @@ modules outside an approved product feature.
 - There is one owner-operator and one production homelab installation during this increment.
 - Production begins with a fresh authoritative database; importing the current local prototype
   database is outside this feature.
-- The homelab provides a container runtime, sufficient persistent disk, and an existing private remote
-  access mechanism. The exact route is fixed during planning without exposing the application to the
-  public internet.
+- The homelab provides a container runtime, sufficient persistent disk, Cloudflare DNS, shared Caddy
+  HTTPS ingress, and router forwarding limited to TCP `80`/`443`.
 - The operator retains the recovery decryption identity outside both the repository and homelab
   failure domain.
 - Brief maintenance during a release is acceptable; high availability and zero-downtime migration are

@@ -507,8 +507,8 @@ function Test-RestoredProductionHealth {
     if ($local.status -ne "healthy") {
         return $false
     }
-    $private = Test-SelfHandlerReadiness -Scope Private -ExpectedRevision $ExpectedRevision -TimeoutSeconds 20
-    return $private.status -eq "healthy"
+    $public = Test-SelfHandlerReadiness -Scope Public -ExpectedRevision $ExpectedRevision -TimeoutSeconds 20
+    return $public.status -eq "healthy"
 }
 
 $bundle = [IO.Path]::GetFullPath($BundlePath)

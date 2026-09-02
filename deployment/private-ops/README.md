@@ -123,9 +123,11 @@ readable by the runner account. The age decryption identity remains outside both
 credentials live only in private operations secrets and are never injected into application
 containers or release/backup artifacts.
 
-The required application settings include the private HTTPS origin, production mode, database-backed
+The required application settings include the public HTTPS origin, production mode, database-backed
 sessions/cache, `SESSION_COOKIE=selfhandler_session`, Secure/HttpOnly/Lax cookie settings, and the
-exact `homelab.tail31a802.ts.net:8443` Sanctum stateful domain. Production seeding is forbidden.
+exact `selfhandler.drpanya.uk` Sanctum stateful domain. Production seeding is forbidden. Caddy is
+attached to external Docker network `selfhandler_app` and proxies `selfhandler.drpanya.uk` to
+`web:8080`; the runner verifies this route but does not mutate shared ingress.
 
 ## Workflow contract
 

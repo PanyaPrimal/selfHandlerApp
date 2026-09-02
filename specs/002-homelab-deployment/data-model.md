@@ -13,7 +13,7 @@ The target is compiled into trusted operations tooling rather than supplied by a
 | `compose_project` | Constant `selfhandler` |
 | `root` | Constant `C:\Homelab\SelfHandlerApp` |
 | `local_origin` | Constant `http://127.0.0.1:18080` |
-| `private_origin` | Constant `https://homelab.tail31a802.ts.net:8443` |
+| `public_origin` | Constant `https://selfhandler.drpanya.uk` |
 | `web_service` | `web`; the only published service |
 | `app_service` | `app`; internal PHP-FPM runtime |
 | `database_service` | `db`; internal MySQL runtime |
@@ -122,7 +122,7 @@ an exact-SHA retry can resume safely after cancellation or runner loss.
 | `actor` / request evidence | Must match the trusted owner-authenticated request contract |
 
 `deploying` is durable before the first migration/replacement mutation. `awaiting_completion` means
-the exact candidate pair, schema, runtime isolation, local/private health, and authentication passed.
+the exact candidate pair, schema, runtime isolation, local/public health, and authentication passed.
 `completion_validated` means the required completion recovery point is also uploaded and bound.
 
 For bootstrap, finalization validates the staged operations pointer and the uploaded/bound post-auth
@@ -188,7 +188,7 @@ An inspection result is generated on demand, validated by
 | `observed_at` | UTC timestamp |
 | `active_release` | Source SHA and actual paired container digests |
 | `local_readiness` | Status and bounded latency only |
-| `private_route` | Status and bounded latency only |
+| `public_route` | Status and bounded latency only |
 | `database` | Healthy/unhealthy; no server variables or credentials |
 | `persistent_stores` | Exact expected Docker volume names and existence status |
 | `latest_backup` | Age, validation status, and overdue alert |
