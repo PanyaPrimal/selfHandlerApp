@@ -35,6 +35,8 @@ class FixedLauncherTests(unittest.TestCase):
         self.assertIn("displayTitle", source)
         self.assertIn("$script:GitHubCliRoot", source)
         self.assertIn("Join-Path $extractRoot 'bin\\gh.exe'", source)
+        self.assertIn("function ConvertFrom-JsonArray", source)
+        self.assertIn("$Json.Trim() -eq '[]'", source)
         self.assertIn("Remove-Item -LiteralPath $cliRoot -Recurse -Force", source)
         self.assertIn("--event', 'repository_dispatch", source)
         self.assertIn("'run', 'rerun'", source)

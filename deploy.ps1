@@ -97,6 +97,15 @@ function Invoke-GitHubCli {
     return ($output -join [Environment]::NewLine)
 }
 
+function ConvertFrom-JsonArray {
+    param([Parameter(Mandatory = $true)][string]$Json)
+
+    if ([String]::IsNullOrWhiteSpace($Json) -or $Json.Trim() -eq '[]') {
+        return
+    }
+    return @($Json | ConvertFrom-Json)
+}
+
 Push-Location $RepositoryRoot
 try {
     if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
@@ -143,7 +152,7 @@ try {
         '--limit', '20',
         '--json', 'databaseId'
     )
-    $existingIds = @($existingJson | ConvertFrom-Json | ForEach-Object { [long]$_.databaseId })
+    $existingIds = @(ConvertFrom-JsonArray -Json $existingJson | ForEach-Object { [long]$_.databaseId })
 
     $requestId = [guid]::NewGuid().ToString('N')
     Write-Host "Starting the trusted SelfHandler homelab workflow for public revision $remoteSha."
@@ -169,7 +178,7 @@ try {
             '--limit', '20',
             '--json', 'databaseId,displayTitle,status,url'
         )
-        $run = @($runsJson | ConvertFrom-Json) |
+        $run = @(ConvertFrom-JsonArray -Json $runsJson) |
             Where-Object {
                 $existingIds -notcontains [long]$_.databaseId -and
                 [string]$_.displayTitle -eq $expectedTitle
