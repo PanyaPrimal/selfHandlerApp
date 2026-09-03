@@ -312,7 +312,7 @@ class RestoreScriptSafetyTests(unittest.TestCase):
         self.assertIn("Invoke-SelfHandlerCompose rm -f -s web app", reset_section)
         self.assertIn("Assert-RestoredDatabaseSchemaEmpty", reset_section)
         self.assertIn("active-release.json", reset_section)
-        self.assertNotIn("up -d --no-build --pull never app web", reset_section)
+        self.assertNotIn("up --detach --no-build --pull never app web", reset_section)
         history_guard = source.index("function Assert-BootstrapResetHistoryEligible")
         history_guard_end = source.index("function Wait-DisposableRestoreDatabaseReady")
         history_section = source[history_guard:history_guard_end]

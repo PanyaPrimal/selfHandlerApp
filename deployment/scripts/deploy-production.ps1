@@ -511,7 +511,7 @@ function Invoke-PairedReplacement {
     param([Parameter(Mandatory = $true)][psobject]$Manifest)
 
     Set-CandidateEnvironment -Manifest $Manifest
-    Invoke-SelfHandlerCompose up -d --no-build --pull never app web
+    Invoke-SelfHandlerCompose up --detach --no-build --pull never app web
 }
 
 function Invoke-PairedRollback {
@@ -519,7 +519,7 @@ function Invoke-PairedRollback {
     param([Parameter(Mandatory = $true)][psobject]$PreviousRelease)
 
     Set-PreviousEnvironment -PreviousRelease $PreviousRelease
-    Invoke-SelfHandlerCompose up -d --no-build --pull never app web
+    Invoke-SelfHandlerCompose up --detach --no-build --pull never app web
 }
 
 $startedAt = [DateTime]::UtcNow.ToString("o")

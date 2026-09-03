@@ -58,7 +58,7 @@ class BackupScriptContractTests(unittest.TestCase):
     def test_bootstrap_baseline_proves_database_empty_before_dump(self) -> None:
         source = (SCRIPTS / "backup-production.ps1").read_text(encoding="utf-8")
         port_probe = source.index("Assert-BootstrapLoopbackPortAvailable")
-        bootstrap_mutation = source.index("Invoke-SelfHandlerCompose up -d")
+        bootstrap_mutation = source.index("Invoke-SelfHandlerCompose up --detach")
         empty_schema_probe = source.index(
             "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE();"
         )
@@ -67,6 +67,16 @@ class BackupScriptContractTests(unittest.TestCase):
         self.assertLess(empty_schema_probe, database_dump)
         self.assertIn("bootstrap-baseline requires an empty database schema", source)
         self.assertIn('private store ownership or mode is not 82:82:0750', source)
+
+    def test_compose_detach_flag_cannot_bind_as_powershell_debug_parameter(self) -> None:
+        for script_name in (
+            "backup-production.ps1",
+            "deploy-production.ps1",
+            "restore-production.ps1",
+        ):
+            source = (SCRIPTS / script_name).read_text(encoding="utf-8")
+            self.assertNotIn("Invoke-SelfHandlerCompose up -d ", source)
+            self.assertIn("Invoke-SelfHandlerCompose up --detach ", source)
 
     def test_bootstrap_deploy_rechecks_fixed_loopback_port_before_migration(self) -> None:
         source = (SCRIPTS / "deploy-production.ps1").read_text(encoding="utf-8")

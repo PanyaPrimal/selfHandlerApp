@@ -55,7 +55,7 @@ function Initialize-EmptyBootstrapStores {
     # Start only the pinned database. Creating (not starting) the app container
     # performs Docker volume copy-up so the empty private store has UID/GID 82
     # and mode 0750 before the stopped helper is removed.
-    Invoke-SelfHandlerCompose up -d --no-build --pull never db
+    Invoke-SelfHandlerCompose up --detach --no-build --pull never db
     $database = Get-SelfHandlerContainerId -Service db -RunningOnly
     Wait-BackupDatabaseHealthy -Container $database
     $stoppedApp = $null

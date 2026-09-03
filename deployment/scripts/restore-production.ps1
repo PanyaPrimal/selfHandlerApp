@@ -777,7 +777,7 @@ volumes:
         $env:SELFHANDLER_APP_IMAGE = $appImage
         $env:SELFHANDLER_WEB_IMAGE = $webImage
         $env:APP_RELEASE_SHA = [string]$manifest.source_release.source_revision
-        Invoke-SelfHandlerCompose up -d --no-build --pull never app web
+        Invoke-SelfHandlerCompose up --detach --no-build --pull never app web
         if (-not (Test-RestoredProductionHealth -ExpectedRevision ([string]$manifest.source_release.source_revision))) {
             throw "Production recovery completed storage replacement but final health failed."
         }
@@ -802,7 +802,7 @@ volumes:
         # preflight above. Never start a zero-digest application from it.
         Invoke-SelfHandlerCompose stop web app
         Invoke-SelfHandlerCompose rm -f -s web app
-        Invoke-SelfHandlerCompose up -d --no-build --pull never db
+        Invoke-SelfHandlerCompose up --detach --no-build --pull never db
         $databaseContainer = Get-SelfHandlerContainerId -Service db -RunningOnly
         Wait-DatabaseContainer -Container $databaseContainer
         Restore-DatabasePayload -Container $databaseContainer -DatabasePath (Join-Path $payloadRoot "database.sql") -ReplaceExisting
