@@ -60,7 +60,7 @@ function Initialize-EmptyBootstrapStores {
     Wait-BackupDatabaseHealthy -Container $database
     $stoppedApp = $null
     try {
-        Invoke-SelfHandlerCompose create --no-build --pull never --no-deps app
+        Invoke-SelfHandlerCompose create --no-build --pull never app
         $stoppedApp = Get-SelfHandlerContainerId -Service app
         $stoppedInspection = Get-DockerInspection -ContainerId $stoppedApp
         if ($stoppedInspection.State.Running) {

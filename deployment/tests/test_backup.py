@@ -78,6 +78,14 @@ class BackupScriptContractTests(unittest.TestCase):
             self.assertNotIn("Invoke-SelfHandlerCompose up -d ", source)
             self.assertIn("Invoke-SelfHandlerCompose up --detach ", source)
 
+    def test_bootstrap_create_uses_only_compose_v5_supported_flags(self) -> None:
+        source = (SCRIPTS / "backup-production.ps1").read_text(encoding="utf-8")
+        self.assertIn(
+            "Invoke-SelfHandlerCompose create --no-build --pull never app",
+            source,
+        )
+        self.assertNotIn("create --no-build --pull never --no-deps", source)
+
     def test_compose_wrapper_accepts_progress_on_stderr_when_exit_code_is_zero(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
