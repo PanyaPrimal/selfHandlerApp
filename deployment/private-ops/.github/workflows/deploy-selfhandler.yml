@@ -1030,8 +1030,9 @@ jobs:
               }
               docker pull $env:MYSQL_IMAGE_REF | Out-Null
               if ($LASTEXITCODE -ne 0) { throw 'Exact pinned MySQL image pull failed.' }
-              $mysqlDigests = @(& docker image inspect $env:MYSQL_IMAGE_REF --format '{{json .RepoDigests}}' | ConvertFrom-Json)
-              if ($LASTEXITCODE -ne 0 -or $mysqlDigests -notcontains 'mysql@sha256:b3b90af2a6552ae30c266fdb7d5dd55f3afb72404bb78d37fe8a23eb857fd3fb') {
+              $mysqlInspection = @(& docker image inspect $env:MYSQL_IMAGE_REF | ConvertFrom-Json)[0]
+              if ($LASTEXITCODE -ne 0 -or -not $mysqlInspection -or
+                  [string]$mysqlInspection.Id -ne 'sha256:b3b90af2a6552ae30c266fdb7d5dd55f3afb72404bb78d37fe8a23eb857fd3fb') {
                   throw 'The local MySQL image does not match the pinned production digest.'
               }
           }
