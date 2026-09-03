@@ -182,7 +182,7 @@ class PrivateWorkflowOrderingTests(unittest.TestCase):
         qualify = workflow["jobs"]["qualify"]
         publish = workflow["jobs"]["publish"]
         package = workflow["jobs"]["package"]
-        self.assertEqual("read", qualify["permissions"]["packages"])
+        self.assertEqual({"contents": "read"}, qualify["permissions"])
         self.assertNotIn("id-token", qualify["permissions"])
         self.assertEqual("write", publish["permissions"]["packages"])
         self.assertNotIn("id-token", publish["permissions"])
@@ -455,15 +455,18 @@ class PrivateWorkflowOrderingTests(unittest.TestCase):
                 self.assertIn("trust_metadata_sha256", source)
                 self.assertIn("workflow_sha", source)
 
-    def test_previous_image_credential_is_cleared_before_compatibility_smoke(self) -> None:
+    def test_previous_image_is_preloaded_anonymously_before_compatibility_smoke(self) -> None:
         source = PRIVATE_DEPLOY.read_text(encoding="utf-8")
-        preload = source.index("Preload the exact previous image and clear the registry credential")
-        logout = source.index("docker logout ghcr.io", preload)
+        preload = source.index("Preload the exact previous public image by digest")
+        checkout = source.index("Check out only the exact canonical public revision", preload)
         compatibility = source.index("Prove previous application compatibility with the forward schema")
-        checkout = source.index("Check out only the exact canonical public revision")
-        self.assertLess(preload, logout)
-        self.assertLess(logout, checkout)
-        self.assertLess(logout, compatibility)
+        preload_source = source[preload:checkout]
+        self.assertIn("docker pull", preload_source)
+        self.assertIn("DOCKER_CONFIG", preload_source)
+        self.assertNotIn("docker login", preload_source)
+        self.assertNotIn("GHCR_READ_TOKEN", preload_source)
+        self.assertLess(preload, checkout)
+        self.assertLess(checkout, compatibility)
         compatibility_source = source[compatibility : source.index("Record bootstrap compatibility evidence", compatibility)]
         self.assertIn("--previous-app-preloaded", compatibility_source)
         self.assertIn("--forward-schema-only", compatibility_source)
@@ -492,10 +495,18 @@ class PrivateWorkflowOrderingTests(unittest.TestCase):
         self.assertEqual(
             [
                 "Download the same-run artifact without a source checkout",
-                "Pull immutable image digests and verify OCI revisions",
             ],
             token_steps,
         )
+        pull = next(
+            item
+            for item in deploy["steps"]
+            if item["name"] == "Pull public immutable image digests and verify OCI revisions"
+        )
+        self.assertIn("DOCKER_CONFIG", pull["env"])
+        self.assertNotIn("GITHUB_TOKEN", pull["env"])
+        self.assertNotIn("docker login", pull["run"])
+        self.assertIn("runtime package must remain public", pull["run"])
         logout = source.index("docker logout ghcr.io")
         bundle_execution = source.index("Create and validate the required pre-mutation recovery point")
         self.assertLess(logout, bundle_execution)

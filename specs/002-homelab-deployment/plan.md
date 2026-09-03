@@ -218,10 +218,12 @@ PowerShell 5.1, and never receives production or registry credentials. The priva
 repository owns the owner-authenticated exact-SHA dispatch workflow. After its read-only host-state
 resolver, a no-secret hosted Windows job checks out only the authenticated public SHA and repeats the
 full contract suite under native Windows PowerShell 5.1; qualification requires that success. Later
-hosted jobs qualify the revision, publish and attest the paired images, and package the deployment
-bundle; the self-hosted job invokes that attested/checksum-verified bundle. Fixed protected runtime
+hosted jobs qualify the revision, publish and verify the paired images, and package the deployment
+bundle; the self-hosted job anonymously pulls public runtime packages by exact digest and invokes
+that checksum-verified bundle. Fixed protected runtime
 `.env` and separate host-only ops secrets remain only on the homelab.
-GHCR uses an ephemeral workflow credential; the backup HMAC key is an ACL-protected host file; the age
+GHCR publication uses an ephemeral hosted-workflow credential while exact digest pulls are anonymous;
+the backup HMAC key is an ACL-protected host file; the age
 recipient is non-secret ops configuration; and the age identity remains off-host. None is injected
 into the app container or copied into release artifacts.
 

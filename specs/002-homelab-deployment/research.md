@@ -43,8 +43,9 @@ weakens health/replacement isolation. FrankenPHP is viable but adds an unneeded 
 ## 3. Immutable paired images
 
 **Decision**: Build `web-runtime` and `app-runtime` targets from one multi-stage Dockerfile. Lock npm
-and Composer dependencies, pin base images to tested versions/digests, and publish each private
-qualification attempt to never-reused tags shaped `<source-SHA>-<workflow-run-id>-<run-attempt>`.
+and Composer dependencies, pin base images to tested versions/digests, and publish each qualification
+attempt as a public-read, write-restricted package version with never-reused tags shaped
+`<source-SHA>-<workflow-run-id>-<run-attempt>`.
 Deploy only the exact paired digests recorded in the manifest, with the source SHA retained as the OCI
 revision. Treat the two digests as one atomic release.
 
@@ -105,15 +106,18 @@ The private workflow rejects any other actor, repository, event, or revision, re
 still equals the approved revision before credential use and deployment, and never checks out public
 code on the homelab. It executes only a checksum-verified deployment bundle while pulling exact image
 digests and validates canonical GitHub run metadata, same-run manifest identity, and OCI revision
-labels. GitHub build-provenance attestations are excluded because the selected GitHub Free plan does
-not provide them for user-owned private repositories.
+labels. The runtime packages are public only for anonymous digest pulls; publication remains limited
+to the private workflow and the images contain no runtime secrets. GitHub build-provenance
+attestations are excluded because the selected GitHub Free plan does not provide them for user-owned
+private repositories.
 
 **Rationale**: GitHub warns that self-hosted runners should almost never be attached to public
 repositories because untrusted code can persistently compromise the runner and its network. See
 https://docs.github.com/en/actions/reference/security/secure-use. Repeating the exact-SHA contracts in
 the private workflow makes native Windows PowerShell evidence mandatory without adding a cross-repo
-PAT or exposing production/registry credentials to public source or the persistent runner. The
-boundary directly satisfies FR-018.
+PAT or exposing production/registry credentials to public source or the persistent runner. Public
+read access to secret-free runtime images lets the persistent runner pull exact digests anonymously.
+The boundary directly satisfies FR-018.
 
 **Alternatives considered**: A self-hosted job in the public repository, private-environment reviewer
 gates unavailable on standard personal plans, resolving a moving branch after authorization, and

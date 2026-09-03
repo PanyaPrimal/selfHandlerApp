@@ -162,8 +162,9 @@ owner sender plus canonical public repository, rechecks that public `master`
 equals the exact dispatched 40-character SHA, and then verifies hosted run
 identity/metadata, the deployment-bundle checksum, release manifest, and both
 same-run image digest declarations. It pulls the exact digest-qualified app and
-web images, verifies their OCI source revision, and logs out of GHCR before it
-executes this bundle. This free-plan path does not depend on GitHub attestations,
+web images anonymously from public read-only runtime packages, verifies their OCI source revision,
+and executes this bundle without a registry credential. Package publication remains restricted to
+the private operations workflow. This free-plan path does not depend on GitHub attestations,
 which are unavailable for user-owned private repositories.
 
 `deploy-production.ps1` requires those exact images to exist locally. It uses

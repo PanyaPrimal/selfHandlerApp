@@ -20,7 +20,8 @@ job reproduces the qualified bundle, creates the manifest, and
 uploads it in the same private workflow run. No mutable public reusable workflow participates in this
 path. The homelab job checks out no repository. It downloads only that run's artifact, validates
 canonical run metadata and the bundle SHA-256, verifies both exact image digests and OCI revision
-labels against the same-run manifest, uploads an encrypted recovery point, then invokes
+labels against the same-run manifest, anonymously pulls the public runtime packages by those exact
+digests, uploads an encrypted recovery point, then invokes
 the fixed-target deployment entry point. Before mutation it atomically installs a protected
 `prepared-release.json` with the bundle and original signer/run identity. Deployment journals
 `deploying`, `awaiting_completion`, and `completion_validated`; only the finalizer can write the active
@@ -37,7 +38,9 @@ current SHA.
 - Visibility is private; default branch is `master`; the repository is owner-only with no
   collaborators. Default workflow permissions are read-only and the Actions policy allows only the
   reviewed SHA-pinned actions used by these templates.
-- Workflow permissions permit the hosted publish job to write owner GHCR packages. Other jobs use
+- Workflow permissions permit the hosted publish job to write owner GHCR packages. The
+  `selfhandler-web` and `selfhandler-app` packages must remain public for anonymous digest-only pulls;
+  public read access does not grant package write access and the images contain no runtime secrets. Other jobs use
   the narrower permissions declared in each workflow. GitHub attestations are intentionally not used
   because they are unavailable for user-owned private repositories on GitHub Free.
 - Only the owner credential used by `deploy.ps1` may create the `deploy-selfhandler`
@@ -49,8 +52,9 @@ current SHA.
   dispatch and exact public revision before every privileged/host phase.
 - GitHub Environments are not used because deployment protection for a private repository is not
   available on the selected GitHub Free plan. No cross-repository PAT or repository secret is needed;
-  production credentials remain host files and registry operations use the automatic job token only
-  in their dedicated steps.
+  production credentials remain host files. Only the hosted publish step uses the automatic job
+  token; qualification and homelab deployment pull public images anonymously with an empty temporary
+  Docker configuration.
 - Artifact retention is seven days for release bundles, 30 days for encrypted backups, and seven
   days for non-secret inspection reports.
 - `deploy-selfhandler.yml`, `backup-selfhandler.yml`, and any future restore workflow share the
