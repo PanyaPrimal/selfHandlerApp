@@ -78,6 +78,36 @@ class BackupScriptContractTests(unittest.TestCase):
             self.assertNotIn("Invoke-SelfHandlerCompose up -d ", source)
             self.assertIn("Invoke-SelfHandlerCompose up --detach ", source)
 
+    def test_compose_wrapper_accepts_progress_on_stderr_when_exit_code_is_zero(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            compose_path = root / "compose.yaml"
+            environment_path = root / ".env"
+            compose_path.write_text("services: {}\n", encoding="utf-8")
+            environment_path.write_text("APP_ENV=production\n", encoding="utf-8")
+            shared = (SCRIPTS / "shared.ps1").as_posix().replace("'", "''")
+            compose_literal = compose_path.as_posix().replace("'", "''")
+            environment_literal = environment_path.as_posix().replace("'", "''")
+            result = run_powershell(
+                f"""
+$ErrorActionPreference = 'Stop'
+. '{shared}'
+$script:SelfHandlerComposePath = '{compose_literal}'
+$script:SelfHandlerEnvironmentPath = '{environment_literal}'
+function Assert-ProtectedSecretFile {{ param([string]$Path) return $Path }}
+function docker {{
+    Write-Error 'Container selfhandler-db-1 Running'
+    $global:LASTEXITCODE = 0
+}}
+Invoke-SelfHandlerCompose up --detach db
+Write-Output 'compose-wrapper-ok'
+""",
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("compose-wrapper-ok", result.stdout)
+
     def test_bootstrap_deploy_rechecks_fixed_loopback_port_before_migration(self) -> None:
         source = (SCRIPTS / "deploy-production.ps1").read_text(encoding="utf-8")
         bootstrap = source.index("if ($bootstrap)")

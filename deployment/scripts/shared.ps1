@@ -1162,9 +1162,20 @@ function Invoke-SelfHandlerCompose {
         throw "Production Compose definition is missing from the qualified bundle."
     }
     Assert-ProtectedSecretFile -Path $script:SelfHandlerEnvironmentPath | Out-Null
-    & docker compose -p $script:SelfHandlerComposeProject --env-file $script:SelfHandlerEnvironmentPath -f $script:SelfHandlerComposePath @Arguments 2>&1 |
-        ForEach-Object { Write-Host ([string]$_) }
-    $composeExitCode = $LASTEXITCODE
+    # Windows PowerShell 5.1 promotes ordinary native stderr progress to a
+    # terminating NativeCommandError when the caller uses Stop. Compose writes
+    # status lines such as "Container ... Running" to stderr even on exit 0, so
+    # capture both streams under Continue and decide only from its exit code.
+    $previousPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $composeOutput = @(& docker compose -p $script:SelfHandlerComposeProject --env-file $script:SelfHandlerEnvironmentPath -f $script:SelfHandlerComposePath @Arguments 2>&1)
+        $composeExitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousPreference
+    }
+    $composeOutput | ForEach-Object { Write-Host ([string]$_) }
     if ($composeExitCode -ne 0) {
         throw "Docker Compose operation failed."
     }
