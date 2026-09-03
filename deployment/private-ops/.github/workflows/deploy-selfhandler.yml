@@ -1019,8 +1019,12 @@ jobs:
               if ($LASTEXITCODE -ne 0) { throw 'Anonymous exact web image pull failed; the runtime package must remain public.' }
               docker pull $env:APP_IMAGE_REF | Out-Null
               if ($LASTEXITCODE -ne 0) { throw 'Anonymous exact application image pull failed; the runtime package must remain public.' }
-              $webRevision = (docker image inspect $env:WEB_IMAGE_REF --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}').Trim()
-              $appRevision = (docker image inspect $env:APP_IMAGE_REF --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}').Trim()
+              $webInspection = @(& docker image inspect $env:WEB_IMAGE_REF | ConvertFrom-Json)[0]
+              if ($LASTEXITCODE -ne 0 -or -not $webInspection) { throw 'Exact web image inspection failed.' }
+              $appInspection = @(& docker image inspect $env:APP_IMAGE_REF | ConvertFrom-Json)[0]
+              if ($LASTEXITCODE -ne 0 -or -not $appInspection) { throw 'Exact application image inspection failed.' }
+              $webRevision = [string]$webInspection.Config.Labels.'org.opencontainers.image.revision'
+              $appRevision = [string]$appInspection.Config.Labels.'org.opencontainers.image.revision'
               if ($webRevision -ne $env:SOURCE_REVISION -or $appRevision -ne $env:SOURCE_REVISION) {
                   throw 'Pulled image OCI revisions do not match the reviewed source revision.'
               }
