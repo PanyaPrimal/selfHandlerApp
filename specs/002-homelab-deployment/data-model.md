@@ -48,7 +48,7 @@ One immutable hosted-CI output, validated by
 | `schema_fingerprint` | SHA-256 over sorted production migration identities/content |
 | `quality_evidence` | Required named hosted checks and their successful run identity |
 | `workflow_identity` | Canonical workflow repository/ref/event/run/attempt verified through GitHub metadata |
-| `attestations` | GitHub build-provenance identities for both immutable image subjects |
+| `image_integrity` | Same-run manifest digest subjects and OCI-revision verification method for both images |
 | `oci_revision` | Exact revision label read back from each pulled image and equal to `source_revision` |
 
 The tuple `(source_revision, web_image.digest, app_image.digest)` is unique. Existing release

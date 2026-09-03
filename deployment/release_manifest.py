@@ -30,7 +30,7 @@ OPERATIONS_WORKFLOW_REF = (
     "deploy-selfhandler.yml@refs/heads/master"
 )
 OPERATIONS_EVENT = "repository_dispatch"
-PREDICATE_TYPE = "https://slsa.dev/provenance/v1"
+IMAGE_INTEGRITY_METHOD = "same-run-manifest-and-oci-revision"
 WEB_REPOSITORY = "ghcr.io/panyaprimal/selfhandler-web"
 APP_REPOSITORY = "ghcr.io/panyaprimal/selfhandler-app"
 
@@ -275,15 +275,15 @@ def build_release_manifest(
             "run_attempt": workflow_run_attempt,
             "qualification_status": "passed",
         },
-        "attestations": {
+        "image_integrity": {
             "web": {
                 "subject_digest": web_digest,
-                "predicate_type": PREDICATE_TYPE,
+                "verification_method": IMAGE_INTEGRITY_METHOD,
                 "verification_repository": verification_repository,
             },
             "app": {
                 "subject_digest": app_digest,
-                "predicate_type": PREDICATE_TYPE,
+                "verification_method": IMAGE_INTEGRITY_METHOD,
                 "verification_repository": verification_repository,
             },
         },
@@ -323,10 +323,10 @@ def validate_release_manifest(manifest: Mapping[str, Any]) -> None:
         raise ReleaseContractError("Web OCI revision does not match source revision")
     if manifest["app_image"]["revision"] != source_revision:
         raise ReleaseContractError("App OCI revision does not match source revision")
-    if manifest["attestations"]["web"]["subject_digest"] != manifest["web_image"]["digest"]:
-        raise ReleaseContractError("Web attestation subject does not match image digest")
-    if manifest["attestations"]["app"]["subject_digest"] != manifest["app_image"]["digest"]:
-        raise ReleaseContractError("App attestation subject does not match image digest")
+    if manifest["image_integrity"]["web"]["subject_digest"] != manifest["web_image"]["digest"]:
+        raise ReleaseContractError("Web integrity subject does not match image digest")
+    if manifest["image_integrity"]["app"]["subject_digest"] != manifest["app_image"]["digest"]:
+        raise ReleaseContractError("App integrity subject does not match image digest")
     if manifest["workflow_run_id"] != manifest["workflow_identity"]["run_id"]:
         raise ReleaseContractError("Canonical workflow run identifiers do not match")
     expected_bundle_name = f"selfhandler-deployment-{source_revision}"

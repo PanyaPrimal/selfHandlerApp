@@ -237,9 +237,9 @@ into the app container or copied into release artifacts.
    disposable production-shaped checks.
 2. A separate hosted publish job builds before receiving registry credentials, rechecks that public
    `master` still equals the qualified SHA immediately before registry login, publishes the paired
-   images by SHA, produces GitHub build provenance, and logs out. An unprivileged packaging job then
-   records immutable digests, OCI revision labels, workflow identity, attestations, and deployment
-   bundle checksum in a release manifest.
+   images by SHA, reads back their immutable digests and OCI revision labels, and logs out. An
+   unprivileged packaging job then records immutable digests, OCI revision labels, workflow identity,
+   same-run image-integrity evidence, and deployment bundle checksum in a release manifest.
 3. The trusted private workflow accepts no host/port/project inputs, acquires the exclusive
    `C:\Homelab\SelfHandlerApp\.locks\selfhandler-production.lock` used by every SelfHandler deploy/backup/restore,
    validates actor/revision/manifest, and checks Docker, Caddy-backed public readiness, disk, memory, current health,

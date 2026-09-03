@@ -163,20 +163,18 @@ class PrivateWorkflowOrderingTests(unittest.TestCase):
         self.assertIn("Assert-ExactProperties", inspect_source)
         self.assertIn("additionalProperties", inspect_source)
 
-    def test_attestations_are_verified_with_a_checksum_pinned_portable_cli(self) -> None:
+    def test_images_are_verified_by_digest_and_oci_revision_without_paid_attestations(self) -> None:
         source = PRIVATE_DEPLOY.read_text(encoding="utf-8")
-        self.assertIn("gh_2.97.0_windows_amd64.zip", source)
-        self.assertIn("35d7fe05c4dd1411ffda1e73dfc7c6f44b75c936ca51fa6595c657fdc0350cec", source)
-        self.assertEqual(2, source.count("attestation verify"))
-        self.assertIn("PanyaPrimal/selfhandler-ops", source)
-        self.assertIn("--signer-workflow", source)
-        self.assertIn("PanyaPrimal/selfhandler-ops/.github/workflows/deploy-selfhandler.yml", source)
-        self.assertIn("--signer-digest", source)
+        self.assertNotIn("attestation verify", source)
+        self.assertNotIn("attest-build-provenance", source)
+        self.assertIn("same-run-manifest-and-oci-revision", source)
+        self.assertIn("docker pull $env:WEB_IMAGE_REF", source)
+        self.assertIn("docker pull $env:APP_IMAGE_REF", source)
+        self.assertIn("org.opencontainers.image.revision", source)
         self.assertIn(
             "WORKFLOW_REVISION: ${{ needs.resolve-active.outputs.resume_workflow_sha || github.workflow_sha }}",
             source,
         )
-        self.assertIn("--deny-self-hosted-runners", source)
 
     def test_hosted_release_has_explicit_privilege_separation(self) -> None:
         source = PRIVATE_DEPLOY.read_text(encoding="utf-8")
@@ -187,7 +185,8 @@ class PrivateWorkflowOrderingTests(unittest.TestCase):
         self.assertEqual("read", qualify["permissions"]["packages"])
         self.assertNotIn("id-token", qualify["permissions"])
         self.assertEqual("write", publish["permissions"]["packages"])
-        self.assertEqual("write", publish["permissions"]["attestations"])
+        self.assertNotIn("id-token", publish["permissions"])
+        self.assertNotIn("attestations", publish["permissions"])
         self.assertEqual({"contents": "read"}, package["permissions"])
         self.assertNotRegex(source, r"(?m)^\s+uses:\s+[^\s]+@(?:master|main)\s*$")
 
@@ -493,7 +492,7 @@ class PrivateWorkflowOrderingTests(unittest.TestCase):
         self.assertEqual(
             [
                 "Download the same-run artifact without a source checkout",
-                "Provision checksum-pinned portable gh and verify provenance plus OCI labels",
+                "Pull immutable image digests and verify OCI revisions",
             ],
             token_steps,
         )

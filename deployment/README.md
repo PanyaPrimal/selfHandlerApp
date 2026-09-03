@@ -161,9 +161,10 @@ private repository accepts only the fixed `repository_dispatch`, verifies the
 owner sender plus canonical public repository, rechecks that public `master`
 equals the exact dispatched 40-character SHA, and then verifies hosted run
 identity/metadata, the deployment-bundle checksum, release manifest, and both
-OCI attestations. It pulls the exact digest-qualified app and web images,
-verifies their source revision, and logs out of GHCR before it executes this
-bundle.
+same-run image digest declarations. It pulls the exact digest-qualified app and
+web images, verifies their OCI source revision, and logs out of GHCR before it
+executes this bundle. This free-plan path does not depend on GitHub attestations,
+which are unavailable for user-owned private repositories.
 
 `deploy-production.ps1` requires those exact images to exist locally. It uses
 `docker image inspect` and Compose `--pull never`; it neither pulls nor logs in.

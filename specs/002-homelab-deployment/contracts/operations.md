@@ -5,8 +5,10 @@
 The public SelfHandler repository may run only on GitHub-hosted runners. The homelab production job
 runs from an owner-controlled private repository and does not check out a pull request, branch name,
 fork, or operator-provided repository. It consumes the exact reviewed default-branch revision selected
-by the trusted workflow, validates workflow provenance and image attestations, and executes only the
-checksum-verified deployment bundle produced by that hosted qualification job.
+by the trusted workflow, validates same-run workflow identity plus immutable image digests and OCI
+revision labels, and executes only the checksum-verified deployment bundle produced by that hosted
+qualification job. GitHub attestations are not available for this user-owned private repository on
+the selected GitHub Free plan.
 
 ## Fixed target
 

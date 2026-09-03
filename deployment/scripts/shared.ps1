@@ -1349,7 +1349,10 @@ function Read-ValidatedReleaseManifest {
             throw "quality_evidence_failed"
         }
     }
-    if ($manifest.attestations.web.subject_digest -ne $manifest.web_image.digest -or $manifest.attestations.app.subject_digest -ne $manifest.app_image.digest) {
+    if ($manifest.image_integrity.web.subject_digest -ne $manifest.web_image.digest -or
+        $manifest.image_integrity.app.subject_digest -ne $manifest.app_image.digest -or
+        $manifest.image_integrity.web.verification_method -ne "same-run-manifest-and-oci-revision" -or
+        $manifest.image_integrity.app.verification_method -ne "same-run-manifest-and-oci-revision") {
         throw "revision_mismatch"
     }
     return $manifest

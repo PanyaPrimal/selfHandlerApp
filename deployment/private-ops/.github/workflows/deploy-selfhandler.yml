@@ -529,7 +529,7 @@ jobs:
           echo "schema_fingerprint=$schema_fingerprint" >> "$GITHUB_OUTPUT"
 
   publish:
-    name: Publish and attest the qualified image pair
+    name: Publish and verify the qualified image pair
     needs: qualify
     if: github.repository == 'PanyaPrimal/selfhandler-ops' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-24.04
@@ -537,8 +537,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-      id-token: write
-      attestations: write
     outputs:
       app_digest: ${{ steps.push.outputs.app_digest }}
       app_revision: ${{ steps.image-evidence.outputs.app_revision }}
@@ -651,7 +649,7 @@ jobs:
             local output digest
             output="$(docker push "$image:$QUALIFICATION_TAG")"
             printf '%s\n' "$output" >&2
-            digest="$(printf '%s\n' "$output" | awk '/digest: sha256:[0-9a-f]{64}/ {print $2}' | tail -n 1)"
+            digest="$(printf '%s\n' "$output" | grep -oE 'sha256:[0-9a-f]{64}' | tail -n 1)"
             [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
             printf '%s' "$digest"
           }
@@ -661,20 +659,6 @@ jobs:
           [[ "$app_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
           echo "web_digest=$web_digest" >> "$GITHUB_OUTPUT"
           echo "app_digest=$app_digest" >> "$GITHUB_OUTPUT"
-
-      - name: Attest web image build provenance
-        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
-        with:
-          subject-name: ${{ env.WEB_IMAGE }}
-          subject-digest: ${{ steps.push.outputs.web_digest }}
-          push-to-registry: true
-
-      - name: Attest application image build provenance
-        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
-        with:
-          subject-name: ${{ env.APP_IMAGE }}
-          subject-digest: ${{ steps.push.outputs.app_digest }}
-          push-to-registry: true
 
       - name: Read back immutable digests and OCI revisions
         id: image-evidence
@@ -804,7 +788,6 @@ jobs:
       actions: read
       contents: read
       packages: read
-      attestations: read
     env:
       QUALIFIED_ARTIFACT_ID: ${{ needs.package.outputs.artifact_id }}
       QUALIFIED_ARTIFACT_NAME: selfhandler-deployment-${{ needs.resolve-active.outputs.resume_source_revision || needs.request.outputs.source_revision }}
@@ -968,11 +951,13 @@ jobs:
           if ([string]$manifest.web_image.revision -ne $env:SOURCE_REVISION -or [string]$manifest.app_image.revision -ne $env:SOURCE_REVISION) {
               throw 'Manifest OCI revision evidence is inconsistent.'
           }
-          if ([string]$manifest.attestations.web.subject_digest -ne $webDigest -or
-              [string]$manifest.attestations.app.subject_digest -ne $appDigest -or
-              [string]$manifest.attestations.web.verification_repository -ne 'PanyaPrimal/selfhandler-ops' -or
-              [string]$manifest.attestations.app.verification_repository -ne 'PanyaPrimal/selfhandler-ops') {
-              throw 'Manifest attestation subjects are inconsistent.'
+          if ([string]$manifest.image_integrity.web.subject_digest -ne $webDigest -or
+              [string]$manifest.image_integrity.app.subject_digest -ne $appDigest -or
+              [string]$manifest.image_integrity.web.verification_method -ne 'same-run-manifest-and-oci-revision' -or
+              [string]$manifest.image_integrity.app.verification_method -ne 'same-run-manifest-and-oci-revision' -or
+              [string]$manifest.image_integrity.web.verification_repository -ne 'PanyaPrimal/selfhandler-ops' -or
+              [string]$manifest.image_integrity.app.verification_repository -ne 'PanyaPrimal/selfhandler-ops') {
+              throw 'Manifest image integrity evidence is inconsistent.'
           }
           $bundleInfo = Get-Item -LiteralPath $env:BUNDLE_PATH
           $actualHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $bundleInfo.FullName).Hash.ToLowerInvariant()
@@ -1024,12 +1009,11 @@ jobs:
           "attempt_id=gh-$($env:TRUSTED_WORKFLOW_RUN_ID)-$manifestRunAttempt" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           "workflow_run_attempt=$manifestRunAttempt" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
-      - name: Provision checksum-pinned portable gh and verify provenance plus OCI labels
+      - name: Pull immutable image digests and verify OCI revisions
         shell: powershell
         env:
           DOCKER_CONFIG: ${{ runner.temp }}\selfhandler-docker-auth-${{ github.run_id }}-${{ github.run_attempt }}
           GITHUB_TOKEN: ${{ github.token }}
-          GH_TOKEN: ${{ github.token }}
           WEB_IMAGE_REF: ${{ steps.verify.outputs.web_image }}
           APP_IMAGE_REF: ${{ steps.verify.outputs.app_image }}
           MYSQL_IMAGE_REF: mysql:8.4.11@sha256:b3b90af2a6552ae30c266fdb7d5dd55f3afb72404bb78d37fe8a23eb857fd3fb
@@ -1042,35 +1026,6 @@ jobs:
               throw 'The ephemeral Docker credential directory escaped runner temporary storage.'
           }
           New-Item -ItemType Directory -Force -Path $dockerConfig | Out-Null
-          $toolsRoot = Join-Path $env:RUNNER_TEMP ("selfhandler-trusted-tools-" + [guid]::NewGuid().ToString('N'))
-          New-Item -ItemType Directory -Path $toolsRoot | Out-Null
-          $ghArchive = Join-Path $toolsRoot 'gh_2.97.0_windows_amd64.zip'
-          Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/cli/cli/releases/download/v2.97.0/gh_2.97.0_windows_amd64.zip' -OutFile $ghArchive
-          $expectedGhArchiveSha = '35d7fe05c4dd1411ffda1e73dfc7c6f44b75c936ca51fa6595c657fdc0350cec'
-          $actualGhArchiveSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $ghArchive).Hash.ToLowerInvariant()
-          if ($actualGhArchiveSha -ne $expectedGhArchiveSha) {
-              throw 'Portable GitHub CLI archive checksum verification failed.'
-          }
-          Expand-Archive -LiteralPath $ghArchive -DestinationPath $toolsRoot
-          $gh = Join-Path $toolsRoot 'gh_2.97.0_windows_amd64\bin\gh.exe'
-          if (-not (Test-Path -LiteralPath $gh -PathType Leaf)) {
-              throw 'Verified portable GitHub CLI executable is missing.'
-          }
-          $attestationPolicy = @(
-              '--repo', 'PanyaPrimal/selfhandler-ops',
-              '--predicate-type', 'https://slsa.dev/provenance/v1',
-              '--signer-repo', 'PanyaPrimal/selfhandler-ops',
-              '--signer-workflow', 'PanyaPrimal/selfhandler-ops/.github/workflows/deploy-selfhandler.yml',
-              '--signer-digest', $env:WORKFLOW_REVISION,
-              '--deny-self-hosted-runners'
-          )
-          if ($env:WORKFLOW_REVISION -notmatch '^[0-9a-f]{40}$') {
-              throw 'The private signer workflow revision is not immutable.'
-          }
-          & $gh attestation verify "oci://$($env:WEB_IMAGE_REF)" @attestationPolicy
-          if ($LASTEXITCODE -ne 0) { throw 'Web image build-provenance verification failed.' }
-          & $gh attestation verify "oci://$($env:APP_IMAGE_REF)" @attestationPolicy
-          if ($LASTEXITCODE -ne 0) { throw 'Application image build-provenance verification failed.' }
           $loggedIn = $false
           try {
               $env:GITHUB_TOKEN | docker login ghcr.io --username $env:GITHUB_ACTOR --password-stdin | Out-Null

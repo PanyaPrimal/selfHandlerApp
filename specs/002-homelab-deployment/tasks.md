@@ -65,13 +65,13 @@ data during paired replacement, exposes only its generated web port, and reports
 ### Tests for User Story 1
 
 - [X] T015 [P] [US1] Write a failing production-shaped build/start/migrate/readiness/auth/persistence/isolation smoke in `deployment/tests/production_smoke.py` (FR-004, FR-010, FR-012, FR-015, FR-016, FR-025; SC-004, SC-006, SC-010)
-- [X] T016 [P] [US1] Write failing release-manifest generation, canonical workflow metadata, OCI revision, provenance-attestation, and immutable-identity tests in `deployment/tests/test_release.py` (FR-003, FR-004, FR-021)
+- [X] T016 [P] [US1] Write failing release-manifest generation, canonical workflow metadata, OCI revision, same-run integrity, and immutable-identity tests in `deployment/tests/test_release.py` (FR-003, FR-004, FR-021)
 - [X] T017 [P] [US1] Write failing preflight no-mutation tests for dependency, health, capacity, duplicate release, and unsynchronized revision failures in `deployment/tests/test_deploy.py` (FR-004, FR-005; SC-001, SC-002)
 
 ### Implementation for User Story 1
 
-- [X] T018 [P] [US1] Implement deterministic release/deployment-bundle manifest generation plus canonical run metadata, OCI revision, attestation, and all operational JSON Schema validation in `deployment/release_manifest.py` (FR-003, FR-004, FR-021)
-- [X] T019 [P] [US1] Add trusted private hosted immutable paired-image build, production-shaped smoke, digest capture, GitHub build-provenance attestations, and artifact publication in `deployment/private-ops/.github/workflows/deploy-selfhandler.yml`; keep public `.github/workflows/ci.yml` read-only and credential-free (FR-003, FR-004, FR-018)
+- [X] T018 [P] [US1] Implement deterministic release/deployment-bundle manifest generation plus canonical run metadata, OCI revision, same-run image-integrity evidence, and all operational JSON Schema validation in `deployment/release_manifest.py` (FR-003, FR-004, FR-021)
+- [X] T019 [P] [US1] Add trusted private hosted immutable paired-image build, production-shaped smoke, digest capture, free-plan same-run digest/OCI verification, and artifact publication in `deployment/private-ops/.github/workflows/deploy-selfhandler.yml`; keep public `.github/workflows/ci.yml` read-only and credential-free (FR-003, FR-004, FR-018)
 - [X] T020 [US1] Implement fixed-target preflight, exact digest pull, current-release verification, and bootstrap/routine mode detection in `deployment/scripts/deploy-production.ps1` (FR-001, FR-003, FR-005)
 - [X] T021 [US1] Implement one-shot candidate migration with migration-state evidence and explicit prohibition of seeding/entrypoint migrations in `deployment/scripts/deploy-production.ps1` (FR-011)
 - [X] T022 [US1] Implement paired web/app replacement preserving named volumes and verifying actual digests in `deployment/scripts/deploy-production.ps1` (FR-010, FR-012)

@@ -15,12 +15,12 @@ its unique workflow run; it is not a deployment choice. Its
 read-only hosted qualification job checks out only that authenticated revision and runs every
 application/deployment gate. A separate privileged hosted job rechecks `master`, then
 builds and loads both images before registry authentication. Only trusted inline push/readback steps
-and pinned attestation actions run while its GHCR credential is active. A final unprivileged hosted
+run while its GHCR credential is active. A final unprivileged hosted
 job reproduces the qualified bundle, creates the manifest, and
 uploads it in the same private workflow run. No mutable public reusable workflow participates in this
 path. The homelab job checks out no repository. It downloads only that run's artifact, validates
-canonical run metadata and the bundle SHA-256, verifies both image attestations against the exact
-private workflow revision plus OCI revision labels, uploads an encrypted recovery point, then invokes
+canonical run metadata and the bundle SHA-256, verifies both exact image digests and OCI revision
+labels against the same-run manifest, uploads an encrypted recovery point, then invokes
 the fixed-target deployment entry point. Before mutation it atomically installs a protected
 `prepared-release.json` with the bundle and original signer/run identity. Deployment journals
 `deploying`, `awaiting_completion`, and `completion_validated`; only the finalizer can write the active
@@ -37,8 +37,9 @@ current SHA.
 - Visibility is private; default branch is `master`; the repository is owner-only with no
   collaborators. Default workflow permissions are read-only and the Actions policy allows only the
   reviewed SHA-pinned actions used by these templates.
-- Workflow permissions permit the hosted qualification job to write owner GHCR packages and
-  attestations. Other jobs use the narrower permissions declared in each workflow.
+- Workflow permissions permit the hosted publish job to write owner GHCR packages. Other jobs use
+  the narrower permissions declared in each workflow. GitHub attestations are intentionally not used
+  because they are unavailable for user-owned private repositories on GitHub Free.
 - Only the owner credential used by `deploy.ps1` may create the `deploy-selfhandler`
   `repository_dispatch`. The workflow rejects another sender, repository, event type, mutable ref, or
   malformed/moved revision. No production secret is carried in the dispatch payload.

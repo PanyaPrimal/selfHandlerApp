@@ -104,8 +104,9 @@ contract suite under native Windows PowerShell 5.1. Every fresh qualification de
 The private workflow rejects any other actor, repository, event, or revision, rechecks that `master`
 still equals the approved revision before credential use and deployment, and never checks out public
 code on the homelab. It executes only a checksum-verified deployment bundle while pulling exact image
-digests and validates canonical GitHub run metadata, OCI revision labels, and GitHub build-provenance
-attestations.
+digests and validates canonical GitHub run metadata, same-run manifest identity, and OCI revision
+labels. GitHub build-provenance attestations are excluded because the selected GitHub Free plan does
+not provide them for user-owned private repositories.
 
 **Rationale**: GitHub warns that self-hosted runners should almost never be attached to public
 repositories because untrusted code can persistently compromise the runner and its network. See

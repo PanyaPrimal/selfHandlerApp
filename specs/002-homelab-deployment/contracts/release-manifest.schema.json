@@ -17,7 +17,7 @@
     "schema_fingerprint",
     "quality_evidence",
     "workflow_identity",
-    "attestations"
+    "image_integrity"
   ],
   "properties": {
     "schema_version": { "const": 1 },
@@ -55,13 +55,13 @@
         "qualification_status": { "const": "passed" }
       }
     },
-    "attestations": {
+    "image_integrity": {
       "type": "object",
       "additionalProperties": false,
       "required": ["web", "app"],
       "properties": {
-        "web": { "$ref": "#/$defs/attestation" },
-        "app": { "$ref": "#/$defs/attestation" }
+        "web": { "$ref": "#/$defs/imageIntegrity" },
+        "app": { "$ref": "#/$defs/imageIntegrity" }
       }
     }
   },
@@ -97,13 +97,13 @@
         "run_id": { "type": "integer", "minimum": 1 }
       }
     },
-    "attestation": {
+    "imageIntegrity": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["subject_digest", "predicate_type", "verification_repository"],
+      "required": ["subject_digest", "verification_method", "verification_repository"],
       "properties": {
         "subject_digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
-        "predicate_type": { "const": "https://slsa.dev/provenance/v1" },
+        "verification_method": { "const": "same-run-manifest-and-oci-revision" },
         "verification_repository": { "const": "PanyaPrimal/selfhandler-ops" }
       }
     }

@@ -83,12 +83,12 @@ class ReleaseManifestTests(unittest.TestCase):
                     created_at="2026-08-09T20:00:00Z",
                 )
 
-    def test_attestation_subject_must_equal_the_image_digest(self) -> None:
+    def test_image_integrity_subject_must_equal_the_image_digest(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             manifest = self._manifest(Path(directory))
-        manifest["attestations"]["web"]["subject_digest"] = "sha256:" + "e" * 64
+        manifest["image_integrity"]["web"]["subject_digest"] = "sha256:" + "e" * 64
 
-        with self.assertRaisesRegex(release_manifest.ReleaseContractError, "attestation subject"):
+        with self.assertRaisesRegex(release_manifest.ReleaseContractError, "integrity subject"):
             release_manifest.validate_release_manifest(manifest)
 
     def test_web_and_app_repositories_cannot_swap_roles(self) -> None:
