@@ -157,6 +157,41 @@ Write-Output 'label-lookup-ok'
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("label-lookup-ok", result.stdout)
 
+    def test_expected_native_probe_failure_does_not_terminate_powershell(self) -> None:
+        shared = (SCRIPTS / "shared.ps1").as_posix().replace("'", "''")
+        result = run_powershell(
+            f"""
+. '{shared}'
+function docker {{
+    Write-Error 'database socket is not ready'
+    $global:LASTEXITCODE = 1
+}}
+$ErrorActionPreference = 'Stop'
+$exitCode = Invoke-DockerQuietProbe -Argument @('exec', 'fixture', 'probe')
+if ($exitCode -ne 1) {{ throw 'probe exit code was not preserved' }}
+if ($ErrorActionPreference -ne 'Stop') {{ throw 'error preference was not restored' }}
+Write-Output 'native-probe-ok'
+""",
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("native-probe-ok", result.stdout)
+
+    def test_database_readiness_loops_use_nonterminating_native_probes(self) -> None:
+        for script_name in ("backup-production.ps1", "restore-production.ps1"):
+            source = (SCRIPTS / script_name).read_text(encoding="utf-8")
+            self.assertIn("Invoke-DockerQuietProbe", source)
+        recovery_drill = (SCRIPTS / "recovery-drill.ps1").read_text(encoding="utf-8")
+        self.assertIn(
+            'Invoke-DockerQuietProbe -Argument @("network", "inspect", $network)',
+            recovery_drill,
+        )
+        self.assertIn(
+            'Invoke-DockerQuietProbe -Argument @("volume", "inspect", $volume)',
+            recovery_drill,
+        )
+
     def test_compose_wrapper_accepts_progress_on_stderr_when_exit_code_is_zero(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

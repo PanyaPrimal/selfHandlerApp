@@ -1242,6 +1242,27 @@ function Get-DockerResourceLabel {
     return [string]$property[0].Value
 }
 
+function Invoke-DockerQuietProbe {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [string[]]$Argument
+    )
+
+    # Expected non-zero readiness/existence probes must be decided only by the
+    # native exit code. Windows PowerShell 5.1 otherwise promotes native stderr
+    # to a terminating NativeCommandError when the caller uses Stop.
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        & docker @Argument *> $null
+        return [int]$LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+}
+
 function Get-SelfHandlerContainerId {
     [CmdletBinding()]
     param(

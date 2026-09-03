@@ -22,8 +22,8 @@ function Wait-BackupDatabaseHealthy {
             return
         }
         if ($LASTEXITCODE -eq 0 -and $status -eq "running") {
-            & docker exec $Container sh -c $probeCommand *> $null
-            if ($LASTEXITCODE -eq 0) { return }
+            $probeExit = Invoke-DockerQuietProbe -Argument @("exec", $Container, "sh", "-c", $probeCommand)
+            if ($probeExit -eq 0) { return }
         }
         Start-Sleep -Seconds 2
     }

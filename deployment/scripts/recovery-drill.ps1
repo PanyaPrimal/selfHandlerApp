@@ -45,15 +45,15 @@ function Remove-DisposableRestoreResources {
         }
     }
     foreach ($network in @("${Project}_app", "${Project}_data")) {
-        & docker network inspect $network *> $null
-        if ($LASTEXITCODE -eq 0) {
+        $inspectExit = Invoke-DockerQuietProbe -Argument @("network", "inspect", $network)
+        if ($inspectExit -eq 0) {
             Assert-DisposableResourceLabel -Type network -Name $network -Project $Project
             & docker network rm $network *> $null
         }
     }
     foreach ($volume in @("${Project}_mysql_data", "${Project}_private_files")) {
-        & docker volume inspect $volume *> $null
-        if ($LASTEXITCODE -eq 0) {
+        $inspectExit = Invoke-DockerQuietProbe -Argument @("volume", "inspect", $volume)
+        if ($inspectExit -eq 0) {
             Assert-DisposableResourceLabel -Type volume -Name $volume -Project $Project
             & docker volume rm $volume *> $null
         }

@@ -378,10 +378,10 @@ function Assert-BootstrapResetHistoryEligible {
 function Wait-DisposableRestoreDatabaseReady {
     param([Parameter(Mandatory = $true)][string]$Container)
 
+    $probeCommand = ConvertTo-EncodedPosixShellCommand -Script 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; exec mysql --batch --skip-column-names -uroot -e "SELECT 1"'
     for ($attempt = 1; $attempt -le 120; $attempt++) {
-        $probeCommand = ConvertTo-EncodedPosixShellCommand -Script 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; exec mysql --batch --skip-column-names -uroot -e "SELECT 1"'
-        & docker exec $Container sh -c $probeCommand *> $null
-        if ($LASTEXITCODE -eq 0) { return }
+        $probeExit = Invoke-DockerQuietProbe -Argument @("exec", $Container, "sh", "-c", $probeCommand)
+        if ($probeExit -eq 0) { return }
         Start-Sleep -Seconds 1
     }
     throw "Disposable restore preflight database did not become ready."
