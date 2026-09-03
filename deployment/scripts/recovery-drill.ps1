@@ -21,12 +21,12 @@ function Assert-DisposableResourceLabel {
     if ($Project -notmatch '^selfhandler-drill-[a-f0-9]{8,32}$' -or $Project -in @("selfhandler", "dealflow")) {
         throw "Refusing cleanup for an unsafe drill project."
     }
-    $format = '{{index .Labels "com.docker.compose.project"}}'
-    if ($Type -eq "container") {
-        $format = '{{index .Config.Labels "com.docker.compose.project"}}'
+    try {
+        $label = Get-DockerResourceLabel -Type $Type -Name $Name -Label "com.docker.compose.project"
+    } catch {
+        throw "Refusing cleanup for a resource without the exact disposable project label."
     }
-    $label = (& docker inspect --type $Type --format $format $Name).Trim()
-    if ($LASTEXITCODE -ne 0 -or $label -ne $Project) {
+    if ($label -ne $Project) {
         throw "Refusing cleanup for a resource without the exact disposable project label."
     }
 }

@@ -100,12 +100,12 @@ function Assert-BackupValidationResourceLabel {
         [Parameter(Mandatory = $true)][string]$Project
     )
 
-    $arguments = @("inspect", "--format", '{{ index .Config.Labels "selfhandler.validation-project" }}', $Name)
-    if ($Type -eq "volume") {
-        $arguments = @("volume", "inspect", "--format", '{{ index .Labels "selfhandler.validation-project" }}', $Name)
+    try {
+        $observed = Get-DockerResourceLabel -Type $Type -Name $Name -Label "selfhandler.validation-project"
+    } catch {
+        throw "Refusing cleanup outside the generated backup validation project."
     }
-    $observed = [string](& docker @arguments)
-    if ($LASTEXITCODE -ne 0 -or $observed.Trim() -ne $Project) {
+    if ($observed -ne $Project) {
         throw "Refusing cleanup outside the generated backup validation project."
     }
 }

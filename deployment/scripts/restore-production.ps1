@@ -394,14 +394,12 @@ function Assert-DisposablePreflightResourceLabel {
         [Parameter(Mandatory = $true)][string]$Project
     )
 
-    $template = '{{ index .Config.Labels "selfhandler.validation-project" }}'
-    $arguments = @("inspect", "--format", $template, $Name)
-    if ($Type -eq "volume") {
-        $template = '{{ index .Labels "selfhandler.validation-project" }}'
-        $arguments = @("volume", "inspect", "--format", $template, $Name)
+    try {
+        $observed = Get-DockerResourceLabel -Type $Type -Name $Name -Label "selfhandler.validation-project"
+    } catch {
+        throw "Refusing cleanup outside the generated disposable restore preflight."
     }
-    $observed = [string](& docker @arguments)
-    if ($LASTEXITCODE -ne 0 -or $observed.Trim() -ne $Project) {
+    if ($observed -ne $Project) {
         throw "Refusing cleanup outside the generated disposable restore preflight."
     }
 }

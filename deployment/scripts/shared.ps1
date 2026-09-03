@@ -1200,6 +1200,48 @@ function ConvertTo-EncodedPosixShellCommand {
     return "printf %s $payload | base64 -d | sh"
 }
 
+function Get-DockerResourceLabel {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("container", "network", "volume")]
+        [string]$Type,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$Name,
+
+        [Parameter(Mandatory = $true)]
+        [ValidatePattern('^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$')]
+        [string]$Label
+    )
+
+    $arguments = @("inspect", "--type", "container", "--format", "{{json .Config.Labels}}", $Name)
+    if ($Type -eq "network") {
+        $arguments = @("network", "inspect", "--format", "{{json .Labels}}", $Name)
+    } elseif ($Type -eq "volume") {
+        $arguments = @("volume", "inspect", "--format", "{{json .Labels}}", $Name)
+    }
+    $labelJson = @(& docker @arguments 2>$null)
+    $dockerExit = $LASTEXITCODE
+    if ($dockerExit -ne 0 -or $labelJson.Count -ne 1 -or [String]::IsNullOrWhiteSpace([string]$labelJson[0])) {
+        throw "Unable to inspect the required Docker resource labels."
+    }
+    try {
+        $labels = [string]$labelJson[0] | ConvertFrom-Json
+    } catch {
+        throw "Docker returned invalid resource label JSON."
+    }
+    if ($null -eq $labels) {
+        return ""
+    }
+    $property = @($labels.PSObject.Properties | Where-Object { $_.Name -ceq $Label })
+    if ($property.Count -ne 1) {
+        return ""
+    }
+    return [string]$property[0].Value
+}
+
 function Get-SelfHandlerContainerId {
     [CmdletBinding()]
     param(

@@ -124,6 +124,39 @@ ConvertTo-EncodedPosixShellCommand -Script '{escaped_script}'
             for match in re.finditer(r"sh -c\s+'([^']*)'", source):
                 self.assertNotIn('"', match.group(1), script_name)
 
+    def test_docker_label_lookup_uses_quote_free_json_templates(self) -> None:
+        shared = (SCRIPTS / "shared.ps1").read_text(encoding="utf-8")
+        self.assertIn('"{{json .Config.Labels}}"', shared)
+        self.assertIn('"{{json .Labels}}"', shared)
+        for script_name in (
+            "shared.ps1",
+            "backup-production.ps1",
+            "restore-production.ps1",
+            "recovery-drill.ps1",
+        ):
+            source = (SCRIPTS / script_name).read_text(encoding="utf-8")
+            self.assertNotIn("index .Config.Labels", source)
+            self.assertNotIn("index .Labels", source)
+
+    def test_docker_label_lookup_parses_json_under_production_powershell(self) -> None:
+        shared = (SCRIPTS / "shared.ps1").as_posix().replace("'", "''")
+        result = run_powershell(
+            f"""
+. '{shared}'
+function docker {{
+    $global:LASTEXITCODE = 0
+    Write-Output '{{"selfhandler.validation-project":"fixture-project"}}'
+}}
+$label = Get-DockerResourceLabel -Type container -Name fixture -Label 'selfhandler.validation-project'
+if ($label -ne 'fixture-project') {{ throw 'label lookup failed' }}
+Write-Output 'label-lookup-ok'
+""",
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("label-lookup-ok", result.stdout)
+
     def test_compose_wrapper_accepts_progress_on_stderr_when_exit_code_is_zero(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
