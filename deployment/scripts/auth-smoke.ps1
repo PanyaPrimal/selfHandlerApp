@@ -46,7 +46,8 @@ function Assert-BootstrapUserTableEmpty {
     param()
 
     $database = Get-SelfHandlerContainerId -Service db -RunningOnly
-    $countText = [string](& docker exec $database sh -c 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; exec mysql --batch --skip-column-names -uroot "$MYSQL_DATABASE" -e "SELECT COUNT(*) FROM users;"')
+    $countCommand = ConvertTo-EncodedPosixShellCommand -Script 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; exec mysql --batch --skip-column-names -uroot "$MYSQL_DATABASE" -e "SELECT COUNT(*) FROM users;"'
+    $countText = [string](& docker exec $database sh -c $countCommand)
     $countText = $countText.Trim()
     if ($LASTEXITCODE -ne 0 -or $countText -notmatch '^[0-9]+$' -or [int64]$countText -ne 0) {
         throw "Bootstrap registration requires an empty users table."

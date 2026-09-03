@@ -127,7 +127,8 @@ function Restore-DatabasePayload {
     $importErrorPath = Join-Path (Split-Path -Parent ([IO.Path]::GetFullPath($DatabasePath))) ("database-import-{0}.error" -f [Guid]::NewGuid().ToString("N"))
     try {
         if ($ReplaceExisting) {
-            & docker exec $Container sh -c 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; mysql -uroot -e "DROP DATABASE IF EXISTS \`$MYSQL_DATABASE\`; CREATE DATABASE \`$MYSQL_DATABASE\` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;"' *> $null
+            $resetCommand = ConvertTo-EncodedPosixShellCommand -Script 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; mysql -uroot -e "DROP DATABASE IF EXISTS \`$MYSQL_DATABASE\`; CREATE DATABASE \`$MYSQL_DATABASE\` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;"'
+            & docker exec $Container sh -c $resetCommand *> $null
             if ($LASTEXITCODE -ne 0) {
                 throw "Confirmed production database replacement failed."
             }
@@ -136,7 +137,7 @@ function Restore-DatabasePayload {
         # container's bounded /tmp and keeps SQL diagnostics (which may quote
         # protected row values) in a sensitive file that is never logged.
         $dockerPath = (Get-Command docker -ErrorAction Stop).Source
-        $importScript = 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; exec mysql -uroot "$MYSQL_DATABASE"'
+        $importScript = ConvertTo-EncodedPosixShellCommand -Script 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; exec mysql -uroot "$MYSQL_DATABASE"'
         $importExit = Invoke-NativeProcessRedirected `
             -FilePath $dockerPath `
             -Arguments @("exec", "-i", $Container, "sh", "-c", $importScript) `
@@ -181,7 +182,8 @@ function Restore-PrivateFilesPayload {
                 throw "Confirmed private-file replacement failed."
             }
         } else {
-            & docker exec $helper sh -c 'test -z "$(find /target -mindepth 1 -print -quit)"' *> $null
+            $emptyTargetCommand = ConvertTo-EncodedPosixShellCommand -Script 'test -z "$(find /target -mindepth 1 -print -quit)"'
+            & docker exec $helper sh -c $emptyTargetCommand *> $null
             if ($LASTEXITCODE -ne 0) {
                 throw "Disposable private-file volume is not clean."
             }
@@ -216,7 +218,8 @@ function Restore-PrivateFilesPayload {
 function Get-RestoredSchemaFingerprint {
     param([Parameter(Mandatory = $true)][string]$Container)
 
-    $rows = @(& docker exec $Container sh -c 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; exec mysql --batch --skip-column-names -uroot "$MYSQL_DATABASE" -e "SELECT migration, batch FROM migrations ORDER BY migration;"' 2>$null)
+    $migrationCommand = ConvertTo-EncodedPosixShellCommand -Script 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; exec mysql --batch --skip-column-names -uroot "$MYSQL_DATABASE" -e "SELECT migration, batch FROM migrations ORDER BY migration;"'
+    $rows = @(& docker exec $Container sh -c $migrationCommand 2>$null)
     if ($LASTEXITCODE -ne 0) {
         return $script:SelfHandlerEmptySchemaFingerprint
     }
@@ -229,7 +232,8 @@ function Get-RestoredDatabaseControlledCount {
         [switch]$AllowMissingUsersTable
     )
 
-    $countText = [string](& docker exec $Container sh -c 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; exec mysql --batch --skip-column-names -uroot "$MYSQL_DATABASE" -e "SELECT COUNT(*) FROM users;"' 2>$null)
+    $countCommand = ConvertTo-EncodedPosixShellCommand -Script 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; exec mysql --batch --skip-column-names -uroot "$MYSQL_DATABASE" -e "SELECT COUNT(*) FROM users;"'
+    $countText = [string](& docker exec $Container sh -c $countCommand 2>$null)
     $countText = $countText.Trim()
     if ($LASTEXITCODE -ne 0) {
         if ($AllowMissingUsersTable) {
@@ -246,7 +250,8 @@ function Get-RestoredDatabaseControlledCount {
 function Assert-RestoredDatabaseSchemaEmpty {
     param([Parameter(Mandatory = $true)][string]$Container)
 
-    $countText = [string](& docker exec $Container sh -c 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; exec mysql --batch --skip-column-names -uroot "$MYSQL_DATABASE" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE();"')
+    $countCommand = ConvertTo-EncodedPosixShellCommand -Script 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; exec mysql --batch --skip-column-names -uroot "$MYSQL_DATABASE" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE();"'
+    $countText = [string](& docker exec $Container sh -c $countCommand)
     $countText = $countText.Trim()
     if ($LASTEXITCODE -ne 0 -or $countText -notmatch '^[0-9]+$' -or [int64]$countText -ne 0) {
         throw "Bootstrap baseline did not restore an empty database schema."
@@ -374,7 +379,8 @@ function Wait-DisposableRestoreDatabaseReady {
     param([Parameter(Mandatory = $true)][string]$Container)
 
     for ($attempt = 1; $attempt -le 120; $attempt++) {
-        & docker exec $Container sh -c 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; exec mysql --batch --skip-column-names -uroot -e "SELECT 1"' *> $null
+        $probeCommand = ConvertTo-EncodedPosixShellCommand -Script 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; exec mysql --batch --skip-column-names -uroot -e "SELECT 1"'
+        & docker exec $Container sh -c $probeCommand *> $null
         if ($LASTEXITCODE -eq 0) { return }
         Start-Sleep -Seconds 1
     }

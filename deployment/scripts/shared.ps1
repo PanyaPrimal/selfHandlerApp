@@ -1181,6 +1181,25 @@ function Invoke-SelfHandlerCompose {
     }
 }
 
+function ConvertTo-EncodedPosixShellCommand {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$Script
+    )
+
+    # Windows PowerShell 5.1 removes embedded double quotes while constructing
+    # native command lines. Encode the complete POSIX script so the argument
+    # passed through docker.exe contains no quotes for PowerShell to rewrite.
+    $utf8 = New-Object Text.UTF8Encoding($false)
+    $payload = [Convert]::ToBase64String($utf8.GetBytes($Script))
+    if ($payload -notmatch '^[A-Za-z0-9+/]+={0,2}$') {
+        throw "Unable to encode the POSIX shell command safely."
+    }
+    return "printf %s $payload | base64 -d | sh"
+}
+
 function Get-SelfHandlerContainerId {
     [CmdletBinding()]
     param(
@@ -1324,8 +1343,8 @@ function Get-SelfHandlerSchemaFingerprint {
     param([switch]$AllowEmpty)
 
     $container = Get-SelfHandlerContainerId -Service db -RunningOnly
-    $query = 'SELECT migration, batch FROM migrations ORDER BY migration;'
-    $output = @(& docker exec $container sh -c 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; exec mysql --batch --skip-column-names -uroot "$MYSQL_DATABASE" -e "$1"' sh $query 2>$null)
+    $queryCommand = ConvertTo-EncodedPosixShellCommand -Script 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; exec mysql --batch --skip-column-names -uroot "$MYSQL_DATABASE" -e "SELECT migration, batch FROM migrations ORDER BY migration;"'
+    $output = @(& docker exec $container sh -c $queryCommand 2>$null)
     if ($LASTEXITCODE -ne 0) {
         if ($AllowEmpty) {
             return $script:SelfHandlerEmptySchemaFingerprint

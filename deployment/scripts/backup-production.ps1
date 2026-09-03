@@ -15,13 +15,14 @@ $script:SelfHandlerBackupMySqlImage = "mysql:8.4.11@sha256:b3b90af2a6552ae30c266
 function Wait-BackupDatabaseHealthy {
     param([Parameter(Mandatory = $true)][string]$Container)
 
+    $probeCommand = ConvertTo-EncodedPosixShellCommand -Script 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; exec mysql --batch --skip-column-names -uroot -e "SELECT 1"'
     for ($attempt = 1; $attempt -le 60; $attempt++) {
         $status = (& docker inspect --format "{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}" $Container).Trim()
         if ($LASTEXITCODE -eq 0 -and $status -eq "healthy") {
             return
         }
         if ($LASTEXITCODE -eq 0 -and $status -eq "running") {
-            & docker exec $Container sh -c 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; exec mysql --batch --skip-column-names -uroot -e "SELECT 1"' *> $null
+            & docker exec $Container sh -c $probeCommand *> $null
             if ($LASTEXITCODE -eq 0) { return }
         }
         Start-Sleep -Seconds 2
@@ -143,7 +144,7 @@ function Get-DatabaseSnapshotEvidence {
         Wait-BackupDatabaseHealthy -Container $container
 
         $dockerPath = (Get-Command docker -ErrorAction Stop).Source
-        $importScript = 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; exec mysql -uroot "$MYSQL_DATABASE"'
+        $importScript = ConvertTo-EncodedPosixShellCommand -Script 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; exec mysql -uroot "$MYSQL_DATABASE"'
         $importExit = Invoke-NativeProcessRedirected `
             -FilePath $dockerPath `
             -Arguments @("exec", "-i", $container, "sh", "-c", $importScript) `
@@ -154,7 +155,8 @@ function Get-DatabaseSnapshotEvidence {
         }
         if ([IO.File]::Exists($importErrorPath)) { [IO.File]::Delete($importErrorPath) }
 
-        $objectCountText = [string](& docker exec $container sh -c 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; exec mysql --batch --skip-column-names -uroot "$MYSQL_DATABASE" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE();"' 2>$null)
+        $objectCountCommand = ConvertTo-EncodedPosixShellCommand -Script 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; exec mysql --batch --skip-column-names -uroot "$MYSQL_DATABASE" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE();"'
+        $objectCountText = [string](& docker exec $container sh -c $objectCountCommand 2>$null)
         if ($LASTEXITCODE -ne 0 -or $objectCountText.Trim() -notmatch '^[0-9]+$') {
             throw "The exact database snapshot object-count probe failed."
         }
@@ -167,11 +169,13 @@ function Get-DatabaseSnapshotEvidence {
             }
         }
 
-        $countText = [string](& docker exec $container sh -c 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; exec mysql --batch --skip-column-names -uroot "$MYSQL_DATABASE" -e "SELECT COUNT(*) FROM users;"' 2>$null)
+        $countCommand = ConvertTo-EncodedPosixShellCommand -Script 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; exec mysql --batch --skip-column-names -uroot "$MYSQL_DATABASE" -e "SELECT COUNT(*) FROM users;"'
+        $countText = [string](& docker exec $container sh -c $countCommand 2>$null)
         if ($LASTEXITCODE -ne 0 -or $countText.Trim() -notmatch '^[0-9]+$') {
             throw "The exact database snapshot controlled-count probe failed."
         }
-        $migrationRows = @(& docker exec $container sh -c 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; exec mysql --batch --skip-column-names -uroot "$MYSQL_DATABASE" -e "SELECT migration, batch FROM migrations ORDER BY migration;"' 2>$null)
+        $migrationCommand = ConvertTo-EncodedPosixShellCommand -Script 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; exec mysql --batch --skip-column-names -uroot "$MYSQL_DATABASE" -e "SELECT migration, batch FROM migrations ORDER BY migration;"'
+        $migrationRows = @(& docker exec $container sh -c $migrationCommand 2>$null)
         if ($LASTEXITCODE -ne 0) {
             throw "The exact database snapshot schema probe failed."
         }
@@ -307,7 +311,8 @@ try {
     if ($Reason -eq "bootstrap-baseline") {
         # A missing active-release pointer is not sufficient proof of a new
         # target: a failed bootstrap may already have migrated the database.
-        $bootstrapObjectCountText = [string](& docker exec $databaseContainer sh -c 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; exec mysql --batch --skip-column-names -uroot "$MYSQL_DATABASE" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE();"')
+        $bootstrapObjectCountCommand = ConvertTo-EncodedPosixShellCommand -Script 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; exec mysql --batch --skip-column-names -uroot "$MYSQL_DATABASE" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE();"'
+        $bootstrapObjectCountText = [string](& docker exec $databaseContainer sh -c $bootstrapObjectCountCommand)
         $bootstrapObjectCountText = $bootstrapObjectCountText.Trim()
         if (
             $LASTEXITCODE -ne 0 -or
@@ -330,7 +335,7 @@ try {
 
     Write-SafeOperationMessage -Code "backup.database" -Detail "Creating a transaction-consistent logical snapshot."
     $dockerPath = (Get-Command docker -ErrorAction Stop).Source
-    $dumpScript = 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; exec mysqldump --comments --single-transaction --routines --triggers --events -uroot "$MYSQL_DATABASE"'
+    $dumpScript = ConvertTo-EncodedPosixShellCommand -Script 'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; exec mysqldump --comments --single-transaction --routines --triggers --events -uroot "$MYSQL_DATABASE"'
     $dumpExit = Invoke-NativeProcessRedirected `
         -FilePath $dockerPath `
         -Arguments @("exec", $databaseContainer, "sh", "-c", $dumpScript) `

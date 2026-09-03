@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import re
 import tempfile
 import unittest
@@ -85,6 +86,43 @@ class BackupScriptContractTests(unittest.TestCase):
             source,
         )
         self.assertNotIn("create --no-build --pull never --no-deps", source)
+
+    def test_posix_shell_payload_round_trips_without_native_quotes(self) -> None:
+        shared = (SCRIPTS / "shared.ps1").as_posix().replace("'", "''")
+        script = (
+            'export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"; '
+            'exec mysql -uroot "$MYSQL_DATABASE" -e "SELECT 1"'
+        )
+        escaped_script = script.replace("'", "''")
+        result = run_powershell(
+            f"""
+. '{shared}'
+ConvertTo-EncodedPosixShellCommand -Script '{escaped_script}'
+""",
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        command = result.stdout.strip()
+        self.assertRegex(
+            command,
+            r"^printf %s [A-Za-z0-9+/]+={0,2} \| base64 -d \| sh$",
+        )
+        self.assertNotIn('"', command)
+        self.assertNotIn("'", command)
+        payload = command.split()[2]
+        self.assertEqual(base64.b64decode(payload).decode("utf-8"), script)
+
+    def test_docker_shell_literals_with_quotes_are_always_encoded(self) -> None:
+        for script_name in (
+            "shared.ps1",
+            "backup-production.ps1",
+            "auth-smoke.ps1",
+            "restore-production.ps1",
+        ):
+            source = (SCRIPTS / script_name).read_text(encoding="utf-8")
+            for match in re.finditer(r"sh -c\s+'([^']*)'", source):
+                self.assertNotIn('"', match.group(1), script_name)
 
     def test_compose_wrapper_accepts_progress_on_stderr_when_exit_code_is_zero(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
