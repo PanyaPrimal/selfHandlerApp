@@ -70,7 +70,7 @@ test('protected deep links support generic login, reload restoration, and invali
   await page.getByRole('button', { name: 'Sign in' }).click()
   await expect(page).toHaveURL('/review')
   const reviewHeading = page.getByRole('heading', { level: 1 })
-  await expect(reviewHeading).not.toHaveText('Daily review')
+  await expect(reviewHeading).not.toHaveText(/daily review/i)
   const reviewTitle = await reviewHeading.innerText()
   await page.reload()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(reviewTitle)

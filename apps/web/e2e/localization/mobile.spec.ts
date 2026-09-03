@@ -18,7 +18,11 @@ test('long localized copy and global controls fit the exact phone viewport', asy
   expect(metrics.controls?.left).toBeGreaterThanOrEqual(0)
   expect(metrics.controls?.right).toBeLessThanOrEqual(metrics.viewportWidth)
 
+  const savedLocale = page.waitForResponse((response) => (
+    response.request().method() === 'PATCH' && new URL(response.url()).pathname === '/api/profile'
+  ))
   await page.getByRole('button', { name: 'RU', exact: true }).click()
+  expect((await savedLocale).ok()).toBeTruthy()
   await page.goto('/account')
   await expect(page.getByText('Ваш часовой пояс определяет, что означает «Сегодня» для этого аккаунта.')).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
