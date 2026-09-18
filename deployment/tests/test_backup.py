@@ -124,6 +124,17 @@ ConvertTo-EncodedPosixShellCommand -Script '{escaped_script}'
             for match in re.finditer(r"sh -c\s+'([^']*)'", source):
                 self.assertNotIn('"', match.group(1), script_name)
 
+    def test_docker_entrypoint_shell_commands_are_always_encoded(self) -> None:
+        for script_name in ("backup-production.ps1", "restore-production.ps1"):
+            source = (SCRIPTS / script_name).read_text(encoding="utf-8")
+            for line in source.splitlines():
+                if "& docker" in line and "--entrypoint" in line:
+                    self.assertNotIn(" -c '", line, script_name)
+        backup = (SCRIPTS / "backup-production.ps1").read_text(encoding="utf-8")
+        self.assertIn("-c $privateStoreModeCommand", backup)
+        self.assertIn("-c $privateEmptyCommand", backup)
+        self.assertIn("-c $privateArchiveCommand", backup)
+
     def test_docker_label_lookup_uses_quote_free_json_templates(self) -> None:
         shared = (SCRIPTS / "shared.ps1").read_text(encoding="utf-8")
         self.assertIn('"{{json .Config.Labels}}"', shared)

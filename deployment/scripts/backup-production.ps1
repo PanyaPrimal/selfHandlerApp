@@ -79,7 +79,8 @@ function Initialize-EmptyBootstrapStores {
             }
         }
     }
-    $privateStoreMode = [string](& docker run --rm --pull never --network none --read-only --cap-drop ALL --security-opt "no-new-privileges:true" --mount "type=volume,source=$script:SelfHandlerPrivateFilesVolume,target=/source,readonly" --entrypoint /bin/sh ([string]$env:SELFHANDLER_APP_IMAGE) -c 'stat -c "%u:%g:%a" /source' 2>$null)
+    $privateStoreModeCommand = ConvertTo-EncodedPosixShellCommand -Script 'stat -c "%u:%g:%a" /source'
+    $privateStoreMode = [string](& docker run --rm --pull never --network none --read-only --cap-drop ALL --security-opt "no-new-privileges:true" --mount "type=volume,source=$script:SelfHandlerPrivateFilesVolume,target=/source,readonly" --entrypoint /bin/sh ([string]$env:SELFHANDLER_APP_IMAGE) -c $privateStoreModeCommand 2>$null)
     if ($LASTEXITCODE -ne 0 -or $privateStoreMode.Trim() -ne "82:82:750") {
         throw "Bootstrap private store ownership or mode is not 82:82:0750."
     }
@@ -362,7 +363,8 @@ try {
         Write-SafeOperationMessage -Code "backup.private" -Detail "Verifying the new private-file volume is empty."
         $databaseImage = (& docker inspect --format "{{.Image}}" $databaseContainer).Trim()
         $privateHelper = "selfhandler-private-backup-$([Guid]::NewGuid().ToString('N'))"
-        & docker create --name $privateHelper --entrypoint /bin/sh --mount "type=volume,source=$script:SelfHandlerPrivateFilesVolume,target=/source,readonly" $databaseImage -c 'test -z "$(find /source -mindepth 1 -print -quit)"' *> $null
+        $privateEmptyCommand = ConvertTo-EncodedPosixShellCommand -Script 'test -z "$(find /source -mindepth 1 -print -quit)"'
+        & docker create --name $privateHelper --entrypoint /bin/sh --mount "type=volume,source=$script:SelfHandlerPrivateFilesVolume,target=/source,readonly" $databaseImage -c $privateEmptyCommand *> $null
         if ($LASTEXITCODE -ne 0) {
             throw "The empty private-file volume verifier could not be created."
         }
@@ -379,7 +381,8 @@ try {
         $applicationContainer = Get-SelfHandlerContainerId -Service app -RunningOnly
         $applicationImage = (& docker inspect --format "{{.Image}}" $applicationContainer).Trim()
         $privateHelper = "selfhandler-private-backup-$([Guid]::NewGuid().ToString('N'))"
-        & docker create --name $privateHelper --entrypoint /bin/sh --mount "type=volume,source=$script:SelfHandlerPrivateFilesVolume,target=/source,readonly" $applicationImage -c 'set -eu; umask 077; tar -C /source -cf /tmp/private-files.tar .; tar -tf /tmp/private-files.tar >/dev/null' *> $null
+        $privateArchiveCommand = ConvertTo-EncodedPosixShellCommand -Script 'set -eu; umask 077; tar -C /source -cf /tmp/private-files.tar .; tar -tf /tmp/private-files.tar >/dev/null'
+        & docker create --name $privateHelper --entrypoint /bin/sh --mount "type=volume,source=$script:SelfHandlerPrivateFilesVolume,target=/source,readonly" $applicationImage -c $privateArchiveCommand *> $null
         if ($LASTEXITCODE -ne 0) {
             throw "The private-file snapshot helper could not be created."
         }

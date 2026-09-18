@@ -168,7 +168,8 @@ function Restore-PrivateFilesPayload {
         # A fresh Docker volume root is owned by root. Use a short-lived root
         # helper with only the capabilities required to replace/chown the fixed
         # volume; keep its rootfs read-only and network disabled.
-        & docker create --name $helper --user "0:0" --read-only --cap-drop ALL --cap-add CHOWN --cap-add DAC_OVERRIDE --cap-add FOWNER --security-opt "no-new-privileges:true" --pids-limit 64 --memory 128m --cpus 0.25 --network none --entrypoint /bin/sh --mount "type=volume,source=$Volume,target=/target" $ApplicationImage -c 'sleep 300' *> $null
+        $helperCommand = ConvertTo-EncodedPosixShellCommand -Script 'sleep 300'
+        & docker create --name $helper --user "0:0" --read-only --cap-drop ALL --cap-add CHOWN --cap-add DAC_OVERRIDE --cap-add FOWNER --security-opt "no-new-privileges:true" --pids-limit 64 --memory 128m --cpus 0.25 --network none --entrypoint /bin/sh --mount "type=volume,source=$Volume,target=/target" $ApplicationImage -c $helperCommand *> $null
         if ($LASTEXITCODE -ne 0) {
             throw "Private-file restore helper could not be created."
         }
