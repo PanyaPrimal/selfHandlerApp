@@ -4,7 +4,7 @@ import { mobileCredentialVault } from '../mobile/credential-vault'
 import { createNativeTransport, type TransportResponse } from '../mobile/native-transport'
 import { configuredMobileApiOrigin, isAndroidNative, nativePlugin } from '../mobile/platform'
 import { contentDispositionFilename, type DownloadedFile } from '../portability/files'
-import { acceptResponse, cachedRead, commandHeaders, commands, configureWorkspace, discardCommand, prepareCommand, rejectCommand, synchronizeWorkspace, workspacePath, workspaceState } from '../offline/workspace'
+import { acceptResponse, cachedRead, commandHeaders, commands, configureWorkspace, discardCommand, prepareCommand, rejectCommand, synchronizeWorkspace, withWorkspaceWriteLock, workspacePath, workspaceState } from '../offline/workspace'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api'
 const csrfUrl = import.meta.env.VITE_CSRF_URL ?? '/sanctum/csrf-cookie'
@@ -291,22 +291,30 @@ export async function request<T>(path: string, init: RequestInit = {}, behavior:
     }
   }
   if (init.body && typeof init.body !== 'string') return executeRequest<T>(path, init, behavior, false)
-  const hadPending = workspaceState.pending > 0
-  const command = await prepareCommand(owner, path, init, behavior.operationId)
-  const first = (await commands())[0]
-  if (!navigator.onLine || (hadPending && (first?.id !== command.id || command.base === null)) || command.status !== 'pending') {
-    void synchronizeWorkspace()
-    throw new ApiError(translate('offline.savedPending'), 202)
-  }
-  const headers = new Headers(init.headers)
-  Object.entries(commandHeaders(command, hadPending)).forEach(([key, value]) => headers.set(key, value))
-  try { return await executeRequest<T>(path, { ...init, headers }, behavior, false) }
-  catch (error) {
-    if (error instanceof ApiError && [400, 403, 404, 422].includes(error.status)) await discardCommand(command.id)
-    else await rejectCommand(command, error)
-    if (error instanceof ApiError && error.status === 0) throw new ApiError(translate('offline.savedPending'), 202)
-    throw error
-  }
+  return withWorkspaceWriteLock(owner, async () => {
+    if (workspaceState.owner !== owner) throw new ApiError(translate('offline.accountChanged'), 409, { code: 'sync_account_changed' })
+    const hadPending = (await commands()).length > 0
+    const command = await prepareCommand(owner, path, init, behavior.operationId)
+    const first = (await commands())[0]
+    if (!navigator.onLine || (hadPending && (first?.id !== command.id || command.base === null)) || command.status !== 'pending') {
+      void synchronizeWorkspace()
+      throw new ApiError(translate('offline.savedPending'), 202)
+    }
+    const headers = new Headers(init.headers)
+    Object.entries(commandHeaders(command, hadPending)).forEach(([key, value]) => headers.set(key, value))
+    try { return await executeRequest<T>(path, { ...init, headers }, behavior, false) }
+    catch (error) {
+      const code = error instanceof ApiError && typeof error.payload === 'object' && error.payload !== null
+        ? (error.payload as { code?: unknown }).code : undefined
+      const syncConflict = typeof code === 'string' && code.startsWith('sync_')
+      // A rejected online action stays in its form, not at the head of the offline queue.
+      // Sync conflicts retain the durable command so the user can resolve it explicitly.
+      if (error instanceof ApiError && ([400, 403, 404, 422].includes(error.status) || (error.status === 409 && !syncConflict))) await discardCommand(command.id)
+      else await rejectCommand(command, error)
+      if (error instanceof ApiError && error.status === 0) throw new ApiError(translate('offline.savedPending'), 202)
+      throw error
+    }
+  })
 }
 
 configureWorkspace(<T>(path: string, init: RequestInit = {}) => executeRequest<T>(path, init, {}, false))

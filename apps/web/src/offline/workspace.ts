@@ -14,6 +14,13 @@ export const workspaceState = reactive({ owner: null as number | null, online: n
 let rawSender: Sender | null = null
 let generation = 0
 let synchronizing: Promise<void> | null = null
+let writing: Promise<unknown> = Promise.resolve()
+export function withWorkspaceWriteLock<T>(owner: number, action: () => Promise<T>): Promise<T> {
+  if (navigator.locks) return navigator.locks.request(`selfhandler-sync-${owner}`, action)
+  const next = writing.catch(() => undefined).then(action)
+  writing = next
+  return next
+}
 const accountPrefix = (owner: number) => `account:${owner}:`
 const commandKey = (command: LocalCommand) => `${accountPrefix(command.owner)}command:${command.id}`
 export function workspacePath(path: string): boolean {
@@ -144,7 +151,7 @@ export async function synchronizeWorkspace(): Promise<void> {
       if (current === generation) workspaceState.issue = e instanceof Error ? e.message : translate('offline.syncFailed')
     } finally { workspaceState.syncing = false; await refreshQueue() }
   }
-  const promise = navigator.locks ? navigator.locks.request(`selfhandler-sync-${owner}`, run) : run()
+  const promise = withWorkspaceWriteLock(owner, run)
   synchronizing = promise
   try { await promise } finally { if (synchronizing === promise) synchronizing = null }
 }

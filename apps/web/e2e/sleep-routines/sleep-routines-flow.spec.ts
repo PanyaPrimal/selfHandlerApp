@@ -95,7 +95,7 @@ test('ordered activities resolve independently and derive one parent state', asy
   await routine.getByRole('button', { name: 'Mark Drink water skipped' }).click()
   await expect(routine).toContainText('Skipped')
   await routine.getByRole('button', { name: 'Set Drink water to pending' }).click()
-  await expect(routine).toContainText('Pending')
+  await expect(routine).toContainText('1 of 2 resolved')
   await page.reload()
   await expect(page.getByRole('listitem', { name: 'Morning reset' })).toContainText('1 of 2 resolved')
   await expectNoHorizontalOverflow(page)
