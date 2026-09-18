@@ -73,8 +73,9 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('planned_occurrences', function (Blueprint $table): void {
+            $table->dropForeign(['habit_log_id']);
             $table->dropUnique('planned_occ_habit_log_unique');
-            $table->dropConstrainedForeignId('habit_log_id');
+            $table->dropColumn('habit_log_id');
         });
 
         Schema::dropIfExists('habit_limit_steps');

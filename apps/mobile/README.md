@@ -7,12 +7,10 @@ assets, SDK state, signing material, APKs, and AABs are ignored.
 
 ## Requirements
 
-Repository-owned gates require Node.js 22+ and npm. Native compilation additionally requires Android
-Studio 2025.2.1+, its JDK, Android SDK API 36, platform tools, and `adb`. The minimum Android API is 24.
-
-This workspace was verified with Node 23.6.1. It has no Android Studio, JDK, SDK, Gradle installation,
-or `adb`, so build/sync/static validation passes here while Gradle compilation, emulator, installation,
-and real-device acceptance remain explicit external gates.
+Repository-owned gates require Node.js 22+ and npm. Native compilation requires JDK 21, Android SDK
+API 36, Build Tools 35.0.0, and platform tools. Android Studio is optional: command-line SDK tools and
+the checked-in Gradle wrapper are sufficient. Set `JAVA_HOME` and `ANDROID_HOME` to those installations.
+The minimum Android API is 24. Compilation and lint do not replace installation and real-device checks.
 
 ## Public configuration
 
@@ -47,7 +45,11 @@ npm run sync:android
 - byte-identical shared files in the synchronized bundle (apart from Capacitor's two Cordova stubs);
 - vault registration/Keystore/GCM/private-storage source invariants;
 - manifest, Back/keyboard notification permission, resource, signing-ignore, and wrapper contracts;
-- absence of APK/AAB/signing material and common credential patterns.
+- absence of tracked APK/AAB/signing material and common credential patterns in packaged sources.
+
+Ignored local build outputs and signing configuration may remain in place between builds; validation
+rejects them if Git tracks them. Keep the release signing key outside the repository and retain it for
+future updates, which Android requires to have the same signing identity.
 
 Run `npx cap ls android` from this directory to inspect synchronized plugins. The custom
 `MobileCredentialVault` is registered by `MainActivity`, so it is not an npm plugin entry.
@@ -77,14 +79,23 @@ Store publication and production deployment are not part of feature 012.
 
 ## Device acceptance
 
-1. Install a debug APK and sign in with an existing account. Account creation remains browser-only.
+1. Install the signed APK and sign in with an existing account. Account creation remains browser-only.
 2. Reopen the app, navigate protected routes, and confirm the session restores without a password.
 3. Open a popover and press Back; it closes before route history. At Today/login root, Back minimizes.
-4. Focus a bottom control at 390×844 and confirm keyboard resize keeps it reachable without overflow.
+4. On the Ulefone Armor Mini 20T Pro, check normal and enlarged Android text/display settings.
+   Verify headers, two-column Today metrics, profile Save above navigation, and scrolling without
+   sideways overflow. Focus a bottom control and confirm the keyboard leaves the field and popup
+   reachable. Check both gesture navigation and the system navigation bar if used.
 5. Explicitly enable Android notifications in Notifications. Synchronize one unread inbox event twice
    and confirm one local notification plus one idempotent `android_local` server channel.
 6. Tap it and confirm only its safe Planner action or Notifications opens and the event becomes read.
 7. Sign out and confirm the old token receives 401 while a separate browser/device session survives.
+
+Browser regressions in `compact-phone.spec.ts` and `compact-actions.spec.ts` cover 320/360 CSS-pixel
+widths, enlarged text, dark mode, simulated Android insets/keyboard, and saving through real forms.
+The phone's 720×1600 physical panel does not imply a 720 CSS-pixel viewport. Browser emulation does
+not verify native camera/gallery, notification permission, Android Back, or the installed WebView;
+complete those checks on the physical phone.
 
 Local notifications mirror inbox events only after app synchronisation/resume. They do not wake a
 stopped app; FCM, exact alarms, background sync, offline data, iOS, and Play Store delivery are deferred.

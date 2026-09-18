@@ -55,7 +55,7 @@ class RecurrenceEngineTest extends RecurrenceTestCase
     {
         $owner = $this->createUser();
         $empty = $this->ruleFor($this->createRoutine($owner, ['schedule_type' => 'weekdays']));
-        $unknown = $this->ruleFor($this->createRoutine($owner, ['schedule_type' => 'future_engine_rule']));
+        $unknown = $this->ruleFor($this->createRoutine($owner, ['schedule_type' => 'future_rule']));
 
         $this->assertSame([], $this->expander()->datesBetween($empty, '2026-08-01', '2026-08-31'));
         $this->assertSame([], $this->expander()->datesBetween($unknown, '2026-08-01', '2026-08-31'));

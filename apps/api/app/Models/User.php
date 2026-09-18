@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Services\UserHistoryDeletion;
 use App\Support\ProfileDefaults;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -13,11 +14,41 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
+use Throwable;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
+
+    public function delete(): ?bool
+    {
+        if (! $this->exists) {
+            return parent::delete();
+        }
+
+        $connection = $this->getConnection();
+        $level = $connection->transactionLevel();
+        $connection->beginTransaction();
+        try {
+            $this->newQuery()->whereKey($this->getKey())->lockForUpdate()->firstOrFail();
+            app(UserHistoryDeletion::class)->delete($this);
+            $deleted = parent::delete();
+            if ($deleted === false) {
+                $connection->rollBack($level);
+            } else {
+                $connection->commit();
+            }
+
+            return $deleted;
+        } catch (Throwable $exception) {
+            if ($connection->transactionLevel() > $level) {
+                $connection->rollBack($level);
+                $this->exists = true;
+            }
+            throw $exception;
+        }
+    }
 
     /**
      * The attributes that are mass assignable.

@@ -52,6 +52,25 @@ test('a listbox is already at its control the moment it becomes visible', async 
   await expectAnchoredOnFirstPaint(page, trigger, openSurface(page))
 })
 
+test('an open listbox stays selectable when scrolling moves its anchor below the viewport', async ({ page }, testInfo) => {
+  await registerViaUi(page, uniqueCredentials(testInfo, 'ScrolledPlacement'), { redirectTo: '/routines' })
+  const trigger = selectTrigger(page.getByRole('form', { name: 'Create routine' }), 'Day period')
+  await trigger.click()
+  const listbox = page.getByRole('listbox')
+  await expect(listbox).toBeVisible()
+
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }))
+
+  const bottomPadding = testInfo.project.name === 'mobile' ? 92 : 12
+  await expect.poll(async () => {
+    const box = await listbox.boundingBox()
+    return box !== null && box.y >= 11 && box.y + box.height <= page.viewportSize()!.height - bottomPadding + 1
+  }).toBe(true)
+  await listbox.getByRole('option', { name: 'Morning', exact: true }).click()
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false')
+  await expect(trigger).toContainText('Morning')
+})
+
 test('a calendar is already at its control the moment it becomes visible', async ({ page }, testInfo) => {
   await registerViaUi(page, uniqueCredentials(testInfo, 'PlacementCalendar'))
   await page.goto('/routines')

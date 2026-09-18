@@ -163,8 +163,9 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('planned_occurrences', function (Blueprint $table): void {
+            $table->dropForeign(['supplement_intake_id']);
             $table->dropUnique('planned_occ_supp_intake_unique');
-            $table->dropConstrainedForeignId('supplement_intake_id');
+            $table->dropColumn('supplement_intake_id');
         });
 
         Schema::dropIfExists('supplement_restock_proposals');

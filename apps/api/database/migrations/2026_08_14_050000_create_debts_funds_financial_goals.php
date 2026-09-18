@@ -228,10 +228,11 @@ return new class extends Migration
             $table->dropColumn(['source_type', 'source_id']);
         });
         Schema::table('planned_occurrences', function (Blueprint $table): void {
+            $table->dropForeign(['finance_fund_occurrence_fact_id']);
+            $table->dropForeign(['finance_debt_payment_fact_id']);
             $table->dropUnique('planned_occ_fund_fact_uq');
             $table->dropUnique('planned_occ_debt_fact_uq');
-            $table->dropConstrainedForeignId('finance_fund_occurrence_fact_id');
-            $table->dropConstrainedForeignId('finance_debt_payment_fact_id');
+            $table->dropColumn(['finance_fund_occurrence_fact_id', 'finance_debt_payment_fact_id']);
         });
         Schema::dropIfExists('finance_goal_details');
         Schema::dropIfExists('finance_fund_occurrence_facts');

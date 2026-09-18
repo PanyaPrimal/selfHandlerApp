@@ -2,8 +2,54 @@
 
 namespace Tests\Feature\Mobile;
 
+use Carbon\CarbonImmutable;
+
 class MobileSessionSecurityTest extends MobileTestCase
 {
+    public function test_browser_session_cannot_revive_an_expired_mobile_token(): void
+    {
+        $user = $this->createUser();
+        $token = $this->issueToken($user, expiresAt: CarbonImmutable::now()->subMinute());
+
+        $this->actingAs($user, 'web')
+            ->withHeaders($this->bearer($token))
+            ->getJson('/api/mobile/session')
+            ->assertUnauthorized();
+
+        $this->deleteJson('/api/mobile/session')->assertUnauthorized();
+        $this->assertDatabaseHas('personal_access_tokens', ['id' => $token->accessToken->id]);
+        $this->assertAuthenticatedAs($user, 'web');
+    }
+
+    public function test_browser_session_cannot_bypass_the_configured_token_age_limit(): void
+    {
+        config(['sanctum.expiration' => 60]);
+        $user = $this->createUser();
+        $token = $this->issueToken($user);
+        $token->accessToken->forceFill(['created_at' => now()->subHours(2)])->save();
+
+        $this->actingAs($user, 'web')
+            ->withHeaders($this->bearer($token))
+            ->getJson('/api/mobile/session')
+            ->assertUnauthorized();
+    }
+
+    public function test_browser_session_with_a_valid_owned_mobile_token_still_works(): void
+    {
+        $user = $this->createUser();
+        $token = $this->issueToken($user);
+
+        $this->actingAs($user, 'web')
+            ->withHeaders($this->bearer($token))
+            ->getJson('/api/mobile/session')
+            ->assertOk()
+            ->assertJsonPath('data.user.id', $user->id);
+
+        $this->deleteJson('/api/mobile/session')->assertNoContent();
+        $this->assertDatabaseMissing('personal_access_tokens', ['id' => $token->accessToken->id]);
+        $this->assertAuthenticatedAs($user, 'web');
+    }
+
     public function test_unknown_email_and_wrong_password_share_generic_feedback(): void
     {
         $this->createUser('known@example.test');

@@ -43,7 +43,7 @@ class RoutineScheduleServiceTest extends CoreDailyLoopTestCase
     {
         $owner = $this->createUser();
         $emptyWeekdays = $this->createRoutine($owner, ['schedule_type' => 'weekdays']);
-        $unknown = $this->createRoutine($owner, ['schedule_type' => 'future_engine_rule']);
+        $unknown = $this->createRoutine($owner, ['schedule_type' => 'future_rule']);
 
         $this->assertFalse($this->service->isScheduledFor($emptyWeekdays, '2026-08-10'));
         $this->assertFalse($this->service->isScheduledFor($unknown, '2026-08-10'));

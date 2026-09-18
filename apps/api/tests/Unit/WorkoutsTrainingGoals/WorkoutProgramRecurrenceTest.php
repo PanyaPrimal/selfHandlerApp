@@ -7,6 +7,7 @@ use App\Models\PlannedOccurrence;
 use App\Models\RecurringRule;
 use App\Models\Routine;
 use App\Models\SleepPlan;
+use App\Models\WorkoutProgram;
 use App\Services\HabitRecurrence;
 use App\Services\OccurrenceFactSynchronizer;
 use App\Services\RecurrenceMaterializer;
@@ -32,7 +33,9 @@ class WorkoutProgramRecurrenceTest extends WorkoutTestCase
         app(SleepPlanRecurrence::class)->apply($sleep, $owner, [
             'schedule_type' => 'daily', 'planned_bed_time' => '23:00',
         ], []);
-        $program = $this->createProgram($owner, [], ['preferred_time' => '18:00']);
+        $program = WorkoutProgram::unguarded(fn () => $this->createProgram(
+            $owner, ['id' => $routine->id], ['preferred_time' => '18:00'],
+        ));
 
         $this->assertSame($routine->id, $program->id);
         $this->assertSame(RecurringRule::OWNER_WORKOUT_PROGRAM, $program->recurringRule->owner_type);

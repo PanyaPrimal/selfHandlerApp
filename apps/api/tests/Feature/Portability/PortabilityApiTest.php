@@ -101,7 +101,9 @@ class PortabilityApiTest extends TestCase
         $settings = DB::table('notification_settings')->where('user_id', $target->id)->first();
         $this->assertTrue((bool) $settings->quiet_hours_enabled);
         $this->assertSame('22:30', substr((string) $settings->quiet_starts_at, 0, 5));
-        $this->assertSame(['routine' => true, 'finance' => false], json_decode($settings->categories, true, flags: JSON_THROW_ON_ERROR));
+        $categories = json_decode($settings->categories, true, flags: JSON_THROW_ON_ERROR);
+        ksort($categories);
+        $this->assertSame(['finance' => false, 'routine' => true], $categories);
     }
 
     public function test_restore_rejects_non_empty_target_and_does_not_overwrite(): void

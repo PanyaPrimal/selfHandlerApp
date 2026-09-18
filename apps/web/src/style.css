@@ -1,5 +1,10 @@
 :root {
   --native-keyboard-height: 0px;
+  /* Capacitor SystemBars supplies these variables on Android; browsers use env(). */
+  --app-safe-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  --app-safe-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
+  --app-safe-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  --app-safe-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
   --focus-ring-width: 2px;
   --radius: 14px;
   --radius-sm: 8px;
@@ -297,12 +302,12 @@
 
 body {
   margin: 0;
-  min-width: 320px;
+  min-width: 0;
   min-height: 100vh;
   min-height: 100dvh;
-  padding-top: env(safe-area-inset-top);
-  padding-right: env(safe-area-inset-right);
-  padding-left: env(safe-area-inset-left);
+  padding-top: var(--app-safe-top);
+  padding-right: var(--app-safe-right);
+  padding-left: var(--app-safe-left);
 }
 
 #app {
@@ -2810,13 +2815,28 @@ button.text-button {
 }
 
 @media (max-width: 760px) {
+  /* Keep preferences in the document flow on phones instead of covering titles. */
+  .global-preferences {
+    position: relative;
+    inset: auto;
+    width: max-content;
+    max-width: calc(100% - 24px);
+    margin: 12px 12px 0 auto;
+  }
+
+  .locale-switcher__button,
+  .quick-theme-toggle {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
   .app-shell {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .sidebar {
     position: fixed;
-    inset: auto 12px calc(12px + env(safe-area-inset-bottom));
+    inset: auto calc(12px + var(--app-safe-right)) calc(12px + var(--app-safe-bottom)) calc(12px + var(--app-safe-left));
     z-index: 20;
     min-height: 0;
     padding: 8px;
@@ -2856,17 +2876,19 @@ button.text-button {
   }
 
   .content-shell {
-    padding: 24px 16px calc(96px + env(safe-area-inset-bottom));
+    padding: 16px 16px calc(104px + var(--app-safe-bottom));
   }
 
   .auth-shell {
     padding: 16px 12px;
+    min-height: calc(100dvh - 80px - var(--app-safe-top));
     /* Top-align on phones so a tall form scrolls naturally from the top. */
     align-items: flex-start;
   }
 
   .auth-card {
     padding: 20px 16px;
+    margin: 0 auto;
   }
 
   .view-header,
@@ -2880,6 +2902,89 @@ button.text-button {
   .review-form,
   .rating-grid {
     grid-template-columns: 1fr;
+  }
+
+  .daily-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .daily-summary .metric {
+    min-width: 0;
+    min-height: 104px;
+    gap: 6px;
+    padding: 12px;
+  }
+
+  .daily-summary .metric span {
+    font-size: 0.875rem;
+    overflow-wrap: anywhere;
+  }
+
+  .daily-summary .metric strong {
+    font-size: 1.75rem;
+  }
+
+  .ui-control:not(.ui-control--textarea),
+  .content-shell button:not(.ui-switch__control):not(.ui-control__adornment),
+  .auth-form button,
+  .profile-actions button,
+  .state-actions button,
+  .ui-option {
+    min-height: 48px;
+  }
+
+  .ui-segmented__item,
+  .ui-toggle-group button,
+  .nav-more__item,
+  .ui-calendar__nav,
+  .ui-calendar__day,
+  .ui-calendar__clear,
+  .ui-choice__row,
+  .ui-switch {
+    min-height: 44px;
+  }
+
+  .ui-switch__control::after {
+    content: '';
+    position: absolute;
+    inset: -10px 0;
+  }
+
+  .ui-control__adornment {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+
+  .ui-control--time {
+    padding-right: 50px;
+  }
+
+  .custom-colour__control {
+    flex-wrap: wrap;
+  }
+
+  .custom-hex-field {
+    flex-basis: calc(100% - 52px);
+  }
+
+  .custom-colour__control > button {
+    width: 100%;
+    min-height: 48px;
+  }
+
+  .appearance-save {
+    flex-wrap: wrap;
+  }
+
+  .appearance-save > button {
+    min-height: 48px;
+  }
+
+  .profile-actions {
+    bottom: calc(92px + var(--app-safe-bottom));
   }
 
   .review-page .view-header {
@@ -3037,6 +3142,14 @@ button.text-button {
 
   :root[data-native-keyboard='open'] .sidebar {
     display: none;
+  }
+
+  :root[data-native-keyboard='open'] .profile-actions {
+    bottom: 8px;
+  }
+
+  :root[data-native-keyboard='open'] .content-shell {
+    padding-bottom: 24px;
   }
 }
 

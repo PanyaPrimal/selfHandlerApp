@@ -3,18 +3,16 @@
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 /**
  * Every schema identifier must fit MySQL's 64-character limit.
  *
- * The automated suite runs on SQLite, which has no such limit, so a name that
+ * SQLite has no such limit, so a name that
  * Laravel generates from a long table plus several long columns can pass every
  * test and then fail on the production database. This guard closes that gap
- * without needing MySQL: the names are read from the SQLite schema, which
- * Laravel generates identically.
+ * on both SQLite and MySQL using Laravel's schema inspection API.
  */
 class SchemaIdentifierLengthTest extends TestCase
 {
@@ -26,22 +24,14 @@ class SchemaIdentifierLengthTest extends TestCase
     {
         $tooLong = [];
 
-        foreach (Schema::getTableListing() as $table) {
-            $name = str_contains($table, '.') ? explode('.', $table)[1] : $table;
-
+        foreach (Schema::getTableListing(schemaQualified: false) as $name) {
             if (strlen($name) > self::MYSQL_IDENTIFIER_LIMIT) {
                 $tooLong[] = "table {$name} (".strlen($name).')';
             }
-        }
-
-        foreach (DB::select("SELECT name, tbl_name FROM sqlite_master WHERE type = 'index' AND name IS NOT NULL") as $index) {
-            // Names SQLite generates for itself are not ours to control.
-            if (str_starts_with($index->name, 'sqlite_autoindex_')) {
-                continue;
-            }
-
-            if (strlen($index->name) > self::MYSQL_IDENTIFIER_LIMIT) {
-                $tooLong[] = "index {$index->name} on {$index->tbl_name} (".strlen($index->name).')';
+            foreach (Schema::getIndexes($name) as $index) {
+                if (strlen($index['name']) > self::MYSQL_IDENTIFIER_LIMIT) {
+                    $tooLong[] = "index {$index['name']} on {$name} (".strlen($index['name']).')';
+                }
             }
         }
 

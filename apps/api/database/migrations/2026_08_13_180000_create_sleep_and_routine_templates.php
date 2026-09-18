@@ -108,8 +108,9 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('planned_occurrences', function (Blueprint $table): void {
+            $table->dropForeign(['sleep_log_id']);
             $table->dropUnique('planned_occ_sleep_log_unique');
-            $table->dropConstrainedForeignId('sleep_log_id');
+            $table->dropColumn('sleep_log_id');
         });
 
         Schema::table('routines', function (Blueprint $table): void {

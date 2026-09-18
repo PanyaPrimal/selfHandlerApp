@@ -4,7 +4,7 @@ namespace Tests\Unit\Portability;
 
 use App\Services\Portability\PortabilitySchemaV1;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class PortabilitySchemaV1Test extends TestCase
@@ -13,10 +13,8 @@ class PortabilitySchemaV1Test extends TestCase
 
     public function test_catalog_covers_every_authoritative_owned_table_and_only_deliberate_exclusions(): void
     {
-        $all = collect(DB::select("select name from sqlite_master where type = 'table' and name not like 'sqlite_%'"))
-            ->pluck('name')
-            ->filter(fn (string $table): bool => collect(DB::select("pragma table_info('{$table}')"))
-                ->contains(fn (object $column): bool => $column->name === 'user_id'))
+        $all = collect(Schema::getTableListing(schemaQualified: false))
+            ->filter(fn (string $table): bool => Schema::hasColumn($table, 'user_id'))
             ->sort()->values()->all();
         $expectedExclusions = ['attachments', 'external_calendar_events', 'integrations', 'llm_audit_events',
             'llm_connections', 'llm_consents', 'llm_settings', 'llm_tool_confirmations', 'notification_settings',
@@ -32,7 +30,7 @@ class PortabilitySchemaV1Test extends TestCase
     public function test_every_table_field_is_explicitly_classified(): void
     {
         foreach (PortabilitySchemaV1::tables() as $table => $definition) {
-            $columns = collect(DB::select("pragma table_info('{$table}')"))->pluck('name')->all();
+            $columns = Schema::getColumnListing($table);
             $classified = ['id', 'user_id', ...$definition['attributes'], ...array_keys($definition['references'])];
 
             sort($columns);

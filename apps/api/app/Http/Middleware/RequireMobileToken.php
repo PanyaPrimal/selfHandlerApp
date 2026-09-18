@@ -19,7 +19,12 @@ class RequireMobileToken
 
         $token = PersonalAccessToken::findToken($plainTextToken);
 
-        if ($token === null) {
+        // Sanctum can authenticate the browser cookie before inspecting the
+        // bearer. Recheck its lifetime here before attaching it to that user.
+        $expiration = config('sanctum.expiration');
+        if ($token === null
+            || ($token->expires_at !== null && $token->expires_at->isPast())
+            || ($expiration && ! $token->created_at->gt(now()->subMinutes((int) $expiration)))) {
             abort(401, __('messages.unauthenticated'));
         }
 

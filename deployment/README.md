@@ -6,6 +6,26 @@ hosts, Compose projects, ports, volume names, or release refs.
 
 ## Fixed production identity
 
+The application container runs PHP-FPM, Laravel's scheduler, and one database
+queue worker under Supervisor as UID 82. All three must be running for its
+health check to pass. The scheduler materializes recurrence, queues notification
+processing every minute, and synchronizes calendars every fifteen minutes; the
+worker consumes the queued notification jobs. HTTP health alone does not prove
+these workflows are available.
+
+Supervisor uses a private Unix socket and restarts exited processes. Worker jobs
+time out after 60 seconds, below the database queue's 90-second retry interval.
+The container grants 90 seconds to stop all process groups, including in-flight
+scheduled commands. Existing deployment and restore operations stop the same
+`app` service, so they also stop background writers. One-off Artisan invocations
+override the default command and do not start background workers.
+
+Inspect status with `docker exec selfhandler-app-1 supervisorctl -c
+/etc/selfhandler/supervisord.conf status`. A stopped/fatal scheduler or worker is
+an unhealthy application even if the website still responds. Qualification must
+exercise process restart, shutdown, and actual queued delivery on disposable
+data before releasing this runtime change.
+
 | Item | Fixed value |
 | --- | --- |
 | Deployment ID | `selfhandler-production` |

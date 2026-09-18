@@ -26,7 +26,7 @@ class FinanceRecurringOperationServiceTest extends FinanceTestCase
         $this->assertSame('3000.0000', $operation->amount);
         $this->assertSame('monthly', $operation->recurringRule->frequency);
         $this->assertSame([5, 15, 25], $operation->recurringRule->monthdays);
-        $this->assertSame('09:30', $operation->recurringRule->slot_time);
+        $this->assertSame('09:30', substr((string) $operation->recurringRule->slot_time, 0, 5));
     }
 
     public function test_mandatory_income_and_mismatched_references_are_rejected(): void

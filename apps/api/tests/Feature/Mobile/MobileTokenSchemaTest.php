@@ -3,7 +3,6 @@
 namespace Tests\Feature\Mobile;
 
 use App\Models\User;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Laravel\Sanctum\HasApiTokens;
 
@@ -26,7 +25,7 @@ class MobileTokenSchemaTest extends MobileTestCase
         ]));
         $this->assertContains(HasApiTokens::class, class_uses_recursive(User::class));
 
-        $indexes = collect(DB::select("PRAGMA index_list('personal_access_tokens')"))
+        $indexes = collect(Schema::getIndexes('personal_access_tokens'))
             ->pluck('name')
             ->all();
         $this->assertTrue(collect($indexes)->contains(

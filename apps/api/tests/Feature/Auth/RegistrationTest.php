@@ -15,8 +15,8 @@ class RegistrationTest extends AuthTestCase
     public function test_a_visitor_registers_a_normalized_account_and_enters_a_rotated_session(): void
     {
         $otherUser = $this->createUser('owner@example.test');
-        Routine::create(['user_id' => $otherUser->id, 'name' => 'Private routine']);
-        Goal::create(['user_id' => $otherUser->id, 'name' => 'Private goal']);
+        $privateRoutine = Routine::create(['user_id' => $otherUser->id, 'name' => 'Private routine']);
+        $privateGoal = Goal::create(['user_id' => $otherUser->id, 'name' => 'Private goal']);
 
         $this->withSession(['visitor_marker' => 'before-registration']);
         $sessionBefore = session()->getId();
@@ -46,8 +46,8 @@ class RegistrationTest extends AuthTestCase
             ->assertJsonCount(0, 'goals')
             ->assertJsonPath('review', null);
 
-        $this->assertDatabaseHas('routines', ['id' => 1, 'user_id' => $otherUser->id]);
-        $this->assertDatabaseHas('goals', ['id' => 1, 'user_id' => $otherUser->id]);
+        $this->assertDatabaseHas('routines', ['id' => $privateRoutine->id, 'user_id' => $otherUser->id]);
+        $this->assertDatabaseHas('goals', ['id' => $privateGoal->id, 'user_id' => $otherUser->id]);
     }
 
     public function test_registration_reports_field_errors_without_creating_an_account_or_session(): void

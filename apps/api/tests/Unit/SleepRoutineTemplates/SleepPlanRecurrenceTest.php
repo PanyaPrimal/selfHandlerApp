@@ -6,6 +6,7 @@ use App\Models\PlannedOccurrence;
 use App\Models\RecurringRule;
 use App\Models\SleepLog;
 use App\Models\SleepOccurrenceDetail;
+use App\Models\SleepPlan;
 use App\Services\OccurrenceFactSynchronizer;
 use App\Services\RecurrenceMaterializer;
 use App\Services\SleepPlanRecurrence;
@@ -18,7 +19,7 @@ class SleepPlanRecurrenceTest extends SleepRoutineTestCase
     {
         $owner = $this->createUser();
         $routine = $this->createRoutine($owner);
-        $plan = $this->createSleepPlan($owner);
+        $plan = SleepPlan::unguarded(fn () => $this->createSleepPlan($owner, ['id' => $routine->id]));
 
         $this->assertSame($routine->id, $plan->id, 'Fixture proves ids collide across owner tables.');
         $this->assertSame(RecurringRule::OWNER_SLEEP_PLAN, $plan->recurringRule->owner_type);

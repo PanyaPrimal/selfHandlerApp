@@ -214,8 +214,9 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('planned_occurrences', function (Blueprint $table): void {
+            $table->dropForeign(['workout_session_id']);
             $table->dropUnique('planned_occ_workout_session_unique');
-            $table->dropConstrainedForeignId('workout_session_id');
+            $table->dropColumn('workout_session_id');
         });
 
         Schema::dropIfExists('training_goal_details');

@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Habits;
 
+use App\Models\Habit;
 use App\Models\HabitLog;
 use App\Models\PlannedOccurrence;
 use App\Models\RecurringRule;
@@ -15,7 +16,9 @@ class HabitRecurrenceTest extends HabitTestCase
     {
         $owner = $this->createUser();
         $routine = $this->createRoutine($owner);
-        $habit = $this->createHabit($owner, ['preferred_time' => '08:30']);
+        $habit = Habit::unguarded(fn () => $this->createHabit($owner, [
+            'id' => $routine->id, 'preferred_time' => '08:30',
+        ]));
 
         $this->assertSame($routine->id, $habit->id, 'Fixture proves ids collide across owner tables.');
         $this->assertSame(RecurringRule::OWNER_HABIT, $habit->recurringRule->owner_type);

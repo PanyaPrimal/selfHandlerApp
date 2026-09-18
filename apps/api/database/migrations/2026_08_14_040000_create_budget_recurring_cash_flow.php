@@ -119,8 +119,9 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('planned_occurrences', function (Blueprint $table): void {
+            $table->dropForeign(['finance_occurrence_fact_id']);
             $table->dropUnique('planned_occ_finance_fact_uq');
-            $table->dropConstrainedForeignId('finance_occurrence_fact_id');
+            $table->dropColumn('finance_occurrence_fact_id');
         });
 
         Schema::dropIfExists('finance_occurrence_facts');

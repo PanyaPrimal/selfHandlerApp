@@ -43,23 +43,31 @@ export function useAnchoredSurface(options: AnchoredSurfaceOptions = {}): Anchor
   const availableHeight = ref<number | null>(null)
   const anchorWidth = ref<number | null>(null)
 
-  // The mobile shell docks a fixed navigation bar to the bottom of the viewport.
-  // Reserving its band keeps surfaces from opening underneath it at 390px.
+  // Measure the real dock, including Android gesture insets and enlarged text.
+  // The dock disappears when the native keyboard opens.
   const bottomPadding = ref(12)
+  const topPadding = ref(12)
 
   function refreshBottomPadding(): void {
     const isCompact = typeof window !== 'undefined' && window.matchMedia('(max-width: 760px)').matches
-    bottomPadding.value = isCompact ? 92 : 12
+    const dock = isCompact ? document.querySelector<HTMLElement>('.sidebar') : null
+    const box = dock?.getBoundingClientRect()
+    bottomPadding.value = box && box.height > 0 ? Math.max(12, window.innerHeight - box.top + 12) : 12
+    topPadding.value = typeof document !== 'undefined' && document.body
+      ? 12 + (Number.parseFloat(getComputedStyle(document.body).paddingTop) || 0)
+      : 12
   }
 
   refreshBottomPadding()
 
-  const padding = computed(() => ({ top: 12, right: 12, bottom: bottomPadding.value, left: 12 }))
+  const padding = computed(() => ({ top: topPadding.value, right: 12, bottom: bottomPadding.value, left: 12 }))
 
   const middleware = computed(() => [
     offset(options.gap ?? 6),
     flip({ padding: padding.value }),
-    shift({ padding: padding.value }),
+    // Layout changes and scrolling can move the anchor outside the viewport.
+    // Clamp vertically too so an already-open control remains selectable.
+    shift({ padding: padding.value, crossAxis: true }),
     size({
       padding: padding.value,
       apply({ availableHeight: available, rects }) {
@@ -92,7 +100,7 @@ export function useAnchoredSurface(options: AnchoredSurfaceOptions = {}): Anchor
     const ceiling = options.maxHeight ?? 320
     const bounded = availableHeight.value === null
       ? ceiling
-      : Math.max(120, Math.min(ceiling, Math.floor(availableHeight.value)))
+      : Math.max(40, Math.min(ceiling, Math.floor(availableHeight.value)))
 
     style.maxHeight = `${bounded}px`
 

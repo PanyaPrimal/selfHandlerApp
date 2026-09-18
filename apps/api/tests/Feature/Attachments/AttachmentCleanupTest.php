@@ -147,14 +147,15 @@ class AttachmentCleanupTest extends AttachmentTestCase
         }
         $queries = [];
         DB::listen(static function ($query) use (&$queries): void {
-            if (str_contains(strtolower($query->sql), 'from "attachments"')) {
-                $queries[] = strtolower($query->sql);
+            $sql = str_replace(['`', '"'], '', strtolower($query->sql));
+            if (str_contains($sql, 'from attachments')) {
+                $queries[] = $sql;
             }
         });
 
         $owner->delete();
 
-        $boundedReads = array_filter($queries, static fn (string $sql): bool => str_contains($sql, 'order by "id" asc') && str_contains($sql, 'limit 2')
+        $boundedReads = array_filter($queries, static fn (string $sql): bool => str_contains($sql, 'order by id asc') && str_contains($sql, 'limit 2')
         );
         $this->assertGreaterThanOrEqual(4, count($boundedReads));
         $this->assertDatabaseCount('attachments', 0);

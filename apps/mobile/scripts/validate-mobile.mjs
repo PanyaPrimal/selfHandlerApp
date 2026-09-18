@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { relative, resolve } from 'node:path'
@@ -92,11 +93,14 @@ for (const ignored of ['*.jks', '*.keystore', '*.apk', '*.aab', 'apps/mobile/and
   assert.ok(rootIgnore.includes(ignored), `Missing ignore rule for ${ignored}`)
 }
 
-for (const artifact of [
-  resolve(android, 'keystore.properties'),
-  resolve(android, 'app/build/outputs/apk'),
-  resolve(android, 'app/build/outputs/bundle'),
-]) assert.equal(existsSync(artifact), false, `Generated or secret material must not be committed: ${artifact}`)
+// Local signing configuration and build outputs are expected after a native
+// build. Reject tracked material, so a second build remains possible.
+const trackedArtifacts = execFileSync('git', ['ls-files', '--',
+  'apps/mobile/android/keystore.properties',
+  'apps/mobile/android/app/build/outputs/apk',
+  'apps/mobile/android/app/build/outputs/bundle',
+], { cwd: repository, encoding: 'utf8' }).trim()
+assert.equal(trackedArtifacts, '', 'Generated or secret Android material must not be tracked by Git.')
 
 assert.ok(existsSync(dist) && statSync(dist).isDirectory(), 'Build apps/web before validation.')
 assert.ok(existsSync(synced) && statSync(synced).isDirectory(), 'Run cap sync android before validation.')

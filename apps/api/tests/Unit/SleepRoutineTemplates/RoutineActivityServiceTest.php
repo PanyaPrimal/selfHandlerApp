@@ -38,7 +38,7 @@ class RoutineActivityServiceTest extends SleepRoutineTestCase
             'id' => $activity->id,
             'name' => $activity->name === 'Water' ? 'Hydrate' : $activity->name,
             'sort_order' => 2 - $activity->sort_order,
-            'preferred_time' => $activity->preferred_time,
+            'preferred_time' => $activity->preferred_time ? substr((string) $activity->preferred_time, 0, 5) : null,
             'progress_total' => $activity->progress_total,
         ])->all();
         $updated = $service->replace($routine, $owner, $payload);
@@ -105,14 +105,14 @@ class RoutineActivityServiceTest extends SleepRoutineTestCase
                 'id' => $activity->id,
                 'name' => $activity->name,
                 'sort_order' => $activity->sort_order,
-                'preferred_time' => $activity->preferred_time,
+                'preferred_time' => $activity->preferred_time ? substr((string) $activity->preferred_time, 0, 5) : null,
                 'progress_total' => $activity->progress_total,
             ])->all(),
             $activities->map(fn ($activity): array => [
                 'id' => $activity->id,
                 'name' => $activity->name,
                 'sort_order' => $activity->sort_order,
-                'preferred_time' => $activity->preferred_time,
+                'preferred_time' => $activity->preferred_time ? substr((string) $activity->preferred_time, 0, 5) : null,
                 'progress_total' => $activity->name === 'Read' ? 30 : $activity->progress_total,
             ])->all(),
         ] as $invalid) {
@@ -128,7 +128,8 @@ class RoutineActivityServiceTest extends SleepRoutineTestCase
             'id' => $activity->id,
             'name' => $activity->name.' updated',
             'sort_order' => 2 - $activity->sort_order,
-            'preferred_time' => $activity->name === 'Water' ? '07:00' : $activity->preferred_time,
+            'preferred_time' => $activity->name === 'Water' ? '07:00'
+                : ($activity->preferred_time ? substr((string) $activity->preferred_time, 0, 5) : null),
             'progress_total' => $activity->progress_total,
         ])->all();
         $updated = $service->replace($routine, $owner, $cosmetic);

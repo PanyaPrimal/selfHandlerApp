@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Finance;
 
+use App\Models\FinanceAccount;
 use App\Models\FinanceLedgerEntry;
 use App\Models\FinanceTransactionGroup;
 use Tests\Support\FinanceTestCase;
@@ -20,22 +21,23 @@ class FinanceAccountApiTest extends FinanceTestCase
             'opening_balance' => '123.4567',
             'opening_date' => '2026-08-12',
             'opening_note' => 'Imported statement',
-        ])->assertCreated()
-            ->assertExactJson(['data' => [
-                'id' => 1,
-                'name' => 'Daily card',
-                'type' => 'card',
-                'currency' => 'UAH',
-                'balance' => '123.4567',
-                'reserved_amount' => '0.0000',
-                'available_balance' => '123.4567',
-                'over_reserved' => false,
-                'archived' => false,
-                'created_at' => $this->jsonTimestamp($owner, '2026-08-13T12:00:00.000000Z'),
-                'updated_at' => $this->jsonTimestamp($owner, '2026-08-13T12:00:00.000000Z'),
-            ]]);
+        ])->assertCreated();
+        $account = FinanceAccount::query()->where('user_id', $owner->id)->sole();
+        $created->assertExactJson(['data' => [
+            'id' => $account->id,
+            'name' => 'Daily card',
+            'type' => 'card',
+            'currency' => 'UAH',
+            'balance' => '123.4567',
+            'reserved_amount' => '0.0000',
+            'available_balance' => '123.4567',
+            'over_reserved' => false,
+            'archived' => false,
+            'created_at' => $this->jsonTimestamp($owner, '2026-08-13T12:00:00.000000Z'),
+            'updated_at' => $this->jsonTimestamp($owner, '2026-08-13T12:00:00.000000Z'),
+        ]]);
 
-        $this->assertSame(1, $created->json('data.id'));
+        $this->assertSame($account->id, $created->json('data.id'));
         $this->assertDatabaseCount('finance_transaction_groups', 1);
         $this->assertDatabaseHas('finance_transaction_groups', ['kind' => 'adjustment', 'occurred_on' => '2026-08-12']);
         $this->assertDatabaseHas('finance_ledger_entries', ['delta_amount' => '123.4567', 'role' => 'primary']);
