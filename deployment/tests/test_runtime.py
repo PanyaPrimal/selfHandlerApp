@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import configparser
+import os
 import re
 import shlex
+import shutil
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -52,10 +56,9 @@ class BackgroundRuntimeContractTests(unittest.TestCase):
     def test_control_socket_is_private_and_health_includes_background_processes(self) -> None:
         self.assertNotIn("inet_http_server", self.config)
         self.assertEqual("0700", self.config["unix_http_server"]["chmod"])
-        self.assertEqual(
-            ["CMD", "/usr/local/bin/app-healthcheck"],
-            self.compose["services"]["app"]["healthcheck"]["test"],
-        )
+        command = self.compose["services"]["app"]["healthcheck"]["test"]
+        self.assertEqual("CMD-SHELL", command[0])
+        self.assertIn("exec /usr/local/bin/app-healthcheck", command[1])
         health = (ROOT / "deployment/docker/app-healthcheck.sh").read_text()
         for name in ("fpm", "scheduler", "queue"):
             self.assertIn('"' + name + '"', health)
@@ -63,6 +66,35 @@ class BackgroundRuntimeContractTests(unittest.TestCase):
         self.assertIn("9000", health)
         dockerfile = (ROOT / "deployment/docker/Dockerfile").read_text()
         self.assertIn('CMD ["/usr/bin/supervisord", "-c", "/etc/selfhandler/supervisord.conf"]', dockerfile)
+
+    @unittest.skipUnless(os.name == "posix" and shutil.which("sh"), "POSIX shell required for image health dispatch")
+    def test_rollback_health_supports_legacy_without_hiding_supervised_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = root / "supervisord.conf"
+            probe = root / "app-healthcheck"
+            calls = root / "calls"
+            for name, body in {
+                "php-fpm": 'echo fpm >> "$HEALTH_CALLS"; exit 0',
+                "php": 'echo socket >> "$HEALTH_CALLS"; exit 0',
+                "app-healthcheck": 'echo supervised >> "$HEALTH_CALLS"; exit 7',
+            }.items():
+                path = root / name
+                path.write_text("#!/bin/sh\n" + body + "\n", encoding="utf-8")
+                path.chmod(0o755)
+            command = self.compose["services"]["app"]["healthcheck"]["test"][1]
+            command = command.replace("$$", "$").replace(
+                "/etc/selfhandler/supervisord.conf", shlex.quote(config.as_posix())
+            ).replace("/usr/local/bin/app-healthcheck", shlex.quote(probe.as_posix()))
+            environment = {**os.environ, "PATH": f"{root}{os.pathsep}{os.environ['PATH']}", "HEALTH_CALLS": str(calls)}
+            legacy = subprocess.run(["sh", "-c", command], env=environment, timeout=10)
+            self.assertEqual(0, legacy.returncode)
+            self.assertEqual(["fpm", "socket"], calls.read_text().splitlines())
+            calls.unlink()
+            config.touch()
+            supervised = subprocess.run(["sh", "-c", command], env=environment, timeout=10)
+            self.assertEqual(7, supervised.returncode)
+            self.assertEqual(["supervised"], calls.read_text().splitlines())
 
 
 if __name__ == "__main__":

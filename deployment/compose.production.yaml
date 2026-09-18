@@ -102,7 +102,17 @@ services:
       - app
       - data
     healthcheck:
-      test: ["CMD", "/usr/local/bin/app-healthcheck"]
+      # Rollback uses this qualified Compose file with the previous image too.
+      # Images before supervision retain their original FPM health contract.
+      test:
+        - CMD-SHELL
+        - >-
+          if [ -f /etc/selfhandler/supervisord.conf ]; then
+            exec /usr/local/bin/app-healthcheck;
+          else
+            php-fpm -t >/dev/null 2>&1 &&
+            php -r '$$socket = @fsockopen("127.0.0.1", 9000, $$errno, $$error, 2); exit($$socket ? 0 : 1);';
+          fi
       interval: 10s
       timeout: 5s
       retries: 6

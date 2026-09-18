@@ -20,6 +20,12 @@ scheduled commands. Existing deployment and restore operations stop the same
 `app` service, so they also stop background writers. One-off Artisan invocations
 override the default command and do not start background workers.
 
+The qualified Compose health command also supports rollback to the preceding
+FPM-only image. It selects the original FPM configuration/socket check only when
+the image has no supervisor configuration. A supervised image always uses the
+full three-process check; a failed or missing probe cannot fall back to FPM-only
+health.
+
 Inspect status with `docker exec selfhandler-app-1 supervisorctl -c
 /etc/selfhandler/supervisord.conf status`. A stopped/fatal scheduler or worker is
 an unhealthy application even if the website still responds. Qualification must
