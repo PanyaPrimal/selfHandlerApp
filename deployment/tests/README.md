@@ -17,12 +17,12 @@ Run the fast contract suite from the repository root:
 .\.venv-deployment\Scripts\python -m unittest discover -s deployment/tests -p "test_*.py" -v
 ```
 
-The harness selects Windows PowerShell on Windows and `pwsh` on Linux. The current Linux contract is
-92 discovered tests with 88 executed and exactly four intentional Windows PowerShell 5.1 skips:
-native stdin redirection, Windows ACL rejection, atomic state ACL protection, and protected lock-file
-serialization. A release still requires the full 92/92 suite with zero skips under Windows PowerShell
-5.1 in both public hosted Windows CI and the private exact-revision qualification gate. Any additional
-Linux skip or any Windows skip is a contract failure.
+The harness selects Windows PowerShell on Windows and `pwsh` on Linux. The suite currently discovers
+107 tests. Linux executes 102 and intentionally skips five Windows PowerShell 5.1 cases: native stdin
+redirection, Windows ACL rejection, atomic state ACL protection, preserving an administrator-provisioned
+root without WRITE_DAC, and protected lock-file serialization. Windows executes 106 and skips only the
+POSIX image health dispatch case, which Linux runs. A release requires both platform gates so every
+test executes on its applicable platform. Additional skips are a contract failure.
 
 `jsonschema` validates the four Draft 2020-12 operational schemas, including RFC 3339 formats.
 `PyYAML` is used only to inspect Compose and GitHub workflow structure. Docker-backed production,

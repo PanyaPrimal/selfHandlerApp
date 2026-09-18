@@ -322,6 +322,21 @@ function Protect-TrustedIntegrityPathAcl {
 
     $fullPath = [IO.Path]::GetFullPath($Path)
     $acl = Get-WindowsPathAcl -Path $fullPath -Directory:$Directory
+    # Administrator-provisioned roots deliberately grant the runner Modify,
+    # not WRITE_DAC. Preserve a valid protected ACL instead of trying to rewrite
+    # it on every atomic state write or lock acquisition.
+    $context = $(if ($Directory) { "directory" } else { "file" })
+    $alreadyProtected = $false
+    try {
+        Assert-TrustedIntegrityAcl -Acl $acl -Context $context -RequireProtected
+        $alreadyProtected = $true
+    } catch {
+        # Newly created paths still need their inherited ACL protected below.
+    }
+    if ($alreadyProtected) {
+        Assert-TrustedIntegrityPath -Path $fullPath -Type $context -RequireProtectedAcl | Out-Null
+        return
+    }
     $acl.SetAccessRuleProtection($true, $false)
     foreach ($rule in @($acl.Access)) {
         [void]$acl.RemoveAccessRuleSpecific($rule)

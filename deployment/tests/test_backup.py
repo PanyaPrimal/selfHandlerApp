@@ -491,6 +491,31 @@ Assert-TrustedIntegrityPath -Path '{escaped_state_file}' -Type file -RequireProt
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     @unittest.skipUnless(WINDOWS_POWERSHELL_51_AVAILABLE, "Windows PowerShell 5.1 is unavailable")
+    def test_atomic_state_write_preserves_preprotected_root_without_write_dac(self) -> None:
+        shared = str(SCRIPTS / "shared.ps1").replace("'", "''")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = str(Path(temporary)).replace("'", "''")
+            command = f"""
+. '{shared}'
+Protect-TrustedIntegrityPathAcl -Path '{root}' -Directory
+$before = (Get-WindowsPathAcl -Path '{root}' -Directory).Sddl
+$originalSetter = ${{function:Set-WindowsPathAcl}}
+function Set-WindowsPathAcl {{
+  param([string]$Path, [Security.AccessControl.FileSystemSecurity]$Acl, [switch]$Directory)
+  if ($Path -eq '{root}') {{ throw 'The service account has Modify but no WRITE_DAC on the provisioned root.' }}
+  & $originalSetter -Path $Path -Acl $Acl -Directory:$Directory
+}}
+$statePath = Join-Path '{root}' 'active-release.json'
+Write-AtomicJson -Path $statePath -Value ([pscustomobject]@{{revision='first'}})
+Write-AtomicJson -Path $statePath -Value ([pscustomobject]@{{revision='second'}})
+if ((Read-JsonFile -Path $statePath).revision -ne 'second') {{ exit 42 }}
+if ((Get-WindowsPathAcl -Path '{root}' -Directory).Sddl -ne $before) {{ exit 43 }}
+Assert-TrustedIntegrityPath -Path $statePath -Type file -RequireProtectedAcl | Out-Null
+"""
+            result = run_powershell(command, cwd=ROOT, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    @unittest.skipUnless(WINDOWS_POWERSHELL_51_AVAILABLE, "Windows PowerShell 5.1 is unavailable")
     def test_lock_requires_a_preprotected_parent_and_protects_the_lock_file(self) -> None:
         shared = str(SCRIPTS / "shared.ps1").replace("'", "''")
         with tempfile.TemporaryDirectory() as temporary:
