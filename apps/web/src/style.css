@@ -2223,6 +2223,11 @@ input[type="range"] {
   white-space: nowrap;
 }
 
+.api-caption {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .appearance-scheme > .ui-field__label,
 .appearance-swatches > .ui-field__label {
   /* The card heading is the visible label; keep the control's semantic label. */

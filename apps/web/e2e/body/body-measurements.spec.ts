@@ -83,7 +83,9 @@ test('a body goal shows progress and warns about an unsafe pace without changing
   await chooseSegment(goalForm, 'Direction', 'Lose')
   await goalForm.getByLabel('Starting value').fill('90')
   await goalForm.getByLabel('Target value').fill('80')
-  await pickDate(page, 'Target date', '2026-09-09')
+  // Keep the requested pace in the future as the real server date advances.
+  const targetDate = new Date(Date.now() + 28 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  await pickDate(page, 'Target date', targetDate)
 
   const request = page.waitForRequest(
     (candidate) => candidate.method() === 'POST' && candidate.url().endsWith('/api/body/goals'),
@@ -96,7 +98,7 @@ test('a body goal shows progress and warns about an unsafe pace without changing
     direction: 'lose',
     starting_value: 90000,
     target_value: 80000,
-    target_date: '2026-09-09',
+    target_date: targetDate,
   })
 
   // 10 kg in four weeks is far past the guidance, so it is flagged, and the

@@ -6,6 +6,7 @@ import { registerViaUi, uniqueCredentials } from '../support/auth'
 for (const profile of [
   { name: 'compact-320', width: 320, height: 704, fontSize: 16 },
   { name: 'compact-360-large-text', width: 360, height: 744, fontSize: 20 },
+  { name: 'compact-360-fallback-fonts', width: 360, height: 744, fontSize: 20 },
 ]) {
   test(`${profile.name}: Russian workspaces stay inside the phone`, async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'mobile', 'Compact phone acceptance')
@@ -23,7 +24,9 @@ for (const profile of [
       await test.step(route, async () => {
         await page.goto(route)
         await expect(page.locator('.content-shell')).toBeVisible({ timeout: 15_000 })
-        await page.addStyleTag({ content: `:root { font-size: ${profile.fontSize}px; }` })
+        await page.addStyleTag({ content: `:root { font-size: ${profile.fontSize}px;
+          ${profile.name.endsWith('fallback-fonts') ? '--font-body: Arial, sans-serif; --font-mono: monospace;' : ''}
+        }` })
         await expect(page.locator('.content-shell h1')).toBeVisible()
         await page.waitForLoadState('networkidle')
         const layout = await page.evaluate(() => {

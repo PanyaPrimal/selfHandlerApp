@@ -68,8 +68,11 @@ assert.match(vault, /AndroidKeyStore/)
 assert.match(vault, /AES\/GCM\/NoPadding/)
 assert.match(vault, /Context\.MODE_PRIVATE/)
 assert.doesNotMatch(vault, /localStorage|sessionStorage|\bLog\./)
-assert.match(read(resolve(android, 'app/build.gradle')), /versionName\s+"0\.1\.0"/)
-assert.match(read(resolve(android, 'app/build.gradle')), /keystore\.properties/)
+const gradle = read(resolve(android, 'app/build.gradle'))
+assert.equal(gradle.match(/versionName\s+"([^"]+)"/)?.[1], packageJson.version,
+  'Android and mobile package versions must agree.')
+assert.match(gradle, /versionCode\s+[1-9]\d*\b/)
+assert.match(gradle, /keystore\.properties/)
 
 assert.match(read(resolve(mobile, 'assets/icon-only.svg')), /width="1024" height="1024"/)
 assert.match(read(resolve(mobile, 'assets/splash.svg')), /width="2732" height="2732"/)
