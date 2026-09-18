@@ -150,18 +150,22 @@ test('an unavailable device store preserves the form and never claims a durable 
 
 test('retrying an unacknowledged command without a saved revision requires review', async ({ page }, info) => {
   await registerViaUi(page, uniqueCredentials(info, 'NoBaseline'), { redirectTo: '/storage' })
-  await expect(page.getByRole('form', { name: 'Capture an item' })).toBeVisible()
+  // The form appears before its initial reads finish. Wait for those reads before
+  // removing their snapshots, otherwise a late response restores the baseline.
+  await expect(page.getByText('Nothing waiting. Anything you capture lands here until you sort it.', { exact: true })).toBeVisible()
   await page.route('**/api/storage/items', route => route.request().method() === 'POST' ? route.abort('internetdisconnected') : route.continue())
-  await page.evaluate(async () => {
+  const base = await page.evaluate(async () => {
     const databasePath = '/src/offline/database.ts'
     const workspacePath = '/src/offline/workspace.ts'
     const httpPath = '/src/api/http.ts'
     const { localEntries, localRemove } = await import(/* @vite-ignore */ databasePath)
-    const { workspaceState } = await import(/* @vite-ignore */ workspacePath)
+    const { workspaceState, commands } = await import(/* @vite-ignore */ workspacePath)
     const { jsonRequest } = await import(/* @vite-ignore */ httpPath)
     for (const entry of await localEntries(`account:${workspaceState.owner}:read:`)) await localRemove(entry.key)
     try { await jsonRequest('/storage/items', 'POST', { title: 'No saved revision' }) } catch { /* durable command */ }
+    return (await commands())[0]?.base
   })
+  expect(base).toBeNull()
   await page.unroute('**/api/storage/items')
   let writes = 0
   page.on('request', request => { if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/storage/items') writes++ })
