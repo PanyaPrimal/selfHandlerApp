@@ -46,7 +46,8 @@ export async function refreshQueue() {
 }
 export async function cacheRead(owner: number, path: string, data: unknown, revision: number) {
   if (!workspacePath(path)) return
-  await localWrite(`${accountPrefix(owner)}read:${path}`, { data, revision, saved: Date.now() } satisfies CachedRead)
+  try { await localWrite(`${accountPrefix(owner)}read:${path}`, { data, revision, saved: Date.now() } satisfies CachedRead) }
+  catch { storageFailure() } // A full device must not hide a successful online read.
 }
 export async function cachedRead(owner: number, path: string): Promise<unknown> {
   const cached = await localRead<CachedRead>(`${accountPrefix(owner)}read:${path}`)
@@ -120,6 +121,8 @@ export async function synchronizeWorkspace(): Promise<void> {
   const run = async () => {
     workspaceState.syncing = true
     try {
+      // Session restoration already authenticates the user. An empty queue needs no extra request.
+      if (!(await commands()).length || current !== generation) return
       const identity = await rawSender!<{ user_id: number }>('/workspace/revision', { headers: { 'X-Workspace-Account': String(owner) } })
       if (identity.user_id !== owner || current !== generation) return
       workspaceState.online = true

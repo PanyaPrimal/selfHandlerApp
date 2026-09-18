@@ -30,7 +30,13 @@ let timer: ReturnType<typeof setInterval> | null = null
 let poller: ReturnType<typeof setTimeout> | null = null
 let writes = Promise.resolve()
 let disposed = false
+let conversationVersion = 0
 function currentOwner() { return !disposed && session.user?.id === owner }
+function applyHistory(history: MentorTurn[], version: number) {
+  // A history read started before Send/Confirm must not erase its newer local result.
+  const merged = version === conversationVersion ? history : [...new Map([...history, ...turns.value].map(turn => [turn.id, turn])).values()]
+  turns.value = merged.sort((a, b) => a.id - b.id)
+}
 function fail(e: unknown) { if (currentOwner()) error.value = e instanceof Error ? e.message : t('mentor.failed') }
 function persist(): Promise<void> {
   const snapshot = { ...draft.value }
@@ -48,10 +54,11 @@ async function load() {
     ready.value = true
   } catch (e) { fail(e); return }
   try {
+    const version = conversationVersion
     const [preferences, history] = await Promise.all([mentorSettings(), mentorHistory()])
     if (!currentOwner()) return
-    settings.value = preferences; turns.value = history
-    await localWrite(historyKey, history)
+    settings.value = preferences; applyHistory(history, version)
+    await localWrite(historyKey, turns.value)
     schedulePoll()
   } catch (e) { fail(e) }
 }
@@ -60,9 +67,10 @@ function schedulePoll() {
   if (!currentOwner() || !turns.value.some(turn => ['pending', 'processing'].includes(turn.status))) return
   poller = setTimeout(async () => {
     try {
+      const version = conversationVersion
       const history = await mentorHistory()
       if (!currentOwner()) return
-      turns.value = history; await localWrite(historyKey, history)
+      applyHistory(history, version); await localWrite(historyKey, turns.value)
       const completed = history.find(turn => turn.operation_id === draft.value.operation && turn.status === 'completed')
       if (completed) { draft.value.text = ''; draft.value.operation = null; await persist() }
     } catch (e) { fail(e) }
@@ -78,6 +86,7 @@ async function send() {
     if (!online.value) { notice.value = t('mentor.offlineDraft'); return }
     const result = await askMentor(draft.value.text.trim(), draft.value.operation)
     if (!currentOwner()) return
+    conversationVersion++
     turns.value = [...turns.value.filter(turn => turn.id !== result.id), result]
     await localWrite(historyKey, turns.value)
     if (result.status === 'completed') { draft.value.text = ''; draft.value.operation = null; await persist() }
@@ -89,6 +98,7 @@ async function confirm(turn: MentorTurn, index: number) {
   try {
     const updated = await confirmMentorAction(turn.id, index)
     if (!currentOwner()) return
+    conversationVersion++
     turns.value = turns.value.map(value => value.id === updated.id ? updated : value)
     await localWrite(historyKey, turns.value)
   } catch (e) { fail(e) } finally { if (currentOwner()) busy.value = false }

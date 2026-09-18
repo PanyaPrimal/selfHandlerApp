@@ -59,7 +59,12 @@ test('mentor previews changes and renders model content as plain text', async ({
     answer: '<script>window.bad=true</script> Create this task?', model: 'gpt-6-astra', created_at: new Date().toISOString(),
     estimated_usd: '0.007', error_code: null, sources: [], usage: { input: 200, output: 100, reasoning: 20, cached: 0, reserved: 0 },
     actions: [{ kind: 'capture_item', label: 'Buy milk', payload: { title: 'Buy milk' }, status: 'pending' }] }
-  await page.route('**/api/mentor/turns', async route => route.fulfill({ json: { data: route.request().method() === 'GET' ? [] : turn } }))
+  let releaseHistory!: () => void
+  const historyGate = new Promise<void>(resolve => { releaseHistory = resolve })
+  await page.route('**/api/mentor/turns', async route => {
+    if (route.request().method() === 'GET') await historyGate
+    await route.fulfill({ json: { data: route.request().method() === 'GET' ? [] : turn } })
+  })
   let confirmations = 0
   await page.route('**/api/mentor/turns/1/actions/0', async route => { confirmations++; await route.fulfill({ json: { data: { ...turn, actions: [{ ...turn.actions[0], status: 'applied' }] } } }) })
   await registerViaUi(page, uniqueCredentials(info, 'MentorPreview'), { redirectTo: '/mentor' })
@@ -67,6 +72,9 @@ test('mentor previews changes and renders model content as plain text', async ({
   await page.getByLabel('Message or transcript').fill('Remember milk')
   await page.getByRole('button', { name: 'Send', exact: true }).click()
   await expect(page.getByText(turn.answer, { exact: true })).toBeVisible()
+  // An older, slow initial history response must not erase the just-received answer.
+  releaseHistory()
+  await expect(page.getByText('Enable the mentor and activate an AI connection in account settings.', { exact: true })).toBeVisible()
   expect(confirmations).toBe(0)
   await page.getByRole('button', { name: 'Confirm and save' }).click()
   await expect(page.getByRole('button', { name: 'Saved', exact: true })).toBeDisabled()
@@ -120,4 +128,49 @@ test('a second device edit preserves both the server record and the conflicting 
   const records = await (await page.request.get('/api/storage/items', { headers })).json()
   expect(records.data.find((row: { id: number }) => row.id === id).title).toBe('Newer server task')
   await expect(page.getByText('Offline task', { exact: true }).first()).toBeVisible()
+})
+
+test('an unavailable device store preserves the form and never claims a durable save', async ({ page }, info) => {
+  await registerViaUi(page, uniqueCredentials(info, 'StorageFailure'), { redirectTo: '/storage' })
+  const form = page.getByRole('form', { name: 'Capture an item' })
+  await expect(form).toBeVisible()
+  await page.evaluate(() => {
+    IDBObjectStore.prototype.put = function () { throw new DOMException('Device storage full', 'QuotaExceededError') }
+  })
+  let writes = 0
+  page.on('request', request => { if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/storage/items') writes++ })
+  await form.getByLabel('What is on your mind?').fill('Keep this unsaved draft')
+  await form.getByRole('button', { name: 'Capture', exact: true }).click()
+  await expect(page.getByRole('alert').filter({ hasText: 'Could not capture that.' })).toBeVisible()
+  await expect(page.getByText('Could not load Storage. Check the service and try again.', { exact: true })).toHaveCount(0)
+  await expect(form.getByLabel('What is on your mind?')).toHaveValue('Keep this unsaved draft')
+  expect(writes).toBe(0)
+  await expect(page.getByText(/^Saved on this device/)).toHaveCount(0)
+})
+
+test('retrying an unacknowledged command without a saved revision requires review', async ({ page }, info) => {
+  await registerViaUi(page, uniqueCredentials(info, 'NoBaseline'), { redirectTo: '/storage' })
+  await expect(page.getByRole('form', { name: 'Capture an item' })).toBeVisible()
+  await page.route('**/api/storage/items', route => route.request().method() === 'POST' ? route.abort('internetdisconnected') : route.continue())
+  await page.evaluate(async () => {
+    const databasePath = '/src/offline/database.ts'
+    const workspacePath = '/src/offline/workspace.ts'
+    const httpPath = '/src/api/http.ts'
+    const { localEntries, localRemove } = await import(/* @vite-ignore */ databasePath)
+    const { workspaceState } = await import(/* @vite-ignore */ workspacePath)
+    const { jsonRequest } = await import(/* @vite-ignore */ httpPath)
+    for (const entry of await localEntries(`account:${workspaceState.owner}:read:`)) await localRemove(entry.key)
+    try { await jsonRequest('/storage/items', 'POST', { title: 'No saved revision' }) } catch { /* durable command */ }
+  })
+  await page.unroute('**/api/storage/items')
+  let writes = 0
+  page.on('request', request => { if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/storage/items') writes++ })
+  await page.evaluate(async () => {
+    const httpPath = '/src/api/http.ts'
+    const { jsonRequest } = await import(/* @vite-ignore */ httpPath)
+    try { await jsonRequest('/storage/items', 'POST', { title: 'No saved revision' }) } catch { /* requires review */ }
+  })
+  await page.getByRole('button', { name: 'Pending changes', exact: true }).click()
+  await expect(page.getByText('Needs review: server data changed', { exact: true })).toBeVisible()
+  expect(writes).toBe(0)
 })
