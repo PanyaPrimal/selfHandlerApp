@@ -70,6 +70,26 @@ function New-BootstrapInvitation {
     return $match.Value
 }
 
+function Test-ProductionSessionCookie {
+    [CmdletBinding()]
+    param(
+        [AllowNull()][Net.Cookie]$SessionCookie,
+        [Parameter(Mandatory = $true)][string[]]$SetCookieHeaders
+    )
+
+    if ($null -eq $SessionCookie -or $SessionCookie.Name -ne "selfhandler_session" -or
+        -not $SessionCookie.Secure -or -not $SessionCookie.HttpOnly) {
+        return $false
+    }
+    # Expires contains a comma. Split only at the start of another cookie,
+    # then inspect SameSite on the session cookie rather than on XSRF-TOKEN.
+    $records = @($SetCookieHeaders | ForEach-Object {
+        [regex]::Split([string]$_, ',(?=\s*[^=;,\s]+=)')
+    })
+    $sessionHeaders = @($records | Where-Object { $_ -match '^\s*selfhandler_session=' })
+    return $sessionHeaders.Count -eq 1 -and $sessionHeaders[0] -match '(?i);\s*samesite=lax\s*(?:;|$)'
+}
+
 function Invoke-AuthenticationSmoke {
     [CmdletBinding()]
     param(
@@ -110,13 +130,8 @@ function Invoke-AuthenticationSmoke {
     if ([int]$csrfResponse.StatusCode -ne 204) {
         throw "Authentication smoke could not initialize CSRF protection."
     }
-    $setCookie = [string]$csrfResponse.Headers["Set-Cookie"]
-    if (
-        $setCookie -notmatch '(?i)selfhandler_session=' -or
-        $setCookie -notmatch '(?i)selfhandler_session=[^,;]*(?:;[^,]*)*;\s*secure' -or
-        $setCookie -notmatch '(?i)selfhandler_session=[^,;]*(?:;[^,]*)*;\s*httponly' -or
-        $setCookie -notmatch '(?i)samesite=lax'
-    ) {
+    $sessionCookie = $session.Cookies.GetCookies($origin)["selfhandler_session"]
+    if (-not (Test-ProductionSessionCookie -SessionCookie $sessionCookie -SetCookieHeaders @($csrfResponse.Headers["Set-Cookie"]))) {
         throw "Production session-cookie attributes do not match the fixed security contract."
     }
     $headers = Get-CsrfHeaders -Session $session -Origin $origin

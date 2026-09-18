@@ -18,11 +18,19 @@ Run the fast contract suite from the repository root:
 ```
 
 The harness selects Windows PowerShell on Windows and `pwsh` on Linux. The suite currently discovers
-107 tests. Linux executes 102 and intentionally skips five Windows PowerShell 5.1 cases: native stdin
+109 tests. Linux executes 104 and intentionally skips five Windows PowerShell 5.1 cases: native stdin
 redirection, Windows ACL rejection, atomic state ACL protection, preserving an administrator-provisioned
-root without WRITE_DAC, and protected lock-file serialization. Windows executes 106 and skips only the
+root without WRITE_DAC, and protected lock-file serialization. Windows executes 108 and skips only the
 POSIX image health dispatch case, which Linux runs. A release requires both platform gates so every
 test executes on its applicable platform. Additional skips are a contract failure.
+
+On a Windows host with the pinned MySQL image already available in a Linux Docker engine, additionally
+run `powershell -NoProfile -File deployment/tests/windows_mysql_stdin_smoke.ps1` after changes to native
+process or encoded shell handling. This exercises real SQL import, dump, reimport and the production
+snapshot validator under Windows PowerShell 5.1. It uses random, labelled containers and volumes with
+no network or published ports, verifies their identity before cleanup, and never reads production data.
+The regular suite also checks exact binary stdin and exit status through the encoded shell using
+Git Bash on Windows or the system POSIX shell on Linux.
 
 `jsonschema` validates the four Draft 2020-12 operational schemas, including RFC 3339 formats.
 `PyYAML` is used only to inspect Compose and GitHub workflow structure. Docker-backed production,

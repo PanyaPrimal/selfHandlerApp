@@ -1208,11 +1208,15 @@ function ConvertTo-EncodedPosixShellCommand {
     # native command lines. Encode the complete POSIX script so the argument
     # passed through docker.exe contains no quotes for PowerShell to rewrite.
     $utf8 = New-Object Text.UTF8Encoding($false)
-    $payload = [Convert]::ToBase64String($utf8.GetBytes($Script))
+    # sh reads its program from the decoder pipe. Save the caller's stdin on
+    # fd 3 and redirect the complete parsed command group back to it, so mysql
+    # imports and other stdin consumers receive their original input bytes.
+    $program = "{`n$Script`n} <&3"
+    $payload = [Convert]::ToBase64String($utf8.GetBytes($program))
     if ($payload -notmatch '^[A-Za-z0-9+/]+={0,2}$') {
         throw "Unable to encode the POSIX shell command safely."
     }
-    return "printf %s $payload | base64 -d | sh"
+    return "{ printf %s $payload | base64 -d | sh; } 3<&0"
 }
 
 function Get-DockerResourceLabel {

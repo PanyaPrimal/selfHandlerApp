@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import base64
+import os
 import re
+import shutil
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -106,12 +109,34 @@ ConvertTo-EncodedPosixShellCommand -Script '{escaped_script}'
         command = result.stdout.strip()
         self.assertRegex(
             command,
-            r"^printf %s [A-Za-z0-9+/]+={0,2} \| base64 -d \| sh$",
+            r"^\{ printf %s [A-Za-z0-9+/]+={0,2} \| base64 -d \| sh; \} 3<&0$",
         )
         self.assertNotIn('"', command)
         self.assertNotIn("'", command)
-        payload = command.split()[2]
-        self.assertEqual(base64.b64decode(payload).decode("utf-8"), script)
+        payload = command.split()[3]
+        self.assertEqual(base64.b64decode(payload).decode("utf-8"), "{\n" + script + "\n} <&3")
+
+    def test_encoded_shell_preserves_stdin_and_exit_status(self) -> None:
+        shell = shutil.which("sh")
+        if shell is None and os.name == "nt":
+            git = shutil.which("git")
+            if git:
+                candidate = Path(git).parent.parent / "bin" / "sh.exe"
+                if candidate.is_file():
+                    shell = str(candidate)
+        self.assertIsNotNone(shell, "A POSIX shell (Git Bash on Windows) is required.")
+        shared = str(SCRIPTS / "shared.ps1").replace("'", "''")
+        script = 'printf "%s\\n" "quoted marker"; cat; exit 17'
+        encoded = run_powershell(
+            f". '{shared}'; ConvertTo-EncodedPosixShellCommand -Script '{script}'",
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(encoded.returncode, 0, encoded.stderr)
+        input_bytes = "INSERT INTO example VALUES ('строка с пробелами');\n".encode() + b"\x00tail\n"
+        result = subprocess.run([shell, "-c", encoded.stdout.strip()], input=input_bytes, capture_output=True)
+        self.assertEqual(result.returncode, 17, result.stderr)
+        self.assertEqual(result.stdout, b"quoted marker\n" + input_bytes)
 
     def test_docker_shell_literals_with_quotes_are_always_encoded(self) -> None:
         for script_name in (
