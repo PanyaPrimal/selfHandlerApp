@@ -80,6 +80,19 @@ test('mentor previews changes and renders model content as plain text', async ({
   await expect(page.getByRole('button', { name: 'Saved', exact: true })).toBeDisabled()
   expect(confirmations).toBe(1)
   expect(await page.evaluate(() => (window as unknown as { bad?: boolean }).bad)).toBeUndefined()
+  await page.getByRole('button', { name: 'RU', exact: true }).click()
+  await expect(page.locator('html')).toHaveAttribute('lang', 'ru')
+  await page.addStyleTag({ content: ':root { font-size:20px; }' })
+  for (const width of [320, 360]) {
+    await page.setViewportSize({ width, height: 704 })
+    const send = page.getByRole('button', { name: 'Отправить', exact: true })
+    expect(await send.evaluate(button => {
+      const caption = document.createRange()
+      caption.selectNodeContents(button)
+      return caption.getClientRects().length
+    })).toBe(1)
+    await page.screenshot({ path: info.outputPath(`mentor-ru-${width}-large-text.png`), fullPage: true })
+  }
 })
 
 test('a lost acknowledgement is retried without duplicate capture', async ({ page }, info) => {

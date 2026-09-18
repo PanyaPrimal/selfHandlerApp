@@ -185,7 +185,7 @@ onBeforeUnmount(() => {
 <template>
   <section class="mentor-page">
     <header class="page-header"><div><p class="eyebrow">SELFHANDLER</p><h1>{{ t('mentor.title') }}</h1><p>{{ t('mentor.subtitle') }}</p></div><RouterLink class="button secondary" to="/settings/ai">{{ t('nav.ai') }}</RouterLink></header>
-    <p class="notice">{{ t('mentor.contextNotice') }}</p>
+    <details class="notice mentor-context"><summary>{{ t('mentor.contextDetails') }}</summary><p>{{ t('mentor.contextNotice') }}</p></details>
     <p v-if="settings && (!settings.enabled || !settings.active_connection_id)" class="notice">{{ t('mentor.setupRequired') }}</p>
     <p v-if="error" class="notice error" role="alert">{{ error }}</p>
     <p v-if="notice" class="notice" role="status">{{ notice }}</p>
@@ -235,5 +235,6 @@ onBeforeUnmount(() => {
 .mentor-recording audio { width:100%; max-width:100%; }
 .mentor-page button { min-height:44px; white-space:normal; }
 .mentor-page details { overflow-wrap:anywhere; margin-top:.8rem; }
-@media(max-width:380px) { .mentor-page .button-row > * { flex:1 1 100%; } }
+.mentor-page .mentor-context { margin-top:0; }
+@media(max-width:380px) { .mentor-page .button-row { display:grid; grid-template-columns:minmax(0, 1fr); } }
 </style>

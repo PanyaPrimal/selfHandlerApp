@@ -35,6 +35,7 @@ export const en = {
   'mentor.open': 'Open mentor',
   'mentor.saved': 'Settings saved.',
   'mentor.failed': 'The request could not be completed.',
+  'mentor.contextDetails': 'How your data is used',
   'mentor.contextNotice': 'Answers use synchronized server data. Pending device edits are not included. Changes require your confirmation.',
   'mentor.setupRequired': 'Enable the mentor and activate an AI connection in account settings.',
   'mentor.empty': 'Ask about your plans, routines, goals, health, finances or reviews. You can also dictate a new task.',
