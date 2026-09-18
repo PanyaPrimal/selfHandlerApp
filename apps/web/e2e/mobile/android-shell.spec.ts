@@ -75,6 +75,9 @@ async function emulateAndroid(
             if (url.endsWith('/api/mobile/session') && method === 'GET') {
               return { status: sessionStatus ?? 401, data: { message: 'Unauthenticated.' }, headers: {} }
             }
+            if (url.endsWith('/api/workspace/revision') && method === 'GET' && vaultedToken === 'issued-device-token') {
+              return { status: 200, data: { user_id: 1, revision: 0 }, headers: {} }
+            }
             if (url.includes('/api/notifications?') && method === 'GET') {
               return {
                 status: 200,

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useAuthSession } from '../auth/session'
 import { useI18n } from '../i18n'
@@ -14,6 +14,16 @@ const key = `account:${owner}:mentor-draft`
 const historyKey = `account:${owner}:mentor-history`
 const settings = ref<MentorSettings | null>(null)
 const turns = ref<MentorTurn[]>([])
+const conversation = ref<HTMLElement | null>(null)
+let followLatest = true
+function conversationScrolled() {
+  const pane = conversation.value
+  if (pane) followLatest = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 60
+}
+watch(turns, async () => {
+  await nextTick()
+  if (followLatest && conversation.value) conversation.value.scrollTop = conversation.value.scrollHeight
+})
 const draft = ref<Draft>({ text: '', operation: null, audio: null, voiceOperation: crypto.randomUUID() })
 const busy = ref(false)
 const recording = ref(false)
@@ -87,6 +97,7 @@ async function send() {
     const result = await askMentor(draft.value.text.trim(), draft.value.operation)
     if (!currentOwner()) return
     conversationVersion++
+    followLatest = true
     turns.value = [...turns.value.filter(turn => turn.id !== result.id), result]
     await localWrite(historyKey, turns.value)
     if (result.status === 'completed') { draft.value.text = ''; draft.value.operation = null; await persist() }
@@ -132,7 +143,10 @@ async function startRecording() {
       void persist().catch(e => { stopRecording(); fail(e) })
     }
     recorder.onerror = () => { stopRecording(); fail(new Error(t('mentor.microphoneUnavailable'))) }
-    recorder.onstop = () => { releaseMicrophone(); if (currentOwner()) notice.value = t('mentor.audioSaved') }
+    recorder.onstop = () => {
+      releaseMicrophone()
+      void writes.then(() => { if (currentOwner() && draft.value.audio) notice.value = t('mentor.audioSaved') }).catch(fail)
+    }
     recorder.start(1000); recording.value = true; seconds.value = 0
     timer = setInterval(() => { seconds.value++; if (seconds.value >= 60) stopRecording() }, 1000)
   } catch (e) { releaseMicrophone(); fail(e) }
@@ -175,7 +189,7 @@ onBeforeUnmount(() => {
     <p v-if="settings && (!settings.enabled || !settings.active_connection_id)" class="notice">{{ t('mentor.setupRequired') }}</p>
     <p v-if="error" class="notice error" role="alert">{{ error }}</p>
     <p v-if="notice" class="notice" role="status">{{ notice }}</p>
-    <div class="mentor-conversation" aria-live="polite" aria-relevant="additions">
+    <div ref="conversation" class="mentor-conversation" aria-live="polite" aria-relevant="additions" @scroll="conversationScrolled">
       <p v-if="!turns.length" class="muted">{{ t('mentor.empty') }}</p>
       <article v-for="turn in turns" :key="turn.id" class="panel mentor-turn">
         <p class="mentor-question">{{ turn.question }}</p>
@@ -209,6 +223,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .mentor-page { max-width: 880px; margin-inline:auto; }
 .mentor-page, .mentor-conversation, .mentor-composer { display:grid; gap:1rem; min-width:0; }
+.mentor-conversation { max-height: min(52dvh, 520px); overflow-y:auto; scrollbar-gutter:stable; }
 .mentor-page .page-header { flex-wrap:wrap; }
 .mentor-question { font-weight:700; }
 .mentor-answer, .mentor-question { white-space:pre-wrap; overflow-wrap:anywhere; }

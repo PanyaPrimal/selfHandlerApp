@@ -32,3 +32,16 @@ test('microphone audio survives an offline reload and stays private across accou
   await loginViaUi(page, first, '/mentor')
   await expect(page.locator('audio')).toBeVisible()
 })
+
+test('a failed audio write never reports that the recording was saved', async ({ page, context }, info) => {
+  await context.grantPermissions(['microphone'])
+  await registerViaUi(page, uniqueCredentials(info, 'VoiceStorageFull'), { redirectTo: '/mentor' })
+  await expect(page.getByLabel('Message or transcript')).toBeEnabled()
+  await page.evaluate(() => {
+    IDBObjectStore.prototype.put = function () { throw new DOMException('Device storage full', 'QuotaExceededError') }
+  })
+  await page.getByRole('button', { name: 'Record voice', exact: true }).click()
+  await expect(page.getByRole('alert')).toContainText('Device storage full')
+  await expect(page.getByRole('button', { name: /^Stop ·/ })).toHaveCount(0)
+  await expect(page.getByText('Recording saved on this device.', { exact: true })).toHaveCount(0)
+})

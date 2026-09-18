@@ -121,8 +121,6 @@ export async function synchronizeWorkspace(): Promise<void> {
   const run = async () => {
     workspaceState.syncing = true
     try {
-      // Session restoration already authenticates the user. An empty queue needs no extra request.
-      if (!(await commands()).length || current !== generation) return
       const identity = await rawSender!<{ user_id: number }>('/workspace/revision', { headers: { 'X-Workspace-Account': String(owner) } })
       if (identity.user_id !== owner || current !== generation) return
       workspaceState.online = true
