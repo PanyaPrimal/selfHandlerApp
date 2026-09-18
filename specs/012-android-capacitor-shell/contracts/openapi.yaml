@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: SelfHandler Android Mobile Boundary
-  version: 0.1.0
+  version: 0.1.2
   description: Device-token lifecycle and Android local-presentation acknowledgment for feature 012.
 servers:
   - url: https://selfhandler.example.test
@@ -10,6 +10,29 @@ tags:
   - name: Mobile session
   - name: Mobile notifications
 paths:
+  /api/mobile/register:
+    post:
+      tags: [Mobile session]
+      operationId: registerMobileAccount
+      summary: Create an account without an invitation and return an expiring Android device token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MobileRegisterInput'
+      responses:
+        '201':
+          description: Token returned once with the current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileSessionCreated'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
   /api/mobile/session:
     post:
       tags: [Mobile session]
@@ -112,6 +135,28 @@ components:
       scheme: bearer
       bearerFormat: Sanctum mobile token
   schemas:
+    MobileRegisterInput:
+      type: object
+      additionalProperties: false
+      required: [name, email, password, password_confirmation, device_name]
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        password:
+          type: string
+          minLength: 12
+          writeOnly: true
+        password_confirmation:
+          type: string
+          writeOnly: true
+        device_name:
+          type: string
+          maxLength: 64
     MobileLoginInput:
       type: object
       additionalProperties: false

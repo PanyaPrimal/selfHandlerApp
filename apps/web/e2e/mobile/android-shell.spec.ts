@@ -8,9 +8,11 @@ async function emulateAndroid(
     const listeners: Record<string, Array<(value: any) => void>> = {}
     let vaultedToken = token ?? null
     let revokeCount = 0
+    const requests: Array<{ url: string; method: string; data: unknown }> = []
 
     ;(window as any).__androidTest = {
       listeners,
+      requests,
       get token() { return vaultedToken },
       get revokeCount() { return revokeCount },
       dispatch(plugin: string, event: string, value: any) {
@@ -33,8 +35,9 @@ async function emulateAndroid(
           clear: async () => { vaultedToken = null },
         },
         CapacitorHttp: {
-          request: async ({ url, method }: { url: string; method: string }) => {
-            if (url.endsWith('/api/mobile/session') && method === 'POST') {
+          request: async ({ url, method, data }: { url: string; method: string; data?: unknown }) => {
+            requests.push({ url, method, data })
+            if ((url.endsWith('/api/mobile/session') || url.endsWith('/api/mobile/register')) && method === 'POST') {
               return {
                 status: 201,
                 data: {
@@ -145,19 +148,34 @@ test.describe('Android shell shared UI', () => {
     await expect.poll(() => page.evaluate(() => (window as any).__androidTest.token)).toBeNull()
   })
 
-  test('native registration redirects to existing-account sign-in guidance in every locale', async ({ page }) => {
+  test('native registration creates an account and stores the token without leaving the app', async ({ page }) => {
     await emulateAndroid(page)
-    const expected = [
-      ['en-GB', /create your account in a browser/i],
-      ['ru-UA', /создайте аккаунт в браузере/i],
-      ['uk-UA', /створіть обліковий запис у браузері/i],
-    ] as const
+    await page.goto('/login?redirect=/changelog')
+    await page.getByRole('link', { name: 'Create account' }).click()
+    await expect(page).toHaveURL(/\/register\?redirect=/)
+    await expect(page.getByLabel('Invite code')).toHaveCount(0)
+    await page.getByLabel('Display name').fill('New Android Owner')
+    await page.getByLabel('Email').fill('new@example.test')
+    await page.getByLabel('Password', { exact: true }).fill('correct horse battery staple')
+    await page.getByLabel('Confirm password').fill('correct horse battery staple')
+    await page.getByRole('button', { name: 'Create account' }).click()
+    await expect(page).toHaveURL(/\/changelog$/)
+    await expect.poll(() => page.evaluate(() => (window as any).__androidTest.token)).toBe('issued-device-token')
+    const registration = await page.evaluate(() => (window as any).__androidTest.requests.find((r: any) => r.url.endsWith('/api/mobile/register')))
+    expect(registration.method).toBe('POST')
+    expect(registration.data).toMatchObject({ name: 'New Android Owner', email: 'new@example.test', device_name: 'Pixel Test' })
+    expect(registration.data).not.toHaveProperty('invite_code')
+    expect(await page.evaluate(() => JSON.stringify({ ...localStorage, ...sessionStorage }))).not.toContain('issued-device-token')
+  })
 
-    for (const [locale, copy] of expected) {
-      await page.addInitScript((value) => localStorage.setItem('selfhandler.locale.v1', value), locale)
+  test('native registration is accessible in every locale', async ({ page }) => {
+    await emulateAndroid(page)
+    for (const [locale, title] of [['en-GB', 'Create your account'], ['ru-UA', 'Создайте аккаунт'], ['uk-UA', 'Створіть обліковий запис']]) {
+      await page.addInitScript((value) => localStorage.setItem('selfhandler.locale.v1', value), locale!)
       await page.goto('/register')
-      await expect(page).toHaveURL(/\/login/)
-      await expect(page.getByText(copy)).toBeVisible()
+      await expect(page).toHaveURL(/\/register$/)
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText(title!)
+      await expect(page.locator('[name="invite_code"]')).toHaveCount(0)
     }
   })
 

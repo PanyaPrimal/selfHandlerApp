@@ -73,7 +73,7 @@ async function toggleTheme(): Promise<void> {
 </script>
 
 <template>
-  <aside class="global-preferences" data-testid="global-preferences">
+  <aside :class="['global-preferences', { 'global-preferences--guest': session.status !== 'authenticated' }]" data-testid="global-preferences">
     <div class="locale-switcher" role="group" :aria-label="i18n.t('global.language')">
       <button
         v-for="choice in localeChoices"

@@ -19,6 +19,8 @@ import {
 } from '../mobile/platform'
 
 export async function registerAccount(payload: RegisterPayload): Promise<User> {
+  if (isAndroidNative()) return createMobileSession('/mobile/register', payload)
+
   const response = await jsonRequest<ItemResponse<User>>('/auth/register', 'POST', payload, {
     handleUnauthorized: false,
   })
@@ -28,39 +30,7 @@ export async function registerAccount(payload: RegisterPayload): Promise<User> {
 
 export async function loginAccount(payload: LoginPayload): Promise<User> {
   if (isAndroidNative()) {
-    const info = await nativePlugin('Device', Device).getInfo()
-    const deviceName = (info.model ?? 'Android device')
-      .replace(/[\u0000-\u001f\u007f]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, 64) || 'Android device'
-    const response = await jsonRequest<MobileSessionResponse>('/mobile/session', 'POST', {
-      ...payload,
-      device_name: deviceName,
-    }, {
-      handleUnauthorized: false,
-      mobileAuthenticated: false,
-    })
-
-    try {
-      await mobileCredentialVault.write(response.data.token)
-    } catch (error) {
-      try {
-        await nativePlugin('CapacitorHttp', CapacitorHttp).request({
-          url: `${mobileApiBaseUrl(configuredMobileApiOrigin())}/mobile/session`,
-          method: 'DELETE',
-          headers: {
-            Accept: 'application/json',
-            Authorization: `Bearer ${response.data.token}`,
-          },
-        })
-      } catch {
-        // Best effort: the server token still expires absolutely after 30 days.
-      }
-      throw error
-    }
-
-    return response.data.user
+    return createMobileSession('/mobile/session', payload)
   }
 
   const response = await jsonRequest<ItemResponse<User>>('/auth/login', 'POST', payload, {
@@ -110,4 +80,40 @@ export async function logoutAccount(): Promise<void> {
   }
 
   await request<void>('/auth/logout', { method: 'POST' }, { handleUnauthorized: false })
+}
+
+async function createMobileSession(endpoint: '/mobile/session' | '/mobile/register', payload: LoginPayload | RegisterPayload): Promise<User> {
+  const info = await nativePlugin('Device', Device).getInfo()
+  const deviceName = (info.model ?? 'Android device')
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 64) || 'Android device'
+  const response = await jsonRequest<MobileSessionResponse>(endpoint, 'POST', {
+    ...payload,
+    device_name: deviceName,
+  }, {
+    handleUnauthorized: false,
+    mobileAuthenticated: false,
+  })
+
+  try {
+    await mobileCredentialVault.write(response.data.token)
+  } catch (error) {
+    try {
+      await nativePlugin('CapacitorHttp', CapacitorHttp).request({
+        url: `${mobileApiBaseUrl(configuredMobileApiOrigin())}/mobile/session`,
+        method: 'DELETE',
+        headers: {
+          Accept: 'application/json',
+          Authorization: `Bearer ${response.data.token}`,
+        },
+      })
+    } catch {
+      // Best effort: the server token still expires absolutely after 30 days.
+    }
+    throw error
+  }
+
+  return response.data.user
 }

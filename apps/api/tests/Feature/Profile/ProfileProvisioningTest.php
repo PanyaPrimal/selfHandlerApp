@@ -2,21 +2,18 @@
 
 namespace Tests\Feature\Profile;
 
-use App\Models\Invitation;
 use App\Models\User;
 
 class ProfileProvisioningTest extends ProfileTestCase
 {
     public function test_registration_provisions_defaults_in_the_same_successful_flow(): void
     {
-        Invitation::create(['code' => 'PROF-TEST-2026']);
 
         $this->postJson('/api/auth/register', [
             'name' => 'New Profile',
             'email' => 'new@example.test',
             'password' => 'correct-horse-battery-staple',
             'password_confirmation' => 'correct-horse-battery-staple',
-            'invite_code' => 'PROF-TEST-2026',
         ])->assertCreated()
             ->assertJsonPath('data.preferences.timezone', 'UTC')
             ->assertJsonPath('data.preferences.calculation_ready', false);

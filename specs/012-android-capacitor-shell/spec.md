@@ -37,9 +37,10 @@ hardware/keyboard behavior, and an honest bridge from the existing inbox to Andr
   stored only through a custom Android Keystore vault, read only for native requests, and never written
   to Web Storage, cookies, logs, URLs, deep links, or source control.
 - Q: Does the Android app support registration?
-  A: No. The 012 acceptance journey begins with an existing invite-created account. Native registration
-  is hidden and `/register` redirects to sign-in with localized guidance; account creation remains on
-  the browser surface until a later account-lifecycle feature explicitly includes it.
+  A: Yes. Owner amendment dated 2026-09-18 supersedes the original browser-only/invitation flow.
+  Native registration is open via POST /api/mobile/register and returns the same device-token
+  response as sign-in. Web registration is also open; no invitation code is required.
+
 - Q: How long does a mobile credential live?
   A: Thirty days absolute. Logout revokes the current server token and clears the vault. A revoked,
   expired, malformed, or missing token yields the existing guest transition and clears local credential
@@ -198,8 +199,8 @@ configuration and missing Android toolchain.
   vaulted Bearer token; browser requests MUST continue using relative same-origin Fetch.
 - **FR-012**: Native session restore/logout/401 expiry MUST read, revoke when possible, clear, and forget
   the current token deterministically without affecting other device or browser sessions.
-- **FR-013**: Native account registration MUST be unavailable with localized guidance rather than route
-  users through the incompatible cookie registration flow.
+- **FR-013**: Native account registration MUST be available in the shared UI using the mobile token endpoint,
+  with field validation, a shared per-IP registration rate limit, secure token storage and automatic sign-in.
 - **FR-014**: Mobile session endpoints MUST be OpenAPI-documented, localized, throttled, and protected
   against cookie-only callers, invalid bearer tokens, cross-account access, and token leakage.
 
@@ -281,5 +282,5 @@ configuration and missing Android toolchain.
 
 FCM, Web Push, always-on background delivery, exact alarms, offline read/write synchronization, conflict
 resolution, Play Store publication, AAB distribution, iOS, biometric lock, password reset, mobile
-registration, device-management UI, OAuth/deep links, camera/gallery/files, remote code/live updates,
+device-management UI, OAuth/deep links, camera/gallery/files, remote code/live updates,
 deployment configuration, server rollout, and edits to protected deployment paths.

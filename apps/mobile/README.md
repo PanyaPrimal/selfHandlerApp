@@ -99,3 +99,7 @@ complete those checks on the physical phone.
 
 Local notifications mirror inbox events only after app synchronisation/resume. They do not wake a
 stopped app; FCM, exact alarms, background sync, offline data, iOS, and Play Store delivery are deferred.
+
+## Account access
+
+APK 0.1.2 supports open registration on the sign-in screen. Choose **Create account**, enter a name, email and a password of at least 12 characters, then confirm it. No invitation or browser is required. Registration returns a scoped expiring token stored in Android Keystore-backed storage, just like sign-in. The same account works on the website.

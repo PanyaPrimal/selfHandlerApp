@@ -51,9 +51,8 @@ class PublicIngressTests(unittest.TestCase):
         self.assertIn("[Uri]$script:SelfHandlerPublicOrigin", source)
         self.assertIn("Origin = $originText", source)
         self.assertIn('Referer = ($originText + "/")', source)
-        self.assertIn("function New-BootstrapInvitation", source)
-        self.assertIn("invite:create", source)
-        self.assertIn("invite_code = $inviteCode", source)
+        self.assertNotIn("invite:create", source)
+        self.assertNotIn("invite_code", source)
         for endpoint in ("/api/auth/login", "/api/auth/register", "/api/auth/logout"):
             endpoint_at = source.index(endpoint)
             invocation_end = source.index("-UseBasicParsing", endpoint_at)

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { nextTick, reactive, ref } from 'vue'
-import { computed } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { ApiError, validationErrors, type ValidationErrors } from '../api/http'
 import type { LoginPayload } from '../api/types'
@@ -8,7 +7,7 @@ import { safeRedirect } from '../auth/redirect'
 import { login, restoreSession, useAuthSession } from '../auth/session'
 import { UiTextInput } from '../components/ui'
 import { useI18n } from '../i18n'
-import { isAndroidNative } from '../mobile/platform'
+import AuthOverview from '../components/AuthOverview.vue'
 
 type FocusableControl = { focus: () => void }
 
@@ -24,8 +23,6 @@ const isSubmitting = ref(false)
 const emailInput = ref<FocusableControl | null>(null)
 const passwordInput = ref<FocusableControl | null>(null)
 const { t } = useI18n()
-const native = isAndroidNative()
-const showMobileRegistrationGuidance = computed(() => native || route.query.mobileRegistration === '1')
 
 function failureMessage(currentError: unknown): string {
   if (!(currentError instanceof ApiError)) {
@@ -104,7 +101,7 @@ async function submitLogin(): Promise<void> {
 </script>
 
 <template>
-  <main class="auth-shell">
+  <main class="auth-shell auth-login">
     <section class="auth-card">
       <RouterLink class="brand auth-brand" to="/login">
         <span class="brand-mark" aria-hidden="true"></span>
@@ -118,11 +115,6 @@ async function submitLogin(): Promise<void> {
       </header>
 
       <div v-if="error" class="notice error" role="alert" aria-live="assertive">{{ error }}</div>
-      <div
-        v-if="showMobileRegistrationGuidance"
-        class="notice"
-        role="status"
-      >{{ t('mobile.registrationBrowser') }}</div>
 
       <form class="auth-form" novalidate :aria-busy="isSubmitting" @submit.prevent="submitLogin">
         <UiTextInput
@@ -155,12 +147,13 @@ async function submitLogin(): Promise<void> {
         </button>
       </form>
 
-      <p v-if="!native" class="auth-switch muted">
+      <p class="auth-switch muted">
         {{ t('auth.new') }}
         <RouterLink :to="{ name: 'register', query: route.query.redirect ? { redirect: route.query.redirect } : {} }">
           {{ t('auth.createAccount') }}
         </RouterLink>
       </p>
     </section>
+    <AuthOverview />
   </main>
 </template>

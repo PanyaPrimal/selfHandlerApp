@@ -2,56 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\RegisterAccount;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Resources\UserResource;
-use App\Models\Invitation;
-use App\Models\User;
-use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    public function register(RegisterRequest $request): JsonResponse
+    public function register(RegisterRequest $request, RegisterAccount $accounts): JsonResponse
     {
-        $code = $request->validated('invite_code');
-
-        try {
-            $user = DB::transaction(function () use ($request, $code): User {
-                // Lock the invite row so two concurrent sign-ups cannot both
-                // consume the same code; re-check it is still unused inside the
-                // transaction.
-                $invitation = Invitation::where('code', $code)
-                    ->whereNull('used_at')
-                    ->lockForUpdate()
-                    ->first();
-
-                if ($invitation === null) {
-                    throw ValidationException::withMessages([
-                        'invite_code' => [__('messages.invite_invalid')],
-                    ]);
-                }
-
-                $user = User::create($request->safe()->only(['name', 'email', 'password']));
-                $user->ensureProfile();
-
-                $invitation->forceFill([
-                    'used_by' => $user->id,
-                    'used_at' => now(),
-                ])->save();
-
-                return $user;
-            });
-        } catch (UniqueConstraintViolationException) {
-            throw ValidationException::withMessages([
-                'email' => [__('messages.email_taken')],
-            ]);
-        }
+        $user = $accounts->create($request->safe()->only(['name', 'email', 'password']));
 
         Auth::guard('web')->login($user);
         $request->session()->regenerate();

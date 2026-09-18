@@ -17,12 +17,10 @@ const form = reactive<RegisterPayload>({
   email: '',
   password: '',
   password_confirmation: '',
-  invite_code: '',
 })
 const fieldErrors = ref<ValidationErrors>({})
 const error = ref<string | null>(null)
 const isSubmitting = ref(false)
-const inviteInput = ref<FocusableControl | null>(null)
 const nameInput = ref<FocusableControl | null>(null)
 const emailInput = ref<FocusableControl | null>(null)
 const passwordInput = ref<FocusableControl | null>(null)
@@ -68,7 +66,6 @@ async function focusFirstError(): Promise<void> {
   await nextTick()
 
   const inputs: Array<[string, FocusableControl | null]> = [
-    ['invite_code', inviteInput.value],
     ['name', nameInput.value],
     ['email', emailInput.value],
     ['password', passwordInput.value],
@@ -119,19 +116,6 @@ async function submitRegistration(): Promise<void> {
       <div v-if="error" class="notice error" role="alert" aria-live="assertive">{{ error }}</div>
 
       <form class="auth-form" novalidate :aria-busy="isSubmitting" @submit.prevent="submitRegistration">
-        <UiTextInput
-          ref="inviteInput"
-          v-model="form.invite_code"
-          :label="t('auth.inviteCode')"
-          name="invite_code"
-          autocomplete="off"
-          :maxlength="64"
-          required
-          :disabled="isSubmitting"
-          :helper="t('auth.inviteHelper')"
-          :error="fieldErrors.invite_code?.[0]"
-        />
-
         <UiTextInput
           ref="nameInput"
           v-model="form.name"

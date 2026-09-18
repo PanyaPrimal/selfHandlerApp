@@ -54,22 +54,6 @@ function Assert-BootstrapUserTableEmpty {
     }
 }
 
-function New-BootstrapInvitation {
-    [CmdletBinding()]
-    param()
-
-    $application = Get-SelfHandlerContainerId -Service app -RunningOnly
-    $output = [string](& docker exec $application php artisan invite:create --note=selfhandler-probe-bootstrap --no-ansi)
-    if ($LASTEXITCODE -ne 0) {
-        throw "Bootstrap probe invitation creation failed."
-    }
-    $match = [regex]::Match($output, '\b[A-HJ-NP-Z2-9]{4}(?:-[A-HJ-NP-Z2-9]{4}){2}\b')
-    if (-not $match.Success) {
-        throw "Bootstrap probe invitation creation failed."
-    }
-    return $match.Value
-}
-
 function Test-ProductionSessionCookie {
     [CmdletBinding()]
     param(
@@ -149,13 +133,11 @@ function Invoke-AuthenticationSmoke {
 
     if (-not $authenticated) {
         Assert-BootstrapUserTableEmpty
-        $inviteCode = New-BootstrapInvitation
         $registerBody = ConvertTo-CompactJson -Value ([ordered]@{
             name = $name
             email = $email
             password = $password
             password_confirmation = $password
-            invite_code = $inviteCode
         })
         try {
             $registerResponse = Invoke-WebRequest -Uri ("{0}/api/auth/register" -f $origin.AbsoluteUri.TrimEnd("/")) -Method Post -WebSession $session -Headers $headers -Body $registerBody -TimeoutSec 20 -UseBasicParsing

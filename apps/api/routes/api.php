@@ -73,6 +73,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/health', HealthController::class);
 
+Route::post('/mobile/register', [MobileSessionController::class, 'register'])->middleware('throttle:registration');
 Route::post('/mobile/session', [MobileSessionController::class, 'store']);
 
 Route::get('/integrations/calendars/google/callback', GoogleCalendarCallbackController::class);

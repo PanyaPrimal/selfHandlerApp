@@ -25,7 +25,6 @@ import AnalyticsView from './views/AnalyticsView.vue'
 import DataSettingsView from './views/DataSettingsView.vue'
 import IntegrationSettingsView from './views/IntegrationSettingsView.vue'
 import AiSettingsView from './views/AiSettingsView.vue'
-import { isAndroidNative } from './mobile/platform'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -178,16 +177,6 @@ export const router = createRouter({
 router.beforeEach(async (to) => {
   await restoreSession()
   const session = useAuthSession()
-
-  if (isAndroidNative() && to.name === 'register') {
-    return {
-      name: 'login',
-      query: {
-        ...(to.query.redirect ? { redirect: to.query.redirect } : {}),
-        mobileRegistration: '1',
-      },
-    }
-  }
 
   // The backend could not be reached to confirm the session. App.vue renders a
   // dedicated "unavailable" screen with a Retry button in this state, so let the

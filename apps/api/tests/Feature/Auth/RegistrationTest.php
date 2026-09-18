@@ -61,7 +61,7 @@ class RegistrationTest extends AuthTestCase
 
         $response
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['name', 'email', 'password', 'invite_code']);
+            ->assertJsonValidationErrors(['name', 'email', 'password']);
 
         $this->assertDatabaseCount('users', 0);
         $this->assertGuest();
@@ -128,7 +128,7 @@ class RegistrationTest extends AuthTestCase
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['email']);
 
-        // The transaction rolled back: no user row and no consumed invite.
+        // The transaction rolled back: no user row or partial profile.
         $this->assertDatabaseCount('users', 0);
         $this->assertDatabaseMissing('invitations', [
             'used_at' => now()->toDateTimeString(),

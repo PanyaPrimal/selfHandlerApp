@@ -12,13 +12,12 @@ class LocaleFeedbackTest extends AuthTestCase
                 'email' => 'not-an-email',
                 'password' => 'short',
                 'password_confirmation' => 'different',
-                'invite_code' => '',
             ]);
 
         $response->assertUnprocessable();
         $this->assertStringContainsString('обязател', $response->json('errors.name.0'));
         $this->assertStringContainsString('имя', $response->json('errors.name.0'));
-        $this->assertStringContainsString('код приглашения', $response->json('errors.invite_code.0'));
+        $response->assertJsonValidationErrors(['email', 'password']);
     }
 
     public function test_guest_login_feedback_uses_requested_ukrainian_locale(): void

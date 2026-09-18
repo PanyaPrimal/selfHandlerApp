@@ -2,18 +2,35 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\RegisterAccount;
 use App\Http\Requests\MobileLoginRequest;
+use App\Http\Requests\MobileRegisterRequest;
 use App\Http\Resources\UserResource;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\PersonalAccessToken;
 
 class MobileSessionController extends Controller
 {
     public function store(MobileLoginRequest $request): JsonResponse
     {
-        $user = $request->authenticate();
+        return $this->issueToken($request->authenticate(), $request);
+    }
+
+    public function register(MobileRegisterRequest $request, RegisterAccount $accounts): JsonResponse
+    {
+        return DB::transaction(function () use ($request, $accounts): JsonResponse {
+            $user = $accounts->create($request->safe()->only(['name', 'email', 'password']));
+
+            return $this->issueToken($user, $request);
+        });
+    }
+
+    private function issueToken(User $user, Request $request): JsonResponse
+    {
         $expiresAt = now()->addDays((int) config('selfhandler.mobile.token_lifetime_days', 30));
         $ability = (string) config('selfhandler.mobile.ability', 'mobile');
         $name = (string) config('selfhandler.mobile.token_name_prefix', 'Android · ')
