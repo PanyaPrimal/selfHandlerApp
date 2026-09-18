@@ -157,7 +157,8 @@ class PlannerDayTest extends PlannerTestCase
 
         // Roughly one query per source plus the shared lookups. The point is that
         // it does not grow with the 45 entries on the day.
-        $this->assertLessThanOrEqual(22, $queries);
+        // Constant owner lock + revision lookup produce a consistent offline snapshot.
+        $this->assertLessThanOrEqual(24, $queries);
     }
 
     public function test_planner_stores_nothing_belonging_to_another_module(): void

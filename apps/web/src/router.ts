@@ -25,6 +25,7 @@ import AnalyticsView from './views/AnalyticsView.vue'
 import DataSettingsView from './views/DataSettingsView.vue'
 import IntegrationSettingsView from './views/IntegrationSettingsView.vue'
 import AiSettingsView from './views/AiSettingsView.vue'
+import MentorView from './views/MentorView.vue'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -53,6 +54,7 @@ export const router = createRouter({
       component: AppShell,
       meta: { requiresAuth: true },
       children: [
+        { path: 'mentor', name: 'mentor', component: MentorView },
         {
           path: '',
           name: 'today',

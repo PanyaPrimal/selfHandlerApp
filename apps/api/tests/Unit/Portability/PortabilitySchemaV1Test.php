@@ -18,7 +18,8 @@ class PortabilitySchemaV1Test extends TestCase
             ->sort()->values()->all();
         $expectedExclusions = ['attachments', 'external_calendar_events', 'integrations', 'llm_audit_events',
             'llm_connections', 'llm_consents', 'llm_settings', 'llm_tool_confirmations', 'notification_settings',
-            'notifications', 'sessions', 'synced_items', 'user_profiles'];
+            'notifications', 'sessions', 'synced_items', 'user_profiles', 'workspace_revisions', 'workspace_receipts',
+            'mentor_preferences', 'mentor_turns'];
 
         $this->assertSame($expectedExclusions, PortabilitySchemaV1::excludedOwnedTables());
         $this->assertSame(

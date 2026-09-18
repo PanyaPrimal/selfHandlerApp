@@ -7,6 +7,7 @@ import { useAnchoredSurface } from '../components/ui/useAnchoredSurface'
 import { useI18n } from '../i18n'
 import type { MessageKey } from '../i18n/locales/en'
 import { useNotificationStore } from '../notifications/store'
+import WorkspaceStatus from '../components/WorkspaceStatus.vue'
 
 interface Destination {
   name: string
@@ -36,6 +37,7 @@ const desktopDestinations: Destination[] = [
 ]
 
 const utilityDestinations: Destination[] = [
+  { name: 'mentor', to: '/mentor', label: 'mentor.title' },
   { name: 'notifications', to: '/notifications', label: 'nav.notifications' },
   { name: 'settings-appearance', to: '/settings/appearance', label: 'nav.settings' },
   { name: 'settings-data', to: '/settings/data', label: 'nav.data' },
@@ -188,6 +190,7 @@ onBeforeUnmount(notifications.stop)
     </aside>
 
     <main class="content-shell">
+      <WorkspaceStatus :key="session.generation" />
       <RouterView v-slot="{ Component }">
         <component :is="Component" :key="session.generation" />
       </RouterView>

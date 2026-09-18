@@ -1,6 +1,16 @@
 <?php
 
 return [
+    'sync_account_changed' => 'Account changed. Reopen the original account before synchronizing.',
+    'sync_conflict' => 'Server data changed. Review this change before applying it.',
+    'mentor_in_progress' => 'This request is already being processed.',
+    'mentor_budget_exceeded' => 'The monthly token limit cannot cover this request and its reservation.',
+    'mentor_context_limit' => 'Too much context. Ask a narrower question or shorten your saved memory.',
+    'mentor_step_limit' => 'The mentor reached its lookup limit. Ask a more specific question.',
+    'mentor_request_failed' => 'The mentor could not complete this request. No proposed actions were applied.',
+    'mentor_usage_unavailable' => 'The provider did not return usage. The token reservation is retained; check provider billing.',
+    'mentor_voice_openai' => 'Voice transcription requires an active, tested OpenAI connection.',
+    'mentor_voice_failed' => 'Transcription failed. Your recording remains on your device. Check provider billing before creating a new request.',
     'calendar_busy' => 'Busy',
     'calendar_connection_exists' => 'This calendar provider is already connected.',
     'calendar_settings_unknown' => 'The calendar settings contain an unsupported field.',

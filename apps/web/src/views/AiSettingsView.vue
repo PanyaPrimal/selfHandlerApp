@@ -14,6 +14,7 @@ import {
 } from '../api/client'
 import type { AiConnection, AiConnectionInput, AiProvider, AiSettings } from '../api/types'
 import AsyncState from '../components/AsyncState.vue'
+import MentorPreferences from '../components/MentorPreferences.vue'
 import { UiCheckbox, UiSelect, UiTextInput } from '../components/ui'
 import type { UiOption } from '../components/ui'
 import { useI18n } from '../i18n'
@@ -32,10 +33,10 @@ const deletingId = ref<number | null>(null)
 const consentGranted = ref(false)
 const form = reactive({
   name: '',
-  provider: 'anthropic' as AiProvider,
+  provider: 'openai' as AiProvider,
   model: '',
   api_key: '',
-  max_output_tokens: '512',
+  max_output_tokens: '2048',
 })
 
 const providerOptions = computed<UiOption<AiProvider>[]>(() =>
@@ -48,10 +49,10 @@ const providerOptions = computed<UiOption<AiProvider>[]>(() =>
 function resetForm(): void {
   editingId.value = null
   form.name = ''
-  form.provider = 'anthropic'
+  form.provider = 'openai'
   form.model = ''
   form.api_key = ''
-  form.max_output_tokens = '512'
+  form.max_output_tokens = '2048'
   fieldErrors.value = {}
 }
 
@@ -227,6 +228,7 @@ onMounted(load)
       <RouterLink to="/settings/ai" aria-current="page">{{ i18n.t('nav.ai') }}</RouterLink>
     </nav>
 
+    <MentorPreferences />
     <p class="notice ai-disclosure">{{ i18n.t('ai.externalWarning') }}</p>
     <p v-if="error" class="notice error" role="alert" aria-live="assertive">{{ error }}</p>
     <p v-else-if="feedback" class="notice success" role="status" aria-live="polite">{{ feedback }}</p>

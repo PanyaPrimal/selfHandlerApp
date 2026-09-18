@@ -192,34 +192,43 @@ class RecurrenceMaterializer
      */
     public function materializeForUser(User $user, ?string $today = null): int
     {
-        $timezone = $user->calendarTimezone();
-        $from = $today ?? CarbonImmutable::now($timezone)->toDateString();
-        $until = CarbonImmutable::parse($from, $timezone)->addDays(self::WINDOW_DAYS)->toDateString();
-        $written = 0;
+        return DB::transaction(function () use ($user, $today): int {
+            User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
+            $timezone = $user->calendarTimezone();
+            $from = $today ?? CarbonImmutable::now($timezone)->toDateString();
+            $until = CarbonImmutable::parse($from, $timezone)->addDays(self::WINDOW_DAYS)->toDateString();
+            $written = 0;
+            $changed = false;
 
-        RecurringRule::query()
-            ->ownedBy($user)
-            ->with(['ruleWeekdays', 'ruleSlots', 'ruleMonthdays'])
-            ->orderBy('id')
-            ->chunk(100, function ($rules) use (&$written, $from, $until): void {
-                $enabled = $this->enabledOwners($rules);
+            RecurringRule::query()
+                ->ownedBy($user)
+                ->with(['ruleWeekdays', 'ruleSlots', 'ruleMonthdays'])
+                ->orderBy('id')
+                ->chunk(100, function ($rules) use (&$written, &$changed, $from, $until): void {
+                    $enabled = $this->enabledOwners($rules);
 
-                foreach ($rules as $rule) {
-                    $ownerEnabled = $enabled[$this->ownerKey($rule->owner_type, (int) $rule->owner_id)] ?? false;
-                    $covered = $rule->last_materialized_until !== null
-                        && $rule->last_materialized_until->format('Y-m-d') >= $until;
-                    if ($ownerEnabled && $covered) {
-                        continue;
+                    foreach ($rules as $rule) {
+                        $ownerEnabled = $enabled[$this->ownerKey($rule->owner_type, (int) $rule->owner_id)] ?? false;
+                        $covered = $rule->last_materialized_until !== null
+                            && $rule->last_materialized_until->format('Y-m-d') >= $until;
+                        if ($ownerEnabled && $covered) {
+                            continue;
+                        }
+                        $changed = true;
+                        $written += $this->materialize(
+                            $rule,
+                            $from,
+                            $ownerEnabled,
+                        );
                     }
-                    $written += $this->materialize(
-                        $rule,
-                        $from,
-                        $ownerEnabled,
-                    );
-                }
-            });
+                });
 
-        return $written;
+            if ($changed) {
+                WorkspaceRevision::advance($user);
+            }
+
+            return $written;
+        });
     }
 
     /**

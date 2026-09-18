@@ -79,7 +79,7 @@ Store publication and production deployment are not part of feature 012.
 
 ## Device acceptance
 
-1. Install the signed APK and sign in with an existing account. Account creation remains browser-only.
+1. Install the signed APK and sign in or create an account directly from the sign-in screen.
 2. Reopen the app, navigate protected routes, and confirm the session restores without a password.
 3. Open a popover and press Back; it closes before route history. At Today/login root, Back minimizes.
 4. On the Ulefone Armor Mini 20T Pro, check normal and enlarged Android text/display settings.
@@ -98,7 +98,17 @@ not verify native camera/gallery, notification permission, Android Back, or the 
 complete those checks on the physical phone.
 
 Local notifications mirror inbox events only after app synchronisation/resume. They do not wake a
-stopped app; FCM, exact alarms, background sync, offline data, iOS, and Play Store delivery are deferred.
+stopped app; FCM, exact alarms, guaranteed background sync, iOS, and Play Store delivery are deferred.
+
+## Mentor and offline workspace (feature 027)
+
+The Mentor screen uses the active provider/model/key saved in Account → AI settings. Enable workspace access there and set editable memory and a monthly token limit. OpenAI is the default provider for a new connection. ChatGPT subscriptions do not pay API usage. API keys remain encrypted on the server and are never stored in the device workspace cache.
+
+Model calls run in background queue jobs, one call per job, with no automatic paid retry after an uncertain result. Questions, source references, proposed actions and token usage are retained per account. Proposed writes require an explicit confirmation. Voice recordings (up to60seconds/2MiB) persist locally; use Transcribe with an active OpenAI connection, correct the transcript, then send. Recording also works offline. Raw audio is not retained by the application server after transcription.
+
+Previously opened domain screens and pending JSON changes are stored in account-scoped IndexedDB. Restarting offline reopens the last authenticated workspace. Expired/rejected credentials require signing in again; a401 never opens the offline session. Foreground reconnection synchronizes the queue, with UUID replay protection and explicit conflict review. This first offline implementation retains new records as pending commands: they appear in their module after synchronization. It does not yet provide a complete local domain model, calculations for uncached dates, offline photo uploads, or offline first-time registration. Review or export pending drafts before clearing app/browser storage.
+
+The browser build additionally caches application code through a versioned service worker; API responses never enter its shared CacheStorage. Android continues to load bundled code. The actual microphone permission flow and recording quality still require physical-device acceptance.
 
 ## Account access
 

@@ -52,6 +52,7 @@ class MealAttachmentConsumerTest extends AttachmentTestCase
         $count = count(DB::getQueryLog());
         DB::disableQueryLog();
 
-        $this->assertLessThanOrEqual(16, $count);
+        // Two constant queries lock the owner and tag a consistent sync snapshot.
+        $this->assertLessThanOrEqual(18, $count);
     }
 }

@@ -1,0 +1,131 @@
+openapi: 3.1.0
+info:
+  title: SelfHandler offline commands and personal mentor
+  version: 0.2.0
+  description: Owner-scoped reads, durable operation receipts and asynchronous BYOK mentor requests.
+servers:
+  - url: /api
+security:
+  - sanctum: []
+paths:
+  /workspace/revision:
+    get:
+      operationId: getWorkspaceRevision
+      responses:
+        '200':
+          description: Authenticated user_id and monotonic personal revision.
+  /workspace/operations/{operation}:
+    parameters:
+      - name: operation
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getWorkspaceReceiptStatus
+      responses:
+        '200':
+          description: acknowledged boolean, scoped to the current owner; no other user's receipts are visible.
+  /mentor/settings:
+    get:
+      operationId: getMentorSettings
+      responses:
+        '200':
+          description: Consent, editable memory, token limit, active connection id and dated usage estimate. No provider secret.
+    put:
+      operationId: replaceMentorSettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [enabled, memory, monthly_token_limit]
+              properties:
+                enabled: { type: boolean }
+                memory: { type: [string, 'null'], maxLength: 3000 }
+                monthly_token_limit: { type: integer, minimum: 250000, maximum: 10000000 }
+      responses:
+        '200': { description: Updated settings. }
+  /mentor/turns:
+    get:
+      operationId: getMentorHistory
+      responses:
+        '200': { description: Last40 personal text turns; raw voice hashes and internal context are excluded. }
+    post:
+      operationId: askPersonalMentor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [operation_id, question]
+              properties:
+                operation_id: { type: string, format: uuid }
+                question: { type: string, minLength: 1, maxLength: 4000 }
+      responses:
+        '200': { description: Durable turn with pending, processing, completed or failed status. Reuse operation_id to retrieve an existing request without another paid call; poll history for completion. }
+        '409': { description: Ready active connection or consent required; operation conflict. }
+        '429': { description: Rate limit or insufficient monthly token reservation. }
+  /mentor/turns/{turn}/actions/{action}:
+    parameters:
+      - { name: turn, in: path, required: true, schema: { type: integer } }
+      - { name: action, in: path, required: true, schema: { type: integer, minimum: 0 } }
+    post:
+      operationId: confirmMentorAction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [confirm]
+              properties:
+                confirm: { type: boolean, const: true }
+      responses:
+        '200': { description: Updated turn. Repeated confirmation returns the already-applied result. }
+        '404': { description: Missing or foreign turn/action. }
+        '409': { description: Consent revoked or proposal expired or stale. }
+        '422': { description: Existing domain validation refused the proposed values. }
+  /mentor/transcribe:
+    post:
+      operationId: transcribePersonalVoice
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [operation_id, audio]
+              properties:
+                operation_id: { type: string, format: uuid }
+                audio: { type: string, format: binary, description: At most2MiB WebM/MP4/Ogg/WAV/MP3. }
+      responses:
+        '200': { description: Editable text. Same UUID and audio returns the stored transcript without another paid call. }
+        '409': { description: No active OpenAI connection or consent, or conflicting/incomplete existing submission. }
+        '429': { description: Voice quota300requests per UTC calendar month or rate limit. }
+        '503': { description: Unknown provider outcome. No automatic paid retry. }
+components:
+  securitySchemes:
+    sanctum:
+      type: http
+      scheme: bearer
+      description: Expiring Android bearer token or Sanctum same-origin cookie session with CSRF protection for writes.
+  parameters:
+    WorkspaceAccount:
+      name: X-Workspace-Account
+      in: header
+      schema: { type: integer }
+      description: Refuse the request if browser/device credentials now belong to another account.
+    WorkspaceOperation:
+      name: X-Workspace-Operation
+      in: header
+      schema: { type: string, format: uuid }
+      description: Stable operation UUID for JSON domain writes; canonical JSON object field order is ignored. Arrays remain ordered.
+    WorkspaceBase:
+      name: X-Workspace-Base
+      in: header
+      schema: { type: integer, minimum: 0 }
+      description: Expected workspace revision. A mismatch returns409without applying the write. A previously acknowledged UUID replays before this comparison.

@@ -13,7 +13,8 @@ class PortabilitySchemaV1
     {
         return ['attachments', 'external_calendar_events', 'integrations', 'llm_audit_events', 'llm_connections',
             'llm_consents', 'llm_settings', 'llm_tool_confirmations', 'notification_settings', 'notifications',
-            'sessions', 'synced_items', 'user_profiles'];
+            'sessions', 'synced_items', 'user_profiles', 'workspace_revisions', 'workspace_receipts',
+            'mentor_preferences', 'mentor_turns'];
     }
 
     /** @return list<string> */

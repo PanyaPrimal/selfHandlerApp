@@ -4,6 +4,7 @@ import { mobileCredentialVault } from '../mobile/credential-vault'
 import { createNativeTransport, type TransportResponse } from '../mobile/native-transport'
 import { configuredMobileApiOrigin, isAndroidNative, nativePlugin } from '../mobile/platform'
 import { contentDispositionFilename, type DownloadedFile } from '../portability/files'
+import { acceptResponse, cachedRead, commandHeaders, commands, configureWorkspace, discardCommand, prepareCommand, rejectCommand, synchronizeWorkspace, workspacePath, workspaceState } from '../offline/workspace'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api'
 const csrfUrl = import.meta.env.VITE_CSRF_URL ?? '/sanctum/csrf-cookie'
@@ -11,6 +12,7 @@ const csrfUrl = import.meta.env.VITE_CSRF_URL ?? '/sanctum/csrf-cookie'
 export type ValidationErrors = Record<string, string[]>
 
 export interface RequestBehavior {
+  operationId?: string
   handleUnauthorized?: boolean
   retryCsrf?: boolean
   mobileAuthenticated?: boolean
@@ -186,6 +188,7 @@ async function executeRequest<T>(
   const method = (init.method ?? 'GET').toUpperCase()
   const unsafe = isUnsafeMethod(method)
   const native = isAndroidNative()
+  const workspaceOwner = workspaceState.owner
 
   if (unsafe && !native) {
     await initializeCsrf()
@@ -194,6 +197,7 @@ async function executeRequest<T>(
   const headers = new Headers(init.headers)
   headers.set('Accept', 'application/json')
   headers.set('Accept-Language', activeLocaleValue())
+  if (workspaceOwner !== null && !headers.has('X-Workspace-Account')) headers.set('X-Workspace-Account', String(workspaceOwner))
 
   if (init.body !== undefined && init.body !== null && !(init.body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
@@ -260,6 +264,12 @@ async function executeRequest<T>(
     throw error
   }
 
+  const revisionHeader = Object.entries(response.headers).find(([key]) => key.toLowerCase() === 'x-workspace-revision')?.[1]
+  if (workspaceOwner !== null && workspacePath(path) && revisionHeader !== undefined && /^\d+$/.test(revisionHeader)) {
+    await acceptResponse(workspaceOwner, path, init, payload, Number(revisionHeader))
+    workspaceState.online = true
+  }
+
   if (response.status === 204) {
     return undefined as T
   }
@@ -267,9 +277,39 @@ async function executeRequest<T>(
   return payload as T
 }
 
-export function request<T>(path: string, init: RequestInit = {}, behavior: RequestBehavior = {}): Promise<T> {
-  return executeRequest<T>(path, init, behavior, false)
+export async function request<T>(path: string, init: RequestInit = {}, behavior: RequestBehavior = {}): Promise<T> {
+  const owner = workspaceState.owner
+  if (owner === null || !workspacePath(path)) return executeRequest<T>(path, init, behavior, false)
+  const method = (init.method ?? 'GET').toUpperCase()
+  if (method === 'GET') {
+    try {
+      if (!navigator.onLine) throw new ApiError(translate('common.errorReach'), 0)
+      return await executeRequest<T>(path, init, behavior, false)
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 0 || workspaceState.owner !== owner) throw error
+      return await cachedRead(owner, path) as T
+    }
+  }
+  if (init.body && typeof init.body !== 'string') return executeRequest<T>(path, init, behavior, false)
+  const hadPending = workspaceState.pending > 0
+  const command = await prepareCommand(owner, path, init, behavior.operationId)
+  const first = (await commands())[0]
+  if (!navigator.onLine || (hadPending && (first?.id !== command.id || command.base === null)) || command.status !== 'pending') {
+    void synchronizeWorkspace()
+    throw new ApiError(translate('offline.savedPending'), 202)
+  }
+  const headers = new Headers(init.headers)
+  Object.entries(commandHeaders(command, hadPending)).forEach(([key, value]) => headers.set(key, value))
+  try { return await executeRequest<T>(path, { ...init, headers }, behavior, false) }
+  catch (error) {
+    if (error instanceof ApiError && [400, 403, 404, 422].includes(error.status)) await discardCommand(command.id)
+    else await rejectCommand(command, error)
+    if (error instanceof ApiError && error.status === 0) throw new ApiError(translate('offline.savedPending'), 202)
+    throw error
+  }
 }
+
+configureWorkspace(<T>(path: string, init: RequestInit = {}) => executeRequest<T>(path, init, {}, false))
 
 export function jsonRequest<T>(
   path: string,
@@ -312,6 +352,7 @@ async function executeFileRequest(
   const headers = new Headers(init.headers)
   headers.set('Accept-Language', activeLocaleValue())
   if (!headers.has('Accept')) headers.set('Accept', 'application/json')
+  if (workspaceState.owner !== null) headers.set('X-Workspace-Account', String(workspaceState.owner))
 
   if (unsafe && !native) {
     const csrfToken = readCookie('XSRF-TOKEN')

@@ -4,7 +4,9 @@ namespace App\Console\Commands;
 
 use App\Models\User;
 use App\Services\OccurrenceFactSynchronizer;
+use App\Services\WorkspaceRevision;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 
 class ReconcileOccurrences extends Command
 {
@@ -22,7 +24,13 @@ class ReconcileOccurrences extends Command
         $total = 0;
 
         foreach ($users as $user) {
-            $total += $synchronizer->reconcile($user);
+            $total += DB::transaction(function () use ($user, $synchronizer): int {
+                User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
+                $count = $synchronizer->reconcile($user);
+                WorkspaceRevision::advance($user);
+
+                return $count;
+            });
         }
 
         $this->info("Reconciled {$total} occurrence(s) for {$users->count()} user(s).");

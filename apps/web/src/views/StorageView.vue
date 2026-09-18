@@ -20,6 +20,7 @@ import {
   type ValidationErrors,
 } from '../api/client'
 import AsyncState from '../components/AsyncState.vue'
+import { ApiError } from '../api/http'
 import { UiDatePicker, UiSelect, UiTextInput } from '../components/ui'
 import type { UiOption } from '../components/ui'
 import type {
@@ -56,6 +57,7 @@ const captureType = ref<ItemType>('task')
 const captureEstimate = ref('')
 const captureCurrency = ref<FinanceCurrencyCode>('UAH')
 const captureInput = ref<{ focus: () => void } | null>(null)
+let captureAttempt: { body: string; id: string } | null = null
 
 const newProjectName = ref('')
 const showProjectForm = ref(false)
@@ -277,15 +279,26 @@ async function capture(): Promise<void> {
   feedback.value = null
 
   try {
-    await createStorageItem({ title: captureTitle.value, type: captureType.value,
+    const payload = { title: captureTitle.value, type: captureType.value,
       ...(captureType.value === 'purchase' && captureEstimate.value ? {
         estimated_amount: captureEstimate.value, estimated_currency_code: captureCurrency.value,
-      } : {}) })
+      } : {}) }
+    const body = JSON.stringify(payload)
+    if (captureAttempt?.body !== body) captureAttempt = { body, id: crypto.randomUUID() }
+    await createStorageItem(payload, captureAttempt.id)
+    captureAttempt = null
     captureTitle.value = ''
     captureEstimate.value = ''
     feedback.value = i18n.t('storage.captured')
     await load()
   } catch (currentError) {
+    if (currentError instanceof ApiError && currentError.status === 202) {
+      captureAttempt = null
+      captureTitle.value = ''
+      captureEstimate.value = ''
+      feedback.value = i18n.t('offline.savedPending')
+      return
+    }
     fieldErrors.value = validationErrors(currentError)
 
     if (Object.keys(fieldErrors.value).length === 0) {

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Ai\InboxTriageController;
 use App\Http\Controllers\Ai\LlmConnectionController;
 use App\Http\Controllers\Ai\LlmConsentController;
+use App\Http\Controllers\Ai\MentorController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AnalyticsReportController;
 use App\Http\Controllers\AttachmentController;
@@ -69,6 +70,9 @@ use App\Http\Controllers\TodayController;
 use App\Http\Controllers\TrainingGoalController;
 use App\Http\Controllers\WorkoutProgramController;
 use App\Http\Controllers\WorkoutSessionController;
+use App\Http\Middleware\WorkspaceSync;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', HealthController::class);
@@ -84,7 +88,21 @@ Route::middleware(['auth:sanctum', 'mobile.token'])->group(function () {
     Route::put('/mobile/notifications/{notification}/presented', [MobileNotificationController::class, 'presented']);
 });
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', WorkspaceSync::class])->group(function () {
+    Route::get('/workspace/operations/{operation}', function (Request $request, string $operation) {
+        return response()->json(['acknowledged' => DB::table('workspace_receipts')
+            ->where('user_id', $request->user()->id)->where('operation_id', $operation)->exists()]);
+    })->whereUuid('operation');
+    Route::get('/workspace/revision', function (Request $request) {
+        return response()->json(['user_id' => $request->user()->id,
+            'revision' => (int) DB::table('workspace_revisions')->where('user_id', $request->user()->id)->value('revision')]);
+    });
+    Route::get('/mentor/settings', [MentorController::class, 'settings']);
+    Route::put('/mentor/settings', [MentorController::class, 'preferences']);
+    Route::get('/mentor/turns', [MentorController::class, 'history']);
+    Route::post('/mentor/turns', [MentorController::class, 'ask'])->middleware('throttle:12,1');
+    Route::post('/mentor/turns/{turn}/actions/{action}', [MentorController::class, 'confirm'])->whereNumber(['turn', 'action']);
+    Route::post('/mentor/transcribe', [MentorController::class, 'transcribe'])->middleware('throttle:6,1');
     Route::get('/ai/settings', [LlmConnectionController::class, 'index']);
     Route::post('/ai/connections', [LlmConnectionController::class, 'store']);
     Route::patch('/ai/connections/{connection}', [LlmConnectionController::class, 'update'])->whereNumber('connection');

@@ -25,7 +25,8 @@ class OpenAiLlmProvider implements LlmProvider
         $response = $this->send($connection, [
             'model' => $connection->model,
             'store' => false,
-            'max_output_tokens' => 16,
+            'max_output_tokens' => str_starts_with($connection->model, 'gpt-6') ? 1024 : 128,
+            ...(str_starts_with($connection->model, 'gpt-6') ? ['reasoning' => ['effort' => 'low']] : []),
             'input' => [
                 ['role' => 'system', 'content' => 'Return the requested probe text only. Do not use tools or external context.'],
                 ['role' => 'user', 'content' => 'Reply with exactly SELFHANDLER_OK.'],

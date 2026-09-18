@@ -1038,8 +1038,8 @@ export function getStorageItems(params: Record<string, string> = {}): Promise<St
   return request<StorageItemsResponse>(`/storage/items${suffix}`)
 }
 
-export async function createStorageItem(payload: StorageItemPayload): Promise<StorageItem> {
-  const response = await jsonRequest<ItemResponse<StorageItem>>('/storage/items', 'POST', payload)
+export async function createStorageItem(payload: StorageItemPayload, operationId?: string): Promise<StorageItem> {
+  const response = await jsonRequest<ItemResponse<StorageItem>>('/storage/items', 'POST', payload, { operationId })
   return response.data
 }
 
