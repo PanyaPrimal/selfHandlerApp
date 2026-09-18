@@ -175,6 +175,11 @@ class AiAssistantFoundationTest extends TestCase
         $item = Item::query()->create(['user_id' => $owner->id, 'title' => 'Preserved']);
         $migration = require database_path('migrations/2026_08_14_090000_create_ai_assistant_foundation.php');
 
+        // Roll back newer dependants first, as Laravel's reverse migration order does.
+        // MySQL correctly refuses to drop a table still referenced by feature 027.
+        $mentorMigration = require database_path('migrations/2026_09_18_210000_create_mentor_tables.php');
+        $mentorMigration->down();
+
         $migration->down();
         foreach (['llm_connections', 'llm_settings', 'llm_consents', 'llm_tool_confirmations', 'llm_audit_events'] as $table) {
             $this->assertFalse(Schema::hasTable($table));
@@ -182,6 +187,7 @@ class AiAssistantFoundationTest extends TestCase
         $this->assertDatabaseHas('items', ['id' => $item->id, 'title' => 'Preserved']);
 
         $migration->up();
+        $mentorMigration->up();
         $this->assertTrue(Schema::hasTable('llm_connections'));
         $this->assertDatabaseHas('items', ['id' => $item->id, 'title' => 'Preserved']);
     }
