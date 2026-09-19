@@ -5,6 +5,8 @@ import { createNativeTransport, type TransportResponse } from '../mobile/native-
 import { configuredMobileApiOrigin, isAndroidNative, nativePlugin } from '../mobile/platform'
 import { contentDispositionFilename, type DownloadedFile } from '../portability/files'
 import { acceptResponse, cachedRead, commandHeaders, commands, configureWorkspace, discardCommand, prepareCommand, rejectCommand, synchronizeWorkspace, withWorkspaceWriteLock, workspacePath, workspaceState } from '../offline/workspace'
+import { needsStorageIdentity, pendingStorageRead, stageStorageProjection } from '../offline/storage-local'
+import { refreshQueue, type LocalCommand } from '../offline/workspace'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api'
 const csrfUrl = import.meta.env.VITE_CSRF_URL ?? '/sanctum/csrf-cookie'
@@ -277,14 +279,34 @@ async function executeRequest<T>(
   return payload as T
 }
 
+async function localStorageSuccess<T>(command: LocalCommand): Promise<T> {
+  const local = await stageStorageProjection(command)
+  if (workspaceState.owner !== command.owner) throw new ApiError(translate('offline.accountChanged'), 409, { code: 'sync_account_changed' })
+  if (!local.handled) throw new ApiError(translate('offline.savedPending'), 202)
+  if (local.errors) {
+    await discardCommand(command.id)
+    const keys = { invalid: 'offline.validation.invalid', missing: 'offline.validation.missing', blocked: 'offline.validation.blocked', nested: 'offline.validation.nested', duplicate: 'offline.validation.duplicate' } as const
+    const errors = Object.fromEntries(Object.entries(local.errors).map(([field, code]) => [field, [translate(keys[code])]]))
+    throw new ApiError(Object.values(errors)[0]?.[0] ?? translate('offline.rejected'), 422, { errors })
+  }
+  await refreshQueue()
+  return local.value as T
+}
+
 export async function request<T>(path: string, init: RequestInit = {}, behavior: RequestBehavior = {}): Promise<T> {
   const owner = workspaceState.owner
   if (owner === null || !workspacePath(path)) return executeRequest<T>(path, init, behavior, false)
   const method = (init.method ?? 'GET').toUpperCase()
   if (method === 'GET') {
     try {
+      const local = await pendingStorageRead(owner, path)
+      if (workspaceState.owner !== owner) throw new ApiError(translate('offline.accountChanged'), 409)
+      if (local.handled) return local.value as T
       if (!navigator.onLine) throw new ApiError(translate('common.errorReach'), 0)
-      return await executeRequest<T>(path, init, behavior, false)
+      const response = await executeRequest<T>(path, init, behavior, false)
+      const updated = await pendingStorageRead(owner, path)
+      if (workspaceState.owner !== owner) throw new ApiError(translate('offline.accountChanged'), 409)
+      return updated.handled ? updated.value as T : response
     } catch (error) {
       if (!(error instanceof ApiError) || error.status !== 0 || workspaceState.owner !== owner) throw error
       return await cachedRead(owner, path) as T
@@ -296,13 +318,13 @@ export async function request<T>(path: string, init: RequestInit = {}, behavior:
     const hadPending = (await commands()).length > 0
     const command = await prepareCommand(owner, path, init, behavior.operationId)
     const first = (await commands())[0]
-    if (!navigator.onLine || (hadPending && (first?.id !== command.id || command.base === null)) || command.status !== 'pending') {
+    if (!navigator.onLine || needsStorageIdentity(command) || (hadPending && (first?.id !== command.id || command.base === null)) || command.status !== 'pending') {
       void synchronizeWorkspace()
-      throw new ApiError(translate('offline.savedPending'), 202)
+      return localStorageSuccess<T>(command)
     }
     const headers = new Headers(init.headers)
     Object.entries(commandHeaders(command, hadPending)).forEach(([key, value]) => headers.set(key, value))
-    try { return await executeRequest<T>(path, { ...init, headers }, behavior, false) }
+    try { return await executeRequest<T>(command.path, { ...init, body: command.body, headers }, behavior, false) }
     catch (error) {
       const code = error instanceof ApiError && typeof error.payload === 'object' && error.payload !== null
         ? (error.payload as { code?: unknown }).code : undefined
@@ -311,7 +333,7 @@ export async function request<T>(path: string, init: RequestInit = {}, behavior:
       // Sync conflicts retain the durable command so the user can resolve it explicitly.
       if (error instanceof ApiError && ([400, 403, 404, 422].includes(error.status) || (error.status === 409 && !syncConflict))) await discardCommand(command.id)
       else await rejectCommand(command, error)
-      if (error instanceof ApiError && error.status === 0) throw new ApiError(translate('offline.savedPending'), 202)
+      if (error instanceof ApiError && error.status === 0) return localStorageSuccess<T>(command)
       throw error
     }
   })

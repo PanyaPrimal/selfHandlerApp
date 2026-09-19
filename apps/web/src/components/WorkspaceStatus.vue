@@ -17,7 +17,8 @@ async function retry(id: string) {
 }
 async function remove(id: string) {
   if (removing.value !== id) { removing.value = id; return }
-  await discardCommand(id); removing.value = null; await refresh()
+  try { await discardCommand(id); removing.value = null; await refresh() }
+  catch (e) { workspaceState.issue = e instanceof Error ? e.message : t('offline.syncFailed') }
 }
 function details(row: LocalCommand) { try { return JSON.parse(row.body ?? '{}') as Record<string, unknown> } catch { return {} } }
 function route(row: LocalCommand): string {

@@ -1,5 +1,43 @@
 import { toRaw } from 'vue'
 
+export interface LocalEntry { key: string; value: unknown }
+export interface LocalMutation<T> { put?: LocalEntry[]; remove?: string[]; result: T }
+
+/** Read and replace related metadata in one durable transaction, without reading audio blobs. */
+export async function mutateLocalEntries<T>(prefixes: string[], update: (entries: LocalEntry[]) => LocalMutation<T>): Promise<T> {
+  const db = await database()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('entries', 'readwrite')
+    const store = tx.objectStore('entries')
+    const entries = new Map<string, LocalEntry>()
+    let remaining = prefixes.length
+    let result: T
+    let failure: unknown
+    const commit = () => {
+      try {
+        const mutation = update([...entries.values()])
+        for (const key of [...(mutation.put ?? []).map(entry => entry.key), ...(mutation.remove ?? [])]) {
+          if (!prefixes.some(prefix => key.startsWith(prefix))) throw new Error('Local transaction escaped its account scope.')
+        }
+        for (const entry of mutation.put ?? []) store.put(unwrapped(entry.value), entry.key)
+        for (const key of mutation.remove ?? []) store.delete(key)
+        result = mutation.result
+      } catch (error) { failure = error; tx.abort() }
+    }
+    for (const prefix of prefixes) {
+      const request = store.openCursor(IDBKeyRange.bound(prefix, `${prefix}\uffff`))
+      request.onsuccess = () => {
+        const cursor = request.result
+        if (cursor) { entries.set(String(cursor.key), { key: String(cursor.key), value: cursor.value }); cursor.continue() }
+        else if (--remaining === 0) commit()
+      }
+    }
+    if (!remaining) commit()
+    tx.oncomplete = () => resolve(result!)
+    tx.onabort = tx.onerror = () => reject(failure ?? tx.error ?? new Error('Local transaction failed.'))
+  })
+}
+
 /** Durable structured-clone store. Keys include account identity; never store credentials here. */
 let opening: Promise<IDBDatabase> | null = null
 

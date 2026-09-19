@@ -1596,6 +1596,7 @@ export interface StorageTag {
 }
 
 export interface StorageItem {
+  local_sync_status?: 'pending' | 'conflict' | 'rejected'
   id: number
   type: ItemType
   title: string
@@ -1639,6 +1640,7 @@ export interface StorageItemPayload {
 }
 
 export interface StorageProject {
+  local_sync_status?: 'pending' | 'conflict' | 'rejected'
   id: number
   name: string
   description: string | null

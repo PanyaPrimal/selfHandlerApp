@@ -1,14 +1,18 @@
 import { reactive } from 'vue'
-import type { User } from '../api/types'
+import type { StorageItem, User } from '../api/types'
 import { translate } from '../i18n'
-import { localEntries, localRead, localRemove, localWrite } from './database'
+import { localEntries, localRead, localRemove, localWrite, mutateLocalEntries, type LocalEntry } from './database'
+import { acknowledgedStorageEntries, localStoragePath, needsStorageIdentity, storageMutationBefore } from './storage-local'
+import { remapStorageCommand, storageReferences, storageTarget, type StorageIdentity } from './storage-projection'
 
 export interface LocalCommand {
   id: string; owner: number; path: string; method: string; body: string | null
   base: number | null; created: number; status: 'pending' | 'conflict' | 'rejected'
   message: string | null; title: string
+  localId?: number; localProjected?: boolean
+  storageBefore?: StorageItem | null
 }
-interface CachedRead { data: unknown; revision: number; saved: number }
+export interface CachedRead { data: unknown; revision: number; saved: number }
 type Sender = <T>(path: string, init?: RequestInit) => Promise<T>
 export const workspaceState = reactive({ owner: null as number | null, online: navigator.onLine, syncing: false, pending: 0, issue: '', lastSync: null as number | null })
 let rawSender: Sender | null = null
@@ -53,7 +57,19 @@ export async function refreshQueue() {
 }
 export async function cacheRead(owner: number, path: string, data: unknown, revision: number) {
   if (!workspacePath(path)) return
-  try { await localWrite(`${accountPrefix(owner)}read:${path}`, { data, revision, saved: Date.now() } satisfies CachedRead) }
+  try {
+    const prefix = accountPrefix(owner)
+    await mutateLocalEntries([`${prefix}read:`, `${prefix}command:`], entries => {
+      const key = `${prefix}read:${path}`
+      const previous = entries.find(entry => entry.key === key)?.value as CachedRead | undefined
+      if (previous && previous.revision > revision) return { result: undefined }
+      // Freeze the shared baseline until every local Storage intent has a receipt.
+      // A GET following a lost acknowledgement might already contain that intent.
+      if (localStoragePath(path) && entries.some(entry => entry.key.startsWith(`${prefix}command:`)
+        && (entry.value as LocalCommand).status === 'pending' && storageTarget((entry.value as LocalCommand).path))) return { result: undefined }
+      return { put: [{ key, value: { data, revision, saved: Date.now() } satisfies CachedRead }], result: undefined }
+    })
+  }
   catch { storageFailure() } // A full device must not hide a successful online read.
 }
 export async function cachedRead(owner: number, path: string): Promise<unknown> {
@@ -63,19 +79,35 @@ export async function cachedRead(owner: number, path: string): Promise<unknown> 
   return cached.data
 }
 export async function prepareCommand(owner: number, path: string, init: RequestInit, operationId?: string): Promise<LocalCommand> {
-  const body = typeof init.body === 'string' ? init.body : null
+  let body = typeof init.body === 'string' ? init.body : null
   const method = (init.method ?? 'POST').toUpperCase()
-  const existing = await commands()
-  const duplicate = existing.find(row => operationId ? row.id === operationId : row.path === path && row.method === method && row.body === body)
-  if (duplicate && (duplicate.path !== path || duplicate.method !== method || duplicate.body !== body)) throw new Error(translate('offline.rejected'))
-  if (duplicate) return duplicate
-  const cached = await localEntries<CachedRead>(`${accountPrefix(owner)}read:`)
-  // Conservative baseline: no offline intent may overwrite a version newer than any retained screen.
-  const base = cached.length ? Math.min(...cached.map(row => row.value.revision)) : null
-  let title = ''
-  try { const payload = JSON.parse(body ?? '{}'); title = String(payload.title ?? payload.name ?? payload.note ?? '').slice(0, 120) } catch { /* empty DELETE */ }
-  const command: LocalCommand = { id: operationId ?? crypto.randomUUID(), owner, path, method, body, base, created: Date.now(), status: 'pending', message: null, title }
-  await localWrite(commandKey(command), command)
+  const prefix = accountPrefix(owner)
+  const command = await mutateLocalEntries<LocalCommand>([`${prefix}read:`, `${prefix}command:`, `${prefix}identity:storage:`, `${prefix}sequence:`], entries => {
+    for (const entry of entries.filter(entry => entry.key.startsWith(`${prefix}identity:storage:`))) {
+      const mapped = remapStorageCommand({ path, body, method, created: 0, status: 'pending' as const }, entry.value as StorageIdentity)
+      path = mapped.path; body = mapped.body
+    }
+    const existing = entries.filter(entry => entry.key.startsWith(`${prefix}command:`)).map(entry => entry.value as LocalCommand)
+    const duplicate = existing.find(row => operationId ? row.id === operationId : row.path === path && row.method === method && row.body === body)
+    if (duplicate && (duplicate.path !== path || duplicate.method !== method || duplicate.body !== body)) throw new Error(translate('offline.rejected'))
+    if (duplicate) return { result: duplicate }
+    const cached = entries.filter(entry => entry.key.startsWith(`${prefix}read:`)).map(entry => entry.value as CachedRead)
+    // Conservative baseline: no offline intent may overwrite a version newer than any retained screen.
+    const base = cached.length ? Math.min(...cached.map(row => row.revision)) : null
+    let title = ''
+    try { const payload = JSON.parse(body ?? '{}'); title = String(payload.title ?? payload.name ?? payload.note ?? '').slice(0, 120) } catch { /* empty DELETE */ }
+    const command: LocalCommand = { id: operationId ?? crypto.randomUUID(), owner, path, method, body, base, created: Math.max(Date.now(), ...existing.map(row => row.created + 1)), status: 'pending', message: null, title }
+    command.storageBefore = storageMutationBefore(owner, entries, command)
+    const put: LocalEntry[] = []
+    if (storageTarget(path)?.id === null && method === 'POST') {
+      const sequenceKey = `${prefix}sequence:storage`
+      command.localId = Number(entries.find(entry => entry.key === sequenceKey)?.value ?? 0) - 1
+      if (!Number.isSafeInteger(command.localId)) throw new Error(translate('offline.storageFailed'))
+      put.push({ key: sequenceKey, value: command.localId })
+    }
+    put.push({ key: commandKey(command), value: command })
+    return { put, result: command }
+  })
   await refreshQueue()
   return command
 }
@@ -83,23 +115,31 @@ export function commandHeaders(command: LocalCommand, checkBase: boolean): Recor
   return { 'X-Workspace-Operation': command.id, 'X-Workspace-Account': String(command.owner),
     ...(checkBase && command.base !== null ? { 'X-Workspace-Base': String(command.base) } : {}) }
 }
-export async function acknowledgeCommand(command: LocalCommand, revision: number, checkedBase: boolean) {
+export async function acknowledgeCommand(command: LocalCommand, revision: number, checkedBase: boolean, data?: unknown) {
   // Only advance matching snapshots if the server proves there was no intervening writer.
   const ownTransition = checkedBase || (command.base !== null && revision === command.base + 1)
-  if (ownTransition) {
-    const cached = await localEntries<CachedRead>(`${accountPrefix(command.owner)}read:`)
-    for (const entry of cached) {
-      if (entry.value.revision === command.base) await localWrite(entry.key, { ...entry.value, revision })
+  const prefix = accountPrefix(command.owner)
+  const identity = await mutateLocalEntries<StorageIdentity | undefined>([`${prefix}read:`, `${prefix}command:`, `${prefix}identity:storage:`], entries => {
+    if (!entries.some(entry => entry.key === commandKey(command))) return { result: undefined }
+    const storage = acknowledgedStorageEntries(command.owner, entries, command, data, revision)
+    const put = new Map(storage.put.map(entry => [entry.key, entry]))
+    for (const entry of entries) {
+      if (entry.key.startsWith(`${prefix}read:`) && ownTransition) {
+        const value = (put.get(entry.key)?.value ?? entry.value) as CachedRead
+        if (value.revision === command.base) put.set(entry.key, { key: entry.key, value: { ...value, revision } })
+      }
+      if (entry.key.startsWith(`${prefix}command:`)) {
+        let value = entry.value as LocalCommand
+        if (value.id === command.id) continue
+        if (storage.identity) value = remapStorageCommand(value, storage.identity)
+        if (ownTransition && value.base === command.base && value.created >= command.created && value.status === 'pending') value = { ...value, base: revision }
+        if (value !== entry.value) put.set(entry.key, { key: entry.key, value })
+      }
     }
-  }
-  // A crash before deletion leaves the same UUID for server-side replay.
-  const rows = await localEntries<LocalCommand>(`${accountPrefix(command.owner)}command:`)
-  for (const { key, value } of rows) {
-    if (ownTransition && value.id !== command.id && value.base === command.base && value.created >= command.created && value.status === 'pending') {
-      await localWrite(key, { ...value, base: revision })
-    }
-  }
-  await localRemove(commandKey(command)); await refreshQueue()
+    return { put: [...put.values()], remove: [commandKey(command)], result: storage.identity }
+  })
+  await refreshQueue()
+  if (workspaceState.owner === command.owner) window.dispatchEvent(new CustomEvent('workspace-storage-changed', { detail: identity }))
 }
 export async function rejectCommand(command: LocalCommand, error: unknown) {
   const problem = error as { status?: number; message?: string }
@@ -108,9 +148,17 @@ export async function rejectCommand(command: LocalCommand, error: unknown) {
   await refreshQueue()
 }
 export async function discardCommand(id: string) {
-  const command = (await commands()).find(row => row.id === id)
-  if (command) await localRemove(commandKey(command))
+  const owner = workspaceState.owner
+  if (owner === null) return
+  await mutateLocalEntries([`${accountPrefix(owner)}command:`], entries => {
+    const rows = entries.map(entry => entry.value as LocalCommand)
+    const command = rows.find(row => row.id === id)
+    const target = command && storageTarget(command.path)
+    if (command?.localId !== undefined && target && rows.some(row => row.id !== id && storageReferences(row, target.resource, command.localId!))) throw new Error(translate('offline.dependencies'))
+    return { remove: command ? [commandKey(command)] : [], result: undefined }
+  })
   await refreshQueue()
+  if (workspaceState.owner === owner) window.dispatchEvent(new Event('workspace-storage-changed'))
 }
 export async function retryReviewedCommand(id: string) {
   const command = (await commands()).find(row => row.id === id)
@@ -134,6 +182,9 @@ export async function synchronizeWorkspace(): Promise<void> {
       for (;;) {
         const row = (await commands())[0]
         if (!row || row.status !== 'pending' || current !== generation) break
+        if (needsStorageIdentity(row)) {
+          await localWrite(commandKey(row), { ...row, status: 'conflict', message: translate('offline.dependencies') }); break
+        }
         if (row.base === null) {
           const receipt = await rawSender!<{ acknowledged: boolean }>(`/workspace/operations/${row.id}`, { headers: { 'X-Workspace-Account': String(owner) } })
           if (!receipt.acknowledged) {
@@ -159,7 +210,7 @@ export async function acceptResponse(owner: number, path: string, init: RequestI
   const id = new Headers(init.headers).get('X-Workspace-Operation')
   if (id) {
     const command = await localRead<LocalCommand>(`${accountPrefix(owner)}command:${id}`)
-    if (command) await acknowledgeCommand(command, revision, new Headers(init.headers).has('X-Workspace-Base'))
+    if (command) await acknowledgeCommand(command, revision, new Headers(init.headers).has('X-Workspace-Base'), data)
   } else if ((init.method ?? 'GET').toUpperCase() === 'GET') await cacheRead(owner, path, data, revision)
 }
 window.addEventListener('online', () => { workspaceState.online = true; void synchronizeWorkspace() })

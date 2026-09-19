@@ -238,14 +238,17 @@ async function confirmAiDraft(): Promise<void> {
   }
 }
 
-async function load(): Promise<void> {
-  isLoading.value = true
+let loadGeneration = 0
+async function load(quiet = false): Promise<void> {
+  const current = ++loadGeneration
+  if (!quiet) isLoading.value = true
   loadError.value = null
 
   try {
     const [itemList, projectList, accountList, categoryList, currencyList] = await Promise.all([
       getStorageItems(), getStorageProjects(), getFinanceAccounts(), getFinanceCategories(), getFinanceCurrencies(),
     ])
+    if (current !== loadGeneration) return
     items.value = itemList.data
     inboxCount.value = itemList.inbox_count
     projects.value = projectList.data
@@ -256,8 +259,9 @@ async function load(): Promise<void> {
       purchaseDrafts[item.id] ??= { amount: item.estimated_amount ?? '', currency: item.estimated_currency_code ?? 'UAH' }
     }
   } catch {
-    loadError.value = i18n.t('storage.loadFailed')
+    if (current === loadGeneration && !quiet) loadError.value = i18n.t('storage.loadFailed')
   } finally {
+    if (current !== loadGeneration) return
     isLoading.value = false
     await nextTick()
     if (highlightedItem.value !== null) {
@@ -285,11 +289,11 @@ async function capture(): Promise<void> {
       } : {}) }
     const body = JSON.stringify(payload)
     if (captureAttempt?.body !== body) captureAttempt = { body, id: crypto.randomUUID() }
-    await createStorageItem(payload, captureAttempt.id)
+    const saved = await createStorageItem(payload, captureAttempt.id)
     captureAttempt = null
     captureTitle.value = ''
     captureEstimate.value = ''
-    feedback.value = i18n.t('storage.captured')
+    feedback.value = i18n.t(saved.local_sync_status ? 'offline.savedPending' : 'storage.captured')
     await load()
   } catch (currentError) {
     if (currentError instanceof ApiError && currentError.status === 202) {
@@ -431,9 +435,18 @@ async function postExpense(item: StorageItem): Promise<void> {
   }
 }
 
-onMounted(load)
+function storageChanged(event: Event) {
+  const identity = (event as CustomEvent<{ resource: string; local: number; server: number } | undefined>).detail
+  if (identity?.resource === 'items') {
+    if (childDrafts[identity.local] !== undefined) { childDrafts[identity.server] = childDrafts[identity.local]!; delete childDrafts[identity.local] }
+    if (purchaseDrafts[identity.local] !== undefined) { purchaseDrafts[identity.server] = purchaseDrafts[identity.local]!; delete purchaseDrafts[identity.local] }
+    if (financing.value === identity.local) financing.value = identity.server
+  }
+  void load(true)
+}
+onMounted(() => { void load(); window.addEventListener('workspace-storage-changed', storageChanged) })
 onMounted(loadAiSettings)
-onBeforeUnmount(clearAiExpiryTimer)
+onBeforeUnmount(() => { clearAiExpiryTimer(); loadGeneration++; window.removeEventListener('workspace-storage-changed', storageChanged) })
 </script>
 
 <template>
@@ -502,10 +515,11 @@ onBeforeUnmount(clearAiExpiryTimer)
             <div class="management-row">
               <div class="management-copy">
                 <strong>{{ item.title }}</strong>
+                <small v-if="item.local_sync_status" class="muted">{{ i18n.t('offline.queued') }}</small>
                 <p class="muted">{{ typeLabel(item.type) }}</p>
               </div>
               <div class="button-row management-actions">
-                <button type="button" class="secondary" :disabled="!aiReady || aiBusyItem !== null" :aria-label="i18n.t('storage.aiDraftNamed', { name: item.title })" @click="requestAiDraft(item)">{{ i18n.t(aiBusyItem === item.id ? 'storage.aiDrafting' : 'storage.aiDraft') }}</button>
+                <button type="button" class="secondary" :disabled="!aiReady || aiBusyItem !== null || !!item.local_sync_status" :aria-label="i18n.t('storage.aiDraftNamed', { name: item.title })" @click="requestAiDraft(item)">{{ i18n.t(aiBusyItem === item.id ? 'storage.aiDrafting' : 'storage.aiDraft') }}</button>
                 <button type="button" class="secondary" :aria-label="i18n.t('storage.triageNamed', { name: item.title })" @click="patch(item, { status: 'active' })">{{ i18n.t('storage.triage') }}</button>
                 <button type="button" class="secondary" :aria-label="i18n.t('storage.dropNamed', { name: item.title })" @click="patch(item, { status: 'dropped' })">{{ i18n.t('storage.drop') }}</button>
               </div>
@@ -556,6 +570,7 @@ onBeforeUnmount(clearAiExpiryTimer)
             <div class="management-row">
               <div class="management-copy">
                 <strong>{{ item.title }}</strong>
+                <small v-if="item.local_sync_status" class="muted">{{ i18n.t('offline.queued') }}</small>
                 <p class="routine-meta">
                   <span class="kind-chip">{{ typeLabel(item.type) }}</span>
                   <span v-if="item.type === 'purchase'" class="kind-chip">{{ purchaseStatus(item) }}</span>
@@ -587,7 +602,7 @@ onBeforeUnmount(clearAiExpiryTimer)
             </div>
 
             <section v-if="item.type === 'purchase'" class="purchase-finance" :aria-label="i18n.t('storage.purchaseFinanceNamed', { name: item.title })">
-              <form class="capture-form" @submit.prevent="saveEstimate(item)"><label class="field"><span>{{ i18n.t('storage.estimate') }}</span><input v-model="purchaseDrafts[item.id]!.amount" inputmode="decimal" placeholder="0.0000"></label><UiSelect v-model="purchaseDrafts[item.id]!.currency" :name="`purchase-currency-${item.id}`" :label="i18n.t('finance.currency')" :options="currencyOptions" required /><div class="form-actions"><button type="submit" class="secondary">{{ i18n.t('storage.saveEstimate') }}</button><button type="button" :disabled="!financeAccounts.length || !financeCategories.length" @click="startExpense(item)">{{ i18n.t('storage.buyDirect') }}</button><a class="button secondary" :href="`/finance?tab=debts&purchase=${item.id}`">{{ i18n.t('storage.buyInstallments') }}</a></div></form>
+              <form class="capture-form" @submit.prevent="saveEstimate(item)"><label class="field"><span>{{ i18n.t('storage.estimate') }}</span><input v-model="purchaseDrafts[item.id]!.amount" inputmode="decimal" placeholder="0.0000"></label><UiSelect v-model="purchaseDrafts[item.id]!.currency" :name="`purchase-currency-${item.id}`" :label="i18n.t('finance.currency')" :options="currencyOptions" required /><div class="form-actions"><button type="submit" class="secondary">{{ i18n.t('storage.saveEstimate') }}</button><button type="button" :disabled="!!item.local_sync_status || !financeAccounts.length || !financeCategories.length" @click="startExpense(item)">{{ i18n.t('storage.buyDirect') }}</button><a v-if="!item.local_sync_status" class="button secondary" :href="`/finance?tab=debts&purchase=${item.id}`">{{ i18n.t('storage.buyInstallments') }}</a></div></form>
               <form v-if="financing === item.id" class="capture-form" :aria-label="i18n.t('storage.expenseEditor')" @submit.prevent="postExpense(item)"><UiSelect v-model="sourceDraft.account_id" :name="`purchase-account-${item.id}`" :label="i18n.t('finance.account')" :options="expenseAccountOptions(item)" required /><UiSelect v-model="sourceDraft.category_id" :name="`purchase-category-${item.id}`" :label="i18n.t('finance.expenseCategory')" :options="expenseCategoryOptions" required /><label class="field"><span>{{ i18n.t('finance.amount') }}</span><input v-model="sourceDraft.amount" inputmode="decimal" required></label><UiDatePicker :model-value="sourceDraft.occurred_on" :name="`purchase-date-${item.id}`" :label="i18n.t('finance.date')" :locale="i18n.locale.value" :today="sourceDraft.occurred_on" :max="sourceDraft.occurred_on" :clearable="false" required @update:model-value="(value) => { if (value) sourceDraft.occurred_on = value }" /><div class="form-actions"><button type="submit" :disabled="!sourceDraft.account_id || !sourceDraft.category_id">{{ i18n.t('storage.postExpense') }}</button><button type="button" class="ghost" @click="financing = null">{{ i18n.t('common.cancel') }}</button></div></form>
             </section>
 
@@ -599,6 +614,7 @@ onBeforeUnmount(clearAiExpiryTimer)
                 <li v-for="child in childrenOf(item)" :key="child.id" class="management-row" :aria-label="child.title">
                   <div class="management-copy">
                     <strong>{{ child.title }}</strong>
+                <small v-if="child.local_sync_status" class="muted">{{ i18n.t('offline.queued') }}</small>
                     <p class="routine-meta">
                       <span class="kind-chip">{{ statusLabel(child.status) }}</span>
                       <span v-if="child.is_blocker" class="kind-chip is-blocker">{{ i18n.t('storage.blocker') }}</span>
@@ -672,6 +688,7 @@ onBeforeUnmount(clearAiExpiryTimer)
           <li v-for="project in projects" :key="project.id" class="management-row" :aria-label="project.name">
             <div class="management-copy">
               <strong>{{ project.name }}</strong>
+                <small v-if="project.local_sync_status" class="muted">{{ i18n.t('offline.queued') }}</small>
               <p class="muted">{{ i18n.t('storage.projectCounts', { open: project.open_count, done: project.completed_count }) }}</p>
             </div>
             <div class="button-row management-actions">
@@ -687,6 +704,7 @@ onBeforeUnmount(clearAiExpiryTimer)
           <li v-for="item in closed" :key="item.id" class="management-row" :class="{ 'is-deep-linked': item.id === highlightedItem }" :data-storage-item="item.id" :aria-label="item.title">
             <div class="management-copy">
               <strong>{{ item.title }}</strong>
+                <small v-if="item.local_sync_status" class="muted">{{ i18n.t('offline.queued') }}</small>
               <p class="muted">{{ item.type === 'purchase' ? purchaseStatus(item) : statusLabel(item.status) }}<template v-if="item.estimated_amount"> · {{ financeAmount(item.estimated_amount, item.estimated_currency_code!, i18n.locale.value) }}</template></p>
             </div>
             <div class="button-row management-actions">
