@@ -4,6 +4,7 @@ import { translate } from '../i18n'
 import { localEntries, localRead, localRemove, localWrite, mutateLocalEntries, type LocalEntry } from './database'
 import { acknowledgedStorageEntries, localStoragePath, needsStorageIdentity, storageMutationBefore } from './storage-local'
 import { remapStorageCommand, storageReferences, storageTarget, type StorageIdentity } from './storage-projection'
+import { acknowledgedPlannerStorageEntries, localPlannerPath } from './planner-local'
 
 export interface LocalCommand {
   id: string; owner: number; path: string; method: string; body: string | null
@@ -65,7 +66,7 @@ export async function cacheRead(owner: number, path: string, data: unknown, revi
       if (previous && previous.revision > revision) return { result: undefined }
       // Freeze the shared baseline until every local Storage intent has a receipt.
       // A GET following a lost acknowledgement might already contain that intent.
-      if (localStoragePath(path) && entries.some(entry => entry.key.startsWith(`${prefix}command:`)
+      if ((localStoragePath(path) || localPlannerPath(path)) && entries.some(entry => entry.key.startsWith(`${prefix}command:`)
         && (entry.value as LocalCommand).status === 'pending' && storageTarget((entry.value as LocalCommand).path))) return { result: undefined }
       return { put: [{ key, value: { data, revision, saved: Date.now() } satisfies CachedRead }], result: undefined }
     })
@@ -122,7 +123,8 @@ export async function acknowledgeCommand(command: LocalCommand, revision: number
   const identity = await mutateLocalEntries<StorageIdentity | undefined>([`${prefix}read:`, `${prefix}command:`, `${prefix}identity:storage:`], entries => {
     if (!entries.some(entry => entry.key === commandKey(command))) return { result: undefined }
     const storage = acknowledgedStorageEntries(command.owner, entries, command, data, revision)
-    const put = new Map(storage.put.map(entry => [entry.key, entry]))
+    const planner = acknowledgedPlannerStorageEntries(command.owner, entries, command, data, revision)
+    const put = new Map([...storage.put, ...planner].map(entry => [entry.key, entry]))
     for (const entry of entries) {
       if (entry.key.startsWith(`${prefix}read:`) && ownTransition) {
         const value = (put.get(entry.key)?.value ?? entry.value) as CachedRead

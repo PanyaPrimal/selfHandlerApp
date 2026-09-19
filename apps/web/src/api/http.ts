@@ -7,6 +7,7 @@ import { contentDispositionFilename, type DownloadedFile } from '../portability/
 import { acceptResponse, cachedRead, commandHeaders, commands, configureWorkspace, discardCommand, prepareCommand, rejectCommand, synchronizeWorkspace, withWorkspaceWriteLock, workspacePath, workspaceState } from '../offline/workspace'
 import { needsStorageIdentity, pendingStorageRead, stageStorageProjection } from '../offline/storage-local'
 import { refreshQueue, type LocalCommand } from '../offline/workspace'
+import { localPlannerPath, pendingPlannerRead } from '../offline/planner-local'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api'
 const csrfUrl = import.meta.env.VITE_CSRF_URL ?? '/sanctum/csrf-cookie'
@@ -299,17 +300,23 @@ export async function request<T>(path: string, init: RequestInit = {}, behavior:
   const method = (init.method ?? 'GET').toUpperCase()
   if (method === 'GET') {
     try {
-      const local = await pendingStorageRead(owner, path)
+      const local = await (localPlannerPath(path) ? pendingPlannerRead(owner, path) : pendingStorageRead(owner, path))
       if (workspaceState.owner !== owner) throw new ApiError(translate('offline.accountChanged'), 409)
       if (local.handled) return local.value as T
       if (!navigator.onLine) throw new ApiError(translate('common.errorReach'), 0)
       const response = await executeRequest<T>(path, init, behavior, false)
-      const updated = await pendingStorageRead(owner, path)
+      const updated = await (localPlannerPath(path) ? pendingPlannerRead(owner, path) : pendingStorageRead(owner, path))
       if (workspaceState.owner !== owner) throw new ApiError(translate('offline.accountChanged'), 409)
       return updated.handled ? updated.value as T : response
     } catch (error) {
       if (!(error instanceof ApiError) || error.status !== 0 || workspaceState.owner !== owner) throw error
-      return await cachedRead(owner, path) as T
+      // The user may have saved a local change while the failed GET was in flight.
+      const updated = await (localPlannerPath(path) ? pendingPlannerRead(owner, path) : pendingStorageRead(owner, path))
+      if (workspaceState.owner !== owner) throw new ApiError(translate('offline.accountChanged'), 409)
+      if (updated.handled) return updated.value as T
+      const cached = await cachedRead(owner, path)
+      if (workspaceState.owner !== owner) throw new ApiError(translate('offline.accountChanged'), 409)
+      return cached as T
     }
   }
   if (init.body && typeof init.body !== 'string') return executeRequest<T>(path, init, behavior, false)

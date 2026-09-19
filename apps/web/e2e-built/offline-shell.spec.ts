@@ -14,8 +14,10 @@ test('installed production shell cold-restarts without network and keeps private
   await form.getByLabel('What is on your mind?').fill('Airplane mode task')
   await form.getByRole('button', { name: 'Capture', exact: true }).click()
   await expect(page.getByText(/^Saved on this device, awaiting synchronization/)).toBeVisible()
+  await expect(page.getByRole('listitem', { name: 'Airplane mode task', exact: true })).toBeVisible()
   await page.reload()
   await expect(page.getByText('Offline · pending changes: 1', { exact: true })).toBeVisible()
+  await expect(page.getByRole('listitem', { name: 'Airplane mode task', exact: true })).toBeVisible()
   const cached = await page.evaluate(async () => {
     const names = await caches.keys()
     return (await Promise.all(names.map(async name => (await (await caches.open(name)).keys()).map(request => request.url)))).flat()

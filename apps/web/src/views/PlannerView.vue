@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   createTimeBlock,
@@ -112,12 +112,15 @@ function goToToday(): void {
   date.value = today.value
 }
 
-async function load(): Promise<void> {
-  isLoading.value = true
+let loadGeneration = 0
+async function load(quiet = false): Promise<void> {
+  const current = ++loadGeneration
+  if (!quiet) isLoading.value = true
   loadError.value = null
 
   try {
     const day = await getPlannerDay(date.value ?? undefined)
+    if (current !== loadGeneration) return
 
     date.value = day.date
     today.value = day.today
@@ -125,9 +128,9 @@ async function load(): Promise<void> {
     materializedUntil.value = day.window.materialized_until
     beyondWindow.value = day.window.beyond
   } catch {
-    loadError.value = i18n.t('planner.loadFailed')
+    if (current === loadGeneration) loadError.value = i18n.t('planner.loadFailed')
   } finally {
-    isLoading.value = false
+    if (current === loadGeneration) isLoading.value = false
   }
 }
 
@@ -261,6 +264,13 @@ watch(date, (next, previous) => {
   }
 })
 
+function workspaceChanged(event: Event): void {
+  const identity = (event as CustomEvent<{ resource?: string; local?: number; server?: number }>).detail
+  if (identity?.resource === 'items' && movingKey.value === `storage:${identity.local}`) movingKey.value = `storage:${identity.server}`
+  void load(true)
+}
+window.addEventListener('workspace-storage-changed', workspaceChanged)
+onBeforeUnmount(() => { loadGeneration++; window.removeEventListener('workspace-storage-changed', workspaceChanged) })
 void load()
 </script>
 
@@ -324,6 +334,7 @@ void load()
                 <strong>{{ entry.title }}</strong>
                 <p class="muted">
                   <span class="kind-chip">{{ sourceLabels[entry.source] }}</span>
+                  <span v-if="entry.meta.local_sync_status" class="kind-chip">{{ i18n.t('offline.queued') }}</span>
                   <span v-if="entry.status !== 'planned'"> · {{ i18n.t(entry.status === 'done' ? 'planner.done' : entry.status === 'skipped' ? 'planner.skipped' : 'planner.changed') }}</span>
                   <span v-if="metaText(entry)"> · {{ metaText(entry) }}</span>
                 </p>

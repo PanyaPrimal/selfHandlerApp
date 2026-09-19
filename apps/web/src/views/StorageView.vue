@@ -323,7 +323,7 @@ async function patch(item: StorageItem, changes: Parameters<typeof updateStorage
 
   try {
     await updateStorageItem(item.id, changes)
-    await load()
+    await load(true)
   } catch (currentError) {
     const errors = validationErrors(currentError)
     // A refused completion explains what is blocking it.
@@ -654,7 +654,7 @@ onBeforeUnmount(() => { clearAiExpiryTimer(); loadGeneration++; window.removeEve
                   @update:model-value="(value) => { childDrafts[item.id] = value }"
                 />
                 <div class="form-actions">
-                  <button type="submit" class="secondary">{{ i18n.t('storage.addChild') }}</button>
+                  <button type="submit" class="secondary" :disabled="isSubmitting">{{ i18n.t('storage.addChild') }}</button>
                 </div>
               </form>
             </div>

@@ -4,6 +4,46 @@ import { expectNoHorizontalOverflow } from './interface/support'
 
 const api = /^https?:\/\/[^/]+\/api\//
 
+test('changing a task project preserves a child draft during the list refresh', async ({ page }, info) => {
+  await registerViaUi(page, uniqueCredentials(info, 'DraftRefresh'), { redirectTo: '/storage' })
+  await expect(page.getByText('Nothing waiting. Anything you capture lands here until you sort it.', { exact: true })).toBeVisible()
+  await page.evaluate(async () => {
+    const h = '/src/api/http.ts'
+    const { jsonRequest } = await import(/* @vite-ignore */ h)
+    await jsonRequest('/storage/projects', 'POST', { name: 'Draft project' })
+    await jsonRequest('/storage/items', 'POST', { title: 'Draft parent', status: 'active' })
+  })
+  await page.reload()
+  const parent = page.getByRole('listitem', { name: 'Draft parent', exact: true })
+  await expect(parent).toBeVisible()
+  const childForm = page.getByRole('form', { name: 'Add a child to Draft parent', exact: true })
+  const input = childForm.getByRole('textbox')
+  await input.fill('Keep this child draft')
+  let start!: () => void
+  let finish!: () => void
+  const started = new Promise<void>(resolve => { start = resolve })
+  const finished = new Promise<void>(resolve => { finish = resolve })
+  await page.route('**/api/storage/items', async route => {
+    if (route.request().method() !== 'GET') return route.continue()
+    start()
+    await finished
+    await route.continue()
+  })
+  await parent.getByRole('combobox', { name: 'Project of Draft parent', exact: true }).click()
+  await page.getByRole('option', { name: 'Draft project', exact: true }).click()
+  await started
+  try {
+    await expect(input).toBeVisible()
+    await expect(input).toHaveValue('Keep this child draft')
+    // Editing must remain possible while the refresh is waiting for the network.
+    await input.fill('Edited during refresh')
+  } finally { finish() }
+  await expect(parent.locator('.kind-chip').filter({ hasText: 'Draft project' })).toBeVisible()
+  await expect(input).toHaveValue('Edited during refresh')
+  await childForm.getByRole('button').click()
+  await expect(page.getByRole('listitem', { name: 'Edited during refresh', exact: true })).toBeVisible()
+})
+
 test('a lost parent acknowledgement preserves dependent offline edits across reload', async ({ page }, info) => {
   test.setTimeout(60_000)
   await registerViaUi(page, uniqueCredentials(info, 'LostParent'), { redirectTo: '/storage' })
