@@ -176,7 +176,7 @@ export function validateStorageMutation(state: StorageState, command: StorageMut
   if (body.parent_id != null) {
     const parent = state.items.find(row => row.id === body.parent_id)
     if (!parent) errors.parent_id = 'missing'
-    else if (parent.id === target.id || parent.parent_id !== null || state.items.some(row => row.parent_id === target.id)) errors.parent_id = 'nested'
+    else if (parent.id === target.id || parent.parent_id !== null || (target.id !== null && state.items.some(row => row.parent_id === target.id))) errors.parent_id = 'nested'
   }
   if (body.status === 'done' && state.items.some(row => row.parent_id === target.id && row.is_blocker && ['inbox', 'active'].includes(row.status))) errors.status = 'blocked'
   const type = body.type ?? item?.type ?? 'task'

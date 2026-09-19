@@ -4,6 +4,86 @@ import { expectNoHorizontalOverflow } from './interface/support'
 
 const api = /^https?:\/\/[^/]+\/api\//
 
+test('a lost parent acknowledgement preserves dependent offline edits across reload', async ({ page }, info) => {
+  test.setTimeout(60_000)
+  await registerViaUi(page, uniqueCredentials(info, 'LostParent'), { redirectTo: '/storage' })
+  await expect(page.getByText('Nothing waiting. Anything you capture lands here until you sort it.', { exact: true })).toBeVisible()
+  await page.route('**/api/storage/items', async route => {
+    if (route.request().method() !== 'POST') return route.continue()
+    await route.fetch()
+    await route.abort('internetdisconnected')
+  })
+  const form = page.getByRole('form', { name: 'Capture an item' })
+  await form.getByLabel('What is on your mind?').fill('Lost parent receipt')
+  await form.getByRole('button', { name: 'Capture', exact: true }).click()
+  await expect(page.getByRole('listitem', { name: 'Lost parent receipt', exact: true })).toBeVisible()
+  await page.route(api, route => route.abort('internetdisconnected'))
+  await page.getByRole('button', { name: 'Triage Lost parent receipt', exact: true }).click()
+  const childForm = page.getByRole('form', { name: 'Add a child to Lost parent receipt', exact: true })
+  await childForm.getByRole('textbox').fill('Dependent child')
+  await childForm.getByRole('button').click()
+  await expect(page.getByRole('listitem', { name: 'Dependent child', exact: true })).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('listitem', { name: 'Dependent child', exact: true })).toBeVisible()
+  await page.unroute(api)
+  await page.unroute('**/api/storage/items')
+  await page.getByRole('button', { name: 'Synchronize', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Pending changes', exact: true })).toHaveCount(0, { timeout: 15_000 })
+  const rows = (await (await page.request.get('/api/storage/items', { headers: await xsrfHeader(page) })).json()).data
+  expect(rows).toHaveLength(2)
+  const parent = rows.find((row: { title: string }) => row.title === 'Lost parent receipt')
+  expect(parent.status).toBe('active')
+  expect(rows.find((row: { title: string }) => row.title === 'Dependent child').parent_id).toBe(parent.id)
+})
+
+test('two offline tabs allocate distinct IDs and cannot discard a project with dependent drafts', async ({ page, context }, info) => {
+  test.setTimeout(60_000)
+  await registerViaUi(page, uniqueCredentials(info, 'TwoTabs'), { redirectTo: '/storage' })
+  await expect(page.getByText('Nothing waiting. Anything you capture lands here until you sort it.', { exact: true })).toBeVisible()
+  const other = await context.newPage()
+  await other.goto('/storage')
+  await expect(other.getByText('Nothing waiting. Anything you capture lands here until you sort it.', { exact: true })).toBeVisible()
+  await context.route(api, route => route.abort('internetdisconnected'))
+  const create = async (title: string) => {
+    const path = '/src/api/http.ts'
+    const { jsonRequest } = await import(/* @vite-ignore */ path)
+    return await jsonRequest('/storage/projects', 'POST', { name: title })
+  }
+  const [first, second] = await Promise.all([page.evaluate(create, 'First tab'), other.evaluate(create, 'Second tab')])
+  expect(first.data.id).toBeLessThan(0)
+  expect(second.data.id).toBeLessThan(0)
+  expect(first.data.id).not.toBe(second.data.id)
+  const result = await page.evaluate(async projectId => {
+    const h = '/src/api/http.ts'
+    const w = '/src/offline/workspace.ts'
+    const { jsonRequest } = await import(/* @vite-ignore */ h)
+    const { commands, discardCommand } = await import(/* @vite-ignore */ w)
+    await jsonRequest('/storage/items', 'POST', { title: 'Shared queue child', project_id: projectId })
+    const project = (await commands()).find((row: { localId?: number }) => row.localId === projectId)
+    let failure = ''
+    try { await discardCommand(project.id) } catch (error) { failure = (error as Error).message }
+    return { failure, count: (await commands()).length }
+  }, first.data.id)
+  expect(result.count).toBe(3)
+  expect(result.failure).toContain('Remove dependent drafts first')
+  await page.reload()
+  await expect(page.getByRole('listitem', { name: 'Shared queue child', exact: true })).toBeVisible()
+  await context.unroute(api)
+  const synchronize = async () => {
+    const w = '/src/offline/workspace.ts'
+    const { synchronizeWorkspace } = await import(/* @vite-ignore */ w)
+    await synchronizeWorkspace()
+  }
+  await Promise.all([page.evaluate(synchronize), other.evaluate(synchronize)])
+  const headers = await xsrfHeader(page)
+  const projects = (await (await page.request.get('/api/storage/projects', { headers })).json()).data
+  const items = (await (await page.request.get('/api/storage/items', { headers })).json()).data
+  expect(projects).toHaveLength(2)
+  expect(items).toHaveLength(1)
+  expect(items[0].project_id).toBe(projects.find((row: { name: string }) => row.name === 'First tab').id)
+  await other.close()
+})
+
 test('offline projects, parent tasks and blockers survive reload and keep relationships after sync', async ({ page }, info) => {
   test.setTimeout(60_000)
   await registerViaUi(page, uniqueCredentials(info, 'LocalRelationships'), { redirectTo: '/storage' })
@@ -62,7 +142,8 @@ test('receipt transaction abort retains the entire draft and retries without dup
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (value, key) {
-      if (String(key).includes(':identity:storage:')) throw new DOMException('Simulated receipt storage failure', 'QuotaExceededError')
+      // Fail after the identity and item snapshot writes were queued in the same transaction.
+      if (String(key).endsWith('read:/storage/projects')) throw new DOMException('Simulated receipt storage failure', 'QuotaExceededError')
       return original.call(this, value, key)
     }
   })

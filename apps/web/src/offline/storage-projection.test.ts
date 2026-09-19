@@ -7,6 +7,11 @@ const mutation = (path: string, method: string, body: unknown, localId?: number)
 const create = (title: string, localId: number, extra = {}) => mutation('/storage/items', 'POST', { title, ...extra }, localId)
 
 describe('offline Storage projection', () => {
+  it('allows creating a first-level child when the workspace already has root tasks', () => {
+    const state = projectStorage(storageState(empty, []), [create('Parent', -1), create('Other root', -2)])
+    expect(validateStorageMutation(state, create('Child', -3, { parent_id: -1 }))).toEqual({})
+  })
+
   it('keeps a project, task and blocking child usable before they have server identifiers', () => {
     const base = storageState(empty, [])
     const project = mutation('/storage/projects', 'POST', { name: 'Home' }, -1)
