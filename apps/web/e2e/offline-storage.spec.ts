@@ -164,9 +164,9 @@ test('receipt transaction abort retains the entire draft and retries without dup
   expect(state.find((entry: { key: string }) => entry.key.endsWith('read:/storage/items')).value.data.data).toHaveLength(0)
   // Reload restores the actual IDB implementation, leaving the durable operation UUID intact.
   await page.reload()
-  await page.getByRole('button', { name: 'Synchronize', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Pending changes', exact: true })).toHaveCount(0)
-  await expect(page.getByRole('listitem', { name: 'Atomic shelf', exact: true })).toHaveCount(1)
+  // Restoring an online session already starts synchronization; do not race its disappearing button.
+  await expect(page.getByRole('listitem', { name: 'Atomic shelf', exact: true })).toHaveCount(1, { timeout: 15_000 })
+  await expect(page.getByRole('button', { name: 'Pending changes', exact: true })).toHaveCount(0, { timeout: 15_000 })
   const headers = await xsrfHeader(page)
   const items = (await (await page.request.get('/api/storage/items', { headers })).json()).data
   expect(items.filter((row: { title: string }) => row.title === 'Atomic shelf')).toHaveLength(1)
