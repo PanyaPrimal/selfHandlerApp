@@ -24,7 +24,7 @@ class BackgroundRuntimeContractTests(unittest.TestCase):
 
     def test_all_background_writers_share_the_existing_application_lifecycle(self) -> None:
         programs = {section for section in self.config.sections() if section.startswith("program:")}
-        self.assertEqual({"program:fpm", "program:scheduler", "program:queue"}, programs)
+        self.assertEqual({"program:fpm", "program:scheduler", "program:queue", "program:chatgpt"}, programs)
         self.assertEqual({"db", "app", "web"}, set(self.compose["services"]))
         self.assertEqual("82:82", self.compose["services"]["app"]["user"])
         for name in programs:

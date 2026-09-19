@@ -22,6 +22,7 @@ import type { MessageKey } from '../i18n/locales/en'
 
 const i18n = useI18n()
 const loading = ref(true)
+const mentorAuthMode = ref<'api' | 'chatgpt'>('api')
 const loadError = ref<string | null>(null)
 const busy = ref<string | null>(null)
 const error = ref<string | null>(null)
@@ -228,7 +229,9 @@ onMounted(load)
       <RouterLink to="/settings/ai" aria-current="page">{{ i18n.t('nav.ai') }}</RouterLink>
     </nav>
 
-    <MentorPreferences />
+    <MentorPreferences @mode="mentorAuthMode = $event" />
+    <details class="ai-api-settings" :open="mentorAuthMode === 'api'">
+    <summary>{{ i18n.t('chatgpt.apiSettings') }}</summary>
     <p class="notice ai-disclosure">{{ i18n.t('ai.externalWarning') }}</p>
     <p v-if="error" class="notice error" role="alert" aria-live="assertive">{{ error }}</p>
     <p v-else-if="feedback" class="notice success" role="status" aria-live="polite">{{ feedback }}</p>
@@ -314,5 +317,9 @@ onMounted(load)
         </div>
       </section>
     </AsyncState>
+    </details>
   </section>
 </template>
+<style scoped>
+.ai-api-settings > summary { cursor:pointer; padding:1rem; min-height:44px; }
+</style>

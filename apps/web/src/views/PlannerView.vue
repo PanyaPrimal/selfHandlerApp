@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   createTimeBlock,
@@ -8,11 +8,12 @@ import {
   reschedulePlannerOccurrence,
   skipPlannerOccurrence,
   updateStorageItem,
+  updateTimeBlock,
   validationErrors,
   type ValidationErrors,
 } from '../api/client'
 import AsyncState from '../components/AsyncState.vue'
-import { UiDatePicker, UiTextInput, UiTimeField } from '../components/ui'
+import { UiDatePicker, UiTextarea, UiTextInput, UiTimeField } from '../components/ui'
 import { addDays, formatDateForDisplay, parseCalendarDate, toDateString } from '../components/ui/calendar'
 import type { PlannerEntry, PlannerSource } from '../api/types'
 import { useI18n } from '../i18n'
@@ -44,6 +45,31 @@ const blockTitle = ref('')
 const blockStart = ref<string | null>(null)
 const blockEnd = ref<string | null>(null)
 const blockErrors = ref<ValidationErrors>({})
+const editingBlockId = ref<number | null>(null)
+const blockDate = ref<string | null>(null)
+const blockNote = ref('')
+let blockAttempt: { body: string; id: string } | null = null
+
+async function openBlockForm(entry?: PlannerEntry): Promise<void> {
+  editingBlockId.value = entry?.source_id ?? null
+  blockTitle.value = entry?.title ?? ''
+  blockStart.value = entry?.time ?? null
+  blockEnd.value = typeof entry?.meta.ends_at === 'string' ? entry.meta.ends_at : null
+  blockNote.value = typeof entry?.meta.note === 'string' ? entry.meta.note : ''
+  blockDate.value = date.value
+  blockErrors.value = {}
+  blockAttempt = null
+  showBlockForm.value = true
+  await nextTick()
+  document.querySelector<HTMLElement>('.planner-block-form')?.scrollIntoView({ block: 'nearest' })
+}
+
+function blockIdentityChanged(event: Event): void {
+  const identity = (event as CustomEvent<{ local: number; server: number }>).detail
+  if (editingBlockId.value === identity.local) editingBlockId.value = identity.server
+}
+window.addEventListener('workspace-time-block-identity', blockIdentityChanged)
+onBeforeUnmount(() => window.removeEventListener('workspace-time-block-identity', blockIdentityChanged))
 
 const sourceLabels = computed<Record<PlannerSource, string>>(() => ({
   routine: i18n.t('planner.routine'),
@@ -210,33 +236,40 @@ async function openHabit(): Promise<void> {
 }
 
 async function addBlock(): Promise<void> {
-  if (isSubmitting.value || date.value === null) {
-    return
-  }
+  if (isSubmitting.value) return
+  if (blockDate.value === null) { blockErrors.value = { block_date: [i18n.t('offline.validation.invalid')] }; return }
 
   isSubmitting.value = true
   blockErrors.value = {}
   error.value = null
 
   try {
-    await createTimeBlock({
+    const payload = {
       title: blockTitle.value,
-      block_date: date.value,
+      block_date: blockDate.value,
       starts_at: blockStart.value,
       ends_at: blockEnd.value,
-    })
+      note: blockNote.value || null,
+    }
+    const body = JSON.stringify({ id: editingBlockId.value, payload })
+    if (blockAttempt?.body !== body) blockAttempt = { body, id: crypto.randomUUID() }
+    const wasEditing = editingBlockId.value !== null
+    const saved = wasEditing ? await updateTimeBlock(editingBlockId.value!, payload, blockAttempt.id) : await createTimeBlock(payload, blockAttempt.id)
+    blockAttempt = null
 
     blockTitle.value = ''
     blockStart.value = null
     blockEnd.value = null
+    blockNote.value = ''
+    editingBlockId.value = null
     showBlockForm.value = false
-    feedback.value = i18n.t('planner.blockAdded')
-    await load()
+    feedback.value = i18n.t(saved.local_sync_status ? 'offline.savedPending' : wasEditing ? 'planner.blockUpdated' : 'planner.blockAdded')
+    await load(true)
   } catch (currentError) {
     blockErrors.value = validationErrors(currentError)
 
     if (Object.keys(blockErrors.value).length === 0) {
-      error.value = i18n.t('planner.blockAddFailed')
+      error.value = i18n.t(editingBlockId.value !== null ? 'planner.blockUpdateFailed' : 'planner.blockAddFailed')
     }
   } finally {
     isSubmitting.value = false
@@ -244,15 +277,18 @@ async function addBlock(): Promise<void> {
 }
 
 async function removeBlock(entry: PlannerEntry): Promise<void> {
+  if (isSubmitting.value) return
+  isSubmitting.value = true
   error.value = null
 
   try {
     await deleteTimeBlock(entry.source_id)
+    if (editingBlockId.value === entry.source_id) { editingBlockId.value = null; showBlockForm.value = false; blockAttempt = null }
     feedback.value = i18n.t('planner.blockDeleted')
-    await load()
+    await load(true)
   } catch {
     error.value = i18n.t('planner.blockDeleteFailed')
-  }
+  } finally { isSubmitting.value = false }
 }
 
 // Changing the day is a fresh read, never a filter over a cached one.
@@ -386,6 +422,14 @@ void load()
                 {{ i18n.t('planner.putBack') }}
               </button>
               <button
+                v-if="entry.source === 'time_block' && entry.actions.includes('edit')"
+                type="button"
+                class="secondary"
+                :aria-label="i18n.t('planner.editNamed', { name: entry.title })"
+                :disabled="isSubmitting"
+                @click="openBlockForm(entry)"
+              >{{ i18n.t('common.edit') }}</button>
+              <button
                 v-if="entry.actions.includes('delete')"
                 type="button"
                 class="secondary"
@@ -425,7 +469,7 @@ void load()
       <section class="panel" aria-labelledby="block-heading">
         <div class="section-heading">
           <h2 id="block-heading">{{ i18n.t('planner.timeBlocks') }}</h2>
-          <button v-if="!showBlockForm" type="button" @click="showBlockForm = true">{{ i18n.t('planner.addBlock') }}</button>
+          <button v-if="!showBlockForm" type="button" :disabled="isSubmitting" @click="openBlockForm()">{{ i18n.t('planner.addBlock') }}</button>
         </div>
 
         <p class="muted">
@@ -435,7 +479,7 @@ void load()
         <form
           v-if="showBlockForm"
           class="planner-block-form"
-          :aria-label="i18n.t('planner.addTimeBlock')"
+          :aria-label="i18n.t(editingBlockId !== null ? 'planner.editTimeBlock' : 'planner.addTimeBlock')"
           novalidate
           @submit.prevent="addBlock"
         >
@@ -463,9 +507,20 @@ void load()
             :disabled="isSubmitting"
             :error="blockErrors.ends_at?.[0]"
           />
+          <UiDatePicker
+            v-model="blockDate"
+            :label="i18n.t('planner.blockDate')"
+            name="block-date"
+            :locale="locale"
+            :today="today"
+            :disabled="isSubmitting"
+            :error="blockErrors.block_date?.[0]"
+          />
+          <UiTextarea v-model="blockNote" :label="i18n.t('planner.note')" name="block-note" :maxlength="500" :disabled="isSubmitting" :error="blockErrors.note?.[0]" />
+          <p v-if="blockErrors.request?.[0]" class="notice error" role="alert">{{ blockErrors.request[0] }}</p>
           <div class="form-actions">
-            <button type="submit" :disabled="isSubmitting">{{ i18n.t(isSubmitting ? 'common.saving' : 'planner.addBlockAction') }}</button>
-            <button type="button" class="ghost" @click="showBlockForm = false">{{ i18n.t('common.cancel') }}</button>
+            <button type="submit" :disabled="isSubmitting">{{ i18n.t(isSubmitting ? 'common.saving' : editingBlockId !== null ? 'common.save' : 'planner.addBlockAction') }}</button>
+            <button type="button" class="ghost" :disabled="isSubmitting" @click="showBlockForm = false">{{ i18n.t('common.cancel') }}</button>
           </div>
         </form>
       </section>

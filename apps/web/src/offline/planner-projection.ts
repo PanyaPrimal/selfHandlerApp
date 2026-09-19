@@ -73,13 +73,14 @@ export function applyTimeBlockMutation(days: PlannerDayResponse[], command: Plan
   const body = bodyOf(command)
   const creating = command.method === 'POST' && target.id === null
   const accepted = confirmed?.data as Partial<TimeBlock> | undefined
+  const fields = Object.fromEntries(['title', 'note', 'block_date', 'starts_at', 'ends_at'].filter(key => key in body).map(key => [key, body[key]]))
   const id = creating ? Number(accepted?.id ?? command.localId) : target.id
   if (id === null || !Number.isSafeInteger(id)) return { days, result: undefined }
   const previous = timeBlockInDays(days, id)
   if (!creating && !previous) return { days, result: undefined }
   let block: ProjectedTimeBlock | undefined
   if (command.method !== 'DELETE') {
-    block = { id, title: '', note: null, block_date: '', starts_at: null, ends_at: null, ...previous, ...body, ...accepted,
+    block = { id, title: '', note: null, block_date: '', starts_at: null, ends_at: null, ...previous, ...fields, ...accepted,
       local_sync_status: confirmed ? undefined : command.status } as ProjectedTimeBlock
     block.title = block.title.trim()
     block.starts_at = block.starts_at?.slice(0, 5) ?? null

@@ -5,6 +5,9 @@ import { localEntries, localRead, localRemove, localWrite, mutateLocalEntries, t
 import { acknowledgedStorageEntries, localStoragePath, needsStorageIdentity, storageMutationBefore } from './storage-local'
 import { remapStorageCommand, storageReferences, storageTarget, type StorageIdentity } from './storage-projection'
 import { acknowledgedPlannerStorageEntries, localPlannerPath } from './planner-local'
+import { acknowledgedTimeBlockEntries, cachedTimeBlockEntries, needsTimeBlockIdentity, projectKnownTimeBlocks } from './time-block-local'
+import { remapTimeBlockCommand, timeBlockTarget, type TimeBlockIdentity } from './planner-projection'
+import type { PlannerDayResponse } from '../api/types'
 
 export interface LocalCommand {
   id: string; owner: number; path: string; method: string; body: string | null
@@ -60,21 +63,40 @@ export async function cacheRead(owner: number, path: string, data: unknown, revi
   if (!workspacePath(path)) return
   try {
     const prefix = accountPrefix(owner)
-    await mutateLocalEntries([`${prefix}read:`, `${prefix}command:`], entries => {
+    await mutateLocalEntries([`${prefix}read:`, `${prefix}command:`, `${prefix}entity:time-block:`], entries => {
       const key = `${prefix}read:${path}`
       const previous = entries.find(entry => entry.key === key)?.value as CachedRead | undefined
       if (previous && previous.revision > revision) return { result: undefined }
-      // Freeze the shared baseline until every local Storage intent has a receipt.
+      // Freeze affected baselines until their local intents have receipts.
       // A GET following a lost acknowledgement might already contain that intent.
-      if ((localStoragePath(path) || localPlannerPath(path)) && entries.some(entry => entry.key.startsWith(`${prefix}command:`)
-        && (entry.value as LocalCommand).status === 'pending' && storageTarget((entry.value as LocalCommand).path))) return { result: undefined }
-      return { put: [{ key, value: { data, revision, saved: Date.now() } satisfies CachedRead }], result: undefined }
+      if (entries.some(entry => entry.key.startsWith(`${prefix}command:`) && (entry.value as LocalCommand).status === 'pending'
+        && (((localStoragePath(path) || localPlannerPath(path)) && storageTarget((entry.value as LocalCommand).path))
+          || (localPlannerPath(path) && timeBlockTarget((entry.value as LocalCommand).path))))) return { result: undefined }
+      const records = cachedTimeBlockEntries(owner, entries, path, data, revision)
+      const snapshot = { key, value: { data, revision, saved: Date.now() } satisfies CachedRead }
+      if (localPlannerPath(path)) {
+        const updated = [...new Map([...entries, snapshot, ...records].map(entry => [entry.key, entry])).values()]
+        snapshot.value.data = projectKnownTimeBlocks(owner, updated, data as PlannerDayResponse)
+      }
+      const put: LocalEntry[] = [snapshot, ...records]
+      // /planner/day and its explicit date are the same downloaded day.
+      // Forms switch to the dated URL as soon as the server supplies today's date.
+      if (localPlannerPath(path)) {
+        const datedKey = `${prefix}read:/planner/day?date=${(data as PlannerDayResponse).date}`
+        const dated = entries.find(entry => entry.key === datedKey)?.value as CachedRead | undefined
+        if (datedKey !== key && (!dated || dated.revision <= revision)) put.push({ key: datedKey, value: snapshot.value })
+      }
+      return { put, result: undefined }
     })
   }
   catch { storageFailure() } // A full device must not hide a successful online read.
 }
 export async function cachedRead(owner: number, path: string): Promise<unknown> {
-  const cached = await localRead<CachedRead>(`${accountPrefix(owner)}read:${path}`)
+  const key = `${accountPrefix(owner)}read:${path}`
+  const cached = localPlannerPath(path) ? await mutateLocalEntries<CachedRead | undefined>([`${accountPrefix(owner)}read:`, `${accountPrefix(owner)}entity:time-block:`], entries => {
+    const value = entries.find(entry => entry.key === key)?.value as CachedRead | undefined
+    return { result: value ? { ...value, data: projectKnownTimeBlocks(owner, entries, value.data as PlannerDayResponse) } : undefined }
+  }) : await localRead<CachedRead>(key)
   if (!cached) throw new Error(translate('offline.notDownloaded'))
   workspaceState.online = false
   return cached.data
@@ -83,10 +105,13 @@ export async function prepareCommand(owner: number, path: string, init: RequestI
   let body = typeof init.body === 'string' ? init.body : null
   const method = (init.method ?? 'POST').toUpperCase()
   const prefix = accountPrefix(owner)
-  const command = await mutateLocalEntries<LocalCommand>([`${prefix}read:`, `${prefix}command:`, `${prefix}identity:storage:`, `${prefix}sequence:`], entries => {
+  const command = await mutateLocalEntries<LocalCommand>([`${prefix}read:`, `${prefix}command:`, `${prefix}identity:`, `${prefix}sequence:`], entries => {
     for (const entry of entries.filter(entry => entry.key.startsWith(`${prefix}identity:storage:`))) {
       const mapped = remapStorageCommand({ path, body, method, created: 0, status: 'pending' as const }, entry.value as StorageIdentity)
       path = mapped.path; body = mapped.body
+    }
+    for (const entry of entries.filter(entry => entry.key.startsWith(`${prefix}identity:time-block:`))) {
+      path = remapTimeBlockCommand({ path, body, method, created: 0, status: 'pending' as const }, entry.value as TimeBlockIdentity).path
     }
     const existing = entries.filter(entry => entry.key.startsWith(`${prefix}command:`)).map(entry => entry.value as LocalCommand)
     const duplicate = existing.find(row => operationId ? row.id === operationId : row.path === path && row.method === method && row.body === body)
@@ -100,8 +125,8 @@ export async function prepareCommand(owner: number, path: string, init: RequestI
     const command: LocalCommand = { id: operationId ?? crypto.randomUUID(), owner, path, method, body, base, created: Math.max(Date.now(), ...existing.map(row => row.created + 1)), status: 'pending', message: null, title }
     command.storageBefore = storageMutationBefore(owner, entries, command)
     const put: LocalEntry[] = []
-    if (storageTarget(path)?.id === null && method === 'POST') {
-      const sequenceKey = `${prefix}sequence:storage`
+    if ((storageTarget(path)?.id === null || timeBlockTarget(path)?.id === null) && method === 'POST') {
+      const sequenceKey = `${prefix}sequence:${timeBlockTarget(path) ? 'time-block' : 'storage'}`
       command.localId = Number(entries.find(entry => entry.key === sequenceKey)?.value ?? 0) - 1
       if (!Number.isSafeInteger(command.localId)) throw new Error(translate('offline.storageFailed'))
       put.push({ key: sequenceKey, value: command.localId })
@@ -120,11 +145,12 @@ export async function acknowledgeCommand(command: LocalCommand, revision: number
   // Only advance matching snapshots if the server proves there was no intervening writer.
   const ownTransition = checkedBase || (command.base !== null && revision === command.base + 1)
   const prefix = accountPrefix(command.owner)
-  const identity = await mutateLocalEntries<StorageIdentity | undefined>([`${prefix}read:`, `${prefix}command:`, `${prefix}identity:storage:`], entries => {
+  const identity = await mutateLocalEntries<{ storage?: StorageIdentity; block?: TimeBlockIdentity } | undefined>([`${prefix}read:`, `${prefix}command:`, `${prefix}identity:`, `${prefix}entity:time-block:`], entries => {
     if (!entries.some(entry => entry.key === commandKey(command))) return { result: undefined }
     const storage = acknowledgedStorageEntries(command.owner, entries, command, data, revision)
     const planner = acknowledgedPlannerStorageEntries(command.owner, entries, command, data, revision)
-    const put = new Map([...storage.put, ...planner].map(entry => [entry.key, entry]))
+    const block = acknowledgedTimeBlockEntries(command.owner, entries, command, data, revision)
+    const put = new Map([...storage.put, ...planner, ...block.put].map(entry => [entry.key, entry]))
     for (const entry of entries) {
       if (entry.key.startsWith(`${prefix}read:`) && ownTransition) {
         const value = (put.get(entry.key)?.value ?? entry.value) as CachedRead
@@ -134,14 +160,18 @@ export async function acknowledgeCommand(command: LocalCommand, revision: number
         let value = entry.value as LocalCommand
         if (value.id === command.id) continue
         if (storage.identity) value = remapStorageCommand(value, storage.identity)
+        if (block.identity) value = remapTimeBlockCommand(value, block.identity)
         if (ownTransition && value.base === command.base && value.created >= command.created && value.status === 'pending') value = { ...value, base: revision }
         if (value !== entry.value) put.set(entry.key, { key: entry.key, value })
       }
     }
-    return { put: [...put.values()], remove: [commandKey(command)], result: storage.identity }
+    return { put: [...put.values()], remove: [commandKey(command)], result: { storage: storage.identity, block: block.identity } }
   })
   await refreshQueue()
-  if (workspaceState.owner === command.owner) window.dispatchEvent(new CustomEvent('workspace-storage-changed', { detail: identity }))
+  if (workspaceState.owner === command.owner) {
+    if (identity?.block) window.dispatchEvent(new CustomEvent('workspace-time-block-identity', { detail: identity.block }))
+    window.dispatchEvent(new CustomEvent('workspace-storage-changed', { detail: identity?.storage }))
+  }
 }
 export async function rejectCommand(command: LocalCommand, error: unknown) {
   const problem = error as { status?: number; message?: string }
@@ -157,6 +187,7 @@ export async function discardCommand(id: string) {
     const command = rows.find(row => row.id === id)
     const target = command && storageTarget(command.path)
     if (command?.localId !== undefined && target && rows.some(row => row.id !== id && storageReferences(row, target.resource, command.localId!))) throw new Error(translate('offline.dependencies'))
+    if (command?.localId !== undefined && timeBlockTarget(command.path) && rows.some(row => row.id !== id && timeBlockTarget(row.path)?.id === command.localId)) throw new Error(translate('offline.dependencies'))
     return { remove: command ? [commandKey(command)] : [], result: undefined }
   })
   await refreshQueue()
@@ -184,7 +215,7 @@ export async function synchronizeWorkspace(): Promise<void> {
       for (;;) {
         const row = (await commands())[0]
         if (!row || row.status !== 'pending' || current !== generation) break
-        if (needsStorageIdentity(row)) {
+        if (needsStorageIdentity(row) || needsTimeBlockIdentity(row)) {
           await localWrite(commandKey(row), { ...row, status: 'conflict', message: translate('offline.dependencies') }); break
         }
         if (row.base === null) {

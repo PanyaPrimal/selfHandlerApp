@@ -40,6 +40,11 @@ class MentorGateway
         if (strlen($encoded) + strlen($system) + strlen(json_encode($this->tools())) > self::INPUT_BYTES_LIMIT) {
             throw new AiAssistantException('mentor_context_limit', 422);
         }
+        if ($connection->provider === 'chatgpt') {
+            return app(ChatGptBridge::class)->request($connection->user_id, 'call', [
+                'model' => $connection->model, 'system' => $system, 'context' => $encoded, 'tools' => $this->tools(),
+            ]);
+        }
         $openai = $connection->provider === 'openai';
         $outputLimit = min(self::OUTPUT_LIMIT, $connection->parameters['max_output_tokens']);
         $tools = array_map(fn ($tool) => $openai

@@ -1791,6 +1791,7 @@ export interface PlannerDayResponse {
 
 export interface TimeBlock {
   id: number
+  local_sync_status?: 'pending' | 'conflict' | 'rejected'
   title: string
   note: string | null
   block_date: string

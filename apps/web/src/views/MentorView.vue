@@ -5,6 +5,7 @@ import { useAuthSession } from '../auth/session'
 import { useI18n } from '../i18n'
 import { askMentor, confirmMentorAction, mentorHistory, mentorSettings, transcribeVoice, type MentorSettings, type MentorTurn } from '../mentor/api'
 import { localRead, localWrite } from '../offline/database'
+import DictationButton from '../components/DictationButton.vue'
 
 interface Draft { text: string; operation: string | null; audio: Blob | null; voiceOperation: string }
 const { t } = useI18n()
@@ -48,6 +49,9 @@ function applyHistory(history: MentorTurn[], version: number) {
   turns.value = merged.sort((a, b) => a.id - b.id)
 }
 function fail(e: unknown) { if (currentOwner()) error.value = e instanceof Error ? e.message : t('mentor.failed') }
+function turnFailure(code: string | null) {
+  return t(code === 'chatgpt_limit_reached' ? 'chatgpt.limit' : code === 'chatgpt_login_required' ? 'chatgpt.reconnect' : code?.startsWith('chatgpt_') ? 'chatgpt.failed' : 'mentor.requestFailed')
+}
 function persist(): Promise<void> {
   const snapshot = { ...draft.value }
   writes = writes.catch(() => undefined).then(() => localWrite(key, snapshot))
@@ -91,6 +95,9 @@ async function send() {
   if (!draft.value.text.trim() || busy.value || !ready.value) return
   busy.value = true; error.value = ''; notice.value = ''
   try {
+    // A new explicit Send can retry only failures known to precede model execution.
+    const previous = turns.value.find(turn => turn.operation_id === draft.value.operation)
+    if (previous?.status === 'failed' && ['chatgpt_login_required', 'chatgpt_limit_reached', 'chatgpt_busy'].includes(previous.error_code ?? '')) draft.value.operation = null
     draft.value.operation ??= crypto.randomUUID()
     await persist()
     if (!online.value) { notice.value = t('mentor.offlineDraft'); return }
@@ -186,7 +193,7 @@ onBeforeUnmount(() => {
   <section class="mentor-page">
     <header class="page-header"><div><p class="eyebrow">SELFHANDLER</p><h1>{{ t('mentor.title') }}</h1><p>{{ t('mentor.subtitle') }}</p></div><RouterLink class="button secondary" to="/settings/ai">{{ t('nav.ai') }}</RouterLink></header>
     <details class="notice mentor-context"><summary>{{ t('mentor.contextDetails') }}</summary><p>{{ t('mentor.contextNotice') }}</p></details>
-    <p v-if="settings && (!settings.enabled || !settings.active_connection_id)" class="notice">{{ t('mentor.setupRequired') }}</p>
+    <p v-if="settings && (!settings.enabled || (settings.auth_mode === 'chatgpt' ? !settings.chatgpt_model : !settings.active_connection_id))" class="notice">{{ t('mentor.setupRequired') }}</p>
     <p v-if="error" class="notice error" role="alert">{{ error }}</p>
     <p v-if="notice" class="notice" role="status">{{ notice }}</p>
     <div ref="conversation" class="mentor-conversation" aria-live="polite" aria-relevant="additions" @scroll="conversationScrolled">
@@ -194,7 +201,7 @@ onBeforeUnmount(() => {
       <article v-for="turn in turns" :key="turn.id" class="panel mentor-turn">
         <p class="mentor-question">{{ turn.question }}</p>
         <p v-if="turn.answer" class="mentor-answer">{{ turn.answer }}</p>
-        <p v-else>{{ t(turn.status !== 'failed' ? 'mentor.pending' : 'mentor.requestFailed') }}</p>
+        <p v-else>{{ turn.status === 'failed' ? turnFailure(turn.error_code) : t('mentor.pending') }}</p>
         <details v-if="turn.sources.length"><summary>{{ t('mentor.sources') }}</summary><ul><li v-for="(source, index) in turn.sources" :key="index">{{ source.dataset }}: {{ source.ids.join(', ') }}<span v-if="source.has_more"> · {{ t('mentor.partialSources') }}</span></li></ul></details>
         <article v-for="(action, index) in turn.actions" :key="index" class="mentor-action">
           <strong>{{ action.label }}</strong>
@@ -213,10 +220,11 @@ onBeforeUnmount(() => {
       </div>
       <div class="button-row">
         <button v-if="recording" type="button" class="secondary" @click="stopRecording">{{ t('mentor.stop', { seconds }) }}</button>
+        <DictationButton v-else-if="settings?.auth_mode === 'chatgpt'" :disabled="busy || !ready" @transcript="text => { draft.text = [draft.text, text].filter(Boolean).join('\n').slice(0, 4000); saveText() }" />
         <button v-else type="button" class="secondary" :disabled="busy || !ready || !!draft.audio" @click="startRecording">{{ t('mentor.record') }}</button>
         <button type="submit" :disabled="busy || recording || !ready || !draft.text.trim()">{{ t(busy ? 'mentor.working' : online ? 'mentor.send' : 'mentor.saveOffline') }}</button>
       </div>
-      <p class="muted">{{ t('mentor.voiceHelp') }}</p>
+      <p class="muted">{{ t(settings?.auth_mode === 'chatgpt' ? 'chatgpt.dictationHelp' : 'mentor.voiceHelp') }}</p>
     </form>
   </section>
 </template>

@@ -4,6 +4,7 @@ namespace App\Services\Mentor;
 
 use App\Exceptions\AiAssistantException;
 use App\Jobs\ProcessMentorTurn;
+use App\Models\LlmConnection;
 use App\Models\User;
 use App\Services\Ai\LlmConnectionService;
 use Illuminate\Support\Facades\DB;
@@ -27,6 +28,8 @@ class MentorService
             ->selectRaw('COALESCE(SUM(input_tokens + output_tokens),0) as tokens, COALESCE(SUM(reserved_tokens),0) as reserved, COALESCE(SUM(estimated_usd),0) as estimated_usd, COALESCE(SUM(CASE WHEN estimated_usd IS NULL THEN 1 ELSE 0 END),0) as unpriced_requests')->first();
 
         return ['enabled' => (bool) ($preferences->enabled ?? false), 'memory' => $preferences->memory ?? '',
+            'auth_mode' => $preferences->auth_mode ?? 'api', 'chatgpt_model' => $preferences->chatgpt_model ?? null,
+            'chatgpt_available' => app(ChatGptBridge::class)->available(),
             'monthly_token_limit' => $preferences->monthly_token_limit ?? 1000000,
             'usage' => $usage, 'budget_month' => now('UTC')->format('Y-m'), 'price_date' => '2026-09-18',
             'active_connection_id' => $this->connections->active($user)?->id];
@@ -40,7 +43,7 @@ class MentorService
 
             return $this->present($existing);
         }
-        $connection = $this->connections->active($user);
+        $connection = $this->selectedConnection($user);
         if (! $connection || $connection->status !== 'ready') {
             throw AiAssistantException::activeRequired();
         }
@@ -85,7 +88,7 @@ class MentorService
         if (! $user) {
             return;
         }
-        $connection = $this->connections->active($user);
+        $connection = $this->selectedConnection($user);
         $usage = array_intersect_key((array) $turn, array_flip(['input_tokens', 'cached_tokens', 'cache_write_tokens', 'output_tokens', 'reasoning_tokens']));
         $sources = json_decode($turn->sources ?? '[]', true);
         $attempted = false;
@@ -104,7 +107,8 @@ class MentorService
                 'recent_conversation' => $history, 'question' => $turn->question, 'tool_results' => []];
             $round = (int) $turn->round;
             if ($round < self::MAX_CALLS) {
-                if (! $this->settings($user)['enabled'] || $this->connections->active($user)?->id !== $connection->id) {
+                if (! $this->settings($user)['enabled'] || $this->selectedConnection($user)?->provider !== $connection->provider
+                    || $this->selectedConnection($user)?->id !== $connection->id) {
                     throw AiAssistantException::consentRequired();
                 }
                 $attempted = true;
@@ -124,7 +128,7 @@ class MentorService
                         'status' => 'completed', 'answer' => $final['answer'], 'actions' => json_encode($actions),
                         'sources' => json_encode($sources), 'reserved_tokens' => 0,
                         'context' => null,
-                        'estimated_usd' => $this->gateway->estimatedCost($connection->model, $usage), 'updated_at' => now(),
+                        'estimated_usd' => $connection->provider === 'chatgpt' ? 0 : $this->gateway->estimatedCost($connection->model, $usage), 'updated_at' => now(),
                     ]);
 
                     return;
@@ -155,7 +159,7 @@ class MentorService
                 'status' => 'failed', 'error_code' => $error instanceof AiAssistantException ? $error->errorCode : 'mentor_request_failed',
                 'context' => null,
                 'reserved_tokens' => $uncertain ? max(0, self::RESERVATION - $usage['input_tokens'] - $usage['output_tokens']) : 0,
-                'estimated_usd' => $uncertain ? null : $this->gateway->estimatedCost($turn->model, $usage), 'updated_at' => now(),
+                'estimated_usd' => $turn->provider === 'chatgpt' ? 0 : ($uncertain ? null : $this->gateway->estimatedCost($turn->model, $usage)), 'updated_at' => now(),
             ]);
             throw $error instanceof AiAssistantException ? $error : new AiAssistantException('mentor_request_failed', 422);
         }
@@ -203,5 +207,21 @@ class MentorService
     private function revision(User $user): int
     {
         return (int) DB::table('workspace_revisions')->where('user_id', $user->id)->value('revision');
+    }
+
+    private function selectedConnection(User $user): ?LlmConnection
+    {
+        $preferences = DB::table('mentor_preferences')->where('user_id', $user->id)->first();
+        if (($preferences->auth_mode ?? 'api') !== 'chatgpt') {
+            return $this->connections->active($user);
+        }
+        if (! $preferences->chatgpt_model || ! app(ChatGptBridge::class)->available()) {
+            return null;
+        }
+
+        // Transient descriptor only: OAuth credentials never enter the application DB or jobs.
+        return new LlmConnection(['user_id' => $user->id, 'provider' => 'chatgpt',
+            'model' => $preferences->chatgpt_model, 'status' => 'ready',
+            'parameters' => ['max_output_tokens' => MentorGateway::OUTPUT_LIMIT]]);
     }
 }

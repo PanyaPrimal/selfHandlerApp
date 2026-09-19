@@ -8,6 +8,8 @@ import { acceptResponse, cachedRead, commandHeaders, commands, configureWorkspac
 import { needsStorageIdentity, pendingStorageRead, stageStorageProjection } from '../offline/storage-local'
 import { refreshQueue, type LocalCommand } from '../offline/workspace'
 import { localPlannerPath, pendingPlannerRead } from '../offline/planner-local'
+import { needsTimeBlockIdentity, stageTimeBlockProjection } from '../offline/time-block-local'
+import { timeBlockTarget } from '../offline/planner-projection'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api'
 const csrfUrl = import.meta.env.VITE_CSRF_URL ?? '/sanctum/csrf-cookie'
@@ -281,7 +283,7 @@ async function executeRequest<T>(
 }
 
 async function localStorageSuccess<T>(command: LocalCommand): Promise<T> {
-  const local = await stageStorageProjection(command)
+  const local = await (timeBlockTarget(command.path) ? stageTimeBlockProjection(command) : stageStorageProjection(command))
   if (workspaceState.owner !== command.owner) throw new ApiError(translate('offline.accountChanged'), 409, { code: 'sync_account_changed' })
   if (!local.handled) throw new ApiError(translate('offline.savedPending'), 202)
   if (local.errors) {
@@ -325,7 +327,7 @@ export async function request<T>(path: string, init: RequestInit = {}, behavior:
     const hadPending = (await commands()).length > 0
     const command = await prepareCommand(owner, path, init, behavior.operationId)
     const first = (await commands())[0]
-    if (!navigator.onLine || needsStorageIdentity(command) || (hadPending && (first?.id !== command.id || command.base === null)) || command.status !== 'pending') {
+    if (!navigator.onLine || needsStorageIdentity(command) || needsTimeBlockIdentity(command) || (hadPending && (first?.id !== command.id || command.base === null)) || command.status !== 'pending') {
       void synchronizeWorkspace()
       return localStorageSuccess<T>(command)
     }

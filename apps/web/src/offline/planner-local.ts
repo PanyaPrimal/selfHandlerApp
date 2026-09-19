@@ -2,7 +2,8 @@ import type { PlannerDayResponse, StorageItemsResponse, StorageProject } from '.
 import { mutateLocalEntries, type LocalEntry } from './database'
 import type { CachedRead, LocalCommand } from './workspace'
 import { applyStorageMutation, storageState, storageTarget, type StorageState } from './storage-projection'
-import { reflectStorageInPlanner } from './planner-projection'
+import { reflectStorageInPlanner, timeBlockTarget } from './planner-projection'
+import { projectPendingTimeBlocks } from './time-block-local'
 
 const prefix = (owner: number) => `account:${owner}:`
 export const localPlannerPath = (path: string) => /^\/planner\/day(?:\?date=\d{4}-\d{2}-\d{2})?$/.test(path)
@@ -36,15 +37,18 @@ export function projectPlannerStorage(day: PlannerDayResponse, state: StorageSta
 
 export async function pendingPlannerRead(owner: number, path: string): Promise<{ handled: boolean; value?: unknown }> {
   if (!localPlannerPath(path)) return { handled: false }
-  return mutateLocalEntries<{ handled: boolean; value?: unknown }>([`${prefix(owner)}read:`, `${prefix(owner)}command:`], entries => {
+  return mutateLocalEntries<{ handled: boolean; value?: unknown }>([`${prefix(owner)}read:`, `${prefix(owner)}command:`, `${prefix(owner)}entity:time-block:`], entries => {
     const queued = entries.filter(entry => entry.key.startsWith(`${prefix(owner)}command:`)).map(entry => entry.value as LocalCommand)
-      .filter(command => storageTarget(command.path)).sort((a, b) => a.created - b.created || a.id.localeCompare(b.id))
+      .filter(command => storageTarget(command.path) || timeBlockTarget(command.path)).sort((a, b) => a.created - b.created || a.id.localeCompare(b.id))
     if (!queued.some(command => command.localProjected) || queued.some(command => command.status !== 'pending')) return { result: { handled: false } }
     const entry = entries.find(row => row.key === `${prefix(owner)}read:${path}`)
     const day = entry && daySnapshot(entry)
     const state = storageSnapshot(owner, entries)
-    if (!day || !state) return { result: { handled: false } }
-    return { result: { handled: true, value: projectPlannerStorage(day, state, queued.filter(command => command.localProjected)) } }
+    if (!day) return { result: { handled: false } }
+    const storageCommands = queued.filter(command => command.localProjected && storageTarget(command.path))
+    if (storageCommands.length && !state) return { result: { handled: false } }
+    const projected = state ? projectPlannerStorage(day, state, storageCommands) : day
+    return { result: { handled: true, value: projectPendingTimeBlocks(owner, entries, projected) } }
   })
 }
 

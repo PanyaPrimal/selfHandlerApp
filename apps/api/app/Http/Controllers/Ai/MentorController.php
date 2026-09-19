@@ -6,6 +6,7 @@ use App\Exceptions\AiAssistantException;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\Ai\LlmConnectionService;
+use App\Services\Mentor\ChatGptBridge;
 use App\Services\Mentor\MentorService;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\JsonResponse;
@@ -25,8 +26,15 @@ class MentorController extends Controller
     public function preferences(Request $request): JsonResponse
     {
         $data = $request->validate(['enabled' => ['required', 'boolean'], 'memory' => ['present', 'nullable', 'string', 'max:3000'],
+            'auth_mode' => ['sometimes', 'required', 'in:api,chatgpt'],
+            'chatgpt_model' => ['sometimes', 'nullable', 'string', 'max:160', 'regex:/^[A-Za-z0-9][A-Za-z0-9._:\/-]*$/'],
             'monthly_token_limit' => ['required', 'integer', 'min:250000', 'max:10000000']]);
         abort_if(array_diff(array_keys($request->all()), array_keys($data)) !== [], 422);
+        if (($data['auth_mode'] ?? $this->mentor->settings($request->user())['auth_mode']) === 'chatgpt' && $data['enabled']) {
+            $model = array_key_exists('chatgpt_model', $data) ? $data['chatgpt_model'] : $this->mentor->settings($request->user())['chatgpt_model'];
+            $models = app(ChatGptBridge::class)->request($request->user()->id, 'models');
+            abort_unless(in_array($model, array_column($models['models'] ?? [], 'id'), true), 422, 'Choose an available ChatGPT model.');
+        }
         DB::transaction(function () use ($request, $data): void {
             User::query()->whereKey($request->user()->id)->lockForUpdate()->firstOrFail();
             DB::table('mentor_preferences')->updateOrInsert(['user_id' => $request->user()->id], [
@@ -65,6 +73,9 @@ class MentorController extends Controller
         $request->validate(['operation_id' => ['required', 'uuid'],
             'audio' => ['required', 'file', 'max:2048', 'mimetypes:audio/webm,video/webm,audio/mp4,video/mp4,audio/ogg,audio/wav,audio/x-wav,audio/mpeg']]);
         $user = $request->user();
+        if ($this->mentor->settings($user)['auth_mode'] === 'chatgpt') {
+            throw new AiAssistantException('chatgpt_device_dictation_required', 409);
+        }
         if (! $this->mentor->settings($user)['enabled']) {
             throw AiAssistantException::consentRequired();
         }

@@ -83,12 +83,16 @@ jobs:
         working-directory: apps/web
         run: npm ci
       - name: Reject high-severity frontend advisories
-        run: npm --prefix apps/web audit --audit-level=high
+        run: |
+          npm --prefix apps/web audit --audit-level=high
+          npm --prefix apps/chatgpt-bridge audit --audit-level=high
       - name: Check translations and frontend behavior
         working-directory: apps/web
         run: |
           npm run check:i18n
           npm run test:unit
+      - name: Check ChatGPT bridge isolation and protocol
+        run: node --test apps/chatgpt-bridge/*.test.mjs
       - name: Check the Android shell contracts
         run: |
           npm --prefix apps/mobile ci

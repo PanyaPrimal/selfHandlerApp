@@ -2,6 +2,9 @@ import { jsonRequest, multipartRequest, request } from '../api/http'
 
 export interface MentorSettings {
   enabled: boolean
+  auth_mode: 'api' | 'chatgpt'
+  chatgpt_model: string | null
+  chatgpt_available: boolean
   memory: string
   monthly_token_limit: number
   active_connection_id: number | null
@@ -24,7 +27,7 @@ export interface MentorTurn {
   actions: Array<{ kind: string; label: string; payload: Record<string, unknown>; status: 'pending' | 'applied' }>
 }
 export async function mentorSettings(): Promise<MentorSettings> { return (await request<{ data: MentorSettings }>('/mentor/settings')).data }
-export async function saveMentorSettings(input: Pick<MentorSettings, 'enabled' | 'memory' | 'monthly_token_limit'>): Promise<MentorSettings> {
+export async function saveMentorSettings(input: Pick<MentorSettings, 'enabled' | 'memory' | 'monthly_token_limit'> & Partial<Pick<MentorSettings, 'auth_mode' | 'chatgpt_model'>>): Promise<MentorSettings> {
   return (await jsonRequest<{ data: MentorSettings }>('/mentor/settings', 'PUT', input)).data
 }
 export async function mentorHistory(): Promise<MentorTurn[]> { return (await request<{ data: MentorTurn[] }>('/mentor/turns')).data }

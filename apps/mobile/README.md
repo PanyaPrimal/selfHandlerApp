@@ -53,6 +53,11 @@ future updates, which Android requires to have the same signing identity.
 
 Run `npx cap ls android` from this directory to inspect synchronized plugins. The custom
 `MobileCredentialVault` is registered by `MainActivity`, so it is not an npm plugin entry.
+`Dictation` is also registered there and invokes Android's installed speech recognition
+activity for ChatGPT subscription mode. It returns an editable transcript, never an
+OpenAI API request. Devices without a recognition activity show a keyboard-dictation
+fallback hint; offline recognition depends on installed language support. Verify this
+on the physical phone in addition to the build and browser tests.
 
 ## Compile and sideload
 

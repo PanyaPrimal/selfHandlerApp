@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Ai\ChatGptController;
 use App\Http\Controllers\Ai\InboxTriageController;
 use App\Http\Controllers\Ai\LlmConnectionController;
 use App\Http\Controllers\Ai\LlmConsentController;
@@ -98,6 +99,10 @@ Route::middleware(['auth:sanctum', WorkspaceSync::class])->group(function () {
             'revision' => (int) DB::table('workspace_revisions')->where('user_id', $request->user()->id)->value('revision')]);
     });
     Route::get('/mentor/settings', [MentorController::class, 'settings']);
+    Route::get('/mentor/chatgpt', [ChatGptController::class, 'status'])->middleware('throttle:30,1');
+    Route::get('/mentor/chatgpt/models', [ChatGptController::class, 'models'])->middleware('throttle:12,1');
+    Route::post('/mentor/chatgpt/login', [ChatGptController::class, 'login'])->middleware('throttle:6,1');
+    Route::post('/mentor/chatgpt/logout', [ChatGptController::class, 'logout'])->middleware('throttle:6,1');
     Route::put('/mentor/settings', [MentorController::class, 'preferences']);
     Route::get('/mentor/turns', [MentorController::class, 'history']);
     Route::post('/mentor/turns', [MentorController::class, 'ask'])->middleware('throttle:12,1');

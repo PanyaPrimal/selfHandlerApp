@@ -1,6 +1,11 @@
 <?php
 
 return [
+    'chatgpt_unavailable' => 'ChatGPT is temporarily unavailable. Your message remains in the draft. Check the connection in AI settings.',
+    'chatgpt_login_required' => 'Reconnect your ChatGPT account in AI settings.',
+    'chatgpt_busy' => 'The ChatGPT connection is busy. Please try again shortly.',
+    'chatgpt_limit_reached' => 'Your ChatGPT subscription limit is reached. Wait for it to reset; no paid API fallback was used.',
+    'chatgpt_device_dictation_required' => 'Use device dictation for a ChatGPT subscription. Paid API transcription is disabled in this mode.',
     'sync_account_changed' => 'Account changed. Reopen the original account before synchronizing.',
     'sync_conflict' => 'Server data changed. Review this change before applying it.',
     'mentor_in_progress' => 'This request is already being processed.',

@@ -1,0 +1,7 @@
+{
+  "name": "selfhandler-chatgpt-bridge",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test *.test.mjs", "start": "node server.mjs" },
+  "dependencies": { "@openai/codex": "0.155.1" }
+}

@@ -1128,13 +1128,13 @@ export function skipPlannerOccurrence(occurrenceId: number): Promise<unknown> {
   return jsonRequest<unknown>(`/planner/occurrences/${occurrenceId}/skip`, 'PUT', {})
 }
 
-export async function createTimeBlock(payload: TimeBlockPayload): Promise<TimeBlock> {
-  const response = await jsonRequest<ItemResponse<TimeBlock>>('/planner/time-blocks', 'POST', payload)
+export async function createTimeBlock(payload: TimeBlockPayload, operationId?: string): Promise<TimeBlock> {
+  const response = await jsonRequest<ItemResponse<TimeBlock>>('/planner/time-blocks', 'POST', payload, { operationId })
   return response.data
 }
 
-export async function updateTimeBlock(blockId: number, payload: TimeBlockPayload): Promise<TimeBlock> {
-  const response = await jsonRequest<ItemResponse<TimeBlock>>(`/planner/time-blocks/${blockId}`, 'PATCH', payload)
+export async function updateTimeBlock(blockId: number, payload: TimeBlockPayload, operationId?: string): Promise<TimeBlock> {
+  const response = await jsonRequest<ItemResponse<TimeBlock>>(`/planner/time-blocks/${blockId}`, 'PATCH', payload, { operationId })
   return response.data
 }
 

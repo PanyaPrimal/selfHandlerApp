@@ -6,8 +6,8 @@ hosts, Compose projects, ports, volume names, or release refs.
 
 ## Fixed production identity
 
-The application container runs PHP-FPM, Laravel's scheduler, and one database
-queue worker under Supervisor as UID 82. All three must be running for its
+The application container runs PHP-FPM, Laravel's scheduler, one database
+queue worker, and the ChatGPT bridge under Supervisor as UID 82. All four must be running for its
 health check to pass. The scheduler materializes recurrence, queues notification
 processing every minute, and synchronizes calendars every fifteen minutes; the
 worker consumes the queued notification jobs. HTTP health alone does not prove
@@ -23,8 +23,21 @@ override the default command and do not start background workers.
 The qualified Compose health command also supports rollback to the preceding
 FPM-only image. It selects the original FPM configuration/socket check only when
 the image has no supervisor configuration. A supervised image always uses the
-full three-process check; a failed or missing probe cannot fall back to FPM-only
+image-owned process check; a failed or missing probe cannot fall back to FPM-only
 health.
+
+The ChatGPT bridge listens only on container loopback port 8091. Its transport
+credential is derived from APP_KEY with a separate HMAC purpose; credentials are
+never sent to the browser. Each application account has an opaque private
+directory under `storage/app/private/chatgpt` and signs in independently through
+the official device flow. This directory is included in the existing encrypted
+operational backup, but excluded from user data exports. Do not copy an operator's
+Codex authentication into it. Codex is pinned in `apps/chatgpt-bridge/package-lock.json`.
+The bridge has at most two active account processes, denies model tool execution,
+and uses ephemeral threads; records and confirmed writes go through Laravel's
+existing ownership and domain checks. ChatGPT requests consume subscription limits;
+API transcription is disabled for this connection mode. Device/browser dictation
+depends on the user's installed speech service.
 
 Inspect status with `docker exec selfhandler-app-1 supervisorctl -c
 /etc/selfhandler/supervisord.conf status`. A stopped/fatal scheduler or worker is

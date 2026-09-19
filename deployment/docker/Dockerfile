@@ -38,9 +38,19 @@ RUN composer dump-autoload \
     && rm -f bootstrap/cache/*.php \
     && rm -rf node_modules tests
 
+FROM node:22-alpine3.24@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS chatgpt-build
+
+WORKDIR /opt/chatgpt
+COPY apps/chatgpt-bridge/package.json apps/chatgpt-bridge/package-lock.json ./
+RUN npm ci --ignore-scripts --omit=dev
+COPY apps/chatgpt-bridge/*.mjs apps/chatgpt-bridge/*.cjs ./
+RUN node --test *.test.mjs
+
 FROM php-base AS app-runtime
 
-RUN apk add --no-cache supervisor
+RUN apk add --no-cache supervisor libstdc++
+COPY --from=chatgpt-build /usr/local/bin/node /usr/local/bin/node
+COPY --from=chatgpt-build /opt/chatgpt/ /opt/chatgpt/
 
 ARG SOURCE_REVISION=0000000000000000000000000000000000000000
 LABEL org.opencontainers.image.source="https://github.com/PanyaPrimal/selfHandlerApp" \

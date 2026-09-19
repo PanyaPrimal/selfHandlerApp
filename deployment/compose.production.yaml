@@ -83,6 +83,7 @@ services:
       SESSION_HTTP_ONLY: "true"
       SESSION_SAME_SITE: lax
       QUEUE_CONNECTION: database
+      CHATGPT_BRIDGE_URL: http://127.0.0.1:8091
       SANCTUM_STATEFUL_DOMAINS: selfhandler.drpanya.uk
       FILESYSTEM_DISK: local
       GOOGLE_CALENDAR_CLIENT_ID: ${GOOGLE_CALENDAR_CLIENT_ID:-}
@@ -118,7 +119,7 @@ services:
       retries: 6
       start_period: 15s
     cpus: 0.75
-    mem_limit: 512m
+    mem_limit: 768m
     pids_limit: 128
     stop_grace_period: 90s
     labels:
