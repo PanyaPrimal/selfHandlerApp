@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import re
+import tempfile
 import unittest
 from pathlib import Path
 
 import yaml
+
+from powershell_test_support import WINDOWS_POWERSHELL_51_AVAILABLE, run_powershell
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -112,6 +115,29 @@ class DeploymentOrchestrationContractTests(unittest.TestCase):
 
 
 class PrivateWorkflowOrderingTests(unittest.TestCase):
+    @unittest.skipUnless(WINDOWS_POWERSHELL_51_AVAILABLE, "Windows PowerShell 5.1 is unavailable")
+    def test_operations_pointer_replaces_existing_file_under_windows_powershell(self) -> None:
+        workflow = yaml.safe_load(PRIVATE_DEPLOY.read_text(encoding="utf-8"))
+        step = next(step for step in workflow["jobs"]["deploy"]["steps"]
+                    if step["name"] == "Activate the original checksum-qualified operations identity for finalization")
+        replace = next(line.strip() for line in step["run"].splitlines()
+                       if "[IO.File]::Replace(" in line)
+        with tempfile.TemporaryDirectory() as temporary:
+            pointer = Path(temporary) / "active-operations.json"
+            candidate = Path(temporary) / "candidate.tmp"
+            pointer.write_text('old identity', encoding="utf-8")
+            candidate.write_text('verified new identity', encoding="utf-8")
+            command = (
+                "$ErrorActionPreference='Stop'; "
+                f"$pointerPath='{str(pointer).replace(chr(39), chr(39) * 2)}'; "
+                f"$pointerTemporary='{str(candidate).replace(chr(39), chr(39) * 2)}'; "
+                + replace
+            )
+            result = run_powershell(command, capture_output=True, text=True, timeout=15)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(pointer.read_text(encoding="utf-8"), 'verified new identity')
+            self.assertFalse(candidate.exists())
+
     def test_homelab_job_consumes_same_run_or_exact_protected_resume_artifact(self) -> None:
         source = PRIVATE_DEPLOY.read_text(encoding="utf-8")
         workflow = yaml.safe_load(source)

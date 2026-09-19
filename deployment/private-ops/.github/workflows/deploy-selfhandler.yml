@@ -1565,7 +1565,7 @@ jobs:
           & icacls.exe $pointerTemporary /inheritance:r /grant:r "*$runnerSid`:(F)" '*S-1-5-32-544:(F)' '*S-1-5-18:(F)' | Out-Null
           if ($LASTEXITCODE -ne 0) { throw 'Active operations pointer ACL creation failed.' }
           if (Test-Path -LiteralPath $pointerPath -PathType Leaf) {
-              [IO.File]::Replace($pointerTemporary, $pointerPath, $null)
+              [IO.File]::Replace($pointerTemporary, $pointerPath, [System.Management.Automation.Language.NullString]::Value)
           }
           else {
               [IO.File]::Move($pointerTemporary, $pointerPath)
