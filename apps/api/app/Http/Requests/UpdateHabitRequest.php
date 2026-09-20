@@ -74,7 +74,7 @@ class UpdateHabitRequest extends StrictHabitRequest
 
         if ($habit->logs()->exists()) {
             foreach (['target_value', 'unit'] as $field) {
-                if ($this->exists($field)) {
+                if ($this->changesTargetField($habit, $field)) {
                     $validator->errors()->add($field, __('messages.habit_target_locked'));
                 }
             }
@@ -99,10 +99,28 @@ class UpdateHabitRequest extends StrictHabitRequest
 
         if ($habit->mode !== Habit::MODE_NUMERIC) {
             foreach (['target_value', 'unit'] as $field) {
-                if ($this->exists($field)) {
+                if ($this->changesTargetField($habit, $field)) {
                     $validator->errors()->add($field, __('messages.habit_target_prohibited'));
                 }
             }
         }
+    }
+
+    private function changesTargetField(Habit $habit, string $field): bool
+    {
+        if (! $this->exists($field)) {
+            return false;
+        }
+
+        // Older clients and saved drafts submit the entire form, including
+        // unchanged targets. Only an actual change can rewrite habit history.
+        $value = $this->input($field);
+        $current = $habit->getAttribute($field);
+
+        if ($field === 'target_value' && is_numeric($value) && is_numeric($current)) {
+            return (float) $value !== (float) $current;
+        }
+
+        return $value !== $current;
     }
 }

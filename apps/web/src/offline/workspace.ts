@@ -201,6 +201,20 @@ export async function retryReviewedCommand(id: string) {
   await localWrite(commandKey(command), { ...command, base: current.revision, status: 'pending', message: null })
   await synchronizeWorkspace()
 }
+export async function retryRejectedCommand(id: string): Promise<void> {
+  const owner = workspaceState.owner
+  if (owner === null) return
+  await withWorkspaceWriteLock(owner, async () => {
+    if (workspaceState.owner !== owner) return
+    const command = (await commands()).find(row => row.id === id)
+    if (!command || command.status !== 'rejected') return
+    // Keep the original revision and operation ID: retry must neither bypass
+    // conflict detection nor duplicate an operation whose response was lost.
+    await localWrite(commandKey(command), { ...command, status: 'pending', message: null })
+    await refreshQueue()
+  })
+  await synchronizeWorkspace()
+}
 export async function synchronizeWorkspace(): Promise<void> {
   if (synchronizing) return synchronizing
   if (!rawSender || workspaceState.owner === null || !navigator.onLine) return

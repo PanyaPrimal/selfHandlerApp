@@ -320,11 +320,18 @@ function showSuccess(message: MessageKey): void {
 }
 
 function basePayload(): HabitUpdatePayload {
+  const original = habits.value.find((habit) => habit.id === editingId.value)
+  const targetFields: Pick<HabitUpdatePayload, 'target_value' | 'unit'> = {}
+  if (form.mode === 'numeric') {
+    if (!original || form.target_value !== original.target_value) targetFields.target_value = form.target_value
+    if (!original || (form.unit || null) !== original.unit) targetFields.unit = form.unit || null
+  } else if (form.mode === 'stepped_limit' && (!original || (form.unit || null) !== original.unit)) {
+    targetFields.unit = form.unit || null
+  }
   return {
     name: form.name,
     description: form.description || null,
-    target_value: form.mode === 'numeric' ? form.target_value : null,
-    unit: ['numeric', 'stepped_limit'].includes(form.mode) ? form.unit || null : null,
+    ...targetFields,
     schedule_type: form.schedule_type,
     ...(form.schedule_type === 'weekdays' ? { weekdays: form.weekdays } : {}),
     preferred_time: form.preferred_time,

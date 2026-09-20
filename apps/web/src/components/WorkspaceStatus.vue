@@ -1,19 +1,37 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useI18n } from '../i18n'
-import { commands, discardCommand, retryReviewedCommand, synchronizeWorkspace, workspaceState, type LocalCommand } from '../offline/workspace'
+import { commands, discardCommand, retryRejectedCommand, retryReviewedCommand, synchronizeWorkspace, workspaceState, type LocalCommand } from '../offline/workspace'
 const { t } = useI18n()
 const rows = ref<LocalCommand[]>([])
 const expanded = ref(false)
 const busy = ref(false)
 const removing = ref<string | null>(null)
+const root = ref<HTMLElement | null>(null)
+const trigger = ref<HTMLButtonElement | null>(null)
+const panel = ref<HTMLElement | null>(null)
+const panelId = useId()
+const visible = computed(() => !workspaceState.online || workspaceState.pending > 0 || !!workspaceState.issue)
+const needsAttention = computed(() => !!workspaceState.issue || rows.value.some(row => row.status !== 'pending'))
+watch(visible, (value) => { if (!value) expanded.value = false })
 async function refresh() { rows.value = await commands() }
 function changed() { void refresh().catch(() => undefined) }
-async function retry(id: string) {
+async function retry(row: LocalCommand) {
   busy.value = true
-  try { await retryReviewedCommand(id) } catch (e) { workspaceState.issue = e instanceof Error ? e.message : t('offline.syncFailed') }
+  try {
+    if (row.status === 'rejected') await retryRejectedCommand(row.id)
+    else await retryReviewedCommand(row.id)
+  } catch (e) { workspaceState.issue = e instanceof Error ? e.message : t('offline.syncFailed') }
   finally { busy.value = false; await refresh() }
+}
+async function togglePanel() {
+  expanded.value = !expanded.value
+  if (expanded.value) { await nextTick(); panel.value?.focus() }
+}
+function closePanel() { expanded.value = false; trigger.value?.focus() }
+function outsidePointer(event: PointerEvent) {
+  if (expanded.value && event.target instanceof Node && !root.value?.contains(event.target)) expanded.value = false
 }
 async function remove(id: string) {
   if (removing.value !== id) { removing.value = id; return }
@@ -32,17 +50,25 @@ async function exportDrafts() {
 }
 onMounted(() => { changed(); window.addEventListener('workspace-queue-changed', changed) })
 onBeforeUnmount(() => window.removeEventListener('workspace-queue-changed', changed))
+onMounted(() => document.addEventListener('pointerdown', outsidePointer))
+onBeforeUnmount(() => document.removeEventListener('pointerdown', outsidePointer))
 </script>
 <template>
-  <section v-if="!workspaceState.online || workspaceState.pending || workspaceState.issue" class="workspace-status notice" aria-live="polite">
-    <strong>{{ t(workspaceState.online ? 'offline.pendingTitle' : 'offline.offlineTitle', { count: workspaceState.pending }) }}</strong>
+  <aside v-if="visible" ref="root" class="workspace-status" :aria-label="t('offline.review')" @keydown.esc.stop.prevent="closePanel">
+    <button ref="trigger" type="button" class="workspace-trigger" :class="{ 'needs-attention': needsAttention }"
+      :aria-label="t('offline.review')" :aria-expanded="expanded" :aria-controls="panelId" @click="togglePanel">
+      <span aria-hidden="true">{{ needsAttention ? '!' : '↻' }}</span>
+      <span aria-live="polite">{{ t(workspaceState.online ? 'offline.pendingTitle' : 'offline.offlineTitle', { count: workspaceState.pending }) }}</span>
+      <span aria-hidden="true">{{ expanded ? '⌄' : '⌃' }}</span>
+    </button>
+    <section v-if="expanded" :id="panelId" ref="panel" class="workspace-panel" role="region" :aria-label="t('offline.review')" tabindex="-1">
+    <div class="workspace-heading"><strong>{{ t('offline.review') }}</strong><button type="button" class="ghost" :aria-label="t('offline.close')" @click="closePanel">×</button></div>
     <p v-if="!workspaceState.online">{{ t('offline.explanation') }}</p>
     <p v-if="workspaceState.issue" role="status">{{ workspaceState.issue }}</p>
     <div class="button-row">
       <button type="button" class="secondary" :disabled="workspaceState.syncing || busy" @click="synchronizeWorkspace">{{ t(workspaceState.syncing ? 'offline.syncing' : 'offline.sync') }}</button>
-      <button v-if="workspaceState.pending" type="button" class="ghost" :aria-expanded="expanded" @click="expanded = !expanded">{{ t('offline.review') }}</button>
     </div>
-    <div v-if="expanded">
+    <div v-if="workspaceState.pending">
       <p>{{ t('offline.reviewHelp') }}</p>
       <button class="ghost" type="button" @click="exportDrafts">{{ t('offline.export') }}</button>
       <article v-for="row in rows" :key="row.id" class="workspace-command">
@@ -52,16 +78,25 @@ onBeforeUnmount(() => window.removeEventListener('workspace-queue-changed', chan
         <details><summary>{{ t('offline.details') }}</summary><dl><div v-for="(value, field) in details(row)" :key="field"><dt>{{ field }}</dt><dd>{{ value }}</dd></div></dl></details>
         <div class="button-row">
           <RouterLink :to="route(row)">{{ t('offline.openModule') }}</RouterLink>
-          <button v-if="row.status === 'conflict'" type="button" :disabled="busy || !workspaceState.online" @click="retry(row.id)">{{ t('offline.applyReviewed') }}</button>
+          <button v-if="row.status !== 'pending'" type="button" :disabled="busy || workspaceState.syncing || !workspaceState.online" @click="retry(row)">{{ t(row.status === 'rejected' ? 'offline.retry' : 'offline.applyReviewed') }}</button>
           <button type="button" class="ghost" :disabled="busy || workspaceState.syncing" @click="remove(row.id)">{{ t(removing === row.id ? 'offline.confirmDiscard' : 'offline.discard') }}</button>
         </div>
       </article>
     </div>
-  </section>
+    </section>
+  </aside>
 </template>
 <style scoped>
-.workspace-status { margin-bottom:1rem; overflow-wrap:anywhere; }
-.workspace-command { border-top:1px solid currentColor; padding-block:1rem; margin-top:1rem; }
+.workspace-status { position:fixed; z-index:30; right:1rem; bottom:calc(1rem + var(--app-safe-bottom, 0px)); width:max-content; max-width:calc(100vw - 2rem); overflow-wrap:anywhere; }
+.workspace-trigger { display:flex; align-items:center; gap:.65rem; max-width:100%; padding:.65rem .9rem; border-radius:999px; background:var(--surface); color:var(--ink); border:1px solid var(--border-strong); box-shadow:var(--shadow); font-size:.85rem; }
+.workspace-trigger.needs-attention { border-color:var(--error); }
+.workspace-trigger > span:first-child { flex-shrink:0; font-weight:700; color:var(--accent); }
+.workspace-trigger.needs-attention > span:first-child { color:var(--error); }
+.workspace-panel { position:absolute; right:0; bottom:calc(100% + .65rem); width:min(26rem, calc(100vw - 2rem)); max-height:min(32rem, calc(100dvh - 8rem - var(--app-safe-bottom, 0px))); overflow:auto; overscroll-behavior:contain; padding:1rem; border:1px solid var(--border); border-radius:1rem; background:var(--surface); color:var(--ink); box-shadow:var(--shadow); }
+.workspace-heading { display:flex; align-items:center; justify-content:space-between; gap:.5rem; }
+.workspace-heading button { min-width:44px; font-size:1.4rem; }
+.workspace-command { border-top:1px solid var(--border); padding-block:1rem; margin-top:1rem; }
 .workspace-command dd { margin-inline-start:.5rem; white-space:pre-wrap; }
 .workspace-status button { min-height:44px; white-space:normal; }
+@media (max-width:900px) { .workspace-status { right:.75rem; bottom:calc(92px + var(--app-safe-bottom, 0px)); max-width:calc(100vw - 1.5rem); } .workspace-panel { width:min(26rem, calc(100vw - 1.5rem)); max-height:calc(100dvh - 12rem - var(--app-safe-bottom, 0px)); } }
 </style>

@@ -1,3 +1,4 @@
+import { openPendingChanges } from './support/workspace'
 import { expect, test } from '@playwright/test'
 import { loginViaUi, logoutViaUi, registerViaUi, uniqueCredentials, xsrfHeader } from './support/auth'
 import { expectNoHorizontalOverflow } from './interface/support'
@@ -29,6 +30,7 @@ test('offline capture survives reload and synchronizes once after reconnect', as
   await expect(page.getByText('Offline · pending changes: 2', { exact: true })).toBeVisible()
   await expect(page.getByRole('listitem', { name: 'Offline milk', exact: true })).toHaveCount(2)
   await page.unroute(/^https?:\/\/[^/]+\/api\//)
+  await openPendingChanges(page)
   await page.getByRole('button', { name: 'Synchronize', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Pending changes', exact: true })).toHaveCount(0, { timeout: 15_000 })
   await page.reload()
@@ -114,6 +116,7 @@ test('a lost acknowledgement is retried without duplicate capture', async ({ pag
   expect(operation).toBeTruthy()
   await page.unroute('**/api/storage/items')
   const replay = page.waitForResponse(response => response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/storage/items')
+  await openPendingChanges(page)
   await page.getByRole('button', { name: 'Synchronize', exact: true }).click()
   expect((await replay).headers()['x-workspace-replayed']).toBe('true')
   await page.reload()
@@ -137,8 +140,9 @@ test('a second device edit preserves both the server record and the conflicting 
   const remote = await page.request.patch(`/api/storage/items/${id}`, { headers, data: { title: 'Newer server task' } })
   expect(remote.ok()).toBeTruthy()
   await page.unroute(`**/api/storage/items/${id}`)
+  await openPendingChanges(page)
   await page.getByRole('button', { name: 'Synchronize', exact: true }).click()
-  await page.getByRole('button', { name: 'Pending changes', exact: true }).click()
+  await openPendingChanges(page)
   await expect(page.getByText('Needs review: server data changed', { exact: true })).toBeVisible()
   const records = await (await page.request.get('/api/storage/items', { headers })).json()
   expect(records.data.find((row: { id: number }) => row.id === id).title).toBe('Newer server task')
@@ -189,7 +193,7 @@ test('retrying an unacknowledged command without a saved revision requires revie
     const { jsonRequest } = await import(/* @vite-ignore */ httpPath)
     try { await jsonRequest('/storage/items', 'POST', { title: 'No saved revision' }) } catch { /* requires review */ }
   })
-  await page.getByRole('button', { name: 'Pending changes', exact: true }).click()
+  await openPendingChanges(page)
   await expect(page.getByText('Needs review: server data changed', { exact: true })).toBeVisible()
   expect(writes).toBe(0)
 })

@@ -1,3 +1,4 @@
+import { openPendingChanges } from './support/workspace'
 import { expect, test } from '@playwright/test'
 import { registerViaUi, uniqueCredentials, xsrfHeader } from './support/auth'
 import { expectNoHorizontalOverflow, pickDate, setTime } from './interface/support'
@@ -39,6 +40,7 @@ test('a lost block acknowledgement and two intentional identical captures keep s
   await expect(page.getByRole('listitem', { name: 'Changed lost receipt', exact: true })).toHaveCount(1)
   await page.unroute(api)
   await page.unroute('**/api/planner/time-blocks')
+  await openPendingChanges(page)
   await page.getByRole('button', { name: 'Synchronize', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Pending changes', exact: true })).toHaveCount(0, { timeout: 15_000 })
   const rows = (await (await page.request.get('/api/planner/day', { headers: await xsrfHeader(page) })).json()).entries.filter((entry: { source: string }) => entry.source === 'time_block')
@@ -88,6 +90,7 @@ test('offline time blocks can be created, edited and moved before reconnecting',
   await expect(edit.getByLabel('Note', { exact: true })).toHaveValue('Take the documents')
   await edit.getByLabel('Note', { exact: true }).fill('Draft while synchronizing')
   await page.unroute(api)
+  await openPendingChanges(page)
   await page.getByRole('button', { name: 'Synchronize', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Pending changes', exact: true })).toHaveCount(0, { timeout: 15_000 })
   await expect(edit.getByLabel('Note', { exact: true })).toHaveValue('Draft while synchronizing')
@@ -129,6 +132,7 @@ test('temporary block IDs stay separate from Storage, and a dependent delete sur
   await expect(page.getByRole('listitem', { name: 'Keep offline task', exact: true })).toBeVisible()
   await expect(page.getByRole('listitem', { name: 'Delete offline block', exact: true })).toHaveCount(0)
   await page.unroute(api)
+  await openPendingChanges(page)
   await page.getByRole('button', { name: 'Synchronize', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Pending changes', exact: true })).toHaveCount(0, { timeout: 15_000 })
   const result = (await (await page.request.get(`/api/planner/day?date=${date}`, { headers: await xsrfHeader(page) })).json()).entries

@@ -1,3 +1,4 @@
+import { openPendingChanges } from './support/workspace'
 import { expect, test } from '@playwright/test'
 import { registerViaUi, uniqueCredentials } from './support/auth'
 import { expectNoHorizontalOverflow, pickDate } from './interface/support'
@@ -45,6 +46,7 @@ test('offline task moves and completion update downloaded calendar days through 
   await page.getByRole('button', { name: 'Next day', exact: true }).click()
   await expect(row).toHaveCount(0)
   await page.unroute(api)
+  await openPendingChanges(page)
   await page.getByRole('button', { name: 'Synchronize', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Pending changes', exact: true })).toHaveCount(0, { timeout: 15_000 })
   await page.route(api, route => route.abort('internetdisconnected'))
