@@ -76,7 +76,7 @@ test('rejected legacy habit draft retries without losing the following change an
   await expectNoHorizontalOverflow(page)
 })
 
-test('retrying a rejected draft still protects a newer server edit', async ({ page }, info) => {
+test('explicit retry applies a valid habit draft despite an unrelated revision change', async ({ page }, info) => {
   await registerViaUi(page, uniqueCredentials(info, 'HabitConflict'), { redirectTo: '/habits' })
   const id = await createHabit(page, 'Original habit')
   await page.evaluate(async habitId => {
@@ -89,7 +89,7 @@ test('retrying a rejected draft still protects a newer server edit', async ({ pa
   expect(remote.status()).toBe(200)
   await page.getByRole('button', { name: 'Pending changes', exact: true }).click()
   await page.getByRole('button', { name: 'Try again', exact: true }).click()
-  await expect(page.getByText('Needs review: server data changed', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Pending changes', exact: true })).toHaveCount(0, { timeout: 15_000 })
   const records = await (await page.request.get('/api/habits', { headers: await xsrfHeader(page) })).json()
-  expect(records.data.find((row: { id: number }) => row.id === id).name).toBe('Newer server name')
+  expect(records.data.find((row: { id: number }) => row.id === id).name).toBe('Older offline name')
 })

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import {
   archiveRoutine,
   createRoutine,
@@ -328,6 +328,9 @@ async function activitiesSaved(): Promise<void> {
 }
 
 onMounted(loadRoutines)
+const refreshAfterSave = () => { void loadRoutines() }
+onMounted(() => window.addEventListener('workspace-synchronized', refreshAfterSave))
+onBeforeUnmount(() => window.removeEventListener('workspace-synchronized', refreshAfterSave))
 </script>
 
 <template>

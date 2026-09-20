@@ -22,6 +22,7 @@ export const workspaceState = reactive({ owner: null as number | null, online: n
 let rawSender: Sender | null = null
 let generation = 0
 let synchronizing: Promise<void> | null = null
+let retryTimer: ReturnType<typeof setTimeout> | null = null
 let writing: Promise<unknown> = Promise.resolve()
 export function withWorkspaceWriteLock<T>(owner: number, action: () => Promise<T>): Promise<T> {
   if (navigator.locks) return navigator.locks.request(`selfhandler-sync-${owner}`, action)
@@ -39,6 +40,8 @@ export async function rememberWorkspaceUser(user: User): Promise<void> {
   await localWrite('last-account', user)
 }
 export function activateWorkspace(owner: number | null) {
+  if (retryTimer !== null) clearTimeout(retryTimer)
+  retryTimer = null
   if (workspaceState.owner !== owner) generation++
   workspaceState.owner = owner; workspaceState.pending = 0; workspaceState.issue = ''
   if (owner !== null) void refreshQueue().catch(storageFailure)
@@ -58,6 +61,9 @@ export async function refreshQueue() {
   const rows = await commands()
   if (current !== generation) return
   workspaceState.pending = rows.length; signalChanged()
+  if (retryTimer !== null) clearTimeout(retryTimer)
+  retryTimer = rows.some(row => row.status !== 'rejected') && navigator.onLine
+    ? setTimeout(() => { retryTimer = null; void synchronizeWorkspace() }, 10_000) : null
 }
 export async function cacheRead(owner: number, path: string, data: unknown, revision: number) {
   if (!workspacePath(path)) return
@@ -176,7 +182,7 @@ export async function acknowledgeCommand(command: LocalCommand, revision: number
 export async function rejectCommand(command: LocalCommand, error: unknown) {
   const problem = error as { status?: number; message?: string }
   if (problem.status === 0 || problem.status === undefined || problem.status === 401 || problem.status === 419 || problem.status >= 500 || problem.status === 429) return
-  await localWrite(commandKey(command), { ...command, status: problem.status === 409 ? 'conflict' : 'rejected', message: problem.message ?? translate('offline.rejected') })
+  await localWrite(commandKey(command), { ...command, status: 'rejected', message: problem.message ?? translate('offline.rejected') })
   await refreshQueue()
 }
 export async function discardCommand(id: string) {
@@ -208,8 +214,7 @@ export async function retryRejectedCommand(id: string): Promise<void> {
     if (workspaceState.owner !== owner) return
     const command = (await commands()).find(row => row.id === id)
     if (!command || command.status !== 'rejected') return
-    // Keep the original revision and operation ID: retry must neither bypass
-    // conflict detection nor duplicate an operation whose response was lost.
+    // Keep the operation ID so a lost response cannot duplicate the write.
     await localWrite(commandKey(command), { ...command, status: 'pending', message: null })
     await refreshQueue()
   })
@@ -226,26 +231,36 @@ export async function synchronizeWorkspace(): Promise<void> {
       const identity = await rawSender!<{ user_id: number }>('/workspace/revision', { headers: { 'X-Workspace-Account': String(owner) } })
       if (identity.user_id !== owner || current !== generation) return
       workspaceState.online = true
+      const attempted = new Set<string>()
+      let saved = false
       for (;;) {
-        const row = (await commands())[0]
-        if (!row || row.status !== 'pending' || current !== generation) break
+        // Read again after each acknowledgement: it may resolve temporary IDs.
+        // Legacy revision conflicts are retried automatically with the same UUID.
+        const row = (await commands()).find(command => command.status !== 'rejected' && !attempted.has(command.id))
+        if (!row || current !== generation) break
+        attempted.add(row.id)
         if (needsStorageIdentity(row) || needsTimeBlockIdentity(row)) {
-          await localWrite(commandKey(row), { ...row, status: 'conflict', message: translate('offline.dependencies') }); break
-        }
-        if (row.base === null) {
-          const receipt = await rawSender!<{ acknowledged: boolean }>(`/workspace/operations/${row.id}`, { headers: { 'X-Workspace-Account': String(owner) } })
-          if (!receipt.acknowledged) {
-            await localWrite(commandKey(row), { ...row, status: 'conflict', message: translate('offline.noBaseline') }); break
-          }
+          continue // Wait for the parent receipt; unrelated writes can still proceed.
         }
         try {
-          await rawSender!(row.path, { method: row.method, body: row.body, headers: commandHeaders(row, true) })
+          // Replay user writes in order using normal domain validation. A global
+          // revision change in another screen is not a reason to stop saving.
+          await rawSender!(row.path, { method: row.method, body: row.body, headers: commandHeaders(row, false) })
           // HTTP response handling acknowledges using the revision header.
           if ((await commands()).some(command => command.id === row.id)) break
-        } catch (e) { await rejectCommand(row, e); throw e }
+          saved = true
+        } catch (e) {
+          await rejectCommand(row, e)
+          const status = (e as { status?: number }).status
+          if (status === undefined || status === 0 || status === 401 || status === 419 || status === 429 || status >= 500) throw e
+          // Invalid input stays available for correction but never blocks other writes.
+        }
       }
+      if (saved && current === generation) window.dispatchEvent(new Event('workspace-synchronized'))
       if (current === generation) { workspaceState.lastSync = Date.now(); workspaceState.issue = '' }
     } catch (e) {
+      const status = (e as { status?: number }).status
+      if (current === generation && (status === 0 || status === 429 || (status !== undefined && status >= 500))) workspaceState.online = false
       if (current === generation) workspaceState.issue = e instanceof Error ? e.message : translate('offline.syncFailed')
     } finally { workspaceState.syncing = false; await refreshQueue() }
   }

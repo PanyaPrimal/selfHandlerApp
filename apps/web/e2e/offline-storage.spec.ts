@@ -1,4 +1,3 @@
-import { openPendingChanges } from './support/workspace'
 import { expect, test } from '@playwright/test'
 import { registerViaUi, uniqueCredentials, xsrfHeader } from './support/auth'
 import { expectNoHorizontalOverflow } from './interface/support'
@@ -68,8 +67,6 @@ test('a lost parent acknowledgement preserves dependent offline edits across rel
   await expect(page.getByRole('listitem', { name: 'Dependent child', exact: true })).toBeVisible()
   await page.unroute(api)
   await page.unroute('**/api/storage/items')
-  await openPendingChanges(page)
-  await page.getByRole('button', { name: 'Synchronize', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Pending changes', exact: true })).toHaveCount(0, { timeout: 15_000 })
   const rows = (await (await page.request.get('/api/storage/items', { headers: await xsrfHeader(page) })).json()).data
   expect(rows).toHaveLength(2)
@@ -162,8 +159,6 @@ test('offline projects, parent tasks and blockers survive reload and keep relati
   expect(local.filter((row: { method: string }) => row.method === 'POST')).toHaveLength(3)
   expect(local.every((row: { localProjected: boolean }) => row.localProjected)).toBe(true)
   await page.unroute(api)
-  await openPendingChanges(page)
-  await page.getByRole('button', { name: 'Synchronize', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Pending changes', exact: true })).toHaveCount(0, { timeout: 15_000 })
   const headers = await xsrfHeader(page)
   const items = (await (await page.request.get('/api/storage/items', { headers })).json()).data

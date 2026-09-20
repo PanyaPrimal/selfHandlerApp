@@ -311,7 +311,7 @@ export async function request<T>(path: string, init: RequestInit = {}, behavior:
       if (workspaceState.owner !== owner) throw new ApiError(translate('offline.accountChanged'), 409)
       return updated.handled ? updated.value as T : response
     } catch (error) {
-      if (!(error instanceof ApiError) || error.status !== 0 || workspaceState.owner !== owner) throw error
+      if (!(error instanceof ApiError) || !(error.status === 0 || error.status === 429 || error.status >= 500) || workspaceState.owner !== owner) throw error
       // The user may have saved a local change while the failed GET was in flight.
       const updated = await (localPlannerPath(path) ? pendingPlannerRead(owner, path) : pendingStorageRead(owner, path))
       if (workspaceState.owner !== owner) throw new ApiError(translate('offline.accountChanged'), 409)
@@ -322,17 +322,30 @@ export async function request<T>(path: string, init: RequestInit = {}, behavior:
     }
   }
   if (init.body && typeof init.body !== 'string') return executeRequest<T>(path, init, behavior, false)
+  // Send earlier intent before a new online edit, so reconnecting cannot later
+  // overwrite that edit with an older queued payload. Preserve a retry's UUID
+  // even if draining the queue acknowledges it before this request takes its lock.
+  const queued = await commands()
+  const retryId = queued.find(row => behavior.operationId ? row.id === behavior.operationId
+    : row.path === path && row.method === method && row.body === (init.body ?? null))?.id
+  if (navigator.onLine && queued.some(row => row.status !== 'rejected')) await synchronizeWorkspace()
   return withWorkspaceWriteLock(owner, async () => {
     if (workspaceState.owner !== owner) throw new ApiError(translate('offline.accountChanged'), 409, { code: 'sync_account_changed' })
-    const hadPending = (await commands()).length > 0
-    const command = await prepareCommand(owner, path, init, behavior.operationId)
+    const previousCommands = await commands()
+    const hadPending = previousCommands.length > 0
+    const command = await prepareCommand(owner, path, init, behavior.operationId ?? retryId)
     const first = (await commands())[0]
-    if (!navigator.onLine || needsStorageIdentity(command) || needsTimeBlockIdentity(command) || (hadPending && (first?.id !== command.id || command.base === null)) || command.status !== 'pending') {
+    // Projected Storage/Planner forms may contain earlier local edits and temporary
+    // IDs, so their writes must keep queue order. Other online forms submit the
+    // user's current input directly; an old draft must not block the whole app.
+    // Background replay handles earlier local edits in their original order.
+    const ordered = /^\/(storage|planner)(\/|\?|$)/.test(path)
+    if (!navigator.onLine || needsStorageIdentity(command) || needsTimeBlockIdentity(command) || (ordered && ((hadPending && (first?.id !== command.id || command.base === null)) || command.status !== 'pending'))) {
       void synchronizeWorkspace()
       return localStorageSuccess<T>(command)
     }
     const headers = new Headers(init.headers)
-    Object.entries(commandHeaders(command, hadPending)).forEach(([key, value]) => headers.set(key, value))
+    Object.entries(commandHeaders(command, false)).forEach(([key, value]) => headers.set(key, value))
     try { return await executeRequest<T>(command.path, { ...init, body: command.body, headers }, behavior, false) }
     catch (error) {
       const code = error instanceof ApiError && typeof error.payload === 'object' && error.payload !== null
@@ -340,9 +353,12 @@ export async function request<T>(path: string, init: RequestInit = {}, behavior:
       const syncConflict = typeof code === 'string' && code.startsWith('sync_')
       // A rejected online action stays in its form, not at the head of the offline queue.
       // Sync conflicts retain the durable command so the user can resolve it explicitly.
-      if (error instanceof ApiError && ([400, 403, 404, 422].includes(error.status) || (error.status === 409 && !syncConflict))) await discardCommand(command.id)
+      if (!previousCommands.some(row => row.id === command.id) && error instanceof ApiError && ([400, 403, 404, 422].includes(error.status) || (error.status === 409 && !syncConflict))) await discardCommand(command.id)
       else await rejectCommand(command, error)
-      if (error instanceof ApiError && error.status === 0) return localStorageSuccess<T>(command)
+      if (error instanceof ApiError && (error.status === 0 || error.status === 429 || error.status >= 500)) {
+        workspaceState.online = false
+        return localStorageSuccess<T>(command)
+      }
       throw error
     }
   })

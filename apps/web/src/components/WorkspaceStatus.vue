@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useI18n } from '../i18n'
-import { commands, discardCommand, retryRejectedCommand, retryReviewedCommand, synchronizeWorkspace, workspaceState, type LocalCommand } from '../offline/workspace'
+import { commands, discardCommand, retryRejectedCommand, workspaceState, type LocalCommand } from '../offline/workspace'
 const { t } = useI18n()
 const rows = ref<LocalCommand[]>([])
 const expanded = ref(false)
@@ -12,16 +12,16 @@ const root = ref<HTMLElement | null>(null)
 const trigger = ref<HTMLButtonElement | null>(null)
 const panel = ref<HTMLElement | null>(null)
 const panelId = useId()
-const visible = computed(() => !workspaceState.online || workspaceState.pending > 0 || !!workspaceState.issue)
-const needsAttention = computed(() => !!workspaceState.issue || rows.value.some(row => row.status !== 'pending'))
+const visible = computed(() => !workspaceState.online || workspaceState.pending > 0)
+const rejectedCount = computed(() => rows.value.filter(row => row.status === 'rejected').length)
+const needsAttention = computed(() => rejectedCount.value > 0)
 watch(visible, (value) => { if (!value) expanded.value = false })
 async function refresh() { rows.value = await commands() }
 function changed() { void refresh().catch(() => undefined) }
 async function retry(row: LocalCommand) {
   busy.value = true
   try {
-    if (row.status === 'rejected') await retryRejectedCommand(row.id)
-    else await retryReviewedCommand(row.id)
+    await retryRejectedCommand(row.id)
   } catch (e) { workspaceState.issue = e instanceof Error ? e.message : t('offline.syncFailed') }
   finally { busy.value = false; await refresh() }
 }
@@ -41,7 +41,7 @@ async function remove(id: string) {
 function details(row: LocalCommand) { try { return JSON.parse(row.body ?? '{}') as Record<string, unknown> } catch { return {} } }
 function route(row: LocalCommand): string {
   const module = row.path.split('/')[1]
-  return ({ 'time-blocks': '/planner', 'today': '/', 'reviews': '/review', 'sleep': '/' } as Record<string, string>)[module ?? ''] ?? `/${module}`
+  return ({ 'time-blocks': '/planner', 'today': '/', 'reviews': '/review', 'sleep': '/routines' } as Record<string, string>)[module ?? ''] ?? `/${module}`
 }
 async function exportDrafts() {
   const blob = new Blob([JSON.stringify(await commands(), null, 2)], { type: 'application/json' })
@@ -58,27 +58,22 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', outsidePointer
     <button ref="trigger" type="button" class="workspace-trigger" :class="{ 'needs-attention': needsAttention }"
       :aria-label="t('offline.review')" :aria-expanded="expanded" :aria-controls="panelId" @click="togglePanel">
       <span aria-hidden="true">{{ needsAttention ? '!' : '↻' }}</span>
-      <span aria-live="polite">{{ t(workspaceState.online ? 'offline.pendingTitle' : 'offline.offlineTitle', { count: workspaceState.pending }) }}</span>
+      <span aria-live="polite">{{ t(needsAttention ? 'offline.invalidTitle' : workspaceState.online ? 'offline.pendingTitle' : 'offline.offlineTitle', { count: needsAttention ? rejectedCount : workspaceState.pending }) }}</span>
       <span aria-hidden="true">{{ expanded ? '⌄' : '⌃' }}</span>
     </button>
     <section v-if="expanded" :id="panelId" ref="panel" class="workspace-panel" role="region" :aria-label="t('offline.review')" tabindex="-1">
     <div class="workspace-heading"><strong>{{ t('offline.review') }}</strong><button type="button" class="ghost" :aria-label="t('offline.close')" @click="closePanel">×</button></div>
     <p v-if="!workspaceState.online">{{ t('offline.explanation') }}</p>
-    <p v-if="workspaceState.issue" role="status">{{ workspaceState.issue }}</p>
-    <div class="button-row">
-      <button type="button" class="secondary" :disabled="workspaceState.syncing || busy" @click="synchronizeWorkspace">{{ t(workspaceState.syncing ? 'offline.syncing' : 'offline.sync') }}</button>
-    </div>
     <div v-if="workspaceState.pending">
-      <p>{{ t('offline.reviewHelp') }}</p>
       <button class="ghost" type="button" @click="exportDrafts">{{ t('offline.export') }}</button>
       <article v-for="row in rows" :key="row.id" class="workspace-command">
         <strong>{{ row.title || t('offline.change') }}</strong>
-        <p>{{ t(row.status === 'pending' ? 'offline.queued' : row.status === 'conflict' ? 'offline.conflict' : 'offline.rejected') }}</p>
-        <p v-if="row.message">{{ row.message }}</p>
+        <p>{{ t(row.status === 'rejected' ? 'offline.rejected' : 'offline.queued') }}</p>
+        <p v-if="row.status === 'rejected' && row.message">{{ row.message }}</p>
         <details><summary>{{ t('offline.details') }}</summary><dl><div v-for="(value, field) in details(row)" :key="field"><dt>{{ field }}</dt><dd>{{ value }}</dd></div></dl></details>
         <div class="button-row">
           <RouterLink :to="route(row)">{{ t('offline.openModule') }}</RouterLink>
-          <button v-if="row.status !== 'pending'" type="button" :disabled="busy || workspaceState.syncing || !workspaceState.online" @click="retry(row)">{{ t(row.status === 'rejected' ? 'offline.retry' : 'offline.applyReviewed') }}</button>
+          <button v-if="row.status === 'rejected'" type="button" :disabled="busy || workspaceState.syncing || !workspaceState.online" @click="retry(row)">{{ t('offline.retry') }}</button>
           <button type="button" class="ghost" :disabled="busy || workspaceState.syncing" @click="remove(row.id)">{{ t(removing === row.id ? 'offline.confirmDiscard' : 'offline.discard') }}</button>
         </div>
       </article>

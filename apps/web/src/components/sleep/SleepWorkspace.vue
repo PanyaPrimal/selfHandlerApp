@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { ApiError } from '../../api/http'
 import { useRoute } from 'vue-router'
 import {
   clearSleepLog,
@@ -158,6 +159,13 @@ async function selectDate(value: string | null): Promise<void> {
   if (value) await load(value, true)
 }
 
+function resetPlanForm(): void {
+  Object.assign(createForm, {
+    name: '', planned_bed_time: '23:00', planned_wake_time: '07:00', schedule_type: 'daily',
+    weekdays: [], starts_on: null, ends_on: null, is_active: true,
+  })
+}
+
 async function submitPlan(): Promise<void> {
   submitting.value = true
   error.value = null
@@ -168,14 +176,16 @@ async function submitPlan(): Promise<void> {
       ...createForm,
       weekdays: createForm.schedule_type === 'weekdays' ? createForm.weekdays : undefined,
     })
-    Object.assign(createForm, {
-      name: '', planned_bed_time: '23:00', planned_wake_time: '07:00', schedule_type: 'daily',
-      weekdays: [], starts_on: null, ends_on: null, is_active: true,
-    })
+    resetPlanForm()
     state.value = 'active'
     successKey.value = 'sleep.created'
     await load(date.value)
   } catch (currentError) {
+    if (currentError instanceof ApiError && currentError.status === 202) {
+      resetPlanForm()
+      successKey.value = 'offline.savedPending'
+      return
+    }
     fieldErrors.value = validationErrors(currentError)
     error.value = currentError instanceof Error ? currentError.message : i18n.t('sleep.saveFailed')
   } finally {
@@ -244,6 +254,12 @@ async function lifecycle(plan: SleepPlan, mode: 'pause' | 'resume' | 'archive' |
   }
 }
 
+const refreshAfterSave = () => {
+  if (successKey.value === 'offline.savedPending') successKey.value = null
+  void load()
+}
+onMounted(() => window.addEventListener('workspace-synchronized', refreshAfterSave))
+onBeforeUnmount(() => window.removeEventListener('workspace-synchronized', refreshAfterSave))
 void load()
 </script>
 

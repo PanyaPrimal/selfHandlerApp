@@ -1,4 +1,3 @@
-import { openPendingChanges } from './support/workspace'
 import { expect, test } from '@playwright/test'
 import { loginViaUi, logoutViaUi, registerViaUi, uniqueCredentials, xsrfHeader } from './support/auth'
 import { expectNoHorizontalOverflow } from './interface/support'
@@ -30,8 +29,6 @@ test('offline capture survives reload and synchronizes once after reconnect', as
   await expect(page.getByText('Offline · pending changes: 2', { exact: true })).toBeVisible()
   await expect(page.getByRole('listitem', { name: 'Offline milk', exact: true })).toHaveCount(2)
   await page.unroute(/^https?:\/\/[^/]+\/api\//)
-  await openPendingChanges(page)
-  await page.getByRole('button', { name: 'Synchronize', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Pending changes', exact: true })).toHaveCount(0, { timeout: 15_000 })
   await page.reload()
   await expect(page.getByRole('listitem', { name: 'Offline milk', exact: true })).toHaveCount(2)
@@ -112,18 +109,16 @@ test('a lost acknowledgement is retried without duplicate capture', async ({ pag
   await form.getByLabel('What is on your mind?').fill('Acknowledgement lost')
   await form.getByRole('button', { name: 'Capture', exact: true }).click()
   await expect(page.getByText(/^Saved on this device, awaiting synchronization/)).toBeVisible()
-  await expect(page.getByText('Pending changes: 1', { exact: true })).toBeVisible()
+  await expect(page.getByText(/^(Offline · p|P)ending changes: 1$/)).toBeVisible()
   expect(operation).toBeTruthy()
   await page.unroute('**/api/storage/items')
   const replay = page.waitForResponse(response => response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/storage/items')
-  await openPendingChanges(page)
-  await page.getByRole('button', { name: 'Synchronize', exact: true }).click()
   expect((await replay).headers()['x-workspace-replayed']).toBe('true')
   await page.reload()
   await expect(page.getByRole('listitem', { name: 'Acknowledgement lost', exact: true })).toHaveCount(1)
 })
 
-test('a second device edit preserves both the server record and the conflicting draft', async ({ page }, info) => {
+test('offline edits resume automatically after another device changes the workspace', async ({ page }, info) => {
   await registerViaUi(page, uniqueCredentials(info, 'SyncConflict'), { redirectTo: '/storage' })
   const headers = await xsrfHeader(page)
   const created = await page.request.post('/api/storage/items', { headers, data: { title: 'Original task' } })
@@ -140,12 +135,9 @@ test('a second device edit preserves both the server record and the conflicting 
   const remote = await page.request.patch(`/api/storage/items/${id}`, { headers, data: { title: 'Newer server task' } })
   expect(remote.ok()).toBeTruthy()
   await page.unroute(`**/api/storage/items/${id}`)
-  await openPendingChanges(page)
-  await page.getByRole('button', { name: 'Synchronize', exact: true }).click()
-  await openPendingChanges(page)
-  await expect(page.getByText('Needs review: server data changed', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Pending changes', exact: true })).toHaveCount(0, { timeout: 20_000 })
   const records = await (await page.request.get('/api/storage/items', { headers })).json()
-  expect(records.data.find((row: { id: number }) => row.id === id).title).toBe('Newer server task')
+  expect(records.data.find((row: { id: number }) => row.id === id).title).toBe('Offline task')
   await expect(page.getByText('Offline task', { exact: true }).first()).toBeVisible()
 })
 
@@ -167,7 +159,7 @@ test('an unavailable device store preserves the form and never claims a durable 
   await expect(page.getByText(/^Saved on this device/)).toHaveCount(0)
 })
 
-test('retrying an unacknowledged command without a saved revision requires review', async ({ page }, info) => {
+test('an unacknowledged command without a saved revision retries automatically', async ({ page }, info) => {
   await registerViaUi(page, uniqueCredentials(info, 'NoBaseline'), { redirectTo: '/storage' })
   // The form appears before its initial reads finish. Wait for those reads before
   // removing their snapshots, otherwise a late response restores the baseline.
@@ -188,12 +180,8 @@ test('retrying an unacknowledged command without a saved revision requires revie
   await page.unroute('**/api/storage/items')
   let writes = 0
   page.on('request', request => { if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/storage/items') writes++ })
-  await page.evaluate(async () => {
-    const httpPath = '/src/api/http.ts'
-    const { jsonRequest } = await import(/* @vite-ignore */ httpPath)
-    try { await jsonRequest('/storage/items', 'POST', { title: 'No saved revision' }) } catch { /* requires review */ }
-  })
-  await openPendingChanges(page)
-  await expect(page.getByText('Needs review: server data changed', { exact: true })).toBeVisible()
-  expect(writes).toBe(0)
+  await expect.poll(() => writes, { timeout: 20_000 }).toBe(1)
+  await expect(page.getByRole('button', { name: 'Pending changes', exact: true })).toHaveCount(0, { timeout: 20_000 })
+  await page.reload()
+  await expect(page.getByRole('listitem', { name: 'No saved revision', exact: true })).toHaveCount(1)
 })
