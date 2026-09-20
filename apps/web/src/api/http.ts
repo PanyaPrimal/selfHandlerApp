@@ -316,7 +316,13 @@ export async function request<T>(path: string, init: RequestInit = {}, behavior:
       const updated = await (localPlannerPath(path) ? pendingPlannerRead(owner, path) : pendingStorageRead(owner, path))
       if (workspaceState.owner !== owner) throw new ApiError(translate('offline.accountChanged'), 409)
       if (updated.handled) return updated.value as T
-      const cached = await cachedRead(owner, path)
+      let cached: unknown
+      try { cached = await cachedRead(owner, path) }
+      catch (cacheError) {
+        // A server error still needs its normal retry UI when this screen has
+        // never been cached. Only actual offline reads use the download hint.
+        throw error.status === 0 ? cacheError : error
+      }
       if (workspaceState.owner !== owner) throw new ApiError(translate('offline.accountChanged'), 409)
       return cached as T
     }
