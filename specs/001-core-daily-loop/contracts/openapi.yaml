@@ -934,7 +934,7 @@ components:
 
     TodayResponse:
       type: object
-      required: [date, summary, routines, goals, review, progress, routine_day, module_summaries]
+      required: [date, summary, routines, habits, goals, review, progress, routine_day, module_summaries]
       properties:
         date:
           type: string
@@ -946,6 +946,11 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/TodayRoutine'
+        habits:
+          type: array
+          description: Available habits and retained facts for this local date, with weekly goal progress. Daily and seven-day totals include routines and habits; unmarked flexible dates are not obligations.
+          items:
+            $ref: '../../013-habits-anti-habits/contracts/openapi.yaml#/components/schemas/Habit'
         goals:
           type: array
           items:

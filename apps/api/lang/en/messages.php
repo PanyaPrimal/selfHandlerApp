@@ -75,6 +75,8 @@ return [
     'habit_target_required' => 'A positive numeric target is required for a numeric habit.',
     'habit_unit_required' => 'A unit is required for this mode.',
     'habit_target_prohibited' => 'This mode does not use a numeric target.',
+    'habit_weekly_ordinary' => 'A flexible weekly target is available for ordinary habits.',
+    'habit_weekly_schedule' => 'Choose the flexible weekly schedule to set a weekly target.',
     'habit_unit_prohibited' => 'This mode does not use a unit.',
     'habit_field_required' => 'Provide at least one habit field to update.',
     'habit_identity_locked' => 'A habit type and mode cannot change after creation.',

@@ -35,10 +35,10 @@ class HabitOccurrenceSource implements SchedulableSource
         $habits = $this->habitsFor($occurrences);
 
         return $occurrences
-            ->map(function (PlannedOccurrence $occurrence) use ($habits): ?PlannerEntry {
+            ->map(function (PlannedOccurrence $occurrence) use ($habits, $date): ?PlannerEntry {
                 $habit = $habits->get($occurrence->recurringRule?->owner_id);
 
-                if (! $habit) {
+                if (! $habit || ($habit->weeklyTargetForDate($date) !== null && ! $occurrence->hasFact())) {
                     return null;
                 }
 
@@ -88,7 +88,7 @@ class HabitOccurrenceSource implements SchedulableSource
             ->whereIn('id', $ownerIds)
             ->where('is_active', true)
             ->where('is_archived', false)
-            ->get(['id', 'name', 'kind', 'mode'])
+            ->get(['id', 'name', 'kind', 'mode', 'weekly_target', 'weekly_target_history'])
             ->keyBy('id');
     }
 }

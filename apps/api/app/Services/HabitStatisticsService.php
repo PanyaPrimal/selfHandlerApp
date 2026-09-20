@@ -69,6 +69,9 @@ class HabitStatisticsService
      */
     private function fromOccurrences(Habit $habit, Collection $occurrences, string $from, string $to, string $today): array
     {
+        if ($habit->weekly_target !== null || ($habit->weekly_target_history ?? []) !== []) {
+            return app(HabitWeeklyGoalService::class)->statistics($habit, $occurrences, $from, $to, $today);
+        }
         $occurrences = $occurrences
             ->sortBy(fn (PlannedOccurrence $occurrence): string => $this->effectiveDate($occurrence).'|'.sprintf('%010d', $occurrence->id))
             ->values();

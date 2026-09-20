@@ -215,6 +215,7 @@ export interface CompletionSummary {
 
 export interface TodayResponse {
   date: string
+  habits?: Habit[]
   summary: CompletionSummary
   routines: TodayRoutine[]
   goals: TodayGoalSummary[]
@@ -1325,6 +1326,7 @@ export interface HabitStatistics {
   current_streak: number
   best_streak: number
   numeric_total: number | null
+  streak_unit?: 'days' | 'periods'
 }
 
 export interface HabitLimitStep {
@@ -1360,7 +1362,8 @@ export interface Habit {
   target_value: number | null
   unit: string | null
   schedule: {
-    schedule_type: 'daily' | 'weekdays'
+    schedule_type: 'daily' | 'weekdays' | 'weekly_target'
+    weekly_target?: number | null
     weekdays: Weekday[]
     preferred_time: string | null
     starts_on: string | null
@@ -1384,6 +1387,14 @@ export interface Habit {
     log: HabitLog | null
   }
   statistics: HabitStatistics
+  weekly_progress?: {
+    from: string
+    to: string
+    target: number
+    completed: number
+    remaining: number
+    achieved: boolean
+  } | null
   limit_status: HabitLimitStatus | null
 }
 
@@ -1392,7 +1403,8 @@ export interface HabitInput {
   description?: string | null
   target_value?: number | null
   unit?: string | null
-  schedule_type?: 'daily' | 'weekdays'
+  schedule_type?: 'daily' | 'weekdays' | 'weekly_target'
+  weekly_target?: number
   weekdays?: Weekday[]
   preferred_time?: string | null
   starts_on?: string | null
@@ -1409,7 +1421,7 @@ export interface HabitCreatePayload extends HabitInput {
   name: string
   kind: HabitKind
   mode: HabitMode
-  schedule_type: 'daily' | 'weekdays'
+  schedule_type: 'daily' | 'weekdays' | 'weekly_target'
   limit_steps?: HabitLimitStepInput[]
 }
 

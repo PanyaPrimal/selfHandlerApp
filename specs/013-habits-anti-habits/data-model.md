@@ -17,6 +17,8 @@ occurrence table. No current column/table/data is renamed, rewritten, or dropped
 | `mode` | varchar(32) | `yes_no`, `numeric`, `abstinence`, `stepped_limit` |
 | `target_value` | decimal(12,3) nullable | positive; numeric mode only |
 | `unit` | varchar(32) nullable | trimmed user content; numeric/stepped only as applicable |
+| `weekly_target` | unsigned tinyint nullable | 1–7 successful dates/week for ordinary habits; null for fixed schedules |
+| `weekly_target_history` | JSON nullable | server-managed local Monday → target or null; target changes apply to the current week |
 | `routine_id` | nullable fk routines, null on delete | authoritative outbound stacking link |
 | `goal_id` | nullable fk goals, null on delete | authoritative outbound alignment link |
 | `intention_place` | varchar(160) nullable | user content |
@@ -92,6 +94,12 @@ one rule. Habit responses expose the existing schedule vocabulary:
 
 - `daily` → rule frequency `daily`, no weekday rows;
 - `weekdays` → rule frequency `weekly`, one or more normalized weekday rows;
+- `weekly_target` → rule frequency `daily` as available check-in dates, plus the habit's weekly quota;
+  unmarked dates are excluded from daily counters, planner entries and reminders. The quota is
+  evaluated over Monday–Sunday in the profile timezone. Portable restore accepts older archives
+  lacking both weekly fields as null, and validates new target/history values before any write;
+  converting a fixed schedule releases current/future weekly date assignments, retaining each
+  completed fact and its occurrence ID at the actual completion date;
 - `starts_on`, `ends_on`, `preferred_time` map to rule bounds/slot time;
 - `timezone` always comes from Profile at creation and follows existing recurrence behavior.
 

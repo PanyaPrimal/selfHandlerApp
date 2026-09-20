@@ -31,6 +31,9 @@ class HabitAnalyticsSeriesService
                 continue;
             }
             $date = ($occurrence->rescheduled_to ?? $occurrence->occurrence_date)->format('Y-m-d');
+            if ($habit->weeklyTargetForDate($date) !== null && $occurrence->habitLog === null) {
+                continue;
+            }
             $days[$date] ??= ['successful' => 0, 'scheduled' => 0];
             $days[$date]['scheduled']++;
             $log = $occurrence->habitLog;

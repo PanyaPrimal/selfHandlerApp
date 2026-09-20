@@ -490,6 +490,7 @@ class NotificationSourceSynchronizer
             ->ownedBy($user)
             ->where('is_active', true)
             ->where('is_archived', false)
+            ->whereNull('weekly_target')
             ->get()
             ->keyBy('id');
     }

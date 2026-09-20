@@ -20,7 +20,8 @@ class UpdateHabitRequest extends StrictHabitRequest
             'description' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'target_value' => ['sometimes', 'nullable', 'numeric', 'decimal:0,3', 'gt:0', 'max:999999999.999'],
             'unit' => ['sometimes', 'nullable', 'string', 'max:32'],
-            'schedule_type' => ['sometimes', Rule::in(['daily', 'weekdays'])],
+            'schedule_type' => ['sometimes', Rule::in(['daily', 'weekdays', 'weekly_target'])],
+            'weekly_target' => ['sometimes', 'integer', 'between:1,7'],
             'weekdays' => ['sometimes', 'array', 'min:1'],
             'weekdays.*' => ['distinct', Rule::in(WeekdayCode::values())],
             'preferred_time' => ['sometimes', 'nullable', 'date_format:H:i'],
@@ -50,7 +51,7 @@ class UpdateHabitRequest extends StrictHabitRequest
         return [
             'name', 'description', 'target_value', 'unit', 'schedule_type', 'weekdays', 'preferred_time',
             'starts_on', 'ends_on', 'routine_id', 'goal_id', 'intention_place', 'two_minute_starter',
-            'is_active', 'is_archived',
+            'is_active', 'is_archived', 'weekly_target',
         ];
     }
 
@@ -80,7 +81,17 @@ class UpdateHabitRequest extends StrictHabitRequest
             }
         }
 
-        $effectiveSchedule = $this->input('schedule_type', $habit->recurringRule?->scheduleType());
+        $effectiveSchedule = $this->input('schedule_type', $habit->weekly_target !== null ? 'weekly_target' : $habit->recurringRule?->scheduleType());
+        if ($effectiveSchedule === 'weekly_target') {
+            if ($habit->kind !== Habit::KIND_HABIT) {
+                $validator->errors()->add('schedule_type', __('messages.habit_weekly_ordinary'));
+            }
+            if (! $this->exists('weekly_target') && $habit->weekly_target === null) {
+                $validator->errors()->add('weekly_target', __('validation.required', ['attribute' => 'weekly_target']));
+            }
+        } elseif ($this->exists('weekly_target')) {
+            $validator->errors()->add('weekly_target', __('messages.habit_weekly_schedule'));
+        }
         if ($this->exists('weekdays') && $effectiveSchedule !== 'weekdays') {
             $validator->errors()->add('weekdays', __('messages.weekdays_daily'));
         }

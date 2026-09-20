@@ -30,6 +30,10 @@ class HabitPeriodSummaryService
             if (! $habit || ($occurrence->habitLog === null && (! $habit->is_active || $habit->is_archived))) {
                 continue;
             }
+            $date = ($occurrence->rescheduled_to ?? $occurrence->occurrence_date)->format('Y-m-d');
+            if ($habit->weeklyTargetForDate($date) !== null && $occurrence->habitLog === null) {
+                continue;
+            }
             $scheduled++;
             $involved[$habit->id] = true;
             $log = $occurrence->habitLog;

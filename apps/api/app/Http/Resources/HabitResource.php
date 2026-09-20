@@ -21,7 +21,8 @@ class HabitResource extends JsonResource
             'target_value' => $this->target_value === null ? null : (float) $this->target_value,
             'unit' => $this->unit,
             'schedule' => [
-                'schedule_type' => $rule?->scheduleType() ?? 'daily',
+                'schedule_type' => $this->weekly_target !== null ? 'weekly_target' : ($rule?->scheduleType() ?? 'daily'),
+                'weekly_target' => $this->weekly_target,
                 'weekdays' => $rule?->weekdays ?? [],
                 'preferred_time' => $rule?->slot_time ? substr((string) $rule->slot_time, 0, 5) : null,
                 'starts_on' => $rule?->starts_on?->format('Y-m-d'),
@@ -38,6 +39,7 @@ class HabitResource extends JsonResource
             'archived_at' => $this->archived_at?->toISOString(),
             'limit_steps' => $this->getAttribute('limit_steps_projection') ?? [],
             'selected_day' => $this->getAttribute('selected_day_projection'),
+            'weekly_progress' => $this->getAttribute('weekly_progress_projection'),
             'statistics' => $this->getAttribute('statistics_projection'),
             'limit_status' => $this->getAttribute('limit_status_projection'),
         ];

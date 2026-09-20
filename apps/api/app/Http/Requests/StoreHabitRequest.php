@@ -22,7 +22,8 @@ class StoreHabitRequest extends StrictHabitRequest
             'mode' => ['required', Rule::in(Habit::MODES)],
             'target_value' => ['sometimes', 'nullable', 'numeric', 'decimal:0,3', 'gt:0', 'max:999999999.999'],
             'unit' => ['sometimes', 'nullable', 'string', 'max:32'],
-            'schedule_type' => ['required', Rule::in(['daily', 'weekdays'])],
+            'schedule_type' => ['required', Rule::in(['daily', 'weekdays', 'weekly_target'])],
+            'weekly_target' => ['required_if:schedule_type,weekly_target', 'prohibited_unless:schedule_type,weekly_target', 'integer', 'between:1,7'],
             'weekdays' => ['required_if:schedule_type,weekdays', 'prohibited_unless:schedule_type,weekdays', 'array', 'min:1'],
             'weekdays.*' => ['distinct', Rule::in(WeekdayCode::values())],
             'preferred_time' => ['sometimes', 'nullable', 'date_format:H:i'],
@@ -55,7 +56,7 @@ class StoreHabitRequest extends StrictHabitRequest
         return [
             'name', 'description', 'kind', 'mode', 'target_value', 'unit', 'schedule_type', 'weekdays',
             'preferred_time', 'starts_on', 'ends_on', 'routine_id', 'goal_id', 'intention_place',
-            'two_minute_starter', 'limit_steps',
+            'two_minute_starter', 'limit_steps', 'weekly_target',
         ];
     }
 
@@ -65,6 +66,10 @@ class StoreHabitRequest extends StrictHabitRequest
         $mode = $this->input('mode');
         $target = $this->input('target_value');
         $unit = $this->input('unit');
+
+        if ($this->input('schedule_type') === 'weekly_target' && $kind !== Habit::KIND_HABIT) {
+            $validator->errors()->add('schedule_type', __('messages.habit_weekly_ordinary'));
+        }
 
         $validPair = ($kind === Habit::KIND_HABIT && in_array($mode, [Habit::MODE_YES_NO, Habit::MODE_NUMERIC], true))
             || ($kind === Habit::KIND_ANTI_HABIT && in_array($mode, [Habit::MODE_ABSTINENCE, Habit::MODE_STEPPED_LIMIT], true));

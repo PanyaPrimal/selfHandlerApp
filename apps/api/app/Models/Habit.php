@@ -51,6 +51,11 @@ class Habit extends Model
             $habit->assertModeConfiguration();
             $habit->assertContextOwnership();
 
+            if ($habit->weekly_target !== null
+                && ($habit->kind !== self::KIND_HABIT || $habit->weekly_target < 1 || $habit->weekly_target > 7)) {
+                throw new RuntimeException('Weekly targets require an ordinary habit and one to seven days.');
+            }
+
             if (! $habit->exists) {
                 return;
             }
@@ -69,6 +74,8 @@ class Habit extends Model
     {
         return [
             'target_value' => 'decimal:3',
+            'weekly_target' => 'integer',
+            'weekly_target_history' => 'array',
             'is_active' => 'boolean',
             'is_archived' => 'boolean',
             'archived_at' => 'immutable_datetime',
@@ -99,6 +106,25 @@ class Habit extends Model
     {
         return $this->hasOne(RecurringRule::class, 'owner_id')
             ->where('owner_type', RecurringRule::OWNER_HABIT);
+    }
+
+    /** Weekly goals change from Monday, preserving the targets of earlier weeks. */
+    public function weeklyTargetForDate(string $date): ?int
+    {
+        $history = $this->weekly_target_history ?? [];
+        if ($history === []) {
+            return $this->weekly_target;
+        }
+        ksort($history);
+        $target = null;
+        foreach ($history as $startsOn => $value) {
+            if ($startsOn > $date) {
+                break;
+            }
+            $target = $value === null ? null : (int) $value;
+        }
+
+        return $target;
     }
 
     /** @param array<string, mixed> $attributes */

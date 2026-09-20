@@ -11,6 +11,7 @@ import {
 } from '../api/client'
 import AsyncState from '../components/AsyncState.vue'
 import ProgressSummary from '../components/ProgressSummary.vue'
+import TodayHabits from '../components/TodayHabits.vue'
 import { formatCalendarDate } from '../lib/format'
 import { useAuthSession } from '../auth/session'
 import { UiDatePicker, UiNumberInput, UiSelect, UiTextarea } from '../components/ui'
@@ -127,9 +128,10 @@ function recalculateSummary(): void {
     return
   }
 
-  const scheduled = data.value.routines.length
-  const done = data.value.routines.filter((routine) => routine.log?.status === 'done').length
-  const skipped = data.value.routines.filter((routine) => routine.log?.status === 'skipped').length
+  const habits = data.value.module_summaries.habits
+  const scheduled = data.value.routines.length + (habits?.scheduled ?? 0)
+  const done = data.value.routines.filter((routine) => routine.log?.status === 'done').length + (habits?.done ?? 0)
+  const skipped = data.value.routines.filter((routine) => routine.log?.status === 'skipped').length + (habits?.skipped ?? 0)
 
   data.value.summary = {
     scheduled,
@@ -365,6 +367,8 @@ onMounted(() => loadToday())
         </div>
       </section>
 
+      <p class="muted">{{ i18n.t('today.summaryScope') }}</p>
+      <TodayHabits :habits="data.habits ?? []" :date="selectedDate" />
       <ProgressSummary :progress="data.progress" />
 
       <section class="panel" :aria-label="i18n.t('today.workoutSummary')">

@@ -1,0 +1,76 @@
+import { expect, test, type Page } from '@playwright/test'
+import { registerViaUi, uniqueCredentials, xsrfHeader } from '../support/auth'
+import { chooseOption, expectNoHorizontalOverflow, gotoDestination } from '../interface/support'
+
+async function create(page: Page, name: string, flexible: boolean): Promise<void> {
+  await page.getByRole('button', { name: 'New habit', exact: true }).click()
+  const form = page.getByRole('form', { name: 'Create habit', exact: true })
+  await form.getByLabel('Name', { exact: true }).fill(name)
+  if (flexible) {
+    await chooseOption(form, 'Schedule', 'Times per week, any days')
+    await form.getByLabel('Times per week', { exact: true }).fill('3')
+  }
+  await form.getByRole('button', { name: 'Create habit', exact: true }).click()
+  await expect(page.getByRole('listitem', { name, exact: true })).toBeVisible()
+}
+
+test('a flexible habit appears in Today with its daily fact and weekly goal after reload', async ({ page }, info) => {
+  await registerViaUi(page, uniqueCredentials(info, 'WeeklyToday'), { redirectTo: '/habits' })
+  await create(page, 'River any days', true)
+  const habit = page.getByRole('listitem', { name: 'River any days', exact: true })
+  await expect(habit).toContainText('0 of 3 this week')
+  await habit.getByRole('button', { name: 'Mark River any days as done', exact: true }).click()
+  await expect(habit).toContainText('1 of 3 this week')
+  await gotoDestination(page, 'Today')
+  const todayHabit = page.getByRole('listitem', { name: 'River any days', exact: true })
+  await expect(todayHabit).toContainText('Done')
+  await expect(todayHabit).toContainText('1 of 3 this week')
+  await expect(page.getByRole('progressbar', { name: 'Daily completion', exact: true })).toHaveAttribute('aria-valuenow', '100')
+  await page.reload()
+  await expect(todayHabit).toContainText('1 of 3 this week')
+  if (info.project.name === 'mobile') await page.setViewportSize({ width: 320, height: 780 })
+  await expectNoHorizontalOverflow(page)
+  await todayHabit.evaluate((element) => element.scrollIntoView({ block: 'center', behavior: 'instant' }))
+  await page.screenshot({ path: info.outputPath('today-weekly-habit.png') })
+  await expect(page.getByRole('progressbar', { name: 'Seven-day completion', exact: true })).toHaveAttribute('aria-valuenow', '100')
+  await todayHabit.getByRole('link', { name: 'Edit', exact: true }).click()
+  await habit.getByRole('button', { name: 'Clear River any days result', exact: true }).click()
+  await expect(habit).toContainText('0 of 3 this week')
+  await gotoDestination(page, 'Today')
+  await expect(todayHabit).toContainText('Any day this week')
+  await expect(todayHabit).toContainText('0 of 3 this week')
+  const response = await page.request.get('/api/today', { headers: await xsrfHeader(page) })
+  expect((await response.json()).summary).toMatchObject({ scheduled: 0, done: 0, pending: 0 })
+})
+
+test('switching an already completed habit to a weekly goal preserves its fact and routine totals', async ({ page }, info) => {
+  await registerViaUi(page, uniqueCredentials(info, 'WeeklySwitch'), { redirectTo: '/habits' })
+  await create(page, 'Existing river habit', false)
+  const habit = page.getByRole('listitem', { name: 'Existing river habit', exact: true })
+  await habit.getByRole('button', { name: 'Mark Existing river habit as done', exact: true }).click()
+  await expect(habit).toContainText('1-day streak')
+  await habit.getByRole('button', { name: 'Edit', exact: true }).click()
+  const form = page.getByRole('form', { name: 'Edit habit', exact: true })
+  await chooseOption(form, 'Schedule', 'Times per week, any days')
+  await form.getByLabel('Times per week', { exact: true }).fill('3')
+  await form.getByRole('button', { name: 'Save changes', exact: true }).click()
+  await expect(habit).toContainText('1 of 3 this week')
+  const routine = await page.request.post('/api/routines', {
+    headers: await xsrfHeader(page), data: { name: 'Focus routine', schedule_type: 'daily' },
+  })
+  expect(routine.status()).toBe(201)
+  await gotoDestination(page, 'Today')
+  const progress = page.getByRole('progressbar', { name: 'Daily completion', exact: true })
+  await expect(progress).toHaveAttribute('aria-valuenow', '50')
+  await page.getByRole('button', { name: 'Mark Focus routine done', exact: true }).click()
+  await expect(progress).toHaveAttribute('aria-valuenow', '100')
+  await page.reload()
+  await expect(progress).toHaveAttribute('aria-valuenow', '100')
+  await expect(page.getByRole('listitem', { name: 'Existing river habit', exact: true })).toContainText('1 of 3 this week')
+  const preferences = page.getByTestId('global-preferences')
+  await preferences.getByRole('button', { name: 'RU', exact: true }).click()
+  await expect(page.getByRole('region', { name: 'Привычки на этот день', exact: true })).toContainText('1 из 3 за неделю')
+  await preferences.getByRole('button', { name: 'UK', exact: true }).click()
+  await expect(page.getByRole('region', { name: 'Звички на цей день', exact: true })).toContainText('1 із 3 за тиждень')
+  await expectNoHorizontalOverflow(page)
+})

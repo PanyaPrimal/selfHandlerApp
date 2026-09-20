@@ -2,8 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\HabitResource;
+use App\Models\Habit;
 use App\Models\Routine;
 use App\Models\RoutineLog;
+use App\Services\HabitPeriodSummaryService;
+use App\Services\HabitProjectionService;
 use App\Services\Review\ReviewWorkspaceService;
 use App\Services\RoutineDayProjectionService;
 use App\Services\RoutineProgressService;
@@ -19,6 +23,8 @@ class TodayController extends Controller
         private readonly RoutineProgressService $progressService,
         private readonly RoutineScheduleService $scheduleService,
         private readonly ReviewWorkspaceService $reviews,
+        private readonly HabitProjectionService $habitProjections,
+        private readonly HabitPeriodSummaryService $habitSummaries,
     ) {}
 
     public function __invoke(Request $request): JsonResponse
@@ -93,9 +99,28 @@ class TodayController extends Controller
 
         $progress = $this->progressService->calculate($user, $date);
         $reviewWorkspace = $this->reviews->daily($user, $dateValue, legacyReviewEnvelope: true);
+        $habits = Habit::query()->ownedBy($user)
+            ->where(function ($query) use ($dateValue): void {
+                $query->where(fn ($active) => $active->where('is_active', true)->where('is_archived', false))
+                    ->orWhereHas('logs', fn ($logs) => $logs->where('log_date', $dateValue));
+            })->orderBy('name')->orderBy('id')->get();
+        $this->habitProjections->decorate($habits, $user, $dateValue);
+        $habits = $habits->filter(fn (Habit $habit): bool => $habit->getAttribute('selected_day_projection')['is_scheduled']
+            || $habit->getAttribute('selected_day_projection')['log'] !== null)->values();
+        $habitSummary = $reviewWorkspace['modules']['habits'];
+        $scheduled += $habitSummary['scheduled'];
+        $done += $habitSummary['done'];
+        $skipped += $habitSummary['skipped'];
+        $habitPeriod = $this->habitSummaries->summarize($user, $progress['period_start'], $progress['period_end']);
+        foreach (['scheduled', 'done', 'skipped', 'pending'] as $field) {
+            $progress['seven_day'][$field] += $habitPeriod[$field];
+        }
+        $progress['seven_day']['completion_rate'] = $progress['seven_day']['scheduled'] === 0 ? 0.0
+            : round($progress['seven_day']['done'] / $progress['seven_day']['scheduled'] * 100, 2);
 
         return response()->json([
             'date' => $date->toDateString(),
+            'habits' => HabitResource::collection($habits)->resolve($request),
             'summary' => [
                 'scheduled' => $scheduled,
                 'done' => $done,

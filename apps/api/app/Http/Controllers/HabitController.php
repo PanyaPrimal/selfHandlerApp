@@ -131,7 +131,7 @@ class HabitController extends Controller
     private function pullSchedule(array &$data): array
     {
         $schedule = [];
-        foreach (['schedule_type', 'preferred_time', 'starts_on', 'ends_on'] as $field) {
+        foreach (['schedule_type', 'weekly_target', 'preferred_time', 'starts_on', 'ends_on'] as $field) {
             if (array_key_exists($field, $data)) {
                 $schedule[$field] = $data[$field];
                 unset($data[$field]);

@@ -311,8 +311,13 @@ screen-reader, overflow, reload, and error rollback behavior remains correct.
 
 - A "scheduled opportunity" is one materialized occurrence. Daily and exact selected-weekday schedules
   implement the canonical "N times per week on given days" pattern by the number of selected weekdays.
-  A floating "any N days in a week" quota is a different, currently undocumented recurrence semantic
-  and is not inferred in this increment.
+  The 2026-09-20 user-requested extension also supports `weekly_target` for ordinary habits:
+  1–7 successful local dates during Monday–Sunday, chosen freely without weekday assignments.
+  Available unmarked days are not missed daily obligations or daily reminders. Today shows the
+  actual daily fact and weekly progress, and includes habit facts in daily and seven-day totals.
+  Weekly goal edits apply from the current local Monday, retain prior weeks' targets and all facts,
+  and count one success per date. Weekly streaks advance for achieved weeks; an unfinished current
+  week does not break the streak. Anti-habit protection and ceilings keep their existing schedules.
 - Numeric ordinary habits use `value >= target` as success. Stepped-limit anti-habits use accumulated
   consumption `<= ceiling`; equality is within limit.
 - Abstinence requires explicit daily protected/relapse input. The absence of a log is never inferred as

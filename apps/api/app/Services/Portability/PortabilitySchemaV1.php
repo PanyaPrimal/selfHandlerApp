@@ -389,7 +389,7 @@ class PortabilitySchemaV1
                 'json' => [],
             ],
             'habits' => [
-                'attributes' => ['name', 'description', 'kind', 'mode', 'target_value', 'unit', 'intention_place', 'two_minute_starter', 'is_active', 'is_archived', 'archived_at', 'created_at', 'updated_at'],
+                'attributes' => ['name', 'description', 'kind', 'mode', 'target_value', 'unit', 'weekly_target', 'weekly_target_history', 'intention_place', 'two_minute_starter', 'is_active', 'is_archived', 'archived_at', 'created_at', 'updated_at'],
                 'references' => [
                     'goal_id' => [
                         'table' => 'goals',
@@ -400,7 +400,7 @@ class PortabilitySchemaV1
                         'nullable' => true,
                     ],
                 ],
-                'json' => [],
+                'json' => ['weekly_target_history'],
             ],
             'item_tag' => [
                 'attributes' => ['created_at', 'updated_at'],

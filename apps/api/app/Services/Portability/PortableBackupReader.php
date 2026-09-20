@@ -39,6 +39,7 @@ class PortableBackupReader
             $profile = $this->jsonMember($zip, 'data/profile.json');
             $records = $this->jsonMember($zip, 'data/records.json');
             $this->validateProfile($profile);
+            $this->upgradeHabitSchedules($records);
             $portableIds = $this->validateRecords($records);
             $this->validateAttachments($manifest['attachments'], $portableIds, $zip);
             $this->validateCounts($manifest, $records, $stats);
@@ -295,6 +296,9 @@ class PortableBackupReader
                         throw new PortabilityException('record_type_invalid');
                     }
                 }
+                if ($table === 'habits') {
+                    $this->validateHabitSchedule($row['attributes']);
+                }
                 $ids[$row['id']] = true;
             }
         }
@@ -324,6 +328,46 @@ class PortableBackupReader
         }
 
         return $ids;
+    }
+
+    /** Accept pre-weekly-goal v1 backups without weakening other exact keys. */
+    private function upgradeHabitSchedules(array &$records): void
+    {
+        if (! is_array($records['tables']['habits'] ?? null)) {
+            return;
+        }
+        foreach ($records['tables']['habits'] as &$row) {
+            if (is_array($row) && is_array($row['attributes'] ?? null)
+                && ! array_key_exists('weekly_target', $row['attributes'])
+                && ! array_key_exists('weekly_target_history', $row['attributes'])) {
+                $row['attributes']['weekly_target'] = null;
+                $row['attributes']['weekly_target_history'] = null;
+            }
+        }
+        unset($row);
+    }
+
+    private function validateHabitSchedule(array $attributes): void
+    {
+        $target = $attributes['weekly_target'];
+        $validTarget = fn ($value): bool => $value === null || (is_int($value) && $value >= 1 && $value <= 7);
+        if (! $validTarget($target) || ($target !== null && $attributes['kind'] !== 'habit')) {
+            throw new PortabilityException('record_type_invalid');
+        }
+        $history = $attributes['weekly_target_history'] ?? [];
+        foreach ($history as $date => $value) {
+            $parsed = is_string($date) ? \DateTimeImmutable::createFromFormat('!Y-m-d', $date) : false;
+            if (! $parsed || $parsed->format('Y-m-d') !== $date || $parsed->format('N') !== '1' || ! $validTarget($value)
+                || ($value !== null && $attributes['kind'] !== 'habit')) {
+                throw new PortabilityException('record_type_invalid');
+            }
+        }
+        if ($history !== []) {
+            ksort($history);
+            if (end($history) !== $target) {
+                throw new PortabilityException('record_type_invalid');
+            }
+        }
     }
 
     /** @param list<array<string,mixed>> $attachments @param array<string,true> $ids */

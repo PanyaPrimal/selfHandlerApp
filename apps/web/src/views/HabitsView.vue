@@ -58,7 +58,8 @@ interface HabitForm {
   mode: HabitMode
   target_value: number | null
   unit: string
-  schedule_type: 'daily' | 'weekdays'
+  schedule_type: 'daily' | 'weekdays' | 'weekly_target'
+  weekly_target: number | null
   weekdays: Weekday[]
   preferred_time: string | null
   starts_on: string | null
@@ -116,9 +117,10 @@ const modeOptions = computed<UiOption<HabitMode>[]>(() => form.kind === 'habit'
       { value: 'abstinence', label: i18n.t('habit.modeAbstinence') },
       { value: 'stepped_limit', label: i18n.t('habit.modeStepped') },
     ])
-const scheduleOptions = computed<UiOption<'daily' | 'weekdays'>[]>(() => [
+const scheduleOptions = computed<UiOption<HabitForm['schedule_type']>[]>(() => [
   { value: 'daily', label: i18n.t('habit.daily') },
   { value: 'weekdays', label: i18n.t('habit.selectedWeekdays') },
+  ...(form.kind === 'habit' ? [{ value: 'weekly_target' as const, label: i18n.t('habit.flexibleWeekly') }] : []),
 ])
 const weekdayOptions = computed<UiOption<Weekday>[]>(() =>
   (['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'] as Weekday[]).map((value) => ({
@@ -172,6 +174,7 @@ function emptyForm(): HabitForm {
     target_value: null,
     unit: '',
     schedule_type: 'daily',
+    weekly_target: 3,
     weekdays: [],
     preferred_time: null,
     starts_on: null,
@@ -257,6 +260,7 @@ async function editHabit(habit: Habit): Promise<void> {
     target_value: habit.target_value,
     unit: habit.unit ?? '',
     schedule_type: habit.schedule.schedule_type,
+    weekly_target: habit.schedule.weekly_target ?? 3,
     weekdays: [...habit.schedule.weekdays],
     preferred_time: habit.schedule.preferred_time,
     starts_on: habit.schedule.starts_on,
@@ -293,6 +297,7 @@ function setKind(kind: HabitKind | null): void {
   form.mode = kind === 'habit' ? 'yes_no' : 'abstinence'
   form.target_value = null
   form.unit = ''
+  if (kind !== 'habit' && form.schedule_type === 'weekly_target') form.schedule_type = 'daily'
 }
 
 function addStep(): void {
@@ -333,6 +338,7 @@ function basePayload(): HabitUpdatePayload {
     description: form.description || null,
     ...targetFields,
     schedule_type: form.schedule_type,
+    ...(form.schedule_type === 'weekly_target' ? { weekly_target: form.weekly_target ?? 0 } : {}),
     ...(form.schedule_type === 'weekdays' ? { weekdays: form.weekdays } : {}),
     preferred_time: form.preferred_time,
     starts_on: form.starts_on,
@@ -517,6 +523,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
         <UiSelect v-model="form.schedule_type" :label="i18n.t('habit.schedule')" name="schedule_type" :options="scheduleOptions" :error="fieldErrors.schedule_type?.[0]" />
         <UiToggleGroup v-if="form.schedule_type === 'weekdays'" v-model="form.weekdays" :label="i18n.t('habit.weekdays')" name="weekdays" :options="weekdayOptions" wide :error="fieldErrors.weekdays?.[0]" />
+        <UiNumberInput v-if="form.schedule_type === 'weekly_target'" v-model="form.weekly_target" :label="i18n.t('habit.weeklyTarget')" name="weekly_target" :min="1" :max="7" :step="1" required :error="fieldErrors.weekly_target?.[0]" />
+        <p v-if="form.schedule_type === 'weekly_target'" class="muted wide-field">{{ i18n.t('habit.weeklyHelp') }}</p>
         <UiTimeField v-model="form.preferred_time" :label="i18n.t('habit.time')" name="preferred_time" :error="fieldErrors.preferred_time?.[0]" />
         <UiDatePicker v-model="form.starts_on" :label="i18n.t('habit.startsOn')" name="starts_on" :locale="locale" :today="today" :error="fieldErrors.starts_on?.[0]" />
         <UiDatePicker v-model="form.ends_on" :label="i18n.t('habit.endsOn')" name="ends_on" :locale="locale" :today="today" :error="fieldErrors.ends_on?.[0]" />
@@ -567,14 +575,18 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
               </div>
               <p v-if="habit.description" class="muted">{{ habit.description }}</p>
               <p class="muted">
-                {{ habit.schedule.schedule_type === 'daily' ? i18n.t('habit.daily') : habit.schedule.weekdays.map((day) => i18n.t(`weekday.${day}` as 'weekday.MO')).join(', ') }}
+                {{ habit.schedule.schedule_type === 'weekly_target' ? i18n.t('habit.weeklySchedule', { count: habit.schedule.weekly_target ?? 0 }) : habit.schedule.schedule_type === 'daily' ? i18n.t('habit.daily') : habit.schedule.weekdays.map((day) => i18n.t(`weekday.${day}` as 'weekday.MO')).join(', ') }}
                 <span v-if="habit.schedule.preferred_time"> · {{ habit.schedule.preferred_time }}</span>
                 <span v-if="habit.intention_place"> · {{ habit.intention_place }}</span>
               </p>
 
+              <p v-if="habit.weekly_progress" class="habit-outcome" role="status">
+                <strong>{{ i18n.t('habit.weeklyProgress', { done: habit.weekly_progress.completed, target: habit.weekly_progress.target }) }}</strong>
+                <span> · {{ i18n.t(habit.weekly_progress.achieved ? 'habit.weeklyAchieved' : 'habit.weeklyFlexible') }}</span>
+              </p>
               <div class="habit-stats" :aria-label="i18n.t('habit.statistics')">
                 <span>{{ i18n.t('habit.currentStreak') }} {{ habit.statistics.current_streak }}</span>
-                <span v-if="habit.statistics.current_streak > 0">{{ i18n.t('habit.dayStreak', { count: habit.statistics.current_streak }) }}</span>
+                <span v-if="habit.statistics.current_streak > 0">{{ i18n.t(habit.statistics.streak_unit === 'periods' ? 'habit.periodStreak' : 'habit.dayStreak', { count: habit.statistics.current_streak }) }}</span>
                 <span>{{ i18n.t('habit.bestStreak') }} {{ habit.statistics.best_streak }}</span>
                 <span>{{ i18n.number(habit.statistics.completion_percentage, { maximumFractionDigits: 1 }) }}%</span>
                 <span>{{ habit.statistics.successes }}/{{ habit.statistics.opportunities }} {{ i18n.t('habit.successes') }}</span>

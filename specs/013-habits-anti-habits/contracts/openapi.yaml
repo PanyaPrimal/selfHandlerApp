@@ -224,7 +224,8 @@ components:
     ScheduleFields:
       type: object
       properties:
-        schedule_type: { type: string, enum: [daily, weekdays] }
+        schedule_type: { type: string, enum: [daily, weekdays, weekly_target] }
+        weekly_target: { type: integer, minimum: 1, maximum: 7, description: Required for weekly_target; ordinary habits only. One successful local date counts once. }
         weekdays:
           type: array
           uniqueItems: true
@@ -252,7 +253,8 @@ components:
             - { $ref: '#/components/schemas/Decimal' }
             - { type: 'null' }
         unit: { type: [string, 'null'], maxLength: 32 }
-        schedule_type: { type: string, enum: [daily, weekdays] }
+        schedule_type: { type: string, enum: [daily, weekdays, weekly_target] }
+        weekly_target: { type: integer, minimum: 1, maximum: 7, description: Required for weekly_target; prohibited for other schedules. }
         weekdays:
           type: array
           uniqueItems: true
@@ -287,7 +289,8 @@ components:
             - { $ref: '#/components/schemas/Decimal' }
             - { type: 'null' }
         unit: { type: [string, 'null'], maxLength: 32 }
-        schedule_type: { type: string, enum: [daily, weekdays] }
+        schedule_type: { type: string, enum: [daily, weekdays, weekly_target] }
+        weekly_target: { type: integer, minimum: 1, maximum: 7, description: Required when first switching to weekly_target. Changes apply to the current local Monday–Sunday week. }
         weekdays:
           type: array
           uniqueItems: true
@@ -361,6 +364,7 @@ components:
         - selected_day
         - statistics
         - limit_status
+        - weekly_progress
       properties:
         id: { type: integer }
         name: { type: string }
@@ -388,6 +392,10 @@ components:
           items: { $ref: '#/components/schemas/LimitStep' }
         selected_day: { $ref: '#/components/schemas/SelectedDay' }
         statistics: { $ref: '#/components/schemas/HabitStatistics' }
+        weekly_progress:
+          oneOf:
+            - { $ref: '#/components/schemas/WeeklyProgress' }
+            - { type: 'null' }
         limit_status:
           oneOf:
             - { $ref: '#/components/schemas/LimitStatus' }
@@ -402,9 +410,10 @@ components:
     HabitSchedule:
       type: object
       additionalProperties: false
-      required: [schedule_type, weekdays, preferred_time, starts_on, ends_on, timezone, materialized_until]
+      required: [schedule_type, weekly_target, weekdays, preferred_time, starts_on, ends_on, timezone, materialized_until]
       properties:
-        schedule_type: { type: string, enum: [daily, weekdays] }
+        schedule_type: { type: string, enum: [daily, weekdays, weekly_target] }
+        weekly_target: { type: [integer, 'null'], minimum: 1, maximum: 7 }
         weekdays:
           type: array
           items: { type: string, enum: [MO, TU, WE, TH, FR, SA, SU] }
@@ -413,6 +422,17 @@ components:
         ends_on: { type: [string, 'null'], format: date }
         timezone: { type: string }
         materialized_until: { type: [string, 'null'], format: date }
+    WeeklyProgress:
+      type: object
+      additionalProperties: false
+      required: [from, to, target, completed, remaining, achieved]
+      properties:
+        from: { $ref: '#/components/schemas/Date' }
+        to: { $ref: '#/components/schemas/Date' }
+        target: { type: integer, minimum: 1, maximum: 7 }
+        completed: { type: integer, minimum: 0, maximum: 7 }
+        remaining: { type: integer, minimum: 0, maximum: 7 }
+        achieved: { type: boolean }
     SelectedDay:
       type: object
       additionalProperties: false
@@ -450,6 +470,7 @@ components:
         completion_percentage: { type: number, minimum: 0, maximum: 100 }
         current_streak: { type: integer, minimum: 0 }
         best_streak: { type: integer, minimum: 0 }
+        streak_unit: { type: string, enum: [days, periods], description: Weekly goals use completed periods; omitted means scheduled days. }
         numeric_total: { type: [number, 'null'], minimum: 0 }
     LimitStep:
       type: object

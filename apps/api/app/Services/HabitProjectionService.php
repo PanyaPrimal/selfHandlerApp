@@ -14,6 +14,7 @@ class HabitProjectionService
     public function __construct(
         private readonly HabitStatisticsService $statistics,
         private readonly HabitLimitService $limits,
+        private readonly HabitWeeklyGoalService $weeklyGoals,
     ) {}
 
     /**
@@ -32,6 +33,7 @@ class HabitProjectionService
         $today = CarbonImmutable::now($user->calendarTimezone())->toDateString();
         $statistics = $this->statistics->calculateMany($habits, '1900-01-01', $date, $today);
         $limits = $this->limits->statuses($habits, $date);
+        $weekly = $this->weeklyGoals->progress($habits, $date);
         $byRule = $habits
             ->filter(fn (Habit $habit): bool => $habit->recurringRule !== null)
             ->keyBy(fn (Habit $habit): int => $habit->recurringRule->id);
@@ -48,13 +50,14 @@ class HabitProjectionService
                 ->get()
                 ->keyBy('recurring_rule_id');
 
-        return $habits->each(function (Habit $habit) use ($statistics, $limits, $selected, $date, $today): void {
+        return $habits->each(function (Habit $habit) use ($statistics, $limits, $selected, $weekly, $date, $today): void {
             /** @var PlannedOccurrence|null $occurrence */
             $occurrence = $habit->recurringRule ? $selected->get($habit->recurringRule->id) : null;
             $log = $occurrence?->habitLog;
 
             $habit->setAttribute('statistics_projection', $statistics[$habit->id]);
             $habit->setAttribute('limit_status_projection', $limits[$habit->id] ?? null);
+            $habit->setAttribute('weekly_progress_projection', $weekly[$habit->id] ?? null);
             $habit->setAttribute(
                 'limit_steps_projection',
                 $this->limits->stepsForDate($habit, $date)->map(fn ($step): array => [
