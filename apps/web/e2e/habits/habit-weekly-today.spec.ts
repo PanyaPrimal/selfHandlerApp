@@ -64,6 +64,7 @@ test('switching an already completed habit to a weekly goal preserves its fact a
   await expect(progress).toHaveAttribute('aria-valuenow', '50')
   await page.getByRole('button', { name: 'Mark Focus routine done', exact: true }).click()
   await expect(progress).toHaveAttribute('aria-valuenow', '100')
+  await expect(page.getByText('Focus routine is done.', { exact: true })).toBeVisible()
   await page.reload()
   await expect(progress).toHaveAttribute('aria-valuenow', '100')
   await expect(page.getByRole('listitem', { name: 'Existing river habit', exact: true })).toContainText('1 of 3 this week')
