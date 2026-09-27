@@ -19,7 +19,7 @@ test('registration normalizes identity, restores the session, and rejects a dupl
   await registerViaUi(page, credentials, { emailInput: mixedEmail })
   await expect(page.getByRole('heading', { name: new RegExp(credentials.name) })).toBeVisible()
 
-  await page.getByRole('link', { name: 'Routines', exact: true }).click()
+  await gotoDestination(page, 'Routines')
   await expect(page.getByRole('heading', { name: 'No routines yet' })).toBeVisible()
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Routines & sleep' })).toBeVisible()

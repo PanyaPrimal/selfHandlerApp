@@ -107,6 +107,7 @@ test('captures purchase and restock source editors in EN RU UK light dark deskto
 
       await page.goto('/storage')
       const purchase = page.getByRole('listitem', { name: 'Visual office chair' })
+      await purchase.locator('.task-details > summary').click()
       await purchase.locator('.purchase-finance button:not(.secondary)').click()
       await expect(purchase.locator('.purchase-finance form[aria-label]')).toBeVisible()
       await expectNoHorizontalOverflow(page)

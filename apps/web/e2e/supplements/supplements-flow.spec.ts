@@ -49,6 +49,7 @@ test('catalogue course intake stock and shared daily surfaces form one loop', as
   await expect(page.getByText('100%', { exact: true }).first()).toBeVisible()
 
   await page.goto(`/?date=${today}`)
+  await page.getByText('Daily totals & recent progress', { exact: true }).click()
   await expect(page.getByRole('region', { name: 'Supplements summary' })).toContainText('100%')
   await page.goto(`/review/${today}`)
   await expect(page.getByRole('region', { name: 'Supplements summary' })).toContainText('100%')

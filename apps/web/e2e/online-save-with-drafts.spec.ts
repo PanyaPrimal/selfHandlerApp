@@ -39,13 +39,18 @@ test('online sleep form validates and saves despite three older drafts', async (
   const before = await seedOldDrafts(page)
 
   // Invalid input must reach server validation, not masquerade as an offline save.
-  const invalid = page.waitForResponse(response => response.url().endsWith('/api/sleep/plans') && response.request().method() === 'POST')
+  // Name is optional now; equal bed/wake times are still a server validation error.
+  await form.getByLabel('Plan name').fill('Normal nightly sleep')
+  await form.getByLabel('Planned wake time', { exact: true }).fill('23:00')
+  const invalid = page.waitForResponse(response => response.url().endsWith('/api/sleep/plans')
+    && response.request().method() === 'POST'
+    && response.request().postDataJSON().name === 'Normal nightly sleep')
   await form.getByRole('button', { name: 'Create sleep plan' }).click()
   expect((await invalid).status()).toBe(422)
-  await expect(form.getByLabel('Plan name')).toHaveAttribute('aria-invalid', 'true')
+  await expect(form.getByLabel('Planned wake time', { exact: true })).toHaveAttribute('aria-invalid', 'true')
   expect(inputs(await readDrafts(page))).toEqual(inputs(before))
 
-  await form.getByLabel('Plan name').fill('Normal nightly sleep')
+  await form.getByLabel('Planned wake time', { exact: true }).fill('07:00')
   await form.getByRole('button', { name: 'Create sleep plan' }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Sleep plan created.' })).toBeVisible()
   await expect(page.getByRole('listitem', { name: 'Normal nightly sleep', exact: true })).toHaveCount(1)

@@ -61,6 +61,8 @@ test('compact controls clear Android insets, navigation, and the keyboard', asyn
   const heading = await page.locator('.content-shell h1').boundingBox()
   expect.soft(heading!.y).toBeGreaterThanOrEqual(toolbar!.y + toolbar!.height)
   const summary = page.locator('.daily-summary')
+  await expect(summary).toBeHidden()
+  await page.getByText('Daily totals & recent progress', { exact: true }).click()
   await expect(summary).toBeVisible()
   expect.soft((await summary.boundingBox())!.height).toBeLessThanOrEqual(300)
   const theme = await page.locator('.quick-theme-toggle').boundingBox()

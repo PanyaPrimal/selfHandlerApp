@@ -7,7 +7,7 @@ const routes = [
   ['/goals', 'Цели, связанные с действиями'],
   ['/review', 'Вечерний обзор'],
   ['/planner', 'Планировщик'],
-  ['/storage', 'Записывайте сейчас, разбирайте позже'],
+  ['/storage', 'Задачи, идеи и покупки'],
   ['/body', 'Замеры и цели тела'],
   ['/settings/appearance', 'Оформление'],
   ['/account', 'Ваши исходные данные'],
@@ -51,7 +51,7 @@ test('validation, empty state, ARIA labels and user content remain correctly sep
   await expect(page.getByText('Поки що нічого не очікує.')).toBeVisible()
   await page.getByLabel('Що у вас на думці?').fill('English user-authored title')
   await page.getByRole('button', { name: 'Зберегти' }).click()
-  await expect(page.getByText('English user-authored title')).toBeVisible()
+  await expect(page.getByText('English user-authored title', { exact: true })).toBeVisible()
 
   await page.getByRole('button', { name: 'UK', exact: true }).focus()
   await expect(page.getByRole('group', { name: 'Мова інтерфейсу' })).toBeVisible()

@@ -56,7 +56,8 @@ test('AI Settings and proposal review fit every locale, scheme, and supported vi
       })
 
       await page.goto('/storage')
-      await page.locator('.storage-inbox-item').first().getByRole('button').first().click()
+      const proposalAction = { EN: 'Ask AI for a proposal for', RU: 'Запросить у ИИ предложение для', UK: 'Запросити в ШІ пропозицію для' }[locale]
+      await page.getByRole('button', { name: `${proposalAction} Review the annual plan`, exact: true }).click()
       await expect(page.locator('.storage-ai-proposal')).toBeVisible()
       await expectNoHorizontalOverflow(page)
       await page.screenshot({
