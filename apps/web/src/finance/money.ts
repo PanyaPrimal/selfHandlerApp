@@ -21,3 +21,17 @@ export function financeAmount(amount: string, currency: string, locale: string):
     maximumFractionDigits: 4,
   }).format(Number(canonical))
 }
+
+/** Accept visible grouping without floating-point conversion or guessing a comma's scale. */
+export function financeDraftAmount(draft: string, locale: string): string | null {
+  let value = draft.trim().replace(/[\u00a0\u202f]/g, ' ')
+  if (/^[+-]?\d{1,3}(?:,\s+\d{3})+(?:\.\d{1,4})?$/.test(value)) value = value.replace(/,\s+/g, '')
+  if (/^[+-]?\d{1,3}(?: \d{3})+(?:[.,]\d{1,4})?$/.test(value)) value = value.replace(/ /g, '')
+  if (locale.startsWith('en') && /^[+-]?\d{1,3}(?:,\d{3})+(?:\.\d{1,4})?$/.test(value)) value = value.replace(/,/g, '')
+  else if (/^[+-]?\d+,\d{1,4}$/.test(value)) {
+    // 15,000 could mean fifteen or fifteen thousand. Require a clear spelling.
+    if (/^[+-]?\d{1,3},\d{3}$/.test(value)) return null
+    value = value.replace(',', '.')
+  }
+  return financeInputAmount(value)
+}

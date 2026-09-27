@@ -618,63 +618,16 @@ onMounted(loadAll)
       </div>
       <UiDatePicker v-model="selectedDate" :label="i18n.t('workouts.date')" name="workout-selected-date" :locale="locale" :today="today" :clearable="false" @update:model-value="loadAll" />
     </header>
+    <nav class="workspace-shortcuts" :aria-label="i18n.t('daily.sections')">
+      <a href="#workout-record">{{ i18n.t('workouts.recordUnplanned') }}</a>
+      <a href="#workout-programs">{{ i18n.t('workouts.programs') }}</a>
+      <a href="#workout-exercises">{{ i18n.t('workouts.catalogue') }}</a>
+    </nav>
 
     <p v-if="feedback" role="status" class="feedback success">{{ feedback }}</p>
     <p v-if="error" role="alert" class="feedback error">{{ error }}</p>
 
     <AsyncState :loading="isLoading" :error="isLoading || !loadFailed ? null : error" @retry="loadAll">
-      <div class="workout-grid">
-        <section class="panel catalogue-panel">
-          <div class="section-heading">
-            <h2>{{ i18n.t('workouts.catalogue') }}</h2>
-            <div class="segmented-control" role="radiogroup" :aria-label="i18n.t('workouts.exerciseState')">
-              <button type="button" role="radio" class="secondary" :aria-checked="exerciseState === 'active'" @click="exerciseState = 'active'">{{ i18n.t('workouts.exerciseState.active') }}</button>
-              <button type="button" role="radio" class="secondary" :aria-checked="exerciseState === 'archived'" @click="exerciseState = 'archived'">{{ i18n.t('workouts.exerciseState.archived') }}</button>
-            </div>
-          </div>
-          <ul class="item-list exercise-catalogue-list" :aria-label="i18n.t('workouts.catalogue')">
-            <li v-for="exercise in catalogueExercises" :key="exercise.id" class="management-row" :aria-label="exerciseLabel(exercise)">
-              <div><strong>{{ exerciseLabel(exercise) }}</strong><p class="muted">{{ exercise.muscle_group }}<span v-if="exercise.equipment"> · {{ exercise.equipment }}</span></p></div>
-              <div v-if="!exercise.is_builtin" class="button-row">
-                <button v-if="!exercise.is_archived" type="button" class="secondary" :aria-label="i18n.t('workouts.editExerciseNamed', { name: exercise.name })" @click="editExercise(exercise)">{{ i18n.t('common.edit') }}</button>
-                <button type="button" class="secondary" :aria-label="i18n.t(exercise.is_archived ? 'workouts.restoreExerciseNamed' : 'workouts.archiveExerciseNamed', { name: exercise.name })" @click="setExerciseArchived(exercise, !exercise.is_archived)">{{ i18n.t(exercise.is_archived ? 'workouts.restore' : 'workouts.archive') }}</button>
-              </div>
-              <form v-if="editingExerciseId === exercise.id" class="form-grid compact-form" :aria-label="i18n.t('workouts.editExerciseNamed', { name: exercise.name })" @submit.prevent="saveExercise(exercise)">
-                <UiTextInput v-model="exerciseDraft.name" :label="i18n.t('workouts.exerciseName')" :name="`edit-exercise-name-${exercise.id}`" required />
-                <UiTextInput v-model="exerciseDraft.muscleGroup" :label="i18n.t('workouts.muscleGroup')" :name="`edit-muscle-group-${exercise.id}`" required />
-                <UiTextInput v-model="exerciseDraft.equipment" :label="i18n.t('workouts.equipment')" :name="`edit-equipment-${exercise.id}`" />
-                <button type="submit" :disabled="isSaving">{{ i18n.t('workouts.saveExercise') }}</button>
-              </form>
-            </li>
-          </ul>
-          <form v-if="exerciseState === 'active'" class="form-grid compact-form" :aria-label="i18n.t('workouts.createExercise')" @submit.prevent="submitExercise">
-            <UiTextInput v-model="exerciseForm.name" :label="i18n.t('workouts.exerciseName')" name="exercise-name" required />
-            <UiTextInput v-model="exerciseForm.muscleGroup" :label="i18n.t('workouts.muscleGroup')" name="muscle-group" required />
-            <UiTextInput v-model="exerciseForm.equipment" :label="i18n.t('workouts.equipment')" name="equipment" />
-            <button type="submit" :disabled="isSaving">{{ i18n.t('workouts.createExercise') }}</button>
-          </form>
-        </section>
-
-        <section class="panel program-create-panel">
-          <div class="section-heading"><h2>{{ i18n.t('workouts.programs') }}</h2></div>
-          <form class="form-grid compact-form" :aria-label="i18n.t('workouts.createProgram')" @submit.prevent="submitProgram">
-            <UiTextInput v-model="programForm.name" :label="i18n.t('workouts.programName')" name="program-name" required />
-            <UiSelect v-model="programForm.type" :label="i18n.t('workouts.workoutType')" name="program-type" :options="workoutTypeOptions" />
-            <UiSelect v-model="programForm.intensity" :label="i18n.t('workouts.intensity')" name="program-intensity" :options="intensityOptions" />
-            <UiNumberInput v-model="programForm.plannedDurationMinutes" :label="i18n.t('workouts.plannedDuration')" name="program-duration" :min="1" :step="1" />
-            <UiNumberInput v-model="programForm.plannedEnergyKcal" :label="i18n.t('workouts.plannedEnergy')" name="program-energy" :min="1" :max="100000" :step="1" />
-            <UiSelect v-if="programForm.type === 'cardio'" v-model="programForm.activity" :label="i18n.t('workouts.activity')" name="program-activity" :options="activityOptions" />
-            <UiSelect v-if="programForm.type === 'cardio' && programForm.activity === 'running'" v-model="programForm.runType" :label="i18n.t('workouts.runType')" name="program-run-type" :options="runTypeOptions" />
-            <UiNumberInput v-if="programForm.type === 'cardio'" v-model="programForm.targetDistanceKm" :label="i18n.t('workouts.targetDistance')" name="program-target-distance" :min="0.001" :step="0.001" />
-            <UiTextInput v-if="programForm.type === 'flexibility' || programForm.type === 'sport'" v-model="programForm.activityName" :label="i18n.t('workouts.activityName')" name="program-activity-name" />
-            <UiSegmented v-model="programForm.scheduleType" :label="i18n.t('routine.schedule')" name="program-schedule" :options="scheduleOptions" wide />
-            <UiToggleGroup v-if="programForm.scheduleType === 'weekdays'" v-model="programForm.weekdays" :label="i18n.t('routine.weekdays')" name="program-weekdays" :options="weekdayOptions" wide />
-            <UiTimeField v-model="programForm.preferredTime" :label="i18n.t('workouts.preferredTime')" name="program-time" />
-            <button type="submit" :disabled="isSaving">{{ i18n.t('workouts.createProgram') }}</button>
-          </form>
-        </section>
-      </div>
-
       <section class="panel">
         <div class="section-heading">
           <h2>{{ i18n.t('workouts.scheduledPrograms') }}</h2>
@@ -744,7 +697,7 @@ onMounted(loadAll)
       </section>
 
       <div class="workout-grid">
-        <section class="panel">
+        <section id="workout-record" class="panel">
           <h2>{{ i18n.t('workouts.unplanned') }}</h2>
           <form class="form-grid" :aria-label="i18n.t('workouts.recordUnplanned')" @submit.prevent="submitManual">
             <UiTextInput v-model="manualForm.name" :label="i18n.t('workouts.workoutName')" name="manual-name" required />
@@ -777,9 +730,61 @@ onMounted(loadAll)
       </div>
 
       <div class="workout-grid">
+        <section id="workout-exercises" class="panel catalogue-panel">
+          <div class="section-heading">
+            <h2>{{ i18n.t('workouts.catalogue') }}</h2>
+            <div class="segmented-control" role="radiogroup" :aria-label="i18n.t('workouts.exerciseState')">
+              <button type="button" role="radio" class="secondary" :aria-checked="exerciseState === 'active'" @click="exerciseState = 'active'">{{ i18n.t('workouts.exerciseState.active') }}</button>
+              <button type="button" role="radio" class="secondary" :aria-checked="exerciseState === 'archived'" @click="exerciseState = 'archived'">{{ i18n.t('workouts.exerciseState.archived') }}</button>
+            </div>
+          </div>
+          <ul class="item-list exercise-catalogue-list" :aria-label="i18n.t('workouts.catalogue')">
+            <li v-for="exercise in catalogueExercises" :key="exercise.id" class="management-row" :aria-label="exerciseLabel(exercise)">
+              <div><strong>{{ exerciseLabel(exercise) }}</strong><p class="muted">{{ exercise.muscle_group }}<span v-if="exercise.equipment"> · {{ exercise.equipment }}</span></p></div>
+              <div v-if="!exercise.is_builtin" class="button-row">
+                <button v-if="!exercise.is_archived" type="button" class="secondary" :aria-label="i18n.t('workouts.editExerciseNamed', { name: exercise.name })" @click="editExercise(exercise)">{{ i18n.t('common.edit') }}</button>
+                <button type="button" class="secondary" :aria-label="i18n.t(exercise.is_archived ? 'workouts.restoreExerciseNamed' : 'workouts.archiveExerciseNamed', { name: exercise.name })" @click="setExerciseArchived(exercise, !exercise.is_archived)">{{ i18n.t(exercise.is_archived ? 'workouts.restore' : 'workouts.archive') }}</button>
+              </div>
+              <form v-if="editingExerciseId === exercise.id" class="form-grid compact-form" :aria-label="i18n.t('workouts.editExerciseNamed', { name: exercise.name })" @submit.prevent="saveExercise(exercise)">
+                <UiTextInput v-model="exerciseDraft.name" :label="i18n.t('workouts.exerciseName')" :name="`edit-exercise-name-${exercise.id}`" required />
+                <UiTextInput v-model="exerciseDraft.muscleGroup" :label="i18n.t('workouts.muscleGroup')" :name="`edit-muscle-group-${exercise.id}`" required />
+                <UiTextInput v-model="exerciseDraft.equipment" :label="i18n.t('workouts.equipment')" :name="`edit-equipment-${exercise.id}`" />
+                <button type="submit" :disabled="isSaving">{{ i18n.t('workouts.saveExercise') }}</button>
+              </form>
+            </li>
+          </ul>
+          <form v-if="exerciseState === 'active'" class="form-grid compact-form" :aria-label="i18n.t('workouts.createExercise')" @submit.prevent="submitExercise">
+            <UiTextInput v-model="exerciseForm.name" :label="i18n.t('workouts.exerciseName')" name="exercise-name" required />
+            <UiTextInput v-model="exerciseForm.muscleGroup" :label="i18n.t('workouts.muscleGroup')" name="muscle-group" required />
+            <UiTextInput v-model="exerciseForm.equipment" :label="i18n.t('workouts.equipment')" name="equipment" />
+            <button type="submit" :disabled="isSaving">{{ i18n.t('workouts.createExercise') }}</button>
+          </form>
+        </section>
+
+        <section id="workout-programs" class="panel program-create-panel">
+          <div class="section-heading"><h2>{{ i18n.t('workouts.programs') }}</h2></div>
+          <form class="form-grid compact-form" :aria-label="i18n.t('workouts.createProgram')" @submit.prevent="submitProgram">
+            <UiTextInput v-model="programForm.name" :label="i18n.t('workouts.programName')" name="program-name" required />
+            <UiSelect v-model="programForm.type" :label="i18n.t('workouts.workoutType')" name="program-type" :options="workoutTypeOptions" />
+            <UiSelect v-model="programForm.intensity" :label="i18n.t('workouts.intensity')" name="program-intensity" :options="intensityOptions" />
+            <UiNumberInput v-model="programForm.plannedDurationMinutes" :label="i18n.t('workouts.plannedDuration')" name="program-duration" :min="1" :step="1" />
+            <details class="wide-field optional-section"><summary>{{ i18n.t('feedback.optional') }}</summary><p class="muted">{{ i18n.t('feedback.energyHelp') }}</p><UiNumberInput v-model="programForm.plannedEnergyKcal" :label="i18n.t('workouts.plannedEnergy')" name="program-energy" :min="1" :max="100000" :step="1" /></details>
+            <UiSelect v-if="programForm.type === 'cardio'" v-model="programForm.activity" :label="i18n.t('workouts.activity')" name="program-activity" :options="activityOptions" />
+            <UiSelect v-if="programForm.type === 'cardio' && programForm.activity === 'running'" v-model="programForm.runType" :label="i18n.t('workouts.runType')" name="program-run-type" :options="runTypeOptions" />
+            <UiNumberInput v-if="programForm.type === 'cardio'" v-model="programForm.targetDistanceKm" :label="i18n.t('workouts.targetDistance')" name="program-target-distance" :min="0.001" :step="0.001" />
+            <UiTextInput v-if="programForm.type === 'flexibility' || programForm.type === 'sport'" v-model="programForm.activityName" :label="i18n.t('workouts.activityName')" name="program-activity-name" />
+            <UiSegmented v-model="programForm.scheduleType" :label="i18n.t('routine.schedule')" name="program-schedule" :options="scheduleOptions" wide />
+            <UiToggleGroup v-if="programForm.scheduleType === 'weekdays'" v-model="programForm.weekdays" :label="i18n.t('routine.weekdays')" name="program-weekdays" :options="weekdayOptions" wide />
+            <UiTimeField v-model="programForm.preferredTime" :label="i18n.t('workouts.preferredTime')" name="program-time" />
+            <button type="submit" :disabled="isSaving">{{ i18n.t('workouts.createProgram') }}</button>
+          </form>
+        </section>
+      </div>
+
+      <div class="workout-grid">
         <section class="panel" :aria-label="i18n.t('workouts.records')">
           <h2>{{ i18n.t('workouts.records') }}</h2>
-          <div class="summary-grid">
+          <div class="summary-grid workout-record-metrics">
             <div class="metric"><span>{{ i18n.t('workouts.planned') }}</span><strong>{{ history?.summary.planned ?? 0 }}</strong></div>
             <div class="metric"><span>{{ i18n.t('workouts.completed') }}</span><strong>{{ history?.summary.completed ?? 0 }}</strong></div>
             <div class="metric"><span>{{ i18n.t('workouts.distanceTotal') }}</span><strong>{{ i18n.number((history?.summary.distance_m ?? 0) / 1000) }} km</strong></div>

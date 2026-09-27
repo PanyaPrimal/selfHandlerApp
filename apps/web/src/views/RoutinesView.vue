@@ -434,6 +434,7 @@ onBeforeUnmount(() => window.removeEventListener('workspace-synchronized', refre
           @update:model-value="setWeekdays"
         />
 
+        <p class="muted wide-field">{{ i18n.t('feedback.scheduleHelp') }}</p>
         <UiDatePicker
           ref="startsOnInput"
           :label="i18n.t('routine.startsOn')"
@@ -446,7 +447,7 @@ onBeforeUnmount(() => window.removeEventListener('workspace-synchronized', refre
 
         <UiDatePicker
           ref="endsOnInput"
-          :label="i18n.t('routine.endsOn')"
+          :label="i18n.t('routine.endsOn')" :placeholder="i18n.t('feedback.noEnd')"
           name="ends_on"
           :model-value="form.ends_on || null"
           :locale="locale"

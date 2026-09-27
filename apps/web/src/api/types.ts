@@ -868,6 +868,7 @@ export interface NutritionSettings {
   fat_percent: string
   carbs_percent: string
   water_override_ml: number | null
+  macro_targets_grams?: { protein: number; fat: number; carbs: number } | null
 }
 
 export interface NutritionSettingsInput {
@@ -876,6 +877,7 @@ export interface NutritionSettingsInput {
   fat_percent: number
   carbs_percent: number
   water_override_ml: number | null
+  macro_targets_grams?: { protein: number; fat: number; carbs: number } | null
 }
 
 export interface MealEntry {

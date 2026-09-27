@@ -526,8 +526,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         <UiNumberInput v-if="form.schedule_type === 'weekly_target'" v-model="form.weekly_target" :label="i18n.t('habit.weeklyTarget')" name="weekly_target" :min="1" :max="7" :step="1" required :error="fieldErrors.weekly_target?.[0]" />
         <p v-if="form.schedule_type === 'weekly_target'" class="muted wide-field">{{ i18n.t('habit.weeklyHelp') }}</p>
         <UiTimeField v-model="form.preferred_time" :label="i18n.t('habit.time')" name="preferred_time" :error="fieldErrors.preferred_time?.[0]" />
+        <p class="muted wide-field">{{ i18n.t('feedback.scheduleHelp') }}</p>
         <UiDatePicker v-model="form.starts_on" :label="i18n.t('habit.startsOn')" name="starts_on" :locale="locale" :today="today" :error="fieldErrors.starts_on?.[0]" />
-        <UiDatePicker v-model="form.ends_on" :label="i18n.t('habit.endsOn')" name="ends_on" :locale="locale" :today="today" :error="fieldErrors.ends_on?.[0]" />
+        <UiDatePicker v-model="form.ends_on" :label="i18n.t('habit.endsOn')" :placeholder="i18n.t('feedback.noEnd')" name="ends_on" :locale="locale" :today="today" :error="fieldErrors.ends_on?.[0]" />
 
         <UiSelect v-model="form.routine_id" :label="i18n.t('habit.routine')" name="routine_id" :options="routineOptions" nullable :error="fieldErrors.routine_id?.[0]" />
         <UiSelect v-model="form.goal_id" :label="i18n.t('habit.goal')" name="goal_id" :options="goalOptions" nullable :error="fieldErrors.goal_id?.[0]" />

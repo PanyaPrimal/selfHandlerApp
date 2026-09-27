@@ -159,6 +159,25 @@ paths:
               schema: {$ref: '#/components/schemas/NutritionDayResponse'}
         '401': {$ref: '#/components/responses/Unauthenticated'}
         '422': {$ref: '#/components/responses/ValidationFailed'}
+  /api/nutrition/days/{date}/recalculate:
+    parameters:
+      - $ref: '#/components/parameters/LocalDate'
+    post:
+      tags: [Nutrition days]
+      operationId: recalculateNutritionTarget
+      responses:
+        '200':
+          description: Explicitly replaced reference target; meal snapshots unchanged
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/NutritionTarget'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '422': {$ref: '#/components/responses/ValidationFailed'}
   /api/nutrition/summary:
     get:
       tags: [Nutrition days]
@@ -452,6 +471,14 @@ components:
           maxItems: 100
           items: {$ref: '#/components/schemas/RecipeComponentWrite'}
         is_archived: {type: boolean}
+    ManualMacroTargets:
+      type: [object, 'null']
+      additionalProperties: false
+      required: [protein, fat, carbs]
+      properties:
+        protein: {type: number, minimum: 0, maximum: 1000}
+        fat: {type: number, minimum: 0, maximum: 1000}
+        carbs: {type: number, minimum: 0, maximum: 1000}
     NutritionSettings:
       type: object
       additionalProperties: false
@@ -462,6 +489,7 @@ components:
         fat_percent: {$ref: '#/components/schemas/Decimal'}
         carbs_percent: {$ref: '#/components/schemas/Decimal'}
         water_override_ml: {$ref: '#/components/schemas/NullableInteger'}
+        macro_targets_grams: {$ref: '#/components/schemas/ManualMacroTargets'}
     SettingsResponse:
       type: object
       additionalProperties: false
@@ -478,6 +506,7 @@ components:
         fat_percent: {type: number, minimum: 20, maximum: 35}
         carbs_percent: {type: number, minimum: 45, maximum: 65}
         water_override_ml: {type: [integer, 'null'], minimum: 1000, maximum: 6000}
+        macro_targets_grams: {$ref: '#/components/schemas/ManualMacroTargets'}
     MealEntryWrite:
       type: object
       additionalProperties: false
@@ -587,6 +616,7 @@ components:
         missing_fields:
           type: array
           items: {type: string}
+        recalculated_at: {type: string, format: date-time}
         profile_updated_at: {$ref: '#/components/schemas/NullableString'}
         profile_inputs:
           type: object

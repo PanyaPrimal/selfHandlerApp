@@ -311,3 +311,22 @@ agreement, rollback, keyboard use, exact 390x844 layout, Android sync and all lo
 - Micronutrients, allergens, branded/commercial food datasets and licensed meal plans.
 - Meal planning, grocery lists, recurrence and nutrition reminders.
 - Long-period charts/correlations (022), export/report files (023), and AI (026).
+
+
+## UX amendment — 2026-09-27
+
+Owner feedback authorizes manual daily macro targets in grams as an alternative to
+the existing percentage mode. `macro_targets_grams` is optional/nullable and contains
+protein, fat and carbs; omission preserves existing settings, explicit null restores
+calculation from percentages. Manual grams can be shown without a complete profile;
+they do not manufacture a calorie estimate or change the profile-derived calorie target.
+
+Amend FR-021: ordinary reads and input changes still never alter a daily reference.
+An explicit authenticated POST `/nutrition/days/{date}/recalculate` may replace only
+that user's selected-day reference using current inputs. It preserves the target ID,
+records `recalculated_at` in its basis and never edits meals or entry snapshots.
+This explicit action also resolves an initially incomplete target after profile setup.
+The explicit “Save and apply to this day” action saves settings and recalculates the
+selected day; new references also use the saved settings. A separate recalculation
+action applies profile changes to an already opened day. Ordinary reads still keep
+references stable. Original automatic calculation and owner isolation remain.

@@ -6,25 +6,43 @@ const desktopDestinations = [
   'Today',
   'Routines',
   'Habits',
+  'Workouts',
+  'Nutrition',
+  'Supplements',
+  'Finance',
   'Goals',
   'Review',
-  'Planner',
-  'Storage',
+  'Analytics',
+  'Plan',
+  'Tasks',
   'Body',
   'Notifications',
   'Settings',
+  'Mentor',
+  'Data',
+  'Integrations',
+  'AI assistant',
   'Account',
   'Changelog',
 ]
-const mobilePrimary = ['Today', 'Routines', 'Habits']
+const mobilePrimary = ['Today', 'Plan', 'Tasks']
 const mobileMore = [
+  'Routines',
+  'Habits',
+  'Workouts',
+  'Nutrition',
+  'Supplements',
+  'Finance',
   'Goals',
   'Review',
-  'Planner',
-  'Storage',
+  'Analytics',
   'Body',
   'Notifications',
   'Settings',
+  'Mentor',
+  'Data',
+  'Integrations',
+  'AI assistant',
   'Account',
   'Changelog',
 ]
@@ -97,7 +115,7 @@ test('every destination is reachable at 390px', async ({ page }, testInfo) => {
 
   const bar = page.locator('.nav-list--compact')
 
-  for (const [label, url] of [['Routines', '/routines'], ['Habits', '/habits']] as const) {
+  for (const [label, url] of [['Plan', '/planner'], ['Tasks', '/storage']] as const) {
     await bar.getByRole('link', { name: label, exact: true }).click()
     await expect(page).toHaveURL(new RegExp(`^.*${url}`))
   }
@@ -105,11 +123,20 @@ test('every destination is reachable at 390px', async ({ page }, testInfo) => {
   for (const [label, url] of [
     ['Goals', '/goals'],
     ['Review', '/review'],
-    ['Planner', '/planner'],
-    ['Storage', '/storage'],
+    ['Routines', '/routines'],
+    ['Habits', '/habits'],
+    ['Workouts', '/workouts'],
+    ['Nutrition', '/nutrition'],
+    ['Supplements', '/supplements'],
+    ['Finance', '/finance'],
+    ['Analytics', '/analytics'],
+    ['Mentor', '/mentor'],
     ['Body', '/body'],
     ['Notifications', '/notifications'],
     ['Settings', '/settings/appearance'],
+    ['Data', '/settings/data'],
+    ['Integrations', '/settings/integrations'],
+    ['AI assistant', '/settings/ai'],
     ['Account', '/account'],
     ['Changelog', '/changelog'],
   ] as const) {

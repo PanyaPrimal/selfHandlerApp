@@ -15,7 +15,7 @@ class NutritionSettings extends Model
     protected $table = 'nutrition_settings';
 
     protected $fillable = [
-        'user_id', 'body_goal_id', 'protein_percent', 'fat_percent', 'carbs_percent', 'water_override_ml',
+        'user_id', 'body_goal_id', 'protein_percent', 'fat_percent', 'carbs_percent', 'water_override_ml', 'macro_targets_grams',
     ];
 
     protected $attributes = ['protein_percent' => 20, 'fat_percent' => 30, 'carbs_percent' => 50];
@@ -38,7 +38,7 @@ class NutritionSettings extends Model
     {
         return [
             'protein_percent' => 'decimal:2', 'fat_percent' => 'decimal:2',
-            'carbs_percent' => 'decimal:2', 'water_override_ml' => 'integer',
+            'carbs_percent' => 'decimal:2', 'water_override_ml' => 'integer', 'macro_targets_grams' => 'array',
         ];
     }
 

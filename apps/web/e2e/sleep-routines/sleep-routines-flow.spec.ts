@@ -131,7 +131,7 @@ test('day choices agree across Today Planner and Review summaries with rollback'
   await expect(page.getByRole('listitem', { name: 'Morning B' })).toBeVisible()
   await page.unroute('**/api/routine-selections/*')
 
-  await gotoDestination(page, 'Planner')
+  await gotoDestination(page, 'Plan')
   await pickDate(page, 'Day', night)
   await expect(page.getByRole('listitem', { name: 'Morning B' })).toBeVisible()
   await expect(page.getByRole('listitem', { name: 'Night plan' })).toContainText('Wake 07:00')

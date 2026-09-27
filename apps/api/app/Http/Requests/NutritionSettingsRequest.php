@@ -12,11 +12,15 @@ class NutritionSettingsRequest extends StrictJsonRequest
             'fat_percent' => ['required', 'numeric', 'between:20,35'],
             'carbs_percent' => ['required', 'numeric', 'between:45,65'],
             'water_override_ml' => ['present', 'nullable', 'integer', 'between:1000,6000'],
+            'macro_targets_grams' => ['sometimes', 'nullable', 'array:protein,fat,carbs', 'size:3'],
+            'macro_targets_grams.protein' => ['required_with:macro_targets_grams', 'numeric', 'between:0,1000'],
+            'macro_targets_grams.fat' => ['required_with:macro_targets_grams', 'numeric', 'between:0,1000'],
+            'macro_targets_grams.carbs' => ['required_with:macro_targets_grams', 'numeric', 'between:0,1000'],
         ];
     }
 
     protected function allowedKeys(): array
     {
-        return ['body_goal_id', 'protein_percent', 'fat_percent', 'carbs_percent', 'water_override_ml'];
+        return ['body_goal_id', 'protein_percent', 'fat_percent', 'carbs_percent', 'water_override_ml', 'macro_targets_grams'];
     }
 }

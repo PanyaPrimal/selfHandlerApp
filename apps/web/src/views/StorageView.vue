@@ -51,6 +51,8 @@ const route = useRoute()
 const items = ref<StorageItem[]>([])
 const projects = ref<StorageProject[]>([])
 const inboxCount = ref(0)
+const search = ref('')
+const expandedItems = reactive<Record<number, boolean>>({})
 
 const captureTitle = ref('')
 const captureType = ref<ItemType>('task')
@@ -109,9 +111,14 @@ const projectOptions = computed<UiOption<number>[]>(() =>
 
 /** Top-level items only; children are shown under their parent. */
 const roots = computed(() => items.value.filter((item) => item.parent_id === null))
-const inbox = computed(() => roots.value.filter((item) => item.status === 'inbox'))
-const active = computed(() => roots.value.filter((item) => item.status === 'active'))
-const closed = computed(() => roots.value.filter((item) => item.status === 'done' || item.status === 'dropped'))
+const matchingRoots = computed(() => roots.value.filter((item) => {
+  const query = search.value.trim().toLocaleLowerCase()
+  return !query || [item.title, item.description, ...items.value.filter((child) => child.parent_id === item.id).map((child) => child.title)]
+    .some((value) => value?.toLocaleLowerCase().includes(query))
+}))
+const inbox = computed(() => matchingRoots.value.filter((item) => item.status === 'inbox'))
+const active = computed(() => matchingRoots.value.filter((item) => item.status === 'active'))
+const closed = computed(() => matchingRoots.value.filter((item) => item.status === 'done' || item.status === 'dropped'))
 const aiActiveConnection = computed(() => aiSettings.value?.data.find(
   (connection) => connection.id === aiSettings.value?.active_connection_id,
 ) ?? null)
@@ -438,6 +445,7 @@ async function postExpense(item: StorageItem): Promise<void> {
 function storageChanged(event: Event) {
   const identity = (event as CustomEvent<{ resource: string; local: number; server: number } | undefined>).detail
   if (identity?.resource === 'items') {
+    if (expandedItems[identity.local] !== undefined) { expandedItems[identity.server] = expandedItems[identity.local]!; delete expandedItems[identity.local] }
     if (childDrafts[identity.local] !== undefined) { childDrafts[identity.server] = childDrafts[identity.local]!; delete childDrafts[identity.local] }
     if (purchaseDrafts[identity.local] !== undefined) { purchaseDrafts[identity.server] = purchaseDrafts[identity.local]!; delete purchaseDrafts[identity.local] }
     if (financing.value === identity.local) financing.value = identity.server
@@ -492,20 +500,25 @@ onBeforeUnmount(() => { clearAiExpiryTimer(); loadGeneration++; window.removeEve
       panel
       @retry="load"
     >
+      <UiTextInput v-model="search" :label="i18n.t('daily.search')" name="task-search" type="search" />
+      <p v-if="search.trim() && !matchingRoots.length" class="muted" role="status">{{ i18n.t('daily.searchEmpty') }}</p>
       <section class="panel" aria-labelledby="inbox-heading">
         <div class="section-heading">
           <h2 id="inbox-heading">{{ i18n.t('storage.inbox') }}</h2>
           <span class="kind-chip">{{ i18n.plural(inboxCount, { one: 'storage.unsorted.one', few: 'storage.unsorted.few', many: 'storage.unsorted.many', other: 'storage.unsorted.other' }) }}</span>
         </div>
 
-        <aside class="storage-ai-guidance" :class="{ 'is-ready': aiReady }" aria-labelledby="storage-ai-heading">
+        <details class="storage-ai-details">
+          <summary>{{ i18n.t('storage.aiTitle') }}</summary>
+          <aside class="storage-ai-guidance" :class="{ 'is-ready': aiReady }" aria-labelledby="storage-ai-heading">
           <div>
             <h3 id="storage-ai-heading">{{ i18n.t('storage.aiTitle') }}</h3>
             <p>{{ i18n.t(aiGuidanceKey) }}</p>
             <p class="muted">{{ i18n.t('storage.aiDisclosure') }}</p>
           </div>
           <RouterLink class="button secondary" to="/settings/ai">{{ i18n.t(aiReady ? 'storage.aiManage' : 'storage.aiSetUp') }}</RouterLink>
-        </aside>
+          </aside>
+        </details>
 
         <p v-if="inbox.length === 0" class="muted">
           {{ i18n.t('storage.inboxEmpty') }}
@@ -517,9 +530,10 @@ onBeforeUnmount(() => { clearAiExpiryTimer(); loadGeneration++; window.removeEve
                 <strong>{{ item.title }}</strong>
                 <small v-if="item.local_sync_status" class="muted">{{ i18n.t('offline.queued') }}</small>
                 <p class="muted">{{ typeLabel(item.type) }}</p>
+                <UiDatePicker :model-value="item.due_on" :label="i18n.t('daily.schedule', { name: item.title })" :name="`inbox-date-${item.id}`" :locale="i18n.locale.value" @update:model-value="(value) => patch(item, { due_on: value })" />
               </div>
               <div class="button-row management-actions">
-                <button type="button" class="secondary" :disabled="!aiReady || aiBusyItem !== null || !!item.local_sync_status" :aria-label="i18n.t('storage.aiDraftNamed', { name: item.title })" @click="requestAiDraft(item)">{{ i18n.t(aiBusyItem === item.id ? 'storage.aiDrafting' : 'storage.aiDraft') }}</button>
+                <button v-if="aiReady" type="button" class="secondary" :disabled="aiBusyItem !== null || !!item.local_sync_status" :aria-label="i18n.t('storage.aiDraftNamed', { name: item.title })" @click="requestAiDraft(item)">{{ i18n.t(aiBusyItem === item.id ? 'storage.aiDrafting' : 'storage.aiDraft') }}</button>
                 <button type="button" class="secondary" :aria-label="i18n.t('storage.triageNamed', { name: item.title })" @click="patch(item, { status: 'active' })">{{ i18n.t('storage.triage') }}</button>
                 <button type="button" class="secondary" :aria-label="i18n.t('storage.dropNamed', { name: item.title })" @click="patch(item, { status: 'dropped' })">{{ i18n.t('storage.drop') }}</button>
               </div>
@@ -574,11 +588,20 @@ onBeforeUnmount(() => { clearAiExpiryTimer(); loadGeneration++; window.removeEve
                 <p class="routine-meta">
                   <span class="kind-chip">{{ typeLabel(item.type) }}</span>
                   <span v-if="item.type === 'purchase'" class="kind-chip">{{ purchaseStatus(item) }}</span>
+                  <span v-if="item.due_on" class="kind-chip">{{ item.due_on }}</span>
                   <span v-if="projectName(item)" class="kind-chip">{{ projectName(item) }}</span>
                   <span v-for="tag in item.tags" :key="tag.id" class="kind-chip">{{ tag.name }}</span>
                 </p>
               </div>
               <div class="button-row management-actions">
+                <button v-if="item.type !== 'purchase'" type="button" class="secondary" :aria-label="i18n.t('storage.completeNamed', { name: item.title })" @click="patch(item, { status: 'done' })">{{ i18n.t('storage.complete') }}</button>
+
+              </div>
+            </div>
+
+            <details class="task-details" :open="expandedItems[item.id] ?? item.id === highlightedItem" @toggle="expandedItems[item.id] = ($event.target as HTMLDetailsElement).open">
+              <summary>{{ i18n.t('daily.details') }}</summary>
+              <div class="form-grid">
                 <UiSelect
                   :model-value="item.type"
                   :label="i18n.t('storage.typeNamed', { name: item.title })"
@@ -596,11 +619,10 @@ onBeforeUnmount(() => { clearAiExpiryTimer(); loadGeneration++; window.removeEve
                   :placeholder="i18n.t('storage.noProject')"
                   @update:model-value="(value) => patch(item, { project_id: value })"
                 />
-                <button v-if="item.type !== 'purchase'" type="button" class="secondary" :aria-label="i18n.t('storage.completeNamed', { name: item.title })" @click="patch(item, { status: 'done' })">{{ i18n.t('storage.complete') }}</button>
-                <button type="button" class="secondary" :aria-label="i18n.t('storage.deleteNamed', { name: item.title })" @click="remove(item)">{{ i18n.t('common.delete') }}</button>
-              </div>
-            </div>
 
+                <UiDatePicker :model-value="item.due_on" :label="i18n.t('daily.schedule', { name: item.title })" :name="`task-date-${item.id}`" :locale="i18n.locale.value" @update:model-value="(value) => patch(item, { due_on: value })" />
+              </div>
+                <button type="button" class="secondary" :aria-label="i18n.t('storage.deleteNamed', { name: item.title })" @click="remove(item)">{{ i18n.t('common.delete') }}</button>
             <section v-if="item.type === 'purchase'" class="purchase-finance" :aria-label="i18n.t('storage.purchaseFinanceNamed', { name: item.title })">
               <form class="capture-form" @submit.prevent="saveEstimate(item)"><label class="field"><span>{{ i18n.t('storage.estimate') }}</span><input v-model="purchaseDrafts[item.id]!.amount" inputmode="decimal" placeholder="0.0000"></label><UiSelect v-model="purchaseDrafts[item.id]!.currency" :name="`purchase-currency-${item.id}`" :label="i18n.t('finance.currency')" :options="currencyOptions" required /><div class="form-actions"><button type="submit" class="secondary">{{ i18n.t('storage.saveEstimate') }}</button><button type="button" :disabled="!!item.local_sync_status || !financeAccounts.length || !financeCategories.length" @click="startExpense(item)">{{ i18n.t('storage.buyDirect') }}</button><a v-if="!item.local_sync_status" class="button secondary" :href="`/finance?tab=debts&purchase=${item.id}`">{{ i18n.t('storage.buyInstallments') }}</a></div></form>
               <form v-if="financing === item.id" class="capture-form" :aria-label="i18n.t('storage.expenseEditor')" @submit.prevent="postExpense(item)"><UiSelect v-model="sourceDraft.account_id" :name="`purchase-account-${item.id}`" :label="i18n.t('finance.account')" :options="expenseAccountOptions(item)" required /><UiSelect v-model="sourceDraft.category_id" :name="`purchase-category-${item.id}`" :label="i18n.t('finance.expenseCategory')" :options="expenseCategoryOptions" required /><label class="field"><span>{{ i18n.t('finance.amount') }}</span><input v-model="sourceDraft.amount" inputmode="decimal" required></label><UiDatePicker :model-value="sourceDraft.occurred_on" :name="`purchase-date-${item.id}`" :label="i18n.t('finance.date')" :locale="i18n.locale.value" :today="sourceDraft.occurred_on" :max="sourceDraft.occurred_on" :clearable="false" required @update:model-value="(value) => { if (value) sourceDraft.occurred_on = value }" /><div class="form-actions"><button type="submit" :disabled="!sourceDraft.account_id || !sourceDraft.category_id">{{ i18n.t('storage.postExpense') }}</button><button type="button" class="ghost" @click="financing = null">{{ i18n.t('common.cancel') }}</button></div></form>
@@ -658,6 +680,7 @@ onBeforeUnmount(() => { clearAiExpiryTimer(); loadGeneration++; window.removeEve
                 </div>
               </form>
             </div>
+            </details>
           </li>
         </ul>
       </section>
@@ -716,3 +739,11 @@ onBeforeUnmount(() => { clearAiExpiryTimer(); loadGeneration++; window.removeEve
     </AsyncState>
   </section>
 </template>
+
+<style scoped>
+.storage-ai-details > summary, .task-details > summary { cursor: pointer; padding: .65rem 0; min-height: 44px; color: var(--muted); }
+.storage-ai-details { margin-block: .5rem; }
+.task-details { margin-top: .5rem; }
+.task-details[open] > summary { margin-bottom: .75rem; }
+.task-details > .form-grid { margin-bottom: .75rem; }
+</style>

@@ -596,6 +596,10 @@ export async function updateNutritionRecipe(recipeId: number, payload: Partial<R
   return response.data
 }
 
+export async function recalculateNutritionTarget(date: string): Promise<void> {
+  await jsonRequest(`/nutrition/days/${date}/recalculate`, 'POST', {})
+}
+
 export async function getNutritionSettings(): Promise<NutritionSettings> {
   const response = await request<ItemResponse<NutritionSettings>>('/nutrition/settings')
   return response.data

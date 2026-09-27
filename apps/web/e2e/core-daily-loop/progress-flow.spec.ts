@@ -85,6 +85,7 @@ async function openPeriodEnd(page: Page): Promise<void> {
   })
   await pickDate(page, 'Date', PERIOD_END)
   expect((await responsePromise).status()).toBe(200)
+  await page.getByText('Daily totals & recent progress', { exact: true }).click()
 }
 
 function labeledValue(container: Locator, label: string): Locator {

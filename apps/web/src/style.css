@@ -445,6 +445,8 @@ button.ghost {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
   padding: 28px 20px;
   border-right: 1px solid var(--border);
   background: color-mix(in srgb, var(--paper-soft) 90%, transparent);
@@ -485,6 +487,17 @@ button.ghost {
   display: grid;
   gap: 6px;
 }
+
+.nav-group__label {
+  margin: 14px 12px 4px;
+  color: var(--subtle);
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.nav-list--desktop { padding-bottom: 20px; }
 
 .nav-group--utility {
   margin-top: 12px;
@@ -602,8 +615,13 @@ button.ghost {
 
 .content-shell {
   width: min(100%, 1180px);
-  padding: 40px 32px 64px;
+  padding: 76px 32px 64px;
 }
+
+.workspace-shortcuts { display: flex; flex-wrap: wrap; gap: .5rem; margin-block: 1rem; }
+.workspace-shortcuts a { display: inline-flex; align-items: center; min-height: 44px; padding: .45rem .8rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); text-decoration: none; }
+.workspace-shortcuts a:hover { background: var(--accent-soft); }
+.nutrition-workspace section[id], .workout-workspace section[id] { scroll-margin-top: 4rem; }
 
 .auth-shell {
   display: flex;
@@ -1099,6 +1117,20 @@ h3 {
 .goal-card {
   display: grid;
   gap: 16px;
+}
+
+.goal-card > .management-row { flex-wrap: wrap; }
+.goal-card .management-copy { flex: 1 1 15rem; }
+.goal-card .management-actions { flex: 0 1 auto; }
+.optional-section > summary { cursor: pointer; min-height: 44px; padding-block: .7rem; font-weight: 600; }
+.optional-section[open] > summary { margin-bottom: .75rem; }
+.summary-grid.workout-record-metrics { grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); }
+.workout-record-metrics .metric { min-width: 0; }
+.storage-ai-guidance { flex-wrap: wrap; }
+.storage-ai-guidance > div { flex: 1 1 16rem; min-width: 0; }
+.storage-ai-guidance > a { flex: 0 0 auto; max-width: 100%; }
+@media (max-width: 760px) {
+  .goal-card .management-copy { flex: 0 1 auto; }
 }
 
 .goal-finance-summary {
@@ -2844,6 +2876,8 @@ button.text-button {
     inset: auto calc(12px + var(--app-safe-right)) calc(12px + var(--app-safe-bottom)) calc(12px + var(--app-safe-left));
     z-index: 20;
     min-height: 0;
+    height: auto;
+    overflow: visible;
     padding: 8px;
     border: 1px solid var(--border);
     border-radius: 18px;
@@ -3161,6 +3195,11 @@ button.text-button {
 .nutrition-workspace {
   max-width: 1180px;
 }
+
+.nutrition-workspace .button-row { flex-wrap: wrap; }
+.nutrition-workspace .button-row > button,
+.nutrition-workspace .button-row > a { flex-shrink: 0; max-width: 100%; }
+.nutrition-workspace .button-row > p { flex-basis: 100%; }
 
 .nutrition-metrics {
   grid-template-columns: repeat(3, minmax(0, 1fr));

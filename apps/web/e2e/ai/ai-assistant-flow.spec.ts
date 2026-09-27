@@ -66,7 +66,8 @@ test('consent gates a disclosed proposal and confirmation performs one visible S
   await registerViaUi(page, uniqueCredentials(testInfo, 'AiTriage'), { redirectTo: '/settings/ai' })
   const issues = collectRuntimeIssues(page)
 
-  await gotoDestination(page, 'Storage')
+  await gotoDestination(page, 'Tasks')
+  await page.getByText('Optional AI triage', { exact: true }).first().click()
   await expect(page.getByText('Review and grant the Storage Inbox scope')).toBeVisible()
   expect(state.draftCalls).toBe(0)
 
@@ -94,7 +95,7 @@ test('consent gates a disclosed proposal and confirmation performs one visible S
   await expect(page.getByText('This is only a proposal.')).toBeVisible()
   expect(state.draftCalls).toBe(1)
   await expect(page.getByText('1 unsorted')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Triage Prepare tax documents' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Start Prepare tax documents' })).toBeVisible()
 
   await page.getByRole('button', { name: 'Dismiss' }).click()
   await expect(page.getByText('Proposal dismissed. No Storage data changed.')).toBeVisible()
@@ -103,7 +104,7 @@ test('consent gates a disclosed proposal and confirmation performs one visible S
   await page.getByRole('button', { name: 'Ask AI for a proposal for Prepare tax documents' }).click()
   await page.getByRole('button', { name: 'Confirm and apply' }).click()
   await expect(page.getByText('Proposal confirmed and applied once.')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Triage Prepare tax documents' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Start Prepare tax documents' })).toHaveCount(0)
   await expect(page.getByText('next-step')).toBeVisible()
   expect(state.confirmationCalls).toBe(1)
 
@@ -114,6 +115,7 @@ test('consent gates a disclosed proposal and confirmation performs one visible S
   await page.getByRole('button', { name: 'Save sharing preference' }).click()
   await consentRevoked
   await page.goto('/storage')
+  await page.getByText('Optional AI triage', { exact: true }).first().click()
   await expect(page.getByText('Review and grant the Storage Inbox scope')).toBeVisible()
   expect(state.draftCalls).toBe(2)
 

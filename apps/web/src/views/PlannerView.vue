@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   createTimeBlock,
   deleteTimeBlock,
@@ -20,6 +20,7 @@ import { useI18n } from '../i18n'
 
 const i18n = useI18n()
 const router = useRouter()
+const route = useRoute()
 const locale = i18n.locale
 
 const isLoading = ref(true)
@@ -29,7 +30,8 @@ const feedback = ref<string | null>(null)
 const isSubmitting = ref(false)
 
 /** `null` until the first load, because only the server knows the user's today. */
-const date = ref<string | null>(null)
+const requestedDate = typeof route.query.date === 'string' && parseCalendarDate(route.query.date) ? route.query.date : null
+const date = ref<string | null>(requestedDate)
 const today = ref<string | null>(null)
 const entries = ref<PlannerEntry[]>([])
 const materializedUntil = ref<string | null>(null)

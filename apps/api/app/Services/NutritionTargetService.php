@@ -54,6 +54,24 @@ class NutritionTargetService
         }
     }
 
+    // Ordinary reads stay stable. Only this explicit user action replaces a reference.
+    public function recalculate(User $user, string $date): NutritionDailyTarget
+    {
+        $target = $this->forDate($user, $date);
+
+        return DB::transaction(function () use ($user, $date, $target): NutritionDailyTarget {
+            $locked = NutritionDailyTarget::query()->ownedBy($user)->whereKey($target->id)->lockForUpdate()->firstOrFail();
+            $attributes = $this->calculate($user, $date);
+            $attributes['calculation_basis']['recalculated_at'] = now()->toISOString();
+            // The model deliberately refuses casual updates/deletes. This scoped
+            // write is the explicit recalculation boundary; meal snapshots are untouched.
+            $encoded = (new NutritionDailyTarget)->forceFill($attributes)->getAttributes();
+            NutritionDailyTarget::query()->ownedBy($user)->whereKey($locked->id)->update($encoded);
+
+            return $locked->fresh();
+        });
+    }
+
     /** @return array<string, mixed> */
     public function refinement(User $user, NutritionDailyTarget $target): array
     {
@@ -135,6 +153,12 @@ class NutritionTargetService
             $protein = $calories * ((float) $settings->protein_percent / 100) / 4;
             $fat = $calories * ((float) $settings->fat_percent / 100) / 9;
             $carbs = $calories * ((float) $settings->carbs_percent / 100) / 4;
+        }
+
+        if ($settings->macro_targets_grams !== null) {
+            $protein = $settings->macro_targets_grams['protein'];
+            $fat = $settings->macro_targets_grams['fat'];
+            $carbs = $settings->macro_targets_grams['carbs'];
         }
 
         return [
@@ -281,6 +305,7 @@ class NutritionTargetService
             'fat_percent' => $settings->fat_percent,
             'carbs_percent' => $settings->carbs_percent,
             'water_override_ml' => $settings->water_override_ml,
+            'macro_targets_grams' => $settings->macro_targets_grams,
         ];
     }
 }

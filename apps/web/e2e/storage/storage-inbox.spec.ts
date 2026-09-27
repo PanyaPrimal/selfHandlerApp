@@ -17,7 +17,7 @@ async function capture(page: Page, title: string): Promise<void> {
 
 test('one field captures, and triage moves the item out of the inbox', async ({ page }, testInfo) => {
   await registerViaUi(page, uniqueCredentials(testInfo, 'Storage'))
-  await gotoDestination(page, 'Storage')
+  await gotoDestination(page, 'Tasks')
   await expect(page).toHaveURL('/storage')
 
   // The empty inbox explains itself rather than showing a blank frame.
@@ -36,7 +36,7 @@ test('one field captures, and triage moves the item out of the inbox', async ({ 
   await capture(page, 'Learn to weld')
   await expect(page.getByText('2 unsorted')).toBeVisible()
 
-  await page.getByRole('button', { name: 'Triage Book the dentist' }).click()
+  await page.getByRole('button', { name: 'Start Book the dentist' }).click()
   await expect(page.getByText('1 unsorted')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'In progress' })).toBeVisible()
 
@@ -48,10 +48,11 @@ test('a blocking child refuses the parent completion until it is closed', async 
   await page.goto('/storage')
 
   await capture(page, 'Fit the shelf')
-  await page.getByRole('button', { name: 'Triage Fit the shelf' }).click()
+  await page.getByRole('button', { name: 'Start Fit the shelf' }).click()
   await expect(page.getByRole('heading', { name: 'In progress' })).toBeVisible()
 
   const parent = page.getByRole('listitem', { name: 'Fit the shelf' })
+  await parent.getByText('Details & subtasks', { exact: true }).click()
   await expect(parent.getByText(/No child items/)).toBeVisible()
 
   const childForm = page.getByRole('form', { name: 'Add a child to Fit the shelf' })
@@ -89,8 +90,9 @@ test('a project groups items and deleting it keeps the work', async ({ page }, t
   await expect(page.getByRole('listitem', { name: 'Renovation' })).toBeVisible()
 
   await capture(page, 'Order tiles')
-  await page.getByRole('button', { name: 'Triage Order tiles' }).click()
+  await page.getByRole('button', { name: 'Start Order tiles' }).click()
 
+  await page.getByRole('listitem', { name: 'Order tiles', exact: true }).getByText('Details & subtasks', { exact: true }).click()
   await chooseOption(page, 'Project of Order tiles', 'Renovation')
   await expect(page.getByRole('listitem', { name: 'Renovation' })).toContainText('1 open')
 
@@ -105,7 +107,7 @@ test('storage is reachable and usable at 390px', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'mobile', 'Compact layout')
 
   await registerViaUi(page, uniqueCredentials(testInfo, 'StorageMobile'))
-  await gotoDestination(page, 'Storage')
+  await gotoDestination(page, 'Tasks')
 
   await expect(page).toHaveURL('/storage')
   await capture(page, 'Captured on a phone')

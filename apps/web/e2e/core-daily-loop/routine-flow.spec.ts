@@ -26,6 +26,9 @@ async function selectDate(page: Page, date: string): Promise<void> {
 }
 
 async function expectMetric(page: Page, label: string, value: string): Promise<void> {
+  if (!(await page.locator('.today-insights').getAttribute('open') !== null)) {
+    await page.getByText('Daily totals & recent progress', { exact: true }).click()
+  }
   const summary = page.getByRole('region', { name: 'Daily completion summary' })
   await expect(summary.locator('.metric').filter({ hasText: label }).locator('strong')).toHaveText(value)
 }

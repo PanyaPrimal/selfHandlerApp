@@ -27,6 +27,10 @@ class NutritionSettingsService
             'fat_percent' => ['required', 'numeric', 'between:20,35'],
             'carbs_percent' => ['required', 'numeric', 'between:45,65'],
             'water_override_ml' => ['present', 'nullable', 'integer', 'between:1000,6000'],
+            'macro_targets_grams' => ['sometimes', 'nullable', 'array:protein,fat,carbs', 'size:3'],
+            'macro_targets_grams.protein' => ['required_with:macro_targets_grams', 'numeric', 'between:0,1000'],
+            'macro_targets_grams.fat' => ['required_with:macro_targets_grams', 'numeric', 'between:0,1000'],
+            'macro_targets_grams.carbs' => ['required_with:macro_targets_grams', 'numeric', 'between:0,1000'],
         ]);
         $validator->after(function ($validator) use ($attributes, $user): void {
             $sum = (float) ($attributes['protein_percent'] ?? 0)

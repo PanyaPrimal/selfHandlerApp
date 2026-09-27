@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import {
+  recalculateNutritionTarget,
   createNutritionFood,
   createNutritionMeal,
   createNutritionRecipe,
@@ -37,7 +38,13 @@ import { UiCheckbox, UiDatePicker, UiNumberInput, UiSegmented, UiSelect, UiTextI
 import type { UiOption } from '../components/ui'
 import { useAuthSession } from '../auth/session'
 import { useI18n } from '../i18n'
+import type { MessageKey } from '../i18n/locales/en'
 import { createNutritionMutationQueue, nutritionTargetCopyKey } from '../nutrition/nutrition-state'
+
+const profileFieldLabels: Record<string, MessageKey> = {
+  date_of_birth: 'account.dateOfBirth', sex: 'account.sex', height_meters: 'account.heightCm',
+  weight_grams: 'account.weightKg', baseline_activity: 'account.activity', body_fat_percentage: 'account.bodyFat',
+}
 
 interface FoodDraft {
   name: string
@@ -66,6 +73,7 @@ const loadFailed = ref(false)
 const feedback = ref<string | null>(null)
 const error = ref<string | null>(null)
 const foods = ref<FoodItem[]>([])
+const waterReference = ref<FoodItem | null>(null)
 const recipes = ref<Recipe[]>([])
 const day = ref<NutritionDay | null>(null)
 const history = ref<NutritionSummary[]>([])
@@ -75,6 +83,7 @@ const foodState = ref<NutritionLifecycleState>('active')
 const recipeState = ref<NutritionLifecycleState>('active')
 const editingFoodId = ref<number | null>(null)
 const editingRecipeId = ref<number | null>(null)
+const recipesOpen = ref(false)
 const editingMealId = ref<number | null>(null)
 const enqueue = createNutritionMutationQueue()
 
@@ -92,6 +101,10 @@ const mealForm = reactive({
 const mealDraft = reactive({
   consumedOn: localToday(), name: '', category: null as MealCategory | null, time: null as string | null, note: '', entries: [] as MealEntryDraft[],
 })
+const waterAmount = ref<number | null>(250)
+const macroMode = ref('grams')
+const macroGrams = reactive<{ protein: number | null; fat: number | null; carbs: number | null }>({ protein: null, fat: null, carbs: null })
+const macroModeOptions = computed(() => [{ value: 'grams', label: i18n.t('feedback.macrosGrams') }, { value: 'percent', label: i18n.t('feedback.macrosPercent') }])
 const settingsForm = reactive({ bodyGoalId: null as number | null, protein: 20, fat: 30, carbs: 50, water: null as number | null })
 
 const basisOptions = computed<UiOption<FoodBasis>[]>(() => [
@@ -176,9 +189,14 @@ async function loadAll(): Promise<void> {
       getNutritionSettings(), getNutritionSummary(fromDate, date), getBodyGoals(),
     ])
     foods.value = foodData
+    waterReference.value = foodData.find((food) => food.system_key === 'plain_water') ?? waterReference.value
     recipes.value = recipeData
     day.value = dayData
     settings.value = settingsData
+    for (const key of ['protein', 'fat', 'carbs'] as const) {
+      const saved = settingsData.macro_targets_grams?.[key] ?? dayData.target[`${key}_target_grams`]
+      macroGrams[key] = saved == null ? null : Number(saved)
+    }
     history.value = range.days
     goals.value = bodyGoals.data
     settingsForm.bodyGoalId = settingsData.body_goal_id
@@ -294,11 +312,32 @@ function entryPayload(entries: MealEntryDraft[]) {
   })
 }
 
+function quantityUnit(entry: MealEntryDraft): string {
+  const [kind, id] = (entry.reference ?? '').split(':')
+  const food = foods.value.find((item) => item.id === Number(id))
+  return i18n.t(kind === 'food' && food?.basis_unit === 'millilitre' ? 'nutrition.millilitres' : 'nutrition.grams')
+}
+
+async function logWater(): Promise<void> {
+  const water = waterReference.value
+  if (!water || !selectedDate.value || !waterAmount.value || isSaving.value) return
+  await mutate(() => createNutritionMeal({ consumed_on: selectedDate.value!, name: i18n.t('nutrition.plainWater'), category: null,
+    consumed_at_local: null, note: null, submission_key: crypto.randomUUID(),
+    entries: [{ food_item_id: water.id, recipe_id: null, quantity: waterAmount.value! }],
+  }), i18n.t('nutrition.mealCreated'))
+}
+
+async function refreshTarget(): Promise<void> {
+  if (!selectedDate.value || isSaving.value) return
+  await mutate(() => recalculateNutritionTarget(selectedDate.value!), i18n.t('feedback.targetUpdated'))
+}
+
 async function createMeal(): Promise<void> {
-  if (!selectedDate.value) return
+  if (!selectedDate.value || isSaving.value) return
+  if (!mealForm.entries.length) { error.value = i18n.t('feedback.chooseFood'); return }
   await mutate(async () => {
     await createNutritionMeal({
-      consumed_on: selectedDate.value!, name: mealForm.name, category: mealForm.category,
+      consumed_on: selectedDate.value!, name: mealForm.name.trim() || referenceOptions.value.find((item) => item.value === mealForm.entries[0]?.reference)?.label || i18n.t('nutrition.meals'), category: mealForm.category,
       consumed_at_local: mealForm.time, note: mealForm.note || null,
       submission_key: crypto.randomUUID(), entries: entryPayload(mealForm.entries),
     })
@@ -343,10 +382,11 @@ function removeMealAttachment(meal: Meal, attachmentId: number): void {
 }
 
 async function saveSettings(): Promise<void> {
-  await mutate(() => updateNutritionSettings({
+  await mutate(async () => { await updateNutritionSettings({
     body_goal_id: settingsForm.bodyGoalId, protein_percent: settingsForm.protein,
     fat_percent: settingsForm.fat, carbs_percent: settingsForm.carbs, water_override_ml: settingsForm.water,
-  }), i18n.t('nutrition.settingsSaved'))
+    macro_targets_grams: macroMode.value === 'grams' ? { protein: macroGrams.protein!, fat: macroGrams.fat!, carbs: macroGrams.carbs! } : null,
+  }); if (selectedDate.value) await recalculateNutritionTarget(selectedDate.value) }, i18n.t('nutrition.settingsSaved'))
 }
 
 async function selectDate(value: string | null): Promise<void> {
@@ -382,12 +422,72 @@ onMounted(loadAll)
       </div>
       <UiDatePicker :model-value="selectedDate" :label="i18n.t('nutrition.date')" name="nutrition-date" :locale="locale" :today="localToday()" @update:model-value="selectDate" />
     </header>
+    <nav class="workspace-shortcuts" :aria-label="i18n.t('daily.sections')">
+      <a href="#nutrition-meals">{{ i18n.t('nutrition.logMeal') }}</a>
+      <a href="#nutrition-foods">{{ i18n.t('nutrition.foodCatalogue') }}</a>
+      <a href="#nutrition-recipes" @click="recipesOpen = true">{{ i18n.t('nutrition.recipes') }}</a>
+      <a href="#nutrition-settings">{{ i18n.t('nutrition.targetSettings') }}</a>
+    </nav>
 
     <p v-if="feedback" role="status" aria-live="polite" class="success-message">{{ feedback }}</p>
     <p v-if="error" role="alert" class="error-message">{{ error }}</p>
     <AsyncState :loading="isLoading" :error="loadFailed ? i18n.t('nutrition.loadFailed') : null" :empty="false" @retry="loadAll" />
 
     <template v-if="!isLoading && !loadFailed && day">
+      <section class="panel" :aria-label="i18n.t('feedback.water')">
+        <h2>{{ i18n.t('feedback.water') }}</h2><p class="muted">{{ i18n.t('feedback.waterHelp') }}</p>
+        <form class="form-grid" :aria-label="i18n.t('feedback.water')" @submit.prevent="logWater">
+          <UiNumberInput v-model="waterAmount" :label="i18n.t('feedback.waterAmount')" name="water-amount" :min="1" :step="1" required />
+          <button type="submit" :disabled="isSaving">{{ i18n.t('feedback.logWater') }}</button>
+        </form>
+      </section>
+      <section id="nutrition-meals" class="panel">
+        <div class="section-heading"><h2>{{ i18n.t('nutrition.meals') }}</h2></div>
+        <p class="muted">{{ i18n.t('feedback.mealHelp') }} <a href="#nutrition-foods">{{ i18n.t('nutrition.foodCatalogue') }}</a></p>
+        <form class="form-grid" :aria-label="i18n.t('nutrition.logMeal')" @submit.prevent="createMeal">
+          <UiDatePicker :model-value="selectedDate" :label="i18n.t('nutrition.consumedDate')" name="meal-date" :locale="locale" :today="localToday()" :max="localToday()" @update:model-value="selectDate" />
+          <UiTextInput v-model="mealForm.name" :label="i18n.t('nutrition.mealName')" name="meal-name" :helper="i18n.t('feedback.mealNameHelp')" />
+          <div v-for="(entry, index) in mealForm.entries" :key="index" class="form-grid wide-field nutrition-entry-row"><UiSelect v-model="entry.reference" :label="i18n.t('nutrition.entryNumber', { number: index + 1 })" :name="`meal-entry-${index}`" :options="referenceOptions" /><UiNumberInput v-model="entry.quantity" :label="i18n.t('nutrition.entryQuantityNumber', { number: index + 1 })" :name="`meal-entry-quantity-${index}`" :suffix="quantityUnit(entry)" :helper="quantityUnit(entry)" :min="0.001" :step="0.001" /><button type="button" class="secondary danger" :aria-label="i18n.t('nutrition.removeEntryNumber', { number: index + 1 })" @click="removeMealEntry(mealForm, index)">{{ i18n.t('common.remove') }}</button></div>
+          <details class="wide-field optional-section"><summary>{{ i18n.t('feedback.optional') }}</summary><div class="form-grid">
+          <UiSelect v-model="mealForm.category" :label="i18n.t('nutrition.category')" name="meal-category" :options="categoryOptions" nullable />
+          <UiTimeField v-model="mealForm.time" :label="i18n.t('nutrition.localTime')" name="meal-time" />
+          <UiTextInput v-model="mealForm.note" :label="i18n.t('nutrition.note')" name="meal-note" />
+          </div></details>
+          <div class="button-row wide-field"><button type="button" class="secondary" @click="addMealEntry(mealForm)">{{ i18n.t('nutrition.addEntry') }}</button><button type="submit" :disabled="isSaving">{{ i18n.t('nutrition.logMeal') }}</button></div>
+        </form>
+        <ul class="management-list" :aria-label="i18n.t('nutrition.meals')">
+          <li v-for="meal in day.meals" :key="meal.id" class="management-row" :aria-label="meal.name">
+            <template v-if="editingMealId !== meal.id"><div><strong>{{ meal.name }}</strong><p class="muted">{{ meal.consumed_at_local ?? i18n.t('nutrition.anyTime') }} · {{ meal.entries.reduce((sum, entry) => sum + Number(entry.calories), 0).toFixed(0) }} kcal</p></div><div class="management-actions"><button type="button" class="secondary" :aria-label="i18n.t('nutrition.editMealNamed', { name: meal.name })" @click="startMealEdit(meal)">{{ i18n.t('common.edit') }}</button><button type="button" class="danger" :aria-label="i18n.t('nutrition.deleteMealNamed', { name: meal.name })" @click="removeMeal(meal)">{{ i18n.t('common.delete') }}</button></div></template>
+            <form v-else class="form-grid wide-field" :aria-label="i18n.t('nutrition.editMealNamed', { name: meal.name })" @submit.prevent="saveMeal(meal)">
+              <UiDatePicker :model-value="mealDraft.consumedOn" :label="i18n.t('nutrition.consumedDate')" :name="`edit-meal-date-${meal.id}`" :locale="locale" :today="localToday()" :max="localToday()" @update:model-value="(value) => { if (value) mealDraft.consumedOn = value }" />
+              <UiTextInput v-model="mealDraft.name" :label="i18n.t('nutrition.mealName')" :name="`edit-meal-name-${meal.id}`" required />
+              <UiSelect v-model="mealDraft.category" :label="i18n.t('nutrition.category')" :name="`edit-meal-category-${meal.id}`" :options="categoryOptions" nullable />
+              <UiTimeField v-model="mealDraft.time" :label="i18n.t('nutrition.localTime')" :name="`edit-meal-time-${meal.id}`" />
+              <UiTextInput v-model="mealDraft.note" :label="i18n.t('nutrition.note')" :name="`edit-meal-note-${meal.id}`" />
+              <div v-for="(entry, index) in mealDraft.entries" :key="index" class="form-grid wide-field nutrition-entry-row">
+                <UiSelect v-model="entry.reference" :label="i18n.t('nutrition.entryNumber', { number: index + 1 })" :name="`edit-meal-entry-${meal.id}-${index}`" :options="referenceOptions" />
+                <UiNumberInput v-model="entry.quantity" :label="i18n.t('nutrition.entryQuantityNumber', { number: index + 1 })" :name="`edit-meal-quantity-${meal.id}-${index}`" :min="0.001" :step="0.001" />
+                <button type="button" class="secondary danger" :aria-label="i18n.t('nutrition.removeEntryNumber', { number: index + 1 })" @click="removeMealEntry(mealDraft, index)">{{ i18n.t('common.remove') }}</button>
+              </div>
+              <div class="button-row wide-field"><button type="button" class="secondary" @click="addMealEntry(mealDraft)">{{ i18n.t('nutrition.addEntry') }}</button><button type="submit">{{ i18n.t('nutrition.saveMeal') }}</button><button type="button" class="secondary" @click="editingMealId = null">{{ i18n.t('common.cancel') }}</button></div>
+            </form>
+            <div class="attachment-parent wide-field" :data-attachment-parent="`meal:${meal.id}`">
+              <AttachmentGallery
+                :attachments="meal.attachments"
+                :parent-label="meal.name"
+                @deleted="removeMealAttachment(meal, $event)"
+              />
+              <AttachmentUploader
+                parent-type="meal"
+                :parent-id="meal.id"
+                :disabled="meal.attachments.length >= 10"
+                @uploaded="addMealAttachment(meal, $event)"
+              />
+            </div>
+          </li>
+        </ul>
+      </section>
+
       <section class="panel" :aria-label="i18n.t('nutrition.progress')">
         <div class="section-heading">
           <div><p class="eyebrow">{{ i18n.t('nutrition.selectedDay') }}</p><h2>{{ i18n.t('nutrition.progress') }}</h2></div>
@@ -405,20 +505,22 @@ onMounted(loadAll)
 
       <section class="panel" :aria-label="i18n.t('nutrition.dailyTarget')">
         <div class="section-heading"><div><p class="eyebrow">{{ i18n.t('nutrition.stableReference') }}</p><h2>{{ i18n.t('nutrition.dailyTarget') }}</h2></div><strong>{{ i18n.t(nutritionTargetCopyKey(day.target.status)) }}</strong></div>
+        <p class="muted">{{ i18n.t('feedback.targetHelp') }}</p>
+        <div class="button-row"><RouterLink to="/account">{{ i18n.t('daily.completeProfile') }}</RouterLink><a href="#nutrition-settings">{{ i18n.t('nutrition.targetSettings') }}</a><button type="button" class="secondary" :disabled="isSaving" @click="refreshTarget">{{ i18n.t('feedback.recalculate') }}</button></div>
         <p class="muted">{{ i18n.t('nutrition.targetEstimate') }}</p>
         <dl class="nutrition-breakdown">
-          <div><dt>{{ i18n.t('nutrition.formula') }}</dt><dd>{{ day.target.formula }}</dd></div>
+          <div><dt>{{ i18n.t('nutrition.formula') }}</dt><dd>{{ day.target.formula === 'katch_mcardle' ? 'Katch-McArdle' : 'Mifflin-St Jeor' }}</dd></div>
           <div><dt>{{ i18n.t('nutrition.bmr') }}</dt><dd>{{ format(day.target.bmr_kcal, 'kcal') }}</dd></div>
           <div><dt>{{ i18n.t('nutrition.baseline') }}</dt><dd>{{ format(day.target.baseline_kcal, 'kcal') }}</dd></div>
           <div><dt>{{ i18n.t('nutrition.goalAdjustment') }}</dt><dd>{{ format(day.target.goal_adjustment_kcal, 'kcal') }}</dd></div>
           <div><dt>{{ i18n.t('nutrition.plannedEnergy') }}</dt><dd>{{ format(day.target.planned_workout_kcal, 'kcal') }}</dd></div>
           <div><dt>{{ i18n.t('nutrition.refinement') }}</dt><dd>{{ format(day.refinement.refined_calorie_target, 'kcal') }}</dd></div>
         </dl>
-        <p v-if="day.target.calculation_basis.missing_fields.length" class="muted">{{ i18n.t('nutrition.missingFields') }}: {{ day.target.calculation_basis.missing_fields.join(', ') }}</p>
+        <p v-if="day.target.calculation_basis.missing_fields.length" class="muted">{{ i18n.t('nutrition.missingFields') }}: {{ day.target.calculation_basis.missing_fields.map((field) => i18n.t(profileFieldLabels[field] ?? 'account.unknownField')).join(', ') }}. <RouterLink to="/account">{{ i18n.t('daily.completeProfile') }}</RouterLink></p>
         <p class="muted">{{ refinementMessage(day.refinement.status) }}</p>
       </section>
 
-      <section class="panel">
+      <section id="nutrition-foods" class="panel">
         <div class="section-heading"><div><p class="eyebrow">{{ i18n.t('nutrition.references') }}</p><h2>{{ i18n.t('nutrition.foodCatalogue') }}</h2></div></div>
         <form class="form-grid" :aria-label="i18n.t('nutrition.createFood')" @submit.prevent="createFood">
           <UiTextInput v-model="foodForm.name" :label="i18n.t('nutrition.foodName')" name="food-name" required />
@@ -455,7 +557,8 @@ onMounted(loadAll)
         </ul>
       </section>
 
-      <section class="panel">
+      <details id="nutrition-recipes" class="panel optional-section" :open="recipesOpen" @toggle="recipesOpen = ($event.target as HTMLDetailsElement).open">
+        <summary>{{ i18n.t('nutrition.recipes') }} · {{ i18n.t('feedback.optional') }}</summary>
         <div class="section-heading"><h2>{{ i18n.t('nutrition.recipes') }}</h2></div>
         <form class="form-grid" :aria-label="i18n.t('nutrition.createRecipe')" @submit.prevent="createRecipe">
           <UiTextInput v-model="recipeForm.name" :label="i18n.t('nutrition.recipeName')" name="recipe-name" required />
@@ -483,53 +586,15 @@ onMounted(loadAll)
             </form>
           </li>
         </ul>
-      </section>
+      </details>
 
-      <section class="panel">
-        <div class="section-heading"><h2>{{ i18n.t('nutrition.meals') }}</h2></div>
-        <form class="form-grid" :aria-label="i18n.t('nutrition.logMeal')" @submit.prevent="createMeal">
-          <UiDatePicker :model-value="selectedDate" :label="i18n.t('nutrition.consumedDate')" name="meal-date" :locale="locale" :today="localToday()" :max="localToday()" @update:model-value="selectDate" />
-          <UiTextInput v-model="mealForm.name" :label="i18n.t('nutrition.mealName')" name="meal-name" required />
-          <UiSelect v-model="mealForm.category" :label="i18n.t('nutrition.category')" name="meal-category" :options="categoryOptions" nullable />
-          <UiTimeField v-model="mealForm.time" :label="i18n.t('nutrition.localTime')" name="meal-time" />
-          <UiTextInput v-model="mealForm.note" :label="i18n.t('nutrition.note')" name="meal-note" />
-          <div v-for="(entry, index) in mealForm.entries" :key="index" class="form-grid wide-field nutrition-entry-row"><UiSelect v-model="entry.reference" :label="i18n.t('nutrition.entryNumber', { number: index + 1 })" :name="`meal-entry-${index}`" :options="referenceOptions" /><UiNumberInput v-model="entry.quantity" :label="i18n.t('nutrition.entryQuantityNumber', { number: index + 1 })" :name="`meal-entry-quantity-${index}`" :min="0.001" :step="0.001" /><button type="button" class="secondary danger" :aria-label="i18n.t('nutrition.removeEntryNumber', { number: index + 1 })" @click="removeMealEntry(mealForm, index)">{{ i18n.t('common.remove') }}</button></div>
-          <div class="button-row wide-field"><button type="button" class="secondary" @click="addMealEntry(mealForm)">{{ i18n.t('nutrition.addEntry') }}</button><button type="submit">{{ i18n.t('nutrition.logMeal') }}</button></div>
-        </form>
-        <ul class="management-list" :aria-label="i18n.t('nutrition.meals')">
-          <li v-for="meal in day.meals" :key="meal.id" class="management-row" :aria-label="meal.name">
-            <template v-if="editingMealId !== meal.id"><div><strong>{{ meal.name }}</strong><p class="muted">{{ meal.consumed_at_local ?? i18n.t('nutrition.anyTime') }} · {{ meal.entries.reduce((sum, entry) => sum + Number(entry.calories), 0).toFixed(0) }} kcal</p></div><div class="management-actions"><button type="button" class="secondary" :aria-label="i18n.t('nutrition.editMealNamed', { name: meal.name })" @click="startMealEdit(meal)">{{ i18n.t('common.edit') }}</button><button type="button" class="danger" :aria-label="i18n.t('nutrition.deleteMealNamed', { name: meal.name })" @click="removeMeal(meal)">{{ i18n.t('common.delete') }}</button></div></template>
-            <form v-else class="form-grid wide-field" :aria-label="i18n.t('nutrition.editMealNamed', { name: meal.name })" @submit.prevent="saveMeal(meal)">
-              <UiDatePicker :model-value="mealDraft.consumedOn" :label="i18n.t('nutrition.consumedDate')" :name="`edit-meal-date-${meal.id}`" :locale="locale" :today="localToday()" :max="localToday()" @update:model-value="(value) => { if (value) mealDraft.consumedOn = value }" />
-              <UiTextInput v-model="mealDraft.name" :label="i18n.t('nutrition.mealName')" :name="`edit-meal-name-${meal.id}`" required />
-              <UiSelect v-model="mealDraft.category" :label="i18n.t('nutrition.category')" :name="`edit-meal-category-${meal.id}`" :options="categoryOptions" nullable />
-              <UiTimeField v-model="mealDraft.time" :label="i18n.t('nutrition.localTime')" :name="`edit-meal-time-${meal.id}`" />
-              <UiTextInput v-model="mealDraft.note" :label="i18n.t('nutrition.note')" :name="`edit-meal-note-${meal.id}`" />
-              <div v-for="(entry, index) in mealDraft.entries" :key="index" class="form-grid wide-field nutrition-entry-row">
-                <UiSelect v-model="entry.reference" :label="i18n.t('nutrition.entryNumber', { number: index + 1 })" :name="`edit-meal-entry-${meal.id}-${index}`" :options="referenceOptions" />
-                <UiNumberInput v-model="entry.quantity" :label="i18n.t('nutrition.entryQuantityNumber', { number: index + 1 })" :name="`edit-meal-quantity-${meal.id}-${index}`" :min="0.001" :step="0.001" />
-                <button type="button" class="secondary danger" :aria-label="i18n.t('nutrition.removeEntryNumber', { number: index + 1 })" @click="removeMealEntry(mealDraft, index)">{{ i18n.t('common.remove') }}</button>
-              </div>
-              <div class="button-row wide-field"><button type="button" class="secondary" @click="addMealEntry(mealDraft)">{{ i18n.t('nutrition.addEntry') }}</button><button type="submit">{{ i18n.t('nutrition.saveMeal') }}</button><button type="button" class="secondary" @click="editingMealId = null">{{ i18n.t('common.cancel') }}</button></div>
-            </form>
-            <div class="attachment-parent wide-field" :data-attachment-parent="`meal:${meal.id}`">
-              <AttachmentGallery
-                :attachments="meal.attachments"
-                :parent-label="meal.name"
-                @deleted="removeMealAttachment(meal, $event)"
-              />
-              <AttachmentUploader
-                parent-type="meal"
-                :parent-id="meal.id"
-                :disabled="meal.attachments.length >= 10"
-                @uploaded="addMealAttachment(meal, $event)"
-              />
-            </div>
-          </li>
-        </ul>
-      </section>
-
-      <section class="panel"><div class="section-heading"><h2>{{ i18n.t('nutrition.targetSettings') }}</h2></div><form class="form-grid" :aria-label="i18n.t('nutrition.targetSettings')" @submit.prevent="saveSettings"><UiSelect v-model="settingsForm.bodyGoalId" :label="i18n.t('nutrition.bodyGoal')" name="nutrition-body-goal" :options="goalOptions" nullable /><UiNumberInput v-model="settingsForm.protein" :label="i18n.t('nutrition.proteinPercent')" name="nutrition-protein-percent" :min="10" :max="35" /><UiNumberInput v-model="settingsForm.fat" :label="i18n.t('nutrition.fatPercent')" name="nutrition-fat-percent" :min="20" :max="35" /><UiNumberInput v-model="settingsForm.carbs" :label="i18n.t('nutrition.carbsPercent')" name="nutrition-carbs-percent" :min="45" :max="65" /><UiNumberInput v-model="settingsForm.water" :label="i18n.t('nutrition.waterOverride')" name="nutrition-water-override" :min="1000" :max="6000" /><div class="button-row wide-field"><button type="submit">{{ i18n.t('nutrition.saveSettings') }}</button></div></form></section>
+      <section id="nutrition-settings" class="panel"><div class="section-heading"><h2>{{ i18n.t('nutrition.targetSettings') }}</h2></div><form class="form-grid" :aria-label="i18n.t('nutrition.targetSettings')" @submit.prevent="saveSettings"><UiSelect v-model="settingsForm.bodyGoalId" :label="i18n.t('nutrition.bodyGoal')" name="nutrition-body-goal" :options="goalOptions" nullable /><UiSelect v-model="macroMode" :label="i18n.t('feedback.macroMode')" name="macro-mode" :options="macroModeOptions" />
+          <template v-if="macroMode === 'grams'">
+            <UiNumberInput v-model="macroGrams.protein" :label="i18n.t('feedback.proteinGrams')" name="protein-grams" :min="0" :max="1000" :step="0.01" required />
+            <UiNumberInput v-model="macroGrams.fat" :label="i18n.t('feedback.fatGrams')" name="fat-grams" :min="0" :max="1000" :step="0.01" required />
+            <UiNumberInput v-model="macroGrams.carbs" :label="i18n.t('feedback.carbsGrams')" name="carbs-grams" :min="0" :max="1000" :step="0.01" required />
+          </template>
+          <template v-else><UiNumberInput v-model="settingsForm.protein" :label="i18n.t('nutrition.proteinPercent')" name="nutrition-protein-percent" :min="10" :max="35" /><UiNumberInput v-model="settingsForm.fat" :label="i18n.t('nutrition.fatPercent')" name="nutrition-fat-percent" :min="20" :max="35" /><UiNumberInput v-model="settingsForm.carbs" :label="i18n.t('nutrition.carbsPercent')" name="nutrition-carbs-percent" :min="45" :max="65" /></template><UiNumberInput v-model="settingsForm.water" :label="i18n.t('nutrition.waterOverride')" name="nutrition-water-override" :min="1000" :max="6000" /><div class="button-row wide-field"><button type="submit" :disabled="isSaving">{{ i18n.t('feedback.saveTargets') }}</button><p class="muted">{{ i18n.t('feedback.settingsHelp') }}</p></div></form></section>
 
       <section class="panel"><div class="section-heading"><h2>{{ i18n.t('nutrition.recentHistory') }}</h2></div><ul class="nutrition-history"><li v-for="summary in history" :key="summary.date"><time :datetime="summary.date">{{ summary.date }}</time><strong>{{ format(summary.calories, 'kcal') }}</strong><span>{{ format(summary.hydration_ml, 'ml') }}</span></li></ul></section>
     </template>

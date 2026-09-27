@@ -47,8 +47,16 @@ const utilityDestinations: Destination[] = [
   { name: 'changelog', to: '/changelog', label: 'nav.changelog' },
 ]
 
-const mobileDestinations = desktopDestinations.slice(0, 3)
-const moreDestinations = [...desktopDestinations.slice(3), ...utilityDestinations]
+const dailyNames = ['today', 'planner', 'storage']
+const mobileDestinations = dailyNames.map((name) => desktopDestinations.find((item) => item.name === name)!)
+const destinationGroups: { label: MessageKey; items: Destination[] }[] = [
+  { label: 'nav.daily', items: mobileDestinations },
+  { label: 'nav.health', items: desktopDestinations.filter((item) => ['routines', 'habits', 'workouts', 'nutrition', 'supplements', 'body'].includes(item.name)) },
+  { label: 'nav.direction', items: desktopDestinations.filter((item) => ['goals', 'finance', 'review', 'analytics'].includes(item.name)) },
+  { label: 'nav.workspace', items: utilityDestinations },
+]
+const moreGroups = destinationGroups.slice(1)
+const moreDestinations = moreGroups.flatMap((group) => group.items)
 
 const route = useRoute()
 const session = useAuthSession()
@@ -64,7 +72,7 @@ const secondaryIsActive = computed(() =>
 const more = useAnchoredSurface({
   placement: 'top-end',
   gap: 10,
-  maxHeight: 260,
+  maxHeight: 440,
   focusTarget: () => moreButton.value,
 })
 
@@ -91,19 +99,10 @@ onBeforeUnmount(notifications.stop)
       </RouterLink>
 
       <nav class="nav-list nav-list--desktop" :aria-label="t('nav.primary')">
-        <div class="nav-group">
+        <div v-for="group in destinationGroups" :key="group.label" class="nav-group">
+          <p class="nav-group__label">{{ t(group.label) }}</p>
           <RouterLink
-            v-for="destination in desktopDestinations"
-            :key="destination.name"
-            :to="destination.to"
-          >
-            <span class="nav-dot" aria-hidden="true"></span>
-            <span>{{ t(destination.label) }}</span>
-          </RouterLink>
-        </div>
-        <div class="nav-group nav-group--utility">
-          <RouterLink
-            v-for="destination in utilityDestinations"
+            v-for="destination in group.items"
             :key="destination.name"
             :to="destination.to"
           >
@@ -156,8 +155,10 @@ onBeforeUnmount(notifications.stop)
             :aria-label="t('nav.moreDestinations')"
             class="nav-more__menu"
           >
-            <RouterLink
-              v-for="destination in moreDestinations"
+            <div v-for="group in moreGroups" :key="group.label" role="group" :aria-label="t(group.label)">
+              <p class="nav-group__label">{{ t(group.label) }}</p>
+              <RouterLink
+              v-for="destination in group.items"
               :key="destination.name"
               class="nav-more__item"
               role="menuitem"
@@ -171,6 +172,7 @@ onBeforeUnmount(notifications.stop)
                 aria-hidden="true"
               >{{ notifications.state.unreadCount }}</span>
             </RouterLink>
+            </div>
           </UiPopoverSurface>
         </div>
       </nav>

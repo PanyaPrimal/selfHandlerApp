@@ -29,9 +29,9 @@ class NutritionOpenApiContractTest extends NutritionTestCase
         }
 
         $this->assertSame('3.1.0', $document['openapi']);
-        $this->assertCount(9, $document['paths']);
-        $this->assertCount(13, $ids);
-        $this->assertCount(13, array_unique($ids));
+        $this->assertCount(10, $document['paths']);
+        $this->assertCount(14, $ids);
+        $this->assertCount(14, array_unique($ids));
         $this->assertSame([['sanctum' => []]], $document['security']);
     }
 

@@ -99,7 +99,7 @@ test('a failed calendar receipt rolls back Storage and retries the same operatio
   expect(afterFailure.entries.find((entry: { key: string }) => entry.key.endsWith(`read:/planner/day?date=${seed.date}`)).value.data.entries).toHaveLength(1)
   // Reload restores IndexedDB, and session restoration replays the preserved operation UUID.
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'Capture now, sort later', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Tasks, ideas & purchases', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Pending changes', exact: true })).toHaveCount(0, { timeout: 15_000 })
   await expect.poll(async () => page.evaluate(async () => {
     const w = '/src/offline/workspace.ts'

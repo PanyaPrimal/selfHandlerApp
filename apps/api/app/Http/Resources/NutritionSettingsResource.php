@@ -15,6 +15,7 @@ class NutritionSettingsResource extends JsonResource
             'fat_percent' => $this->fat_percent,
             'carbs_percent' => $this->carbs_percent,
             'water_override_ml' => $this->water_override_ml,
+            'macro_targets_grams' => $this->macro_targets_grams,
         ];
     }
 }

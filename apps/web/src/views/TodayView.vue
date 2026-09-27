@@ -12,10 +12,11 @@ import {
 import AsyncState from '../components/AsyncState.vue'
 import ProgressSummary from '../components/ProgressSummary.vue'
 import TodayHabits from '../components/TodayHabits.vue'
+import TodayAgenda from '../components/TodayAgenda.vue'
 import { formatCalendarDate } from '../lib/format'
 import { useAuthSession } from '../auth/session'
 import { UiDatePicker, UiNumberInput, UiSelect, UiTextarea } from '../components/ui'
-import type { RoutineLog, TodayResponse, TodayRoutine } from '../api/types'
+import type { Habit, RoutineLog, TodayResponse, TodayRoutine } from '../api/types'
 import type { UiOption } from '../components/ui'
 import { useI18n } from '../i18n'
 
@@ -67,6 +68,12 @@ const eveningOptions = computed<UiOption<number>[]>(() => (data.value?.routine_d
   value: candidate.routine_id,
   label: candidate.name,
 })))
+
+function habitChanged(habit: Habit): void {
+  if (!data.value || data.value.date !== habit.selected_day.date) return
+  data.value.habits = (data.value.habits ?? []).map((item) => item.id === habit.id ? habit : item)
+  void loadToday(selectedDate.value)
+}
 
 type FocusTarget = HTMLElement | { focus: () => void }
 
@@ -298,7 +305,7 @@ onMounted(() => loadToday())
 </script>
 
 <template>
-  <section class="view-stack">
+  <section class="view-stack today-page">
     <header class="view-header">
       <div>
         <p class="eyebrow">{{ selectedDate ? formatCalendarDate(selectedDate, locale) : i18n.t('nav.today') }}</p>
@@ -327,6 +334,8 @@ onMounted(() => loadToday())
     </div>
     <div v-if="statusMessage" class="notice success" role="status">{{ statusMessage }}</div>
 
+    <TodayAgenda v-if="selectedDate" :date="selectedDate" />
+
     <AsyncState
       :loading="isLoading && !data"
       :error="data ? null : error"
@@ -345,57 +354,7 @@ onMounted(() => loadToday())
       <template v-if="data">
       <p v-if="isLoading" class="muted" role="status">{{ i18n.t('today.loadingDate') }}</p>
 
-      <section class="summary-grid daily-summary" :aria-label="i18n.t('today.dailySummary')">
-        <div class="metric">
-          <span>{{ i18n.t('summary.completion') }}</span>
-          <strong>{{ completionLabel }}</strong>
-          <div class="progress-track" role="progressbar" :aria-label="i18n.t('today.dailyCompletion')" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="Math.round(data.summary.completion_rate)">
-            <div class="progress-fill" :style="{ width: progressWidth }"></div>
-          </div>
-        </div>
-        <div class="metric">
-          <span>{{ i18n.t('summary.scheduled') }}</span>
-          <strong>{{ data.summary.scheduled }}</strong>
-        </div>
-        <div class="metric">
-          <span>{{ i18n.t('summary.done') }}</span>
-          <strong>{{ data.summary.done }}</strong>
-        </div>
-        <div class="metric">
-          <span>{{ i18n.t('today.skippedPending') }}</span>
-          <strong>{{ data.summary.skipped }} / {{ data.summary.pending }}</strong>
-        </div>
-      </section>
-
-      <p class="muted">{{ i18n.t('today.summaryScope') }}</p>
-      <TodayHabits :habits="data.habits ?? []" :date="selectedDate" />
-      <ProgressSummary :progress="data.progress" />
-
-      <section class="panel" :aria-label="i18n.t('today.workoutSummary')">
-        <div class="section-heading">
-          <h2>{{ i18n.t('today.workoutSummary') }}</h2>
-          <RouterLink to="/workouts">{{ i18n.t('today.manage') }}</RouterLink>
-        </div>
-        <p class="summary-value">{{ i18n.t('today.workoutPlanned', { count: data.module_summaries.workouts.planned }) }}</p>
-        <p class="muted">{{ i18n.t('workouts.completed') }}: {{ data.module_summaries.workouts.completed }} · {{ i18n.t('workouts.distanceTotal') }}: {{ i18n.number(data.module_summaries.workouts.distance_m / 1000) }} km</p>
-      </section>
-
-      <section class="panel" :aria-label="i18n.t('today.nutritionSummary')">
-        <div class="section-heading">
-          <h2>{{ i18n.t('today.nutritionSummary') }}</h2>
-          <RouterLink :to="`/nutrition?date=${selectedDate}`">{{ i18n.t('today.openNutrition') }}</RouterLink>
-        </div>
-        <p class="summary-value">{{ i18n.number(Number(data.module_summaries.nutrition.calories)) }} kcal</p>
-        <p class="muted">{{ i18n.t('nutrition.hydration') }}: {{ i18n.number(Number(data.module_summaries.nutrition.hydration_ml)) }} ml · {{ i18n.t('nutrition.meals') }}: {{ data.module_summaries.nutrition.meal_count }}</p>
-      </section>
-      <section class="panel" :aria-label="i18n.t('today.supplementSummary')">
-        <div class="section-heading">
-          <h2>{{ i18n.t('today.supplementSummary') }}</h2>
-          <RouterLink :to="`/supplements?date=${selectedDate}`">{{ i18n.t('today.openSupplements') }}</RouterLink>
-        </div>
-        <p class="summary-value">{{ data.module_summaries.supplements.adherence_percentage === null ? '—' : `${i18n.number(data.module_summaries.supplements.adherence_percentage)}%` }}</p>
-        <p class="muted">{{ i18n.t('supplements.done') }}: {{ data.module_summaries.supplements.done }} · {{ i18n.t('supplements.pending') }}: {{ data.module_summaries.supplements.pending }} · {{ i18n.t('supplements.overdue') }}: {{ data.module_summaries.supplements.overdue }}</p>
-      </section>
+      <TodayHabits :habits="data.habits ?? []" :date="selectedDate" :today="userToday" @changed="habitChanged" />
 
       <section class="panel">
         <div class="section-heading">
@@ -535,7 +494,70 @@ onMounted(() => loadToday())
           {{ data.review ? i18n.t('today.reviewSaved') : i18n.t('today.noReview') }}
         </p>
       </section>
+      <details class="today-insights">
+        <summary>{{ i18n.t('daily.insights') }}</summary>
+        <div class="view-stack">
+      <section class="summary-grid daily-summary" :aria-label="i18n.t('today.dailySummary')">
+        <div class="metric">
+          <span>{{ i18n.t('summary.completion') }}</span>
+          <strong>{{ completionLabel }}</strong>
+          <div class="progress-track" role="progressbar" :aria-label="i18n.t('today.dailyCompletion')" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="Math.round(data.summary.completion_rate)">
+            <div class="progress-fill" :style="{ width: progressWidth }"></div>
+          </div>
+        </div>
+        <div class="metric">
+          <span>{{ i18n.t('summary.scheduled') }}</span>
+          <strong>{{ data.summary.scheduled }}</strong>
+        </div>
+        <div class="metric">
+          <span>{{ i18n.t('summary.done') }}</span>
+          <strong>{{ data.summary.done }}</strong>
+        </div>
+        <div class="metric">
+          <span>{{ i18n.t('today.skippedPending') }}</span>
+          <strong>{{ data.summary.skipped }} / {{ data.summary.pending }}</strong>
+        </div>
+      </section>
+
+      <p class="muted">{{ i18n.t('today.summaryScope') }}</p>
+      <ProgressSummary :progress="data.progress" />
+
+      <section class="panel" :aria-label="i18n.t('today.workoutSummary')">
+        <div class="section-heading">
+          <h2>{{ i18n.t('today.workoutSummary') }}</h2>
+          <RouterLink to="/workouts">{{ i18n.t('today.manage') }}</RouterLink>
+        </div>
+        <p class="summary-value">{{ i18n.t('today.workoutPlanned', { count: data.module_summaries.workouts.planned }) }}</p>
+        <p class="muted">{{ i18n.t('workouts.completed') }}: {{ data.module_summaries.workouts.completed }} · {{ i18n.t('workouts.distanceTotal') }}: {{ i18n.number(data.module_summaries.workouts.distance_m / 1000) }} km</p>
+      </section>
+
+      <section class="panel" :aria-label="i18n.t('today.nutritionSummary')">
+        <div class="section-heading">
+          <h2>{{ i18n.t('today.nutritionSummary') }}</h2>
+          <RouterLink :to="`/nutrition?date=${selectedDate}`">{{ i18n.t('today.openNutrition') }}</RouterLink>
+        </div>
+        <p class="summary-value">{{ i18n.number(Number(data.module_summaries.nutrition.calories)) }} kcal</p>
+        <p class="muted">{{ i18n.t('nutrition.hydration') }}: {{ i18n.number(Number(data.module_summaries.nutrition.hydration_ml)) }} ml · {{ i18n.t('nutrition.meals') }}: {{ data.module_summaries.nutrition.meal_count }}</p>
+      </section>
+      <section class="panel" :aria-label="i18n.t('today.supplementSummary')">
+        <div class="section-heading">
+          <h2>{{ i18n.t('today.supplementSummary') }}</h2>
+          <RouterLink :to="`/supplements?date=${selectedDate}`">{{ i18n.t('today.openSupplements') }}</RouterLink>
+        </div>
+        <p class="summary-value">{{ data.module_summaries.supplements.adherence_percentage === null ? '—' : `${i18n.number(data.module_summaries.supplements.adherence_percentage)}%` }}</p>
+        <p class="muted">{{ i18n.t('supplements.done') }}: {{ data.module_summaries.supplements.done }} · {{ i18n.t('supplements.pending') }}: {{ data.module_summaries.supplements.pending }} · {{ i18n.t('supplements.overdue') }}: {{ data.module_summaries.supplements.overdue }}</p>
+      </section>
+
+        </div>
+      </details>
       </template>
     </AsyncState>
   </section>
 </template>
+
+<style scoped>
+.today-page > .view-header h1 { font-size: clamp(1.5rem, 3vw, 2.2rem); }
+.today-insights > summary { cursor: pointer; min-height: 48px; padding: .75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); font-weight: 600; }
+.today-insights[open] > summary { margin-bottom: 1rem; }
+.today-page .daily-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+</style>

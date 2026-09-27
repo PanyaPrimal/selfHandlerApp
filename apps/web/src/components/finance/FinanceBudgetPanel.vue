@@ -4,7 +4,7 @@ import type {
   FinanceBudget, FinanceBudgetInput, FinanceBudgetUpdate, FinanceCategory, FinanceCurrency,
   FinanceCurrencyCode,
 } from '../../api/types'
-import { financeAmount } from '../../finance/money'
+import { financeAmount, financeDraftAmount } from '../../finance/money'
 import { useI18n } from '../../i18n'
 
 const props = defineProps<{
@@ -49,7 +49,7 @@ async function submit(): Promise<void> {
   const payload = {
     month: props.month,
     category_id: draft.category_id,
-    limit_amount: draft.limit_amount,
+    limit_amount: financeDraftAmount(draft.limit_amount, i18n.locale.value) ?? draft.limit_amount,
     currency: draft.currency,
   }
   if (await props.save(payload, editing.value ?? undefined)) reset()
@@ -69,7 +69,7 @@ function percent(budget: FinanceBudget): string {
     </div>
     <form class="finance-form finance-form--budget" :aria-label="i18n.t('finance.budgetEditor')" @submit.prevent="submit">
       <label><span>{{ i18n.t('finance.expenseCategory') }}</span><select v-model.number="draft.category_id" required><option v-for="category in expenseCategories" :key="category.id" :value="category.id">{{ category.label }}</option></select></label>
-      <label><span>{{ i18n.t('finance.monthlyLimit') }}</span><input v-model="draft.limit_amount" inputmode="decimal" required placeholder="0.0000"></label>
+      <label><span>{{ i18n.t('finance.monthlyLimit') }}</span><input v-model="draft.limit_amount" inputmode="decimal" required placeholder="15000.50"><small>{{ i18n.t('feedback.amountHelp') }}</small></label>
       <label><span>{{ i18n.t('finance.currency') }}</span><select v-model="draft.currency"><option v-for="item in currencyOptions" :key="item.code" :value="item.code">{{ item.code }}</option></select></label>
       <div class="form-actions finance-form__actions">
         <button type="submit" :disabled="busy || !draft.category_id">{{ i18n.t(editing === null ? 'finance.addBudget' : 'finance.saveBudget') }}</button>

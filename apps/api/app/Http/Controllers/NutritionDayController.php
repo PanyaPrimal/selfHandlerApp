@@ -36,6 +36,13 @@ class NutritionDayController extends Controller
         ]]);
     }
 
+    public function recalculate(Request $request, string $date): JsonResponse
+    {
+        $target = $this->targets->recalculate($request->user(), $date);
+
+        return response()->json(['data' => NutritionTargetResource::make($target)->resolve($request)]);
+    }
+
     public function summary(Request $request): JsonResponse
     {
         $validator = Validator::make($request->query(), [

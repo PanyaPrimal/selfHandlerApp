@@ -159,9 +159,10 @@ test('Today Planner Review and notification settings share workout state and dee
 
   await gotoDestination(page, 'Today')
   await pickDate(page, 'Date', today)
+  await page.getByText('Daily totals & recent progress', { exact: true }).click()
   await expect(page.getByRole('region', { name: 'Workout summary' })).toContainText('1 planned')
 
-  await gotoDestination(page, 'Planner')
+  await gotoDestination(page, 'Plan')
   await pickDate(page, 'Day', today)
   const entry = page.getByRole('listitem', { name: 'Evening strength' })
   await expect(entry).toContainText('18:00')

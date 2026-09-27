@@ -251,6 +251,14 @@ watch(() => session.user?.preferences.locale, (locale, previous) => {
     <nav class="tabs finance-tabs" role="tablist" :aria-label="i18n.t('finance.sections')"><button v-for="item in tabs" :key="item" type="button" role="tab" :aria-selected="tab === item" :class="{ active: tab === item }" :data-testid="`finance-tab-${item}`" @click="tab = item">{{ i18n.t(`finance.tab.${item}` as never) }}</button></nav>
     <AsyncState :loading="loading" :error="loadError" panel @retry="load">
       <section v-if="tab === 'overview' && summary" class="finance-overview" aria-labelledby="finance-overview-heading">
+        <div v-if="!accounts.some((account) => !account.archived)" class="panel">
+          <h2>{{ i18n.t('daily.financeStart') }}</h2>
+          <p class="muted">{{ i18n.t('daily.financeStartHelp') }}</p>
+          <button type="button" @click="tab = 'accounts'">{{ i18n.t('finance.addAccount') }}</button>
+        </div>
+        <div v-else class="button-row">
+          <button type="button" @click="tab = 'activity'">{{ i18n.t('finance.actual') }}</button>
+        </div>
         <div class="section-heading"><div><h2 id="finance-overview-heading">{{ i18n.t('finance.overview') }}</h2><p class="muted">{{ from }} — {{ today }}</p></div></div>
         <div class="metrics-grid finance-metrics">
           <article class="metric"><span>{{ i18n.t('finance.totalBalance') }}</span><strong>{{ consolidated?.total === null ? '—' : financeAmount(consolidated?.total ?? '0.0000', consolidated?.base_currency ?? 'UAH', i18n.locale.value) }}</strong><small v-if="!consolidated?.complete">{{ i18n.t('finance.missingRates', { currencies: consolidated?.missing_currencies.join(', ') ?? '' }) }}</small></article>

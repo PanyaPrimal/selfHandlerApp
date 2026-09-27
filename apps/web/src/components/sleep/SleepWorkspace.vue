@@ -174,6 +174,7 @@ async function submitPlan(): Promise<void> {
   try {
     await createSleepPlan({
       ...createForm,
+      name: createForm.name.trim() || i18n.t('feedback.sleepName'),
       weekdays: createForm.schedule_type === 'weekdays' ? createForm.weekdays : undefined,
     })
     resetPlanForm()
@@ -285,7 +286,7 @@ void load()
     <div v-if="success" class="notice success" role="status">{{ success }}</div>
 
     <form class="form-grid sleep-plan-form" :aria-label="i18n.t('sleep.create')" novalidate @submit.prevent="submitPlan">
-      <UiTextInput v-model="createForm.name" :label="i18n.t('sleep.planName')" name="sleep-name" required :maxlength="160" :error="fieldErrors.name?.[0]" />
+      <UiTextInput v-model="createForm.name" :label="i18n.t('sleep.planName')" name="sleep-name" :helper="i18n.t('feedback.sleepNameHelp')" :maxlength="160" :error="fieldErrors.name?.[0]" />
       <UiTimeField v-model="createForm.planned_bed_time" :label="i18n.t('sleep.plannedBed')" name="planned-bed" :error="fieldErrors.planned_bed_time?.[0]" />
       <UiTimeField v-model="createForm.planned_wake_time" :label="i18n.t('sleep.plannedWake')" name="planned-wake" :error="fieldErrors.planned_wake_time?.[0]" />
       <UiSegmented v-model="createForm.schedule_type" :label="i18n.t('routine.schedule')" name="sleep-schedule" :options="scheduleOptions" />
@@ -299,8 +300,9 @@ void load()
         :error="fieldErrors.weekdays?.[0]"
         @update:model-value="createForm.weekdays = $event"
       />
+      <p class="muted wide-field">{{ i18n.t('feedback.scheduleHelp') }}</p>
       <UiDatePicker :model-value="createForm.starts_on ?? null" :label="i18n.t('sleep.startsOn')" name="sleep-starts" :locale="locale" @update:model-value="createForm.starts_on = $event" />
-      <UiDatePicker :model-value="createForm.ends_on ?? null" :label="i18n.t('sleep.endsOn')" name="sleep-ends" :locale="locale" @update:model-value="createForm.ends_on = $event" />
+      <UiDatePicker :model-value="createForm.ends_on ?? null" :label="i18n.t('sleep.endsOn')" :placeholder="i18n.t('feedback.noEnd')" name="sleep-ends" :locale="locale" @update:model-value="createForm.ends_on = $event" />
       <div class="form-actions wide-field">
         <button type="submit" :disabled="submitting">{{ i18n.t(submitting ? 'common.saving' : 'sleep.create') }}</button>
       </div>

@@ -227,6 +227,7 @@ Route::middleware(['auth:sanctum', WorkspaceSync::class])->group(function () {
     Route::get('/nutrition/settings', [NutritionSettingsController::class, 'show']);
     Route::put('/nutrition/settings', [NutritionSettingsController::class, 'replace']);
     Route::get('/nutrition/days/{date}', [NutritionDayController::class, 'show']);
+    Route::post('/nutrition/days/{date}/recalculate', [NutritionDayController::class, 'recalculate']);
     Route::get('/nutrition/summary', [NutritionDayController::class, 'summary']);
     Route::post('/nutrition/meals', [MealController::class, 'store']);
     Route::patch('/nutrition/meals/{meal}', [MealController::class, 'update']);

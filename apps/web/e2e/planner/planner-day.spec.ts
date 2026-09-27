@@ -57,7 +57,7 @@ test('one day shows every source, and a routine day can be moved and put back', 
   await registerViaUi(page, uniqueCredentials(testInfo, 'Planner'))
   await createDailyRoutine(page, 'Morning walk')
 
-  await gotoDestination(page, 'Planner')
+  await gotoDestination(page, 'Plan')
   await expect(page).toHaveURL('/planner')
   await expect(page.getByRole('heading', { name: 'Today', level: 1 })).toBeVisible()
 
@@ -169,7 +169,7 @@ test('the day is usable on a phone and reachable by keyboard', async ({ page }, 
   await registerViaUi(page, uniqueCredentials(testInfo, 'PlannerPhone'))
   await createDailyRoutine(page, 'Morning walk')
 
-  await gotoDestination(page, 'Planner')
+  await gotoDestination(page, 'Plan')
   await expect(page.getByRole('heading', { name: 'Today', level: 1 })).toBeVisible()
 
   await addTimeBlock(page, 'A rather long appointment title that must wrap', '09:00', '10:00')
