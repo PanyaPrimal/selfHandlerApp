@@ -330,3 +330,7 @@ The explicit “Save and apply to this day” action saves settings and recalcul
 selected day; new references also use the saved settings. A separate recalculation
 action applies profile changes to an already opened day. Ordinary reads still keep
 references stable. Original automatic calculation and owner isolation remain.
+
+Portable v1 archives include manual macro targets as nullable JSON. Archives created
+before this field existed restore it as null (percentage mode). Import validates all
+three values and rejects missing keys, extra keys and out-of-range values before writes.

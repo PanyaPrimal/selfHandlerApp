@@ -459,14 +459,14 @@ class PortabilitySchemaV1
                 'json' => ['calculation_basis'],
             ],
             'nutrition_settings' => [
-                'attributes' => ['protein_percent', 'fat_percent', 'carbs_percent', 'water_override_ml', 'created_at', 'updated_at'],
+                'attributes' => ['protein_percent', 'fat_percent', 'carbs_percent', 'water_override_ml', 'macro_targets_grams', 'created_at', 'updated_at'],
                 'references' => [
                     'body_goal_id' => [
                         'table' => 'goals',
                         'nullable' => true,
                     ],
                 ],
-                'json' => [],
+                'json' => ['macro_targets_grams'],
             ],
             'periodic_reviews' => [
                 'attributes' => ['period_type', 'period_start', 'period_end', 'period_rating', 'worked_well', 'did_not_work', 'learned', 'next_focus', 'notes', 'completed_at', 'created_at', 'updated_at'],

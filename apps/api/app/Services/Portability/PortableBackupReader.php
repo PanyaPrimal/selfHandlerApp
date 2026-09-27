@@ -40,6 +40,7 @@ class PortableBackupReader
             $records = $this->jsonMember($zip, 'data/records.json');
             $this->validateProfile($profile);
             $this->upgradeHabitSchedules($records);
+            $this->upgradeNutritionSettings($records);
             $portableIds = $this->validateRecords($records);
             $this->validateAttachments($manifest['attachments'], $portableIds, $zip);
             $this->validateCounts($manifest, $records, $stats);
@@ -299,6 +300,9 @@ class PortableBackupReader
                 if ($table === 'habits') {
                     $this->validateHabitSchedule($row['attributes']);
                 }
+                if ($table === 'nutrition_settings') {
+                    $this->validateNutritionMacros($row['attributes']['macro_targets_grams']);
+                }
                 $ids[$row['id']] = true;
             }
         }
@@ -328,6 +332,33 @@ class PortableBackupReader
         }
 
         return $ids;
+    }
+
+    /** Accept v1 backups created before manual macro targets were introduced. */
+    private function upgradeNutritionSettings(array &$records): void
+    {
+        if (! is_array($records['tables']['nutrition_settings'] ?? null)) {
+            return;
+        }
+        foreach ($records['tables']['nutrition_settings'] as &$row) {
+            if (is_array($row) && is_array($row['attributes'] ?? null)
+                && ! array_key_exists('macro_targets_grams', $row['attributes'])) {
+                $row['attributes']['macro_targets_grams'] = null;
+            }
+        }
+        unset($row);
+    }
+
+    private function validateNutritionMacros(?array $macros): void
+    {
+        if ($macros !== null && Validator::make(['macros' => $macros], [
+            'macros' => ['required', 'array:protein,fat,carbs', 'size:3'],
+            'macros.protein' => ['required', 'numeric', 'between:0,1000'],
+            'macros.fat' => ['required', 'numeric', 'between:0,1000'],
+            'macros.carbs' => ['required', 'numeric', 'between:0,1000'],
+        ])->fails()) {
+            throw new PortabilityException('record_type_invalid');
+        }
     }
 
     /** Accept pre-weekly-goal v1 backups without weakening other exact keys. */
