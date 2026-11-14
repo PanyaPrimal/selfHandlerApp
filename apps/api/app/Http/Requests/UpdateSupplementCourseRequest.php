@@ -36,7 +36,7 @@ class UpdateSupplementCourseRequest extends FormRequest
             'schedule.interval_count' => ['required_with:schedule', 'integer', 'between:1,52'],
             'schedule.weekdays' => ['sometimes', 'array', 'max:7'],
             'schedule.weekdays.*' => ['required', Rule::in(WeekdayCode::values()), 'distinct'],
-            'schedule.cycle' => ['required_with:schedule', 'nullable', 'array:on_days,off_days'],
+            'schedule.cycle' => ['present_with:schedule', 'nullable', 'array:on_days,off_days'],
             'schedule.cycle.on_days' => ['required_with:schedule.cycle', 'integer', 'between:1,366'],
             'schedule.cycle.off_days' => ['required_with:schedule.cycle', 'integer', 'between:1,366'],
             'schedule.slots' => ['required_with:schedule', 'array', 'between:1,8'],

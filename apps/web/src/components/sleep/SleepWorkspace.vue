@@ -285,6 +285,8 @@ void load()
     <div v-if="error" class="notice error" role="alert">{{ error }}</div>
     <div v-if="success" class="notice success" role="status">{{ success }}</div>
 
+    <details class="workspace-disclosure sleep-plan-create" :open="!loading && plans.length === 0 && state === 'active'">
+    <summary>{{ i18n.t('sleep.create') }}</summary>
     <form class="form-grid sleep-plan-form" :aria-label="i18n.t('sleep.create')" novalidate @submit.prevent="submitPlan">
       <UiTextInput v-model="createForm.name" :label="i18n.t('sleep.planName')" name="sleep-name" :helper="i18n.t('feedback.sleepNameHelp')" :maxlength="160" :error="fieldErrors.name?.[0]" />
       <UiTimeField v-model="createForm.planned_bed_time" :label="i18n.t('sleep.plannedBed')" name="planned-bed" :error="fieldErrors.planned_bed_time?.[0]" />
@@ -307,6 +309,7 @@ void load()
         <button type="submit" :disabled="submitting">{{ i18n.t(submitting ? 'common.saving' : 'sleep.create') }}</button>
       </div>
     </form>
+    </details>
 
     <UiSegmented
       :model-value="state"
@@ -317,6 +320,7 @@ void load()
     />
 
     <AsyncState
+      :key="date ?? ''"
       :loading="loading"
       :error="loadError"
       :empty="plans.length === 0"

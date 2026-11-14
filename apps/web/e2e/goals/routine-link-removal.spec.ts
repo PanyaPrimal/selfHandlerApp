@@ -1,3 +1,4 @@
+import { revealForm } from '../interface/support'
 import { expect, test, type Page } from '@playwright/test'
 import { registerViaUi, uniqueCredentials } from '../support/auth'
 import { setCheckbox } from '../interface/support'
@@ -13,6 +14,7 @@ import { setCheckbox } from '../interface/support'
 
 async function createRoutine(page: Page, name: string): Promise<void> {
   await page.goto('/routines')
+  await revealForm(page, 'Create routine')
   const form = page.getByRole('form', { name: 'Create routine' })
   await form.getByLabel('Name').fill(name)
   await form.getByRole('button', { name: 'Create routine' }).click()

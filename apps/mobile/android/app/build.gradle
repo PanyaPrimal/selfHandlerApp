@@ -6,16 +6,33 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
 
+// The same public HTTPS origin the web bundle is built with (scripts/mobile-config.mjs validates it
+// fully). The native widget needs it too; an empty value makes the widget show "not configured".
+def selfhandlerApiOrigin = {
+    def value = System.getenv('SELFHANDLER_MOBILE_API_ORIGIN')
+    def envFile = rootProject.file('../.env')
+    if (!value && envFile.exists()) {
+        def line = envFile.readLines().find { it.trim().startsWith('SELFHANDLER_MOBILE_API_ORIGIN=') }
+        if (line) value = line.substring(line.indexOf('=') + 1).trim().replaceAll(/^(['"])(.*)\1$/, '$2')
+    }
+    value = (value ?: '').trim().replaceAll(/\/+$/, '')
+    return value ==~ /^https:\/\/[^\/\s?#@]+$/ ? value : ''
+}()
+
 android {
     namespace = "app.selfhandler.mobile"
     compileSdk = rootProject.ext.compileSdkVersion
+    buildFeatures {
+        buildConfig = true
+    }
     defaultConfig {
         applicationId "app.selfhandler.mobile"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 5
-        versionName "0.3.0"
+        versionCode 6
+        versionName "0.4.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField "String", "API_ORIGIN", "\"${selfhandlerApiOrigin}\""
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61

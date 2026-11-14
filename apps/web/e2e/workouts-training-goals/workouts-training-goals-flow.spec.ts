@@ -97,6 +97,7 @@ test('catalogue and recurring strength program survive reload and lifecycle chan
 test('planned strength, manual run, records and training goal recalculate after correction', async ({ page }, testInfo) => {
   test.setTimeout(90_000)
   await registerViaUi(page, uniqueCredentials(testInfo, 'WorkoutFacts'), { redirectTo: '/workouts' })
+  const issues = collectRuntimeIssues(page)
   await createStrengthProgram(page)
   const card = page.getByRole('list', { name: 'Scheduled programs' }).getByRole('listitem', { name: 'Strength A', exact: true })
   const planned = card.getByRole('form', { name: 'Record Strength A' })
@@ -150,6 +151,7 @@ test('planned strength, manual run, records and training goal recalculate after 
   await page.getByRole('radio', { name: 'Current training goals' }).click()
   await expect(page.getByRole('listitem', { name: 'Run 10K' })).toBeVisible()
   await expectNoHorizontalOverflow(page)
+  expectNoRuntimeIssues(issues)
 })
 
 test('Today Planner Review and notification settings share workout state and deep links', async ({ page }, testInfo) => {
@@ -171,6 +173,7 @@ test('Today Planner Review and notification settings share workout state and dee
   await expect(page.getByRole('listitem', { name: 'Evening strength' })).toBeVisible()
 
   await page.goto(`/review/${today}`)
+  await page.locator('.review-context > summary').click()
   await expect(page.getByRole('region', { name: 'Workout summary' })).toContainText('1 planned')
   await page.goto('/notifications')
   await expect(page.getByRole('switch', { name: 'Workout reminders' })).toBeVisible()

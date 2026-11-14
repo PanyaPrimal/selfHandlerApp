@@ -1,5 +1,23 @@
 import { expect, type Locator, type Page } from '@playwright/test'
 
+/** Open a form's disclosure through its visible summary. */
+export async function revealForm(page: Page, name: string): Promise<void> {
+  const form = page.getByRole('form', { name, exact: true, includeHidden: true })
+  await expect(form).toBeAttached()
+  const disclosure = form.locator('xpath=ancestor::details[1]')
+  if (await disclosure.count() && !await disclosure.evaluate(element => (element as HTMLDetailsElement).open)) {
+    await disclosure.locator(':scope > summary').press('Enter')
+  }
+  await expect(form).toBeVisible()
+}
+
+export async function revealRoutine(page: Page, name: string): Promise<void> {
+  const routine = page.getByRole('listitem', { name, exact: true })
+  if (!await routine.evaluate(element => (element as HTMLDetailsElement).open)) {
+    await routine.locator(':scope > summary').click()
+  }
+}
+
 /**
  * Helpers for driving the owned control layer introduced by feature 005.
  *
@@ -150,6 +168,18 @@ export async function expectNoHorizontalOverflow(page: Page): Promise<void> {
  * direct sidebar link on desktop, or the "More" menu on a phone.
  */
 export async function gotoDestination(page: Page, label: string): Promise<void> {
+  const sidebar = page.locator('.nav-list--desktop')
+  if (await sidebar.isVisible()) {
+    // Locate the label before opening its group; hidden accessible-name
+    // calculation can also include the aria-hidden notification count.
+    const destination = sidebar.locator('a').filter({ has: page.getByText(label, { exact: true }) })
+    const group = destination.locator('xpath=ancestor::details[1]')
+    if (await group.count() && !await group.evaluate(element => (element as HTMLDetailsElement).open)) {
+      await group.locator('summary').click()
+    }
+    await destination.click()
+    return
+  }
   const direct = page.getByRole('link', { name: label, exact: true }).first()
 
   if (await direct.isVisible().catch(() => false)) {

@@ -1,3 +1,4 @@
+import { revealForm } from './support'
 import { expect, test } from '@playwright/test'
 import { registerViaUi, uniqueCredentials } from '../support/auth'
 import { selectTrigger } from './support'
@@ -7,6 +8,8 @@ test('every control pattern is operable from the keyboard alone', async ({ page 
 
   await page.goto('/routines')
   await expect(page.getByRole('heading', { name: 'Routines & sleep' })).toBeVisible()
+
+  await revealForm(page, 'Create routine')
 
   const form = page.getByRole('form', { name: 'Create routine' })
 
@@ -95,6 +98,7 @@ test('a routine is created end to end without a pointer', async ({ page }, testI
   await registerViaUi(page, uniqueCredentials(testInfo, 'KeyboardCreate'))
 
   await page.goto('/routines')
+  await revealForm(page, 'Create routine')
   const form = page.getByRole('form', { name: 'Create routine' })
 
   await form.getByLabel('Name').focus()

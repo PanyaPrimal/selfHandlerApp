@@ -22,6 +22,42 @@
             </intent-filter>
         </activity>
 
+        <!-- Home-screen task widget. Only the system may deliver APPWIDGET_UPDATE; the app's own
+             refresh/complete broadcasts are explicit and stay inside the package. -->
+        <receiver
+            android:name=".widget.TasksWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_today">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/tasks_widget_info" />
+        </receiver>
+
+        <service
+            android:name=".widget.TasksWidgetService"
+            android:exported="false"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
+
+        <activity
+            android:name=".widget.WidgetActionActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.NoDisplay" />
+
+        <activity
+            android:name=".widget.QuickAddActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:label="@string/widget_add_title"
+            android:taskAffinity=""
+            android:theme="@style/AppTheme.QuickAdd"
+            android:windowSoftInputMode="stateVisible|adjustResize" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

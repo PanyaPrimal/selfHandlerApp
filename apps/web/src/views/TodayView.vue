@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import {
   clearRoutineActivityLog,
@@ -14,7 +14,7 @@ import ProgressSummary from '../components/ProgressSummary.vue'
 import TodayHabits from '../components/TodayHabits.vue'
 import TodayAgenda from '../components/TodayAgenda.vue'
 import { formatCalendarDate } from '../lib/format'
-import { useAuthSession } from '../auth/session'
+import AppIcon from '../components/ui/AppIcon.vue'
 import { UiDatePicker, UiNumberInput, UiSelect, UiTextarea } from '../components/ui'
 import type { Habit, RoutineLog, TodayResponse, TodayRoutine } from '../api/types'
 import type { UiOption } from '../components/ui'
@@ -30,6 +30,7 @@ const actionActivityId = ref<number | null>(null)
 const savingSelection = ref(false)
 const progressDrafts = ref<Record<number, number | null>>({})
 const noteDrafts = ref<Record<number, string>>({})
+const expandedRoutines = ref<Record<string, boolean>>({})
 let selectionSaveChain: Promise<void> = Promise.resolve()
 const error = ref<string | null>(null)
 const statusMessage = ref<string | null>(null)
@@ -39,10 +40,29 @@ const dateControl = ref<{ focus: () => void } | null>(null)
 // It is captured on the first unparameterised load and only marks the calendar;
 // it never becomes a value on its own.
 const userToday = ref<string | null>(null)
-const session = useAuthSession()
 const i18n = useI18n()
 const locale = i18n.locale
-const displayName = computed(() => session.user?.name ?? i18n.t('today.there'))
+let loadGeneration = 0
+const weekDays = computed(() => {
+  if (!selectedDate.value) return []
+  const start = new Date(`${selectedDate.value}T12:00:00Z`)
+  start.setUTCDate(start.getUTCDate() - (start.getUTCDay() + 6) % 7)
+  return Array.from({ length: 7 }, (_, index) => {
+    const day = new Date(start)
+    day.setUTCDate(day.getUTCDate() + index)
+    return {
+      date: day.toISOString().slice(0, 10),
+      label: new Intl.DateTimeFormat(locale.value, { weekday: 'short', timeZone: 'UTC' }).format(day),
+      number: day.getUTCDate(),
+    }
+  })
+})
+
+function shiftWeek(amount: number): void {
+  const day = new Date(`${selectedDate.value}T12:00:00Z`)
+  day.setUTCDate(day.getUTCDate() + amount * 7)
+  loadSelectedDate(day.toISOString().slice(0, 10))
+}
 
 function routineKind(kind: TodayRoutine['kind']): string {
   return i18n.t(`today.kind.${kind}` as 'today.kind.routine')
@@ -86,10 +106,19 @@ function refocus(target: FocusTarget | null | undefined): void {
     return
   }
 
+  if (target instanceof HTMLElement) {
+    const closedGroup = target.closest('details:not([open])')
+    if (closedGroup) {
+      closedGroup.querySelector<HTMLElement>(':scope > summary')?.focus()
+      return
+    }
+  }
+
   target.focus()
 }
 
 async function loadToday(date?: string, focusTarget?: FocusTarget | null): Promise<void> {
+  const generation = ++loadGeneration
   isLoading.value = true
   error.value = null
   statusMessage.value = null
@@ -101,28 +130,41 @@ async function loadToday(date?: string, focusTarget?: FocusTarget | null): Promi
 
   try {
     const response = await getToday(date)
-    data.value = response
+    if (generation !== loadGeneration) return
+    // Refresh saved facts without overwriting a draft in another activity.
+    // Read drafts after the request: the user may have typed while it was pending.
+    const previousActivities = new Map((data.value?.date === response.date ? data.value.routines : [])
+      .flatMap((routine) => routine.activities.map((activity) => [activity.id, activity] as const)))
     progressDrafts.value = Object.fromEntries(response.routines.flatMap((routine) => routine.activities.map((activity) => [
       activity.id,
-      activity.selected_day_log?.progress_value ?? null,
+      previousActivities.has(activity.id) && activity.id !== actionActivityId.value
+        && progressDrafts.value[activity.id] !== (previousActivities.get(activity.id)?.selected_day_log?.progress_value ?? null)
+        ? progressDrafts.value[activity.id]
+        : activity.selected_day_log?.progress_value ?? null,
     ])))
     noteDrafts.value = Object.fromEntries(response.routines.flatMap((routine) => routine.activities.map((activity) => [
       activity.id,
-      activity.selected_day_log?.note ?? '',
+      previousActivities.has(activity.id) && activity.id !== actionActivityId.value
+        && noteDrafts.value[activity.id] !== (previousActivities.get(activity.id)?.selected_day_log?.note ?? '')
+        ? noteDrafts.value[activity.id]
+        : activity.selected_day_log?.note ?? '',
     ])))
+    data.value = response
     selectedDate.value = response.date
 
     if (!date) {
       userToday.value = response.date
     }
   } catch (currentError) {
+    if (generation !== loadGeneration) return
     error.value = currentError instanceof Error ? currentError.message : i18n.t('today.loadFailed')
     retryAction.value = () => loadToday(date, focusTarget ?? dateControl.value)
   } finally {
-    isLoading.value = false
-    await nextTick()
-
-    refocus(focusTarget)
+    if (generation === loadGeneration) {
+      isLoading.value = false
+      await nextTick()
+      refocus(focusTarget)
+    }
   }
 }
 
@@ -302,6 +344,7 @@ function retry(): void {
 }
 
 onMounted(() => loadToday())
+onBeforeUnmount(() => { loadGeneration++ })
 </script>
 
 <template>
@@ -309,192 +352,104 @@ onMounted(() => loadToday())
     <header class="view-header">
       <div>
         <p class="eyebrow">{{ selectedDate ? formatCalendarDate(selectedDate, locale) : i18n.t('nav.today') }}</p>
-        <h1>{{ i18n.t('today.greeting', { name: displayName }) }}</h1>
+        <h1>{{ i18n.t('calm.myDay') }}</h1>
+        <p class="muted today-intro">{{ i18n.t('calm.dayHint') }}</p>
       </div>
-
-      <div class="compact-field">
-        <UiDatePicker
-          ref="dateControl"
-          :label="i18n.t('today.date')"
-          name="today-date"
-          :model-value="selectedDate || null"
-          :locale="locale"
-          :today="userToday"
-          :disabled="isLoading"
-          :clearable="false"
-          :placeholder="i18n.t('today.chooseDay')"
-          @update:model-value="loadSelectedDate"
-        />
+      <div class="today-date-tools">
+        <button v-if="userToday && selectedDate !== userToday" type="button" class="secondary" :disabled="actionActivityId !== null || actionRoutineId !== null || savingSelection" @click="loadSelectedDate(userToday)">{{ i18n.t('nav.today') }}</button>
+        <UiDatePicker ref="dateControl" :label="i18n.t('today.date')" name="today-date" :model-value="selectedDate || null" :locale="locale" :today="userToday" :disabled="isLoading || actionActivityId !== null || actionRoutineId !== null || savingSelection" :clearable="false" :placeholder="i18n.t('today.chooseDay')" @update:model-value="loadSelectedDate" />
       </div>
     </header>
 
-    <div v-if="error && data" class="notice error action-notice" role="alert">
-      <span>{{ error }}</span>
-      <button v-if="retryAction" type="button" class="secondary" @click="retry">{{ i18n.t('common.retry') }}</button>
-    </div>
+    <nav v-if="selectedDate" class="day-strip" :aria-label="i18n.t('calm.week')">
+      <button class="day-strip__arrow" type="button" :aria-label="i18n.t('calm.previousWeek')" :disabled="actionActivityId !== null || actionRoutineId !== null || savingSelection" @click="shiftWeek(-1)">‹</button>
+      <button v-for="day in weekDays" :key="day.date" type="button" class="day-strip__day" :class="{ 'is-selected': day.date === selectedDate, 'is-today': day.date === userToday }" :aria-label="formatCalendarDate(day.date, locale)" :aria-pressed="day.date === selectedDate" :disabled="actionActivityId !== null || actionRoutineId !== null || savingSelection" @click="loadSelectedDate(day.date)">
+        <span>{{ day.label }}</span><strong>{{ day.number }}</strong><span class="day-strip__dot" aria-hidden="true"></span>
+      </button>
+      <button class="day-strip__arrow" type="button" :aria-label="i18n.t('calm.nextWeek')" :disabled="actionActivityId !== null || actionRoutineId !== null || savingSelection" @click="shiftWeek(1)">›</button>
+    </nav>
+
+    <div v-if="error && data" class="notice error action-notice" role="alert"><span>{{ error }}</span><button v-if="retryAction" type="button" class="secondary" @click="retry">{{ i18n.t('common.retry') }}</button></div>
     <div v-if="statusMessage" class="notice success" role="status">{{ statusMessage }}</div>
 
-    <TodayAgenda v-if="selectedDate" :date="selectedDate" />
+    <div class="today-workspace">
+      <div class="today-main">
+        <TodayAgenda v-if="selectedDate" :date="selectedDate" />
+        <section v-if="data" class="panel today-care" :aria-label="i18n.t('calm.care')">
+          <h2>{{ i18n.t('calm.care') }}</h2>
+          <div class="care-links">
+            <RouterLink :to="`/nutrition?date=${selectedDate}`"><span class="care-icon"><AppIcon name="nutrition" /></span><span><strong>{{ i18n.t('nav.nutrition') }}</strong><small>{{ i18n.number(Number(data.module_summaries.nutrition.calories), { maximumFractionDigits: 0 }) }} kcal · {{ i18n.number(Number(data.module_summaries.nutrition.hydration_ml) / 1000, { maximumFractionDigits: 1 }) }} {{ i18n.t('calm.litres') }}</small></span><AppIcon name="arrow" /></RouterLink>
+            <RouterLink :to="`/supplements?date=${selectedDate}`"><span class="care-icon"><AppIcon name="supplements" /></span><span><strong>{{ i18n.t('nav.supplements') }}</strong><small>{{ i18n.t('calm.taken', { count: data.module_summaries.supplements.done }) }} · {{ i18n.t('calm.remaining', { count: data.module_summaries.supplements.pending + data.module_summaries.supplements.overdue }) }}</small></span><AppIcon name="arrow" /></RouterLink>
+            <RouterLink :to="`/workouts?date=${selectedDate}`"><span class="care-icon"><AppIcon name="workouts" /></span><span><strong>{{ i18n.t('nav.workouts') }}</strong><small>{{ i18n.t('calm.workoutsDone', { count: data.module_summaries.workouts.completed }) }}</small></span><AppIcon name="arrow" /></RouterLink>
+            <RouterLink to="/routines"><span class="care-icon"><AppIcon name="moon" /></span><span><strong>{{ i18n.t('today.kind.sleep') }}</strong><small>{{ i18n.t('calm.logSleep') }}</small></span><AppIcon name="arrow" /></RouterLink>
+          </div>
+        </section>
+        <section v-if="data" class="today-review">
+          <span class="care-icon"><AppIcon name="review" /></span>
+          <div><h2>{{ i18n.t('today.eveningReview') }}</h2><p class="muted">{{ i18n.t(data.review ? 'today.reviewSaved' : 'calm.reviewHint') }}</p></div>
+          <RouterLink class="review-link" :to="`/review/${selectedDate}`">{{ i18n.t(data.review ? 'common.edit' : 'today.fillIn') }} <span aria-hidden="true">→</span></RouterLink>
+        </section>
+      </div>
 
-    <AsyncState
-      :loading="isLoading && !data"
-      :error="data ? null : error"
-      :loading-title="i18n.t('today.loading')"
-      :loading-aria-label="i18n.t('today.loading')"
-      panel
-      @retry="retry"
-    >
-      <template #loading>
-        <p class="muted">{{ i18n.t('today.loading') }}</p>
-        <div class="skeleton-line" style="width: 44%"></div>
-        <div class="skeleton-line" style="width: 90%"></div>
-        <div class="skeleton-line" style="width: 75%"></div>
-      </template>
-
-      <template v-if="data">
-      <p v-if="isLoading" class="muted" role="status">{{ i18n.t('today.loadingDate') }}</p>
-
-      <TodayHabits :habits="data.habits ?? []" :date="selectedDate" :today="userToday" @changed="habitChanged" />
-
-      <section class="panel">
-        <div class="section-heading">
-          <h2>{{ i18n.t('today.routines') }}</h2>
-          <RouterLink to="/routines">{{ i18n.t('today.manage') }}</RouterLink>
-        </div>
-
-        <div class="form-grid routine-selections">
-          <UiSelect
-            :model-value="data.routine_day.morning.selected?.routine_id ?? null"
-            :label="i18n.t('today.morningTemplate')"
-            name="morning-template"
-            :options="morningOptions"
-            nullable
-            :nullable-label="i18n.t('today.noMorningTemplate')"
-            @update:model-value="saveSelection('morning', $event)"
-          />
-          <UiSelect
-            :model-value="data.routine_day.evening.selected?.routine_id ?? null"
-            :label="i18n.t('today.eveningTemplate')"
-            name="evening-template"
-            :options="eveningOptions"
-            nullable
-            :nullable-label="i18n.t('today.noEveningTemplate')"
-            @update:model-value="saveSelection('evening', $event)"
-          />
-        </div>
-
-        <AsyncState
-          :empty="data.routines.length === 0"
-          :empty-title="i18n.t('today.empty')"
-          :empty-description="i18n.t('today.emptyBody')"
-          show-empty-icon
-        >
-          <template #empty>
-            <div class="state-icon" aria-hidden="true"></div>
-            <h3>{{ i18n.t('today.empty') }}</h3>
-            <p class="muted">{{ i18n.t('today.emptyBody') }}</p>
-            <RouterLink to="/routines">{{ i18n.t('today.manageRoutines') }}</RouterLink>
+      <div class="today-checkins">
+        <AsyncState :loading="isLoading && !data" :error="data ? null : error" :loading-title="i18n.t('today.loading')" panel @retry="retry">
+          <template v-if="data">
+            <TodayHabits :habits="data.habits ?? []" :date="selectedDate" :today="userToday" @changed="habitChanged" />
+            <section class="panel today-routines" :aria-label="i18n.t('today.routines')">
+              <div class="section-heading"><h2>{{ i18n.t('today.routines') }}</h2><RouterLink to="/routines">{{ i18n.t('today.manage') }}</RouterLink></div>
+              <p v-if="!data.routines.length" class="muted">{{ i18n.t('today.empty') }}</p>
+              <div role="list">
+              <details v-for="routine in data.routines" :key="`${selectedDate}:${routine.id}`" class="routine-fold" role="listitem" :aria-label="routine.name" :open="expandedRoutines[`${selectedDate}:${routine.id}`] ?? !routine.log" @toggle="expandedRoutines[`${selectedDate}:${routine.id}`] = ($event.target as HTMLDetailsElement).open">
+                <summary>
+                  <span class="routine-check" :class="{ 'is-done': routine.log?.status === 'done' }" aria-hidden="true">{{ routine.log?.status === 'done' ? '✓' : routine.log?.status === 'skipped' ? '−' : '' }}</span>
+                  <span><strong>{{ routine.name }}</strong><small>{{ routine.preferred_time?.slice(0, 5) }} · {{ routine.activities.length ? i18n.t('today.activitiesResolved', { resolved: resolvedCount(routine), total: routine.activities.length }) : routineState(routine.log?.status ?? 'pending') }}<span v-if="routine.activities.length && routine.log"> · {{ routineState(routine.log.status) }}</span></small></span>
+                  <span class="fold-chevron" aria-hidden="true">⌄</span>
+                </summary>
+                <div class="routine-fold__body">
+                  <div v-if="!routine.activities.length" class="button-row" role="group" :aria-label="i18n.t('today.setState', { name: routine.name })">
+                    <button type="button" :disabled="actionRoutineId !== null" :aria-pressed="routine.log?.status === 'done'" :aria-label="i18n.t('today.markDone', { name: routine.name })" @click="setRoutineState(routine, 'done', $event.currentTarget as HTMLElement)">{{ i18n.t('today.actionDone') }}</button>
+                    <button type="button" class="secondary" :disabled="actionRoutineId !== null" :aria-pressed="routine.log?.status === 'skipped'" :aria-label="i18n.t('today.markSkipped', { name: routine.name })" @click="setRoutineState(routine, 'skipped', $event.currentTarget as HTMLElement)">{{ i18n.t('today.actionSkip') }}</button>
+                    <button type="button" class="secondary" :disabled="actionRoutineId !== null" :aria-pressed="!routine.log" :aria-label="i18n.t('today.markPending', { name: routine.name })" @click="setRoutineState(routine, 'pending', $event.currentTarget as HTMLElement)">{{ i18n.t('daily.undo') }}</button>
+                  </div>
+                  <ul v-else class="routine-checklist">
+                    <li v-for="activity in routine.activities" :key="activity.id" :aria-label="activity.name">
+                      <div class="routine-checklist__line">
+                        <button v-if="activity.progress_total === null" type="button" class="check-button" :class="{ 'is-checked': activity.selected_day_log?.status === 'done' }" :aria-pressed="activity.selected_day_log?.status === 'done'" :disabled="actionActivityId !== null" :aria-label="i18n.t(activity.selected_day_log?.status === 'done' ? 'today.setActivityPending' : 'today.markActivityDone', { name: activity.name })" @click="setActivityState(routine, activity.id, activity.selected_day_log?.status === 'done' ? 'pending' : 'done', $event.currentTarget as HTMLElement)"><span aria-hidden="true">{{ activity.selected_day_log?.status === 'done' ? '✓' : activity.selected_day_log?.status === 'skipped' ? '−' : '' }}</span></button>
+                        <span class="routine-checklist__name" :class="{ 'is-done': activity.selected_day_log?.status === 'done' }">{{ activity.name }}</span>
+                        <span v-if="activity.progress_total !== null" class="muted">{{ i18n.number(activity.selected_day_log?.progress_value ?? 0) }} / {{ i18n.number(activity.progress_total) }}</span>
+                      </div>
+                      <form v-if="activity.progress_total !== null" class="routine-progress" :aria-label="i18n.t('today.recordActivity', { name: activity.name })" @submit.prevent="setActivityState(routine, activity.id, 'done', $event.submitter as HTMLElement)">
+                        <UiNumberInput v-model="progressDrafts[activity.id]" :label="i18n.t('today.progress')" :name="`activity-progress-${activity.id}`" :min="0" :max="activity.progress_total" :step="0.001" />
+                        <button type="submit" class="secondary" :disabled="actionActivityId !== null" :aria-label="i18n.t('today.markActivityDone', { name: activity.name })">{{ i18n.t('today.actionDone') }}</button>
+                      </form>
+                      <details class="activity-more">
+                        <summary :title="i18n.t('calm.noteOrSkip')"><span class="visually-hidden">{{ i18n.t('calm.noteOrSkip') }}</span><span aria-hidden="true">···</span></summary>
+                        <UiTextarea v-model="noteDrafts[activity.id]" :label="i18n.t('today.activityNote', { name: activity.name })" :name="`activity-note-${activity.id}`" :rows="2" :maxlength="2000" />
+                        <div class="button-row">
+                          <button type="button" class="secondary" :disabled="actionActivityId !== null" @click="setActivityState(routine, activity.id, activity.selected_day_log?.status === 'skipped' ? 'skipped' : 'done', $event.currentTarget as HTMLElement)">{{ i18n.t('common.save') }}</button>
+                          <button type="button" class="secondary" :disabled="actionActivityId !== null" :aria-label="i18n.t('today.markActivitySkipped', { name: activity.name })" @click="setActivityState(routine, activity.id, 'skipped', $event.currentTarget as HTMLElement)">{{ i18n.t('today.actionSkip') }}</button>
+                          <button type="button" class="secondary" :disabled="actionActivityId !== null" :aria-label="i18n.t('today.setActivityPending', { name: activity.name })" @click="setActivityState(routine, activity.id, 'pending', $event.currentTarget as HTMLElement)">{{ i18n.t('daily.undo') }}</button>
+                        </div>
+                      </details>
+                    </li>
+                  </ul>
+                  <p class="routine-context muted">{{ routineKind(routine.kind) }} · {{ streakLabel(routine.current_streak) }}<span v-if="routine.goals.length"> · {{ routine.goals.map(goal => goal.name).join(', ') }}</span></p>
+                </div>
+              </details>
+              </div>
+              <details class="routine-settings">
+                <summary>{{ i18n.t('calm.chooseRoutines') }}</summary>
+                <div class="form-grid">
+                  <UiSelect :model-value="data.routine_day.morning.selected?.routine_id ?? null" :label="i18n.t('today.morningTemplate')" name="morning-template" :options="morningOptions" nullable :nullable-label="i18n.t('today.noMorningTemplate')" :disabled="savingSelection" @update:model-value="saveSelection('morning', $event)" />
+                  <UiSelect :model-value="data.routine_day.evening.selected?.routine_id ?? null" :label="i18n.t('today.eveningTemplate')" name="evening-template" :options="eveningOptions" nullable :nullable-label="i18n.t('today.noEveningTemplate')" :disabled="savingSelection" @update:model-value="saveSelection('evening', $event)" />
+                </div>
+              </details>
+            </section>
           </template>
-
-          <ul class="item-list">
-          <li
-            v-for="routine in data.routines"
-            :key="routine.id"
-            class="routine-row"
-            :aria-label="routine.name"
-            :class="{
-              'is-done': routine.log?.status === 'done',
-              'is-skipped': routine.log?.status === 'skipped',
-            }"
-          >
-            <div class="routine-main">
-              <span class="routine-check" aria-hidden="true">
-                {{ routine.log?.status === 'done' ? '✓' : routine.log?.status === 'skipped' ? '−' : '' }}
-              </span>
-              <span>
-                <strong class="routine-title">{{ routine.name }}</strong>
-                <span class="routine-meta">
-                  <span v-if="routine.preferred_time" class="mono">{{ routine.preferred_time.slice(0, 5) }}</span>
-                  <span>{{ routineKind(routine.kind) }}</span>
-                  <span>{{ routineState(routine.log?.status ?? 'pending') }}</span>
-                  <span v-if="routine.activities.length > 0">{{ i18n.t('today.activitiesResolved', { resolved: resolvedCount(routine), total: routine.activities.length }) }}</span>
-                  <span v-if="routine.activities.length > 0" class="kind-chip">{{ i18n.t(`today.parentState.${routine.parent_state}` as 'today.parentState.pending') }}</span>
-                  <span
-                    class="streak-badge"
-                    :aria-label="i18n.t('today.currentStreak', { streak: streakLabel(routine.current_streak) })"
-                  >{{ streakLabel(routine.current_streak) }}</span>
-                </span>
-                <span v-if="routine.goals.length > 0" class="goal-chip-list">
-                  <span v-for="goal in routine.goals" :key="goal.id" class="goal-chip">{{ goal.name }}</span>
-                </span>
-              </span>
-            </div>
-
-            <div v-if="routine.activities.length === 0" class="button-row state-actions" role="group" :aria-label="i18n.t('today.setState', { name: routine.name })">
-              <button
-                type="button"
-                class="secondary"
-                :aria-label="i18n.t('today.markDone', { name: routine.name })"
-                :class="{ selected: routine.log?.status === 'done' }"
-                :aria-pressed="routine.log?.status === 'done'"
-                :disabled="actionRoutineId !== null"
-                @click="setRoutineState(routine, 'done', $event.currentTarget as HTMLElement)"
-              >{{ i18n.t('today.actionDone') }}</button>
-              <button
-                type="button"
-                class="secondary"
-                :aria-label="i18n.t('today.markSkipped', { name: routine.name })"
-                :class="{ selected: routine.log?.status === 'skipped' }"
-                :aria-pressed="routine.log?.status === 'skipped'"
-                :disabled="actionRoutineId !== null"
-                @click="setRoutineState(routine, 'skipped', $event.currentTarget as HTMLElement)"
-              >{{ i18n.t('today.actionSkip') }}</button>
-              <button
-                type="button"
-                class="secondary"
-                :aria-label="i18n.t('today.markPending', { name: routine.name })"
-                :class="{ selected: !routine.log }"
-                :aria-pressed="!routine.log"
-                :disabled="actionRoutineId !== null"
-                @click="setRoutineState(routine, 'pending', $event.currentTarget as HTMLElement)"
-              >{{ i18n.t('today.actionPending') }}</button>
-            </div>
-            <ol v-else class="activity-checkin-list">
-              <li v-for="activity in routine.activities" :key="activity.id" class="activity-checkin">
-                <div>
-                  <strong>{{ activity.name }}</strong>
-                  <span v-if="activity.selected_day_log?.progress_value !== null && activity.selected_day_log?.progress_value !== undefined && activity.progress_total !== null" class="muted">
-                    {{ i18n.number(activity.selected_day_log.progress_value) }} / {{ i18n.number(activity.progress_total) }}
-                  </span>
-                </div>
-                <form v-if="activity.progress_total !== null" class="activity-progress-form" :aria-label="i18n.t('today.recordActivity', { name: activity.name })" @submit.prevent="setActivityState(routine, activity.id, 'done', $event.submitter as HTMLElement)">
-                  <UiNumberInput v-model="progressDrafts[activity.id]" :label="i18n.t('today.progress')" :name="`activity-progress-${activity.id}`" :min="0" :max="activity.progress_total" :step="0.001" />
-                  <UiTextarea v-model="noteDrafts[activity.id]" :label="i18n.t('today.activityNote', { name: activity.name })" :name="`activity-note-${activity.id}`" :rows="2" :maxlength="2000" />
-                  <button type="submit" class="secondary" :disabled="actionActivityId !== null" :aria-label="i18n.t('today.markActivityDone', { name: activity.name })">{{ i18n.t('today.actionDone') }}</button>
-                </form>
-                <UiTextarea v-else v-model="noteDrafts[activity.id]" :label="i18n.t('today.activityNote', { name: activity.name })" :name="`activity-note-${activity.id}`" :rows="2" :maxlength="2000" />
-                <div class="button-row activity-actions">
-                  <button v-if="activity.progress_total === null" type="button" class="secondary" :disabled="actionActivityId !== null" :aria-label="i18n.t('today.markActivityDone', { name: activity.name })" @click="setActivityState(routine, activity.id, 'done', $event.currentTarget as HTMLElement)">{{ i18n.t('today.actionDone') }}</button>
-                  <button type="button" class="secondary" :disabled="actionActivityId !== null" :aria-label="i18n.t('today.markActivitySkipped', { name: activity.name })" @click="setActivityState(routine, activity.id, 'skipped', $event.currentTarget as HTMLElement)">{{ i18n.t('today.actionSkip') }}</button>
-                  <button type="button" class="secondary" :disabled="actionActivityId !== null" :aria-label="i18n.t('today.setActivityPending', { name: activity.name })" @click="setActivityState(routine, activity.id, 'pending', $event.currentTarget as HTMLElement)">{{ i18n.t('today.actionPending') }}</button>
-                </div>
-              </li>
-            </ol>
-            </li>
-          </ul>
         </AsyncState>
-      </section>
-
-      <section class="panel">
-        <div class="section-heading">
-          <h2>{{ i18n.t('today.eveningReview') }}</h2>
-          <RouterLink :to="`/review/${selectedDate}`">{{ data.review ? i18n.t('common.edit') : i18n.t('today.fillIn') }}</RouterLink>
-        </div>
-        <p class="muted">
-          {{ data.review ? i18n.t('today.reviewSaved') : i18n.t('today.noReview') }}
-        </p>
-      </section>
-      <details class="today-insights">
+      </div>
+    </div>
+    <details v-if="data" class="today-insights">
         <summary>{{ i18n.t('daily.insights') }}</summary>
         <div class="view-stack">
       <section class="summary-grid daily-summary" :aria-label="i18n.t('today.dailySummary')">
@@ -550,14 +505,81 @@ onMounted(() => loadToday())
 
         </div>
       </details>
-      </template>
-    </AsyncState>
   </section>
 </template>
 
 <style scoped>
-.today-page > .view-header h1 { font-size: clamp(1.5rem, 3vw, 2.2rem); }
-.today-insights > summary { cursor: pointer; min-height: 48px; padding: .75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); font-weight: 600; }
-.today-insights[open] > summary { margin-bottom: 1rem; }
-.today-page .daily-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.today-intro { margin-top: 8px; }
+.today-date-tools { display: flex; align-items: end; gap: 8px; }
+.today-date-tools :deep(.ui-field) { width: 185px; }
+.day-strip { display: grid; grid-template-columns: 36px repeat(7, minmax(0, 1fr)) 36px; gap: 8px; padding: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; }
+.day-strip button { background: transparent; color: var(--muted); border-radius: 10px; }
+.day-strip__day { display: grid; justify-items: center; gap: 2px; padding: 6px; }
+.day-strip__day > span:first-child { font-size: .78rem; font-weight: 500; text-transform: capitalize; }
+.day-strip__day strong { font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.day-strip__dot { width: 4px; height: 4px; border-radius: 50%; }
+.day-strip__day.is-today .day-strip__dot { background: currentColor; }
+.day-strip .is-selected { color: white; background: var(--accent); }
+.day-strip button:hover:not(.is-selected) { background: var(--paper-soft); }
+.day-strip__arrow { padding: 0; font-size: 1.5rem; }
+.today-workspace { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); align-items: start; gap: 22px; }
+.today-main, .today-checkins { display: grid; align-content: start; gap: 22px; min-width: 0; }
+.today-page :deep(.section-heading > a) { color: var(--accent); font-size: .83rem; text-decoration: none; }
+.today-page :deep(.section-heading > a:hover) { text-decoration: underline; }
+.care-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; }
+.care-links a { display: flex; align-items: center; gap: 10px; padding: 14px 0; text-decoration: none; min-width: 0; }
+.care-links a:hover strong { color: var(--accent); }
+.care-links a > span:nth-child(2) { min-width: 0; }
+.care-links strong { display: block; font-size: .9rem; font-weight: 600; }
+.care-links small { display: block; color: var(--subtle); font-size: .75rem; margin-top: 4px; }
+.care-links a > .app-icon { margin-left: auto; width: 16px; flex-basis: 16px; color: var(--subtle); }
+.care-icon { display: grid; place-items: center; flex: 0 0 34px; height: 34px; color: var(--accent); background: var(--accent-soft); border-radius: 10px; }
+.today-review { display: flex; align-items: center; gap: 12px; padding: 6px 4px; }
+.today-review h2 { font-size: .95rem; }
+.today-review p { font-size: .8rem; margin-top: 3px; }
+.review-link { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; color: var(--accent); text-decoration: none; font-size: .85rem; flex-shrink: 0; }
+.routine-fold { border-top: 1px solid var(--border); }
+.routine-fold > summary { display: flex; gap: 12px; align-items: center; min-height: 64px; cursor: pointer; list-style: none; }
+.routine-fold > summary::-webkit-details-marker { display: none; }
+.routine-fold > summary strong { display: block; font-size: .92rem; font-weight: 600; }
+.routine-fold > summary small { display: block; font-size: .77rem; color: var(--subtle); margin-top: 3px; }
+.fold-chevron { margin-left: auto; color: var(--subtle); }
+.routine-fold[open] .fold-chevron { transform: rotate(180deg); }
+.routine-check.is-done { color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-border); }
+.routine-fold__body { padding-bottom: 12px; }
+.routine-checklist { list-style: none; padding: 0; margin: 0; }
+.routine-checklist > li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; padding: 5px 0; }
+.routine-checklist__line { display: flex; align-items: center; gap: 8px; min-height: 42px; }
+.routine-checklist__name { font-size: .9rem; }
+.routine-checklist__name.is-done { color: var(--subtle); text-decoration: line-through; }
+.check-button { width: 44px; min-height: 44px; flex: 0 0 44px; padding: 10px; color: var(--subtle); background: transparent; }
+.check-button > span { width: 23px; height: 23px; display: grid; place-items: center; border: 1.5px solid var(--border-strong); border-radius: 7px; }
+.check-button.is-checked > span { background: var(--accent); border-color: var(--accent); color: white; }
+.activity-more { font-size: .8rem; }
+.activity-more summary { display: grid; place-items: center; list-style: none; width: 40px; min-height: 42px; color: var(--subtle); cursor: pointer; font-size: 1.1rem; }
+.activity-more summary::-webkit-details-marker { display: none; }
+.activity-more[open] { grid-column: 1 / -1; width: 100%; padding-bottom: 12px; }
+.activity-more .button-row { margin-top: 8px; }
+.routine-progress { grid-column: 1 / -1; display: flex; align-items: end; gap: 8px; padding: 8px 0; }
+.routine-progress > :first-child { flex: 1; }
+.routine-context { margin-top: 10px; font-size: .75rem; }
+.routine-settings { border-top: 1px solid var(--border); padding-top: 8px; }
+.routine-settings summary { cursor: pointer; color: var(--subtle); font-size: .8rem; padding: 8px 0; }
+.routine-settings .form-grid { margin-top: 10px; }
+.today-insights > summary { cursor: pointer; color: var(--subtle); padding: 12px 0; font-size: .85rem; }
+.today-insights[open] > summary { margin-bottom: 12px; }
+.today-page .daily-summary { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .care-links { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .today-workspace { grid-template-columns: 1fr; } .care-links { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 760px) {
+  .today-page { gap: 16px; }
+  .today-date-tools { width: 100%; justify-content: flex-end; }
+  .today-date-tools :deep(.ui-field) { width: auto; flex: 1; }
+  .day-strip { grid-template-columns: 24px repeat(7, minmax(0, 1fr)) 24px; gap: 1px; padding: 5px; }
+  .day-strip__day { padding: 5px 1px; min-width: 0; }
+  .today-main, .today-checkins, .today-workspace { gap: 16px; }
+  .today-review { flex-wrap: wrap; }
+  .today-page .daily-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 380px) { .care-links { grid-template-columns: 1fr; } .today-review > div { flex: 1; } }
 </style>

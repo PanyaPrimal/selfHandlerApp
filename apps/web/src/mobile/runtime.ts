@@ -10,6 +10,7 @@ import {
   useNotificationStore,
 } from '../notifications/store'
 import { initializeAndroidShell } from './android-shell'
+import { widgetRoute } from './deep-link'
 import { offerRestoredAttachment } from '../attachments/restored-source'
 import { createAndroidLocalPresenter } from './local-notifications'
 import { nativePlugin } from './platform'
@@ -85,7 +86,20 @@ export function initializeMobileRuntime(router: Router): Promise<() => Promise<v
       onRestoredResult: (result) => {
         offerRestoredAttachment(result as Parameters<typeof offerRestoredAttachment>[0])
       },
+      onOpenUrl: async (url) => {
+        const route = widgetRoute(url)
+        if (route) await router.push(route)
+      },
     })
+
+    // A widget tap that cold-starts the app arrives as the launch URL, not as an event.
+    try {
+      const launch = await (nativePlugin('App', CapacitorApp) as any).getLaunchUrl()
+      const route = widgetRoute(launch?.url)
+      if (route) await router.push(route)
+    } catch {
+      // Launch URLs are optional; the app opens normally without one.
+    }
 
     return async () => {
       setNotificationPresentationHandler(null)

@@ -292,28 +292,20 @@ onBeforeRouteLeave(confirmDiscard)
 
     <ReviewModeNav active="daily" :anchor="reviewDate" />
 
-    <DayScoreCard v-if="isReady && dayScore" :score="dayScore" />
-
     <section class="panel" :aria-label="i18n.t('review.workspace')">
       <AsyncState
+        :key="route.fullPath"
         :loading="isLoading"
         :error="loadError"
         :loading-title="i18n.t('review.loading')"
         :loading-description="i18n.t('review.loadingBody')"
         @retry="retryLoadReview"
       >
-        <AsyncState
-          :empty="isReady && !hasSavedReview"
-          :empty-title="i18n.t('review.empty')"
-          :empty-description="i18n.t('review.emptyBody')"
-        />
-
-        <ReviewModuleGrid
-          v-if="isReady && moduleSummaries"
-          class="wide-field"
-          :modules="moduleSummaries"
-          :review-date="reviewDate"
-        />
+        <div v-if="isReady" class="review-introduction">
+          <div><h2>{{ i18n.t('ease.reflect') }}</h2><p class="muted">{{ i18n.t('ease.reflectHint') }}</p></div>
+          <span class="review-state">{{ i18n.t(hasSavedReview ? 'ease.savedEarlier' : 'review.empty') }}</span>
+          <span class="visually-hidden">{{ i18n.t('review.emptyBody') }}</span>
+        </div>
 
         <form
         v-if="isReady"
@@ -326,7 +318,7 @@ onBeforeRouteLeave(confirmDiscard)
         <div class="rating-grid wide-field">
           <label class="field rating-field">
             <span>{{ i18n.t('review.mood') }}</span>
-            <strong class="rating-value">{{ form.mood }}</strong>
+            <strong class="rating-value">{{ form.mood }}<small> / 10</small></strong>
             <input
               ref="moodInput"
               v-model.number="form.mood"
@@ -340,6 +332,7 @@ onBeforeRouteLeave(confirmDiscard)
               :aria-describedby="fieldErrors.mood?.length ? 'review-mood-error' : undefined"
               @input="markChanged('mood')"
             />
+            <span class="rating-anchors" aria-hidden="true"><span>{{ i18n.t('ease.lowMood') }}</span><span>{{ i18n.t('ease.highMood') }}</span></span>
             <small v-if="fieldErrors.mood?.length" id="review-mood-error" class="field-error">
               {{ fieldErrors.mood[0] }}
             </small>
@@ -347,7 +340,7 @@ onBeforeRouteLeave(confirmDiscard)
 
           <label class="field rating-field">
             <span>{{ i18n.t('review.energy') }}</span>
-            <strong class="rating-value">{{ form.energy }}</strong>
+            <strong class="rating-value">{{ form.energy }}<small> / 10</small></strong>
             <input
               ref="energyInput"
               v-model.number="form.energy"
@@ -361,6 +354,7 @@ onBeforeRouteLeave(confirmDiscard)
               :aria-describedby="fieldErrors.energy?.length ? 'review-energy-error' : undefined"
               @input="markChanged('energy')"
             />
+            <span class="rating-anchors" aria-hidden="true"><span>{{ i18n.t('ease.lowEnergy') }}</span><span>{{ i18n.t('ease.highEnergy') }}</span></span>
             <small v-if="fieldErrors.energy?.length" id="review-energy-error" class="field-error">
               {{ fieldErrors.energy[0] }}
             </small>
@@ -368,7 +362,7 @@ onBeforeRouteLeave(confirmDiscard)
 
           <label class="field rating-field">
             <span>{{ i18n.t('review.stress') }}</span>
-            <strong class="rating-value">{{ form.stress }}</strong>
+            <strong class="rating-value">{{ form.stress }}<small> / 10</small></strong>
             <input
               ref="stressInput"
               v-model.number="form.stress"
@@ -382,6 +376,7 @@ onBeforeRouteLeave(confirmDiscard)
               :aria-describedby="fieldErrors.stress?.length ? 'review-stress-error' : undefined"
               @input="markChanged('stress')"
             />
+            <span class="rating-anchors" aria-hidden="true"><span>{{ i18n.t('ease.lowStress') }}</span><span>{{ i18n.t('ease.highStress') }}</span></span>
             <small v-if="fieldErrors.stress?.length" id="review-stress-error" class="field-error">
               {{ fieldErrors.stress[0] }}
             </small>
@@ -389,7 +384,7 @@ onBeforeRouteLeave(confirmDiscard)
 
           <label class="field rating-field">
             <span>{{ i18n.t('review.dayRating') }}</span>
-            <strong class="rating-value">{{ form.day_rating }}</strong>
+            <strong class="rating-value">{{ form.day_rating }}<small> / 10</small></strong>
             <input
               ref="dayRatingInput"
               v-model.number="form.day_rating"
@@ -403,6 +398,7 @@ onBeforeRouteLeave(confirmDiscard)
               :aria-describedby="fieldErrors.day_rating?.length ? 'review-day-rating-error' : undefined"
               @input="markChanged('day_rating')"
             />
+            <span class="rating-anchors" aria-hidden="true"><span>{{ i18n.t('ease.lowDay') }}</span><span>{{ i18n.t('ease.highDay') }}</span></span>
             <small v-if="fieldErrors.day_rating?.length" id="review-day-rating-error" class="field-error">
               {{ fieldErrors.day_rating[0] }}
             </small>
@@ -414,9 +410,9 @@ onBeforeRouteLeave(confirmDiscard)
           v-model="form.went_well"
           :label="i18n.t('review.wentWell')"
           name="went_well"
+          :placeholder="i18n.t('ease.goodPlaceholder')"
           :rows="3"
           :maxlength="5000"
-          wide
           :disabled="isSaving"
           :error="fieldErrors.went_well?.[0]"
           @update:model-value="markChanged('went_well')"
@@ -427,9 +423,9 @@ onBeforeRouteLeave(confirmDiscard)
           v-model="form.improve_tomorrow"
           :label="i18n.t('review.improveTomorrow')"
           name="improve_tomorrow"
+          :placeholder="i18n.t('ease.tomorrowPlaceholder')"
           :rows="3"
           :maxlength="5000"
-          wide
           :disabled="isSaving"
           :error="fieldErrors.improve_tomorrow?.[0]"
           @update:model-value="markChanged('improve_tomorrow')"
@@ -440,7 +436,7 @@ onBeforeRouteLeave(confirmDiscard)
           v-model="form.notes"
           :label="i18n.t('review.notes')"
           name="notes"
-          :rows="4"
+          :rows="2"
           :maxlength="10000"
           wide
           :disabled="isSaving"
@@ -467,5 +463,10 @@ onBeforeRouteLeave(confirmDiscard)
         </form>
       </AsyncState>
     </section>
+    <details v-if="isReady" class="panel workspace-disclosure review-context">
+      <summary>{{ i18n.t('ease.dayContext') }}<span class="muted">{{ i18n.t('ease.dayContextHint') }}</span></summary>
+      <DayScoreCard v-if="dayScore" :score="dayScore" />
+      <ReviewModuleGrid v-if="moduleSummaries" :modules="moduleSummaries" :review-date="reviewDate" />
+    </details>
   </section>
 </template>

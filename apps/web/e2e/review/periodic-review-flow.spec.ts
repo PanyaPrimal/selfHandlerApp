@@ -70,6 +70,7 @@ test('daily score renders all-source full partial and empty evidence states', as
   })
 
   await page.goto('/review/2026-08-12')
+  await page.locator('.review-context > summary').click()
   const score = page.getByRole('region', { name: 'Day score' })
   await expect(score).toContainText('72%')
   await expect(score).toContainText('5 of 5 components included with equal weight.')
@@ -79,12 +80,14 @@ test('daily score renders all-source full partial and empty evidence states', as
 
   scoreMode = 'partial'
   await page.reload()
+  await page.locator('.review-context > summary').click()
   await expect(score).toContainText('90%')
   await expect(score).toContainText('1 of 5 components included with equal weight.')
   await expect(score).toContainText('No workout evidence')
 
   scoreMode = 'empty'
   await page.reload()
+  await page.locator('.review-context > summary').click()
   await expect(score).toContainText('No score components have enough evidence for this date.')
   await expect(score).toContainText('No nutrition target evidence')
   await expectNoHorizontalOverflow(page)

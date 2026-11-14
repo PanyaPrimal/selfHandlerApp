@@ -70,6 +70,14 @@ class SupplementCourseApiTest extends SupplementTestCase
         ])->assertOk()->assertJsonPath('data.schedule.interval_count', 2)
             ->assertJsonPath('data.schedule.cycle.on_days', 7);
 
+        $this->actingAs($owner)->patchJson('/api/supplement-courses/'.$course['id'], [
+            'schedule' => [
+                'frequency' => 'weekly', 'interval_count' => 2,
+                'weekdays' => ['MO', 'TH'], 'cycle' => null,
+                'slots' => [['slot' => 'morning', 'time' => '09:00', 'intake_context' => 'empty_stomach']],
+            ],
+        ])->assertOk()->assertJsonPath('data.schedule.cycle', null);
+
         $this->actingAs($owner)->getJson('/api/supplement-courses')
             ->assertOk()->assertJsonCount(1, 'data');
     }

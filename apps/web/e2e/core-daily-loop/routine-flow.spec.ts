@@ -1,3 +1,4 @@
+import { revealForm, revealRoutine } from '../interface/support'
 import { expect, test, type Page } from '@playwright/test'
 import { collectRuntimeIssues, expectNoRuntimeIssues } from './support'
 import { registerViaUi, uniqueCredentials } from '../support/auth'
@@ -6,6 +7,7 @@ import { chooseSegment, dateTrigger, pickDate } from '../interface/support'
 const selectedMonday = '2026-08-10'
 
 async function createWeekdayRoutine(page: Page, name: string, weekday: 'Mon' | 'Tue', order: number): Promise<void> {
+  await revealForm(page, 'Create routine')
   const form = page.getByRole('form', { name: 'Create routine' })
 
   await form.getByLabel('Name').fill(name)
@@ -21,7 +23,7 @@ async function createWeekdayRoutine(page: Page, name: string, weekday: 'Mon' | '
 async function selectDate(page: Page, date: string): Promise<void> {
   await pickDate(page, 'Date', date)
   await expect(dateTrigger(page, 'Date')).toBeVisible()
-  await expect(page.getByRole('heading', { name: /Good evening/ })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'My day' })).toBeVisible()
   await expect(page.getByText('Loading selected date…')).toBeHidden()
 }
 
@@ -50,6 +52,8 @@ test('weekday routine planning and daily state transitions survive reload', asyn
 
   await expect(page.getByRole('heading', { name: 'No routines yet' })).toBeVisible()
 
+  await revealForm(page, 'Create routine')
+
   const createForm = page.getByRole('form', { name: 'Create routine' })
   await createForm.getByLabel('Name').fill('Missing weekday')
   await chooseSegment(createForm, 'Schedule', 'By weekdays')
@@ -70,7 +74,7 @@ test('weekday routine planning and daily state transitions survive reload', asyn
   await page.getByRole('link', { name: /Today/i }).click()
   await selectDate(page, selectedMonday)
 
-  const routineTitles = page.locator('.routine-row .routine-title')
+  const routineTitles = page.locator('.routine-fold > summary strong')
   await expect(routineTitles).toHaveText([firstName, laterName])
   await expect(page.getByText(otherDayName)).toBeHidden()
   await expectMetric(page, 'Scheduled', '2')
@@ -81,6 +85,7 @@ test('weekday routine planning and daily state transitions survive reload', asyn
   const firstDoneResponse = page.waitForResponse((response) =>
     response.request().method() === 'PUT' && response.url().includes('/logs/2026-08-10'),
   )
+  await revealRoutine(page, firstName)
   await page.getByRole('button', { name: `Mark ${firstName} done` }).click()
   const firstLogId = (await (await firstDoneResponse).json() as { data: { id: number } }).data.id
   await expectMetric(page, 'Done', '1')
@@ -90,6 +95,7 @@ test('weekday routine planning and daily state transitions survive reload', asyn
   const repeatedDoneResponse = page.waitForResponse((response) =>
     response.request().method() === 'PUT' && response.url().includes('/logs/2026-08-10'),
   )
+  await revealRoutine(page, firstName)
   await page.getByRole('button', { name: `Mark ${firstName} done` }).click()
   const repeatedLogId = (await (await repeatedDoneResponse).json() as { data: { id: number } }).data.id
   expect(repeatedLogId).toBe(firstLogId)
@@ -97,6 +103,7 @@ test('weekday routine planning and daily state transitions survive reload', asyn
   const skippedResponse = page.waitForResponse((response) =>
     response.request().method() === 'PUT' && response.url().includes('/logs/2026-08-10'),
   )
+  await revealRoutine(page, firstName)
   await page.getByRole('button', { name: `Mark ${firstName} skipped` }).click()
   await skippedResponse
   await expect(page.getByRole('status').filter({ hasText: `${firstName} is skipped.` })).toBeVisible()
@@ -106,6 +113,7 @@ test('weekday routine planning and daily state transitions survive reload', asyn
   const pendingResponse = page.waitForResponse((response) =>
     response.request().method() === 'DELETE' && response.url().includes('/logs/2026-08-10'),
   )
+  await revealRoutine(page, firstName)
   await page.getByRole('button', { name: `Set ${firstName} to pending` }).click()
   await pendingResponse
   await expect(page.getByRole('status').filter({ hasText: `${firstName} is pending.` })).toBeVisible()
@@ -114,11 +122,13 @@ test('weekday routine planning and daily state transitions survive reload', asyn
   const finalDoneResponse = page.waitForResponse((response) =>
     response.request().method() === 'PUT' && response.url().includes('/logs/2026-08-10'),
   )
+  await revealRoutine(page, firstName)
   await page.getByRole('button', { name: `Mark ${firstName} done` }).click()
   await finalDoneResponse
   await expect(page.getByRole('status').filter({ hasText: `${firstName} is done.` })).toBeVisible()
   await page.reload()
   await selectDate(page, selectedMonday)
+  await revealRoutine(page, firstName)
   await expect(page.getByRole('button', { name: `Mark ${firstName} done` })).toHaveAttribute('aria-pressed', 'true')
   await expectMetric(page, 'Done', '1')
   await expectMetric(page, 'Completion', '50%')

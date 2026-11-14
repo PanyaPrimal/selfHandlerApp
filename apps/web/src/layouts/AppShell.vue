@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { useAuthSession } from '../auth/session'
 import UiPopoverSurface from '../components/ui/UiPopoverSurface.vue'
@@ -8,6 +8,7 @@ import { useI18n } from '../i18n'
 import type { MessageKey } from '../i18n/locales/en'
 import { useNotificationStore } from '../notifications/store'
 import WorkspaceStatus from '../components/WorkspaceStatus.vue'
+import AppIcon from '../components/ui/AppIcon.vue'
 
 interface Destination {
   name: string
@@ -64,9 +65,21 @@ const moreButton = ref<HTMLElement | null>(null)
 const { t } = useI18n()
 const notifications = useNotificationStore()
 const userInitial = computed(() => session.user?.name.trim().charAt(0).toUpperCase() || '?')
+const navSearch = ref('')
+const desktopSearch = ref<HTMLInputElement | null>(null)
+const mobileSearch = ref<HTMLInputElement | null>(null)
+const filteredGroups = computed(() => destinationGroups.map(group => ({
+  ...group,
+  items: group.items.filter(item => `${t(item.label)} ${item.name}`.toLocaleLowerCase().includes(navSearch.value.trim().toLocaleLowerCase())),
+})).filter(group => group.items.length))
+const filteredMoreGroups = computed(() => filteredGroups.value.filter(group => group.label !== 'nav.daily'))
+
+function isDestinationActive(destination: Destination): boolean {
+  return route.path === destination.to || (destination.to !== '/' && route.path.startsWith(`${destination.to}/`))
+}
 
 const secondaryIsActive = computed(() =>
-  moreDestinations.some((destination) => destination.name === route.name),
+  moreDestinations.some(isDestinationActive),
 )
 
 const more = useAnchoredSurface({
@@ -79,6 +92,23 @@ const more = useAnchoredSurface({
 function goToSecondary(): void {
   more.close({ restoreFocus: false })
 }
+
+function focusNavigation(event: KeyboardEvent): void {
+  if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'k') return
+  event.preventDefault()
+  if (window.matchMedia('(min-width: 761px)').matches) {
+    desktopSearch.value?.focus()
+  } else {
+    more.open()
+    more.whenPositioned(() => {
+      void nextTick(() => { if (more.isOpen.value) mobileSearch.value?.focus() })
+    })
+  }
+}
+
+watch(() => route.fullPath, () => { navSearch.value = '' })
+onMounted(() => window.addEventListener('keydown', focusNavigation))
+onBeforeUnmount(() => window.removeEventListener('keydown', focusNavigation))
 
 onMounted(notifications.start)
 onBeforeUnmount(notifications.stop)
@@ -99,14 +129,18 @@ onBeforeUnmount(notifications.stop)
       </RouterLink>
 
       <nav class="nav-list nav-list--desktop" :aria-label="t('nav.primary')">
-        <div v-for="group in destinationGroups" :key="group.label" class="nav-group">
-          <p class="nav-group__label">{{ t(group.label) }}</p>
+        <label class="nav-search"><AppIcon name="search" /><input ref="desktopSearch" v-model="navSearch" type="search" :aria-label="t('ease.findSection')" :placeholder="t('ease.findSection')" autocomplete="off" /><kbd v-if="!navSearch">{{ t('ease.searchShortcut') }}</kbd></label>
+        <p v-if="!filteredGroups.length" class="nav-no-results" role="status">{{ t('ease.noSections') }}</p>
+        <details v-for="group in filteredGroups" :key="group.label" class="nav-group" :open="Boolean(navSearch) || ['nav.daily', 'nav.health'].includes(group.label) || group.items.some(isDestinationActive)">
+          <summary class="nav-group__label">{{ t(group.label) }}</summary>
           <RouterLink
             v-for="destination in group.items"
             :key="destination.name"
             :to="destination.to"
+            :class="{ 'is-current': isDestinationActive(destination) }"
+            :aria-current="isDestinationActive(destination) ? 'page' : undefined"
           >
-            <span class="nav-dot" aria-hidden="true"></span>
+            <AppIcon :name="destination.name" />
             <span>{{ t(destination.label) }}</span>
             <span
               v-if="destination.name === 'notifications' && notifications.state.unreadCount > 0"
@@ -115,12 +149,12 @@ onBeforeUnmount(notifications.stop)
               aria-hidden="true"
             >{{ notifications.state.unreadCount }}</span>
           </RouterLink>
-        </div>
+        </details>
       </nav>
 
       <nav class="nav-list nav-list--compact" :aria-label="t('nav.primary')">
         <RouterLink v-for="destination in mobileDestinations" :key="destination.name" :to="destination.to">
-          <span class="nav-dot" aria-hidden="true"></span>
+          <AppIcon :name="destination.name" />
           <span>{{ t(destination.label) }}</span>
         </RouterLink>
 
@@ -136,7 +170,7 @@ onBeforeUnmount(notifications.stop)
             :aria-current="secondaryIsActive ? 'page' : undefined"
             @click="more.toggle()"
           >
-            <span class="nav-dot" aria-hidden="true"></span>
+            <AppIcon name="more" />
             <span>{{ t('nav.more') }}</span>
             <span
               v-if="notifications.state.unreadCount > 0"
@@ -155,7 +189,9 @@ onBeforeUnmount(notifications.stop)
             :aria-label="t('nav.moreDestinations')"
             class="nav-more__menu"
           >
-            <div v-for="group in moreGroups" :key="group.label" role="group" :aria-label="t(group.label)">
+            <label class="nav-search nav-search--mobile"><AppIcon name="search" /><input ref="mobileSearch" v-model="navSearch" type="search" :aria-label="t('ease.findSection')" :placeholder="t('ease.findSection')" autocomplete="off" /></label>
+            <p v-if="!filteredMoreGroups.length" class="nav-no-results" role="status">{{ t('ease.noSections') }}</p>
+            <div v-for="group in filteredMoreGroups" :key="group.label" role="group" :aria-label="t(group.label)">
               <p class="nav-group__label">{{ t(group.label) }}</p>
               <RouterLink
               v-for="destination in group.items"
@@ -163,9 +199,10 @@ onBeforeUnmount(notifications.stop)
               class="nav-more__item"
               role="menuitem"
               :to="destination.to"
+              :aria-current="isDestinationActive(destination) ? 'page' : undefined"
               @click="goToSecondary"
             >
-              {{ t(destination.label) }}
+              <AppIcon :name="destination.name" />{{ t(destination.label) }}
               <span
                 v-if="destination.name === 'notifications' && notifications.state.unreadCount > 0"
                 class="notification-badge"

@@ -109,4 +109,26 @@ describe('Android shell lifecycle', () => {
     expect(app.removed).toEqual(expect.arrayContaining(['backButton', 'appStateChange', 'appRestoredResult']))
     expect(keyboard.removed).toEqual(expect.arrayContaining(['keyboardWillShow', 'keyboardWillHide']))
   })
+
+  it('forwards widget links opened in a running app and removes the listener', async () => {
+    const app = pluginHarness()
+    const keyboard = pluginHarness()
+    const onOpenUrl = vi.fn()
+    const dispose = await initializeAndroidShell({
+      app: app.plugin,
+      keyboard: keyboard.plugin,
+      router: { currentRoute: { value: { path: '/' } }, back: vi.fn() },
+      canGoBack: () => false,
+      onResume: vi.fn(),
+      onOpenUrl,
+    })
+
+    await app.listeners.get('appUrlOpen')?.({ url: 'selfhandler://storage?item=7' })
+    await app.listeners.get('appUrlOpen')?.({})
+    expect(onOpenUrl).toHaveBeenCalledOnce()
+    expect(onOpenUrl).toHaveBeenCalledWith('selfhandler://storage?item=7')
+
+    await dispose()
+    expect(app.removed).toContain('appUrlOpen')
+  })
 })

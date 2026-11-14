@@ -61,13 +61,34 @@ assert.match(manifest, /android\.permission\.POST_NOTIFICATIONS/)
 assert.doesNotMatch(manifest, /SCHEDULE_EXACT_ALARM|USE_EXACT_ALARM/)
 assert.doesNotMatch(manifest, /READ_EXTERNAL_STORAGE|WRITE_EXTERNAL_STORAGE|READ_MEDIA_IMAGES/)
 
-const activity = read(resolve(android, 'app/src/main/java/app/selfhandler/mobile/MainActivity.java'))
-const vault = read(resolve(android, 'app/src/main/java/app/selfhandler/mobile/MobileCredentialVaultPlugin.java'))
+const javaRoot = resolve(android, 'app/src/main/java/app/selfhandler/mobile')
+const activity = read(resolve(javaRoot, 'MainActivity.java'))
+const vaultPlugin = read(resolve(javaRoot, 'MobileCredentialVaultPlugin.java'))
+const vault = read(resolve(javaRoot, 'SessionVault.java'))
 assert.match(activity, /registerPlugin\(MobileCredentialVaultPlugin\.class\)/)
+assert.match(vaultPlugin, /SessionVault\.(read|write|clear)\(/, 'The vault plugin must delegate to SessionVault.')
 assert.match(vault, /AndroidKeyStore/)
 assert.match(vault, /AES\/GCM\/NoPadding/)
 assert.match(vault, /Context\.MODE_PRIVATE/)
-assert.doesNotMatch(vault, /localStorage|sessionStorage|\bLog\./)
+for (const source of files(javaRoot).filter((file) => file.endsWith('.java'))) {
+  assert.doesNotMatch(read(source), /localStorage|sessionStorage|\bLog\.|printStackTrace/,
+    `Native code must not log or mirror credentials: ${relative(repository, source)}`)
+}
+
+// Home-screen task widget: the system binds the list service, the cache never holds the token,
+// and requests only go to the build-time public origin.
+assert.match(manifest, /\.widget\.TasksWidgetProvider/)
+assert.match(manifest, /android\.appwidget\.action\.APPWIDGET_UPDATE/)
+assert.match(manifest, /\.widget\.TasksWidgetService"[^>]*android:exported="false"[^>]*android:permission="android\.permission\.BIND_REMOTEVIEWS"/s)
+assert.match(manifest, /\.widget\.WidgetActionActivity"[^>]*android:exported="false"[^>]*android:taskAffinity=""/s)
+assert.match(manifest, /\.widget\.QuickAddActivity"[^>]*android:exported="false"/s)
+const widgetStore = read(resolve(javaRoot, 'widget/TaskWidgetStore.java'))
+assert.doesNotMatch(widgetStore, /SessionVault\.|token/i, 'The widget cache must not store the session token.')
+assert.match(widgetStore, /Context\.MODE_PRIVATE/)
+const widgetApi = read(resolve(javaRoot, 'widget/TasksApi.java'))
+assert.match(widgetApi, /BuildConfig\.API_ORIGIN/)
+assert.match(widgetApi, /startsWith\("https:\/\/"\)/)
+assert.match(widgetApi, /X-Workspace-Operation/)
 const gradle = read(resolve(android, 'app/build.gradle'))
 assert.equal(gradle.match(/versionName\s+"([^"]+)"/)?.[1], packageJson.version,
   'Android and mobile package versions must agree.')
@@ -89,6 +110,13 @@ for (const required of [
   'app/src/main/res/drawable/ic_stat_selfhandler.xml',
   'app/src/main/res/drawable/splash.png',
   'app/src/main/res/drawable-night/splash.png',
+  'app/src/main/res/xml/tasks_widget_info.xml',
+  'app/src/main/res/layout/widget_tasks.xml',
+  'app/src/main/res/layout/widget_task_item.xml',
+  'app/src/main/res/values/strings_widget.xml',
+  'app/src/main/res/values-ru/strings_widget.xml',
+  'app/src/main/res/values-uk/strings_widget.xml',
+  'app/src/main/res/values-night/colors_widget.xml',
 ]) assert.ok(existsSync(resolve(android, required)), `Missing Android project input: ${required}`)
 
 const rootIgnore = read(resolve(repository, '.gitignore'))

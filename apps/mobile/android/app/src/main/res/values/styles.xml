@@ -16,6 +16,13 @@
     </style>
 
 
+    <!-- Widget quick-add dialog over the home screen. -->
+    <style name="AppTheme.QuickAdd" parent="Theme.AppCompat.DayNight.Dialog.MinWidth">
+        <item name="windowNoTitle">true</item>
+        <item name="colorPrimary">@color/widget_accent</item>
+        <item name="colorAccent">@color/widget_accent</item>
+    </style>
+
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
         <item name="windowSplashScreenBackground">@color/splashBackground</item>

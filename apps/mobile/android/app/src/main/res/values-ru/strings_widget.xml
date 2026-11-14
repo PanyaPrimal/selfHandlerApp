@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_description">Задачи на сегодня и просроченные</string>
+    <string name="widget_today">Сегодня</string>
+    <plurals name="widget_task_count">
+        <item quantity="one">%d задача</item>
+        <item quantity="few">%d задачи</item>
+        <item quantity="many">%d задач</item>
+        <item quantity="other">%d задачи</item>
+    </plurals>
+    <string name="widget_empty">На сегодня задач нет</string>
+    <string name="widget_signed_out">Войдите в SelfHandler</string>
+    <string name="widget_offline">Нет связи</string>
+    <string name="widget_offline_since">Нет связи · обновлено %1$s</string>
+    <string name="widget_action_failed">Не удалось отметить задачу. Попробуйте ещё раз.</string>
+    <string name="widget_not_configured">В этой сборке не задан адрес сервера</string>
+    <string name="widget_overdue">Просрочено · %1$s</string>
+    <string name="widget_mark_done">Отметить «%1$s» выполненной</string>
+    <string name="widget_refresh">Обновить</string>
+    <string name="widget_add">Добавить задачу</string>
+    <string name="widget_add_title">Новая задача на сегодня</string>
+    <string name="widget_add_hint">Что нужно сделать?</string>
+    <string name="widget_add_submit">Добавить</string>
+    <string name="widget_cancel">Отмена</string>
+    <string name="widget_add_empty">Введите название задачи</string>
+    <string name="widget_add_failed">Не удалось добавить задачу. Проверьте связь и попробуйте ещё раз.</string>
+    <string name="widget_added">Задача добавлена</string>
+</resources>

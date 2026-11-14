@@ -18,14 +18,20 @@ test('Android vault, manifest security, plugins, resources, and Gradle wrapper a
     mobile,
     'android/app/src/main/java/app/selfhandler/mobile/MainActivity.java',
   ), 'utf8')
-  const vault = readFileSync(resolve(
+  const vaultPlugin = readFileSync(resolve(
     mobile,
     'android/app/src/main/java/app/selfhandler/mobile/MobileCredentialVaultPlugin.java',
+  ), 'utf8')
+  const vault = readFileSync(resolve(
+    mobile,
+    'android/app/src/main/java/app/selfhandler/mobile/SessionVault.java',
   ), 'utf8')
   const manifest = readFileSync(resolve(mobile, 'android/app/src/main/AndroidManifest.xml'), 'utf8')
   const capacitorSettings = readFileSync(resolve(mobile, 'android/capacitor.settings.gradle'), 'utf8')
 
   assert.match(activity, /registerPlugin\(MobileCredentialVaultPlugin\.class\)/)
+  assert.match(vaultPlugin, /SessionVault\.read\(/)
+  assert.doesNotMatch(vaultPlugin, /Log\./)
   assert.match(vault, /AndroidKeyStore/)
   assert.match(vault, /AES\/GCM\/NoPadding/)
   assert.doesNotMatch(vault, /localStorage|sessionStorage|Log\./)
@@ -39,4 +45,25 @@ test('Android vault, manifest security, plugins, resources, and Gradle wrapper a
   assert.ok(existsSync(resolve(mobile, 'android/gradlew.bat')))
   assert.ok(existsSync(resolve(mobile, 'android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml')))
   assert.ok(existsSync(resolve(mobile, 'android/keystore.properties.example')))
+})
+
+test('Task widget is system-bound, private, and translated', () => {
+  const manifest = readFileSync(resolve(mobile, 'android/app/src/main/AndroidManifest.xml'), 'utf8')
+  const store = readFileSync(resolve(
+    mobile,
+    'android/app/src/main/java/app/selfhandler/mobile/widget/TaskWidgetStore.java',
+  ), 'utf8')
+  const gradle = readFileSync(resolve(mobile, 'android/app/build.gradle'), 'utf8')
+
+  assert.match(manifest, /android\.appwidget\.action\.APPWIDGET_UPDATE/)
+  assert.match(manifest, /android:permission="android\.permission\.BIND_REMOTEVIEWS"/)
+  assert.doesNotMatch(store, /token/i)
+  assert.match(gradle, /buildConfigField "String", "API_ORIGIN"/)
+  assert.match(gradle, /\^https:/)
+  for (const locale of ['values', 'values-ru', 'values-uk']) {
+    const strings = readFileSync(resolve(mobile, `android/app/src/main/res/${locale}/strings_widget.xml`), 'utf8')
+    for (const key of ['widget_today', 'widget_empty', 'widget_signed_out', 'widget_add_title', 'widget_add_failed']) {
+      assert.match(strings, new RegExp(`name="${key}"`), `${locale} is missing ${key}`)
+    }
+  }
 })

@@ -1,3 +1,4 @@
+import { revealForm } from './interface/support'
 import { expect, test, type Page } from '@playwright/test'
 import {
   loginViaUi,
@@ -17,7 +18,7 @@ test('registration normalizes identity, restores the session, and rejects a dupl
   const mixedEmail = `  ${credentials.email.toUpperCase()}  `
 
   await registerViaUi(page, credentials, { emailInput: mixedEmail })
-  await expect(page.getByRole('heading', { name: new RegExp(credentials.name) })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'My day', exact: true })).toBeVisible()
 
   await gotoDestination(page, 'Routines')
   await expect(page.getByRole('heading', { name: 'No routines yet' })).toBeVisible()
@@ -92,6 +93,7 @@ test('two accounts stay isolated in simultaneous contexts and after account swit
   const routineB = `Private B routine ${Date.now()}`
 
   await registerViaUi(page, accountA, { redirectTo: '/routines' })
+  await revealForm(page, 'Create routine')
   const routineFormA = page.getByRole('form', { name: 'Create routine' })
   await routineFormA.getByLabel('Name', { exact: true }).fill(routineA)
   await routineFormA.getByRole('button', { name: 'Create routine', exact: true }).click()
@@ -116,6 +118,7 @@ test('two accounts stay isolated in simultaneous contexts and after account swit
     await registerViaUi(pageB, accountB, { redirectTo: '/routines' })
     await expect(pageB.getByText(routineA)).toHaveCount(0)
     await expect(pageB.getByRole('heading', { name: 'No routines yet' })).toBeVisible()
+    await revealForm(pageB, 'Create routine')
     const routineFormB = pageB.getByRole('form', { name: 'Create routine' })
     await routineFormB.getByLabel('Name', { exact: true }).fill(routineB)
     await routineFormB.getByRole('button', { name: 'Create routine', exact: true }).click()

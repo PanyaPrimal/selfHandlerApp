@@ -47,13 +47,18 @@ const mobileMore = [
   'Changelog',
 ]
 
-test('the desktop sidebar lists every destination directly', async ({ page }, testInfo) => {
+test('the desktop sidebar groups secondary destinations and opens the current group', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'Desktop sidebar layout')
 
   await registerViaUi(page, uniqueCredentials(testInfo, 'NavDesktop'))
 
   const sidebar = page.locator('.nav-list--desktop')
   await expect(sidebar).toBeVisible()
+  await expect(sidebar.getByRole('link', { name: 'Finance', exact: true })).toBeHidden()
+  await expect(sidebar.getByRole('link', { name: 'Settings', exact: true })).toBeHidden()
+  for (const group of await sidebar.locator('details').all()) {
+    if (!await group.evaluate(element => (element as HTMLDetailsElement).open)) await group.locator('summary').click()
+  }
 
   for (const label of desktopDestinations) {
     await expect(sidebar.getByRole('link', { name: label, exact: true })).toBeVisible()
@@ -61,6 +66,9 @@ test('the desktop sidebar lists every destination directly', async ({ page }, te
 
   await expect(page.getByRole('button', { name: /More/ })).toBeHidden()
   await expectNoHorizontalOverflow(page)
+  await page.goto('/finance')
+  await expect(sidebar.getByRole('link', { name: 'Finance', exact: true })).toBeVisible()
+  await expect(sidebar.getByRole('link', { name: 'Today', exact: true })).not.toHaveClass(/router-link-exact-active/)
 })
 
 test('at 390px the primary tabs stay, and the rest live behind More', async ({ page }, testInfo) => {

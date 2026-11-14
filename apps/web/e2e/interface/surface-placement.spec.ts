@@ -1,3 +1,4 @@
+import { revealForm } from './support'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { registerViaUi, uniqueCredentials } from '../support/auth'
 import { openSurface, selectTrigger } from './support'
@@ -45,6 +46,8 @@ test('a listbox is already at its control the moment it becomes visible', async 
   await registerViaUi(page, uniqueCredentials(testInfo, 'Placement'))
   await page.goto('/routines')
 
+  await revealForm(page, 'Create routine')
+
   const form = page.getByRole('form', { name: 'Create routine' })
   const trigger = selectTrigger(form, 'Kind')
 
@@ -54,6 +57,7 @@ test('a listbox is already at its control the moment it becomes visible', async 
 
 test('an open listbox stays selectable when scrolling moves its anchor below the viewport', async ({ page }, testInfo) => {
   await registerViaUi(page, uniqueCredentials(testInfo, 'ScrolledPlacement'), { redirectTo: '/routines' })
+  await revealForm(page, 'Create routine')
   const trigger = selectTrigger(page.getByRole('form', { name: 'Create routine' }), 'Day period')
   await trigger.click()
   const listbox = page.getByRole('listbox')
@@ -74,6 +78,7 @@ test('an open listbox stays selectable when scrolling moves its anchor below the
 test('a calendar is already at its control the moment it becomes visible', async ({ page }, testInfo) => {
   await registerViaUi(page, uniqueCredentials(testInfo, 'PlacementCalendar'))
   await page.goto('/routines')
+  await revealForm(page, 'Create routine')
 
   const trigger = page.getByRole('button', { name: /^Starts on\b/ })
 
@@ -85,6 +90,7 @@ test('the appear animation never drives transform', async ({ page }, testInfo) =
   await registerViaUi(page, uniqueCredentials(testInfo, 'PlacementAnimation'))
   await page.goto('/routines')
 
+  await revealForm(page, 'Create routine')
   await selectTrigger(page.getByRole('form', { name: 'Create routine' }), 'Kind').click()
   await expect(openSurface(page)).toBeVisible()
 

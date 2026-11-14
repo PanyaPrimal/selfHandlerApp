@@ -1,3 +1,4 @@
+import { revealForm } from './support'
 import { expect, test } from '@playwright/test'
 import { registerViaUi, uniqueCredentials, xsrfHeader } from '../support/auth'
 import { chooseOption, expectNoHorizontalOverflow } from './support'
@@ -10,8 +11,8 @@ test('water and unnamed meals can be recorded without creating catalogue entries
   await expect(page.getByRole('status').filter({ hasText: 'Meal logged.' })).toBeVisible()
   const meals = page.getByRole('list', { name: 'Meals', exact: true })
   await expect(meals.getByRole('listitem', { name: 'Plain water', exact: true })).toBeVisible()
+  await revealForm(page, 'Log meal')
   const form = page.getByRole('form', { name: 'Log meal', exact: true })
-  await form.getByRole('button', { name: 'Add food or drink' }).click()
   await chooseOption(form, 'Food or drink 1', 'Plain water')
   await expect(form.getByText('Millilitres', { exact: true }).first()).toBeVisible()
   await form.getByLabel('Entry 1 quantity').fill('250')
@@ -25,6 +26,7 @@ test('water and unnamed meals can be recorded without creating catalogue entries
 
 test('gram targets apply to an already opened day and survive reload', async ({ page }, info) => {
   await registerViaUi(page, uniqueCredentials(info, 'GramUX'), { redirectTo: '/nutrition' })
+  await revealForm(page, 'Target settings')
   const settings = page.getByRole('form', { name: 'Target settings', exact: true })
   await settings.getByLabel('Protein, g/day').fill('35')
   await settings.getByLabel('Fat, g/day').fill('70')
@@ -36,6 +38,7 @@ test('gram targets apply to an already opened day and survive reload', async ({ 
   await expect(progress).toContainText('70 g')
   await expect(progress).toContainText('210 g')
   await page.reload()
+  await revealForm(page, 'Target settings')
   await expect(settings.getByLabel('Fat, g/day')).toHaveValue('70')
   await chooseOption(settings, 'Set macro targets in', 'Percent of calculated calories')
   await settings.getByRole('button', { name: 'Save and apply to this day' }).click()
@@ -60,6 +63,7 @@ test('sleep has an automatic name and all repeating schedules can have no end da
   const headers = await xsrfHeader(page)
   const data = await (await page.request.get('/api/sleep', { headers })).json()
   expect(JSON.stringify(data)).toContain('"ends_on":null')
+  await revealForm(page, 'Create routine')
   const routine = page.getByRole('form', { name: 'Create routine', exact: true })
   await routine.getByLabel('Name', { exact: true }).fill('Stretch every day')
   await routine.getByRole('button', { name: 'Create routine', exact: true }).click()

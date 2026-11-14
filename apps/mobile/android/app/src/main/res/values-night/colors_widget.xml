@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Mirrors the web dark palette. -->
+    <color name="widget_surface">#24231F</color>
+    <color name="widget_border">#35332D</color>
+    <color name="widget_ink">#F1EEE7</color>
+    <color name="widget_muted">#B9B3A7</color>
+    <color name="widget_accent">#6FA982</color>
+    <color name="widget_accent_soft">#22302A</color>
+    <color name="widget_error">#D08A72</color>
+</resources>

@@ -49,7 +49,7 @@ interface BackgroundTokens {
 
 export const BACKGROUND_PRESETS: Record<Exclude<ThemeBackground, 'custom'>, Record<'light' | 'dark', BackgroundTokens>> = {
   paper: {
-    light: { paper: '#ece9e2', paperSoft: '#faf8f4', surface: '#ffffff', surfaceWarm: '#fffaf2', ink: '#232220', muted: '#56524b', subtle: '#6b645b', border: '#e0dcd2', borderStrong: '#c4beb2', fieldBorder: '#cfcabf', textureDot: 'rgba(30, 28, 24, 0.05)' },
+    light: { paper: '#f5f6f8', paperSoft: '#f8f9fa', surface: '#ffffff', surfaceWarm: '#f8fbf9', ink: '#25332e', muted: '#56645e', subtle: '#63716b', border: '#e4e9e6', borderStrong: '#bccac2', fieldBorder: '#cbd5cf', textureDot: 'rgba(30, 48, 38, 0.025)' },
     dark: { paper: '#171613', paperSoft: '#1f1e1a', surface: '#24231f', surfaceWarm: '#2b2823', ink: '#f1eee7', muted: '#b9b3a7', subtle: '#968f83', border: '#35332d', borderStrong: '#4b473f', fieldBorder: '#433f38', textureDot: 'rgba(255, 255, 255, 0.055)' },
   },
   sand: {

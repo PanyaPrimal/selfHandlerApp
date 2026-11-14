@@ -193,13 +193,14 @@ async function loadAll(): Promise<void> {
       getTrainingGoals(goalArchived.value),
     ])
     if (sequence !== loadSequence) return
+    const sessionResponse = await getWorkouts(programResponse.date, programResponse.date)
+    if (sequence !== loadSequence) return
+    // Publish the list and its form drafts together, with no request in between.
     exercises.value = catalogue.data
     programs.value = programResponse.data
     today.value = programResponse.today
     selectedDate.value = programResponse.date
     manualForm.date ??= programResponse.date
-    const sessionResponse = await getWorkouts(programResponse.date, programResponse.date)
-    if (sequence !== loadSequence) return
     history.value = sessionResponse
     goals.value = goalResponse.data
     for (const program of programs.value) {
@@ -627,7 +628,7 @@ onMounted(loadAll)
     <p v-if="feedback" role="status" class="feedback success">{{ feedback }}</p>
     <p v-if="error" role="alert" class="feedback error">{{ error }}</p>
 
-    <AsyncState :loading="isLoading" :error="isLoading || !loadFailed ? null : error" @retry="loadAll">
+    <AsyncState :key="selectedDate ?? ''" :loading="isLoading" :error="isLoading || !loadFailed ? null : error" @retry="loadAll">
       <section class="panel">
         <div class="section-heading">
           <h2>{{ i18n.t('workouts.scheduledPrograms') }}</h2>

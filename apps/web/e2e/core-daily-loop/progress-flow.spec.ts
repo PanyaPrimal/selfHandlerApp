@@ -1,3 +1,4 @@
+import { revealForm } from '../interface/support'
 import { expect, test, type Locator, type Page, type Response, type TestInfo } from '@playwright/test'
 import { collectRuntimeIssues, expectNoRuntimeIssues } from './support'
 import { registerViaUi, uniqueCredentials, xsrfHeader } from '../support/auth'
@@ -37,6 +38,7 @@ async function createRoutine(
   schedule: 'daily' | 'weekdays',
   weekdays: string[] = [],
 ): Promise<number> {
+  await revealForm(page, 'Create routine')
   const form = page.getByRole('form', { name: 'Create routine' })
   await form.getByLabel('Name').fill(name)
   await chooseSegment(form, 'Schedule', schedule === 'daily' ? 'Daily' : 'By weekdays')

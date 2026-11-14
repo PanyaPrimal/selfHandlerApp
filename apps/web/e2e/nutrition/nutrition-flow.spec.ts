@@ -1,3 +1,4 @@
+import { revealForm } from '../interface/support'
 import { expect, test, type Page } from '@playwright/test'
 import { registerViaUi, uniqueCredentials } from '../support/auth'
 import { chooseOption, expectNoHorizontalOverflow, gotoDestination, pickDate } from '../interface/support'
@@ -6,6 +7,7 @@ import { collectRuntimeIssues, expectNoRuntimeIssues } from '../core-daily-loop/
 const today = new Date().toISOString().slice(0, 10)
 
 async function createFood(page: Page, name: string, calories = '100'): Promise<void> {
+  await revealForm(page, 'Create food')
   const form = page.getByRole('form', { name: 'Create food' })
   await form.getByLabel('Food name').fill(name)
   await chooseOption(form, 'Basis', 'Grams')
@@ -23,6 +25,7 @@ test('private foods and composite recipe have a complete lifecycle', async ({ pa
   await registerViaUi(page, uniqueCredentials(testInfo, 'NutritionCatalogue'), { redirectTo: '/nutrition' })
   const issues = collectRuntimeIssues(page)
   await expect(page.getByRole('heading', { name: 'Nutrition', exact: true })).toBeVisible()
+  await revealForm(page, 'Create food')
   await expect(page.getByRole('list', { name: 'Food catalogue' })).toContainText('Plain water')
   await expect(page.getByRole('listitem', { name: 'Plain water' })).not.toContainText('Edit')
 
@@ -84,6 +87,8 @@ test('meal snapshots combine food recipe beverage hydration and stable target', 
   await registerViaUi(page, uniqueCredentials(testInfo, 'NutritionMeal'), { redirectTo: '/nutrition' })
   await createFood(page, 'Grain')
 
+  await revealForm(page, 'Create food')
+
   const beverage = page.getByRole('form', { name: 'Create food' })
   await beverage.getByLabel('Food name').fill('Recovery drink')
   await chooseOption(beverage, 'Basis', 'Millilitres')
@@ -96,12 +101,13 @@ test('meal snapshots combine food recipe beverage hydration and stable target', 
   await beverage.getByRole('button', { name: 'Create food' }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Food created.' })).toBeVisible()
 
+  await revealForm(page, 'Log meal')
+
   const meal = page.getByRole('form', { name: 'Log meal' })
   await pickDate(page, 'Consumed date', today)
   await meal.getByLabel('Meal name').fill('Breakfast')
   await meal.locator('details > summary').click()
   await chooseOption(meal, 'Category', 'Breakfast')
-  await meal.getByRole('button', { name: 'Add food or drink' }).click()
   await chooseOption(meal, 'Food or drink 1', 'Grain')
   await meal.getByLabel('Entry 1 quantity').fill('200')
   await meal.getByRole('button', { name: 'Add food or drink' }).click()
@@ -115,7 +121,8 @@ test('meal snapshots combine food recipe beverage hydration and stable target', 
   const progress = page.getByRole('region', { name: 'Nutrition progress' })
   await expect(progress).toContainText('325 kcal')
   await expect(progress).toContainText('700 ml')
-  await expect(page.getByRole('region', { name: 'Daily target' })).toContainText('Stable reference')
+  await page.locator('details').filter({ has: page.getByRole('heading', { name: 'Daily target', includeHidden: true }) }).locator(':scope > summary').click()
+  await expect(page.getByRole('group', { name: 'Daily target' })).toContainText('Stable reference')
   const card = page.getByRole('listitem', { name: 'Breakfast' })
   await card.getByRole('button', { name: 'Edit Breakfast' }).click()
   const mealEditor = page.getByRole('form', { name: 'Edit Breakfast' })
@@ -140,9 +147,9 @@ test('Today and Review present the Nutrition-owned selected-day summary', async 
   test.setTimeout(60_000)
   await registerViaUi(page, uniqueCredentials(testInfo, 'NutritionSurfaces'), { redirectTo: '/nutrition' })
   await createFood(page, 'Grain')
+  await revealForm(page, 'Log meal')
   const meal = page.getByRole('form', { name: 'Log meal' })
   await meal.getByLabel('Meal name').fill('Breakfast')
-  await meal.getByRole('button', { name: 'Add food or drink' }).click()
   await chooseOption(meal, 'Food or drink 1', 'Grain')
   await meal.getByLabel('Entry 1 quantity').fill('200')
   await meal.getByRole('button', { name: 'Log meal' }).click()
@@ -152,6 +159,7 @@ test('Today and Review present the Nutrition-owned selected-day summary', async 
   await page.getByText('Daily totals & recent progress', { exact: true }).click()
   await expect(page.getByRole('region', { name: 'Nutrition summary' })).toContainText('200 kcal')
   await page.goto(`/review/${today}`)
+  await page.locator('.review-context > summary').click()
   await expect(page.getByRole('region', { name: 'Nutrition summary' })).toContainText('200 kcal')
   await page.getByRole('link', { name: 'Open Nutrition' }).click()
   await expect(page).toHaveURL(new RegExp(`/nutrition\\?date=${today}`))
@@ -164,6 +172,7 @@ test('workspace localizes EN RU UK and restores rejected writes on mobile', asyn
   await page.getByRole('button', { name: 'RU', exact: true }).click()
   await page.goto('/nutrition')
   await expect(page.getByRole('heading', { name: 'Питание', exact: true })).toBeVisible()
+  await revealForm(page, 'Добавить продукт')
   await expect(page.getByRole('form', { name: 'Добавить продукт' })).toBeVisible()
   await page.getByRole('button', { name: 'UK', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Харчування', exact: true })).toBeVisible()
@@ -181,6 +190,7 @@ test('workspace localizes EN RU UK and restores rejected writes on mobile', asyn
     }
     await route.continue()
   })
+  await revealForm(page, 'Create food')
   const form = page.getByRole('form', { name: 'Create food' })
   await form.getByLabel('Food name').fill('Must rollback')
   await form.getByRole('button', { name: 'Create food' }).click()

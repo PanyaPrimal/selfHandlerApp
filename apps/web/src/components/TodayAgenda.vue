@@ -117,7 +117,7 @@ onBeforeUnmount(() => { generation++; window.removeEventListener('workspace-stor
 <template>
   <section class="panel daily-agenda" :aria-label="t('daily.agenda')">
     <div class="section-heading">
-      <div><h2>{{ t('daily.agenda') }}</h2><p class="muted">{{ t('daily.hint') }}</p></div>
+      <div><h2>{{ t('calm.agenda') }}</h2></div>
       <RouterLink :to="{ path: '/planner', query: { date } }">{{ t('daily.openPlan') }}</RouterLink>
     </div>
     <form class="daily-capture" :aria-label="t('daily.capture')" @submit.prevent="capture">
@@ -154,10 +154,13 @@ onBeforeUnmount(() => { generation++; window.removeEventListener('workspace-stor
 .daily-capture { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: .65rem; margin-block: 1rem; }
 .daily-capture__options { grid-column: 1 / -1; }
 .daily-capture__options summary { color: var(--muted); cursor: pointer; padding: .5rem 0; }
-.daily-task { display: flex; align-items: center; gap: .75rem; padding-block: .6rem; }
+.daily-agenda .item-list { gap: 0; }
+.daily-agenda .daily-task { display: flex; align-items: center; gap: .75rem; padding: .65rem 0; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; }
 .daily-task > a { min-width: 0; overflow-wrap: anywhere; color: var(--ink); text-decoration: none; padding-block: .5rem; }
 .daily-task small { display: block; }
-.daily-task__check { flex: 0 0 44px; min-height: 44px; padding: 0; }
-.daily-all-tasks { display: inline-flex; min-height: 44px; align-items: center; }
+.daily-task__check { flex: 0 0 44px; min-height: 44px; padding: 0; color: var(--accent); background: var(--surface); }
+.daily-task > a { font-size: .92rem; }
+.daily-task .mono { color: var(--subtle); font-size: .82rem; }
+.daily-all-tasks { display: inline-flex; min-height: 44px; align-items: center; color: var(--accent); font-size: .82rem; text-decoration: none; }
 @media (max-width: 360px) { .daily-capture { grid-template-columns: 1fr; } }
 </style>

@@ -22,6 +22,7 @@ interface AndroidShellOptions {
   canGoBack: () => boolean
   onResume: () => void | Promise<void>
   onRestoredResult?: (result: unknown) => void | Promise<void>
+  onOpenUrl?: (url: string) => void | Promise<void>
 }
 
 export async function initializeAndroidShell(options: AndroidShellOptions): Promise<() => Promise<void>> {
@@ -46,6 +47,10 @@ export async function initializeAndroidShell(options: AndroidShellOptions): Prom
 
   handles.push(await options.app.addListener('appRestoredResult', async (result) => {
     await options.onRestoredResult?.(result)
+  }))
+
+  handles.push(await options.app.addListener('appUrlOpen', async ({ url }) => {
+    if (typeof url === 'string') await options.onOpenUrl?.(url)
   }))
 
   handles.push(await options.keyboard.addListener('keyboardWillShow', ({ keyboardHeight }) => {

@@ -1,3 +1,4 @@
+import { revealForm, revealRoutine } from './interface/support'
 import { expect, test } from '@playwright/test'
 import { collectRuntimeIssues, expectNoRuntimeIssues } from './core-daily-loop/support'
 import { registerViaUi, uniqueCredentials } from './support/auth'
@@ -9,6 +10,7 @@ test('daily MVP loop works end-to-end', async ({ page }, testInfo) => {
 
   await registerViaUi(page, credentials, { redirectTo: '/routines' })
   const issues = collectRuntimeIssues(page)
+  await revealForm(page, 'Create routine')
   const routineForm = page.getByRole('form', { name: 'Create routine' })
   await routineForm.getByLabel('Name', { exact: true }).fill(routineName)
   await routineForm.getByRole('button', { name: 'Create routine', exact: true }).click()
@@ -20,6 +22,7 @@ test('daily MVP loop works end-to-end', async ({ page }, testInfo) => {
 
   const routineButton = page.getByRole('button', { name: `Mark ${routineName} done` })
   await routineButton.click()
+  await revealRoutine(page, routineName)
   await expect(routineButton).toHaveAttribute('aria-pressed', 'true')
 
   await gotoDestination(page, 'Review')

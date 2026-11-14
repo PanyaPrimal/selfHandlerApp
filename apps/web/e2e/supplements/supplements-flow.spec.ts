@@ -43,6 +43,7 @@ test('catalogue course intake stock and shared daily surfaces form one loop', as
 
   await page.getByRole('tab', { name: 'Day' }).click()
   const intake = page.getByRole('article').filter({ hasText: 'Evening magnesium' }).first()
+  await intake.locator('.intake-details > summary').click()
   await setTime(intake, 'Taken time', recordedTime)
   await intake.getByRole('button', { name: 'Mark taken' }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Intake fact saved.' })).toBeVisible()
@@ -52,6 +53,7 @@ test('catalogue course intake stock and shared daily surfaces form one loop', as
   await page.getByText('Daily totals & recent progress', { exact: true }).click()
   await expect(page.getByRole('region', { name: 'Supplements summary' })).toContainText('100%')
   await page.goto(`/review/${today}`)
+  await page.locator('.review-context > summary').click()
   await expect(page.getByRole('region', { name: 'Supplements summary' })).toContainText('100%')
   await page.getByRole('link', { name: 'Open Supplements' }).click()
   await expect(page).toHaveURL(new RegExp(`/supplements\\?date=${today}`))

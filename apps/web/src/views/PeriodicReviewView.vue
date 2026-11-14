@@ -228,6 +228,7 @@ onBeforeRouteLeave(confirmDiscard)
     <ReviewModeNav :active="period" :anchor="anchor" />
 
     <AsyncState
+      :key="route.fullPath"
       :loading="isLoading"
       :error="loadError"
       :loading-title="i18n.t('review.loadingPeriodic')"

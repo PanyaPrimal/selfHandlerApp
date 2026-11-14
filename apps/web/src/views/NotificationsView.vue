@@ -281,6 +281,7 @@ onMounted(() => {
       </div>
 
       <AsyncState
+        :key="notifications.state.view"
         :loading="notifications.state.loading"
         :error="notifications.state.error"
         :empty="notifications.state.items.length === 0"

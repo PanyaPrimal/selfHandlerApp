@@ -1,3 +1,4 @@
+import { revealForm } from './support'
 import { expect, test } from '@playwright/test'
 import { registerViaUi, uniqueCredentials } from '../support/auth'
 import {
@@ -57,6 +58,8 @@ test('choice, search, calendar and time controls render owned surfaces that fit 
 
   await page.goto('/routines')
   await expect(page.getByRole('heading', { name: 'Routines & sleep' })).toBeVisible()
+
+  await revealForm(page, 'Create routine')
 
   const form = page.getByRole('form', { name: 'Create routine' })
   await chooseSegment(form, 'Schedule', 'By weekdays')

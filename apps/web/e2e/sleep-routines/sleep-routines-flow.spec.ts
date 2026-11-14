@@ -1,3 +1,4 @@
+import { revealForm, revealRoutine } from '../interface/support'
 import { expect, test, type Page } from '@playwright/test'
 import { registerViaUi, uniqueCredentials } from '../support/auth'
 import {
@@ -22,6 +23,7 @@ async function createSleepPlan(page: Page, name = 'Regular night'): Promise<void
 }
 
 async function createRoutineTemplate(page: Page, name: string, period: 'Morning' | 'Evening'): Promise<void> {
+  await revealForm(page, 'Create routine')
   const form = page.getByRole('form', { name: 'Create routine' })
   await form.getByLabel('Name').fill(name)
   await chooseOption(form, 'Day period', period)
@@ -84,16 +86,19 @@ test('ordered activities resolve independently and derive one parent state', asy
   const routine = page.getByRole('listitem', { name: 'Morning reset' })
   await routine.getByRole('button', { name: 'Mark Drink water done' }).click()
   await expect(routine).toContainText('1 of 2 resolved')
-  await expect(routine).toContainText('Pending')
+  await expect(routine).toContainText('1 of 2 resolved')
 
   const read = routine.getByRole('form', { name: 'Record Read' })
   await read.getByLabel('Progress').fill('15')
   await read.getByRole('button', { name: 'Mark Read done' }).click()
-  await expect(routine).toContainText('Done')
+  await expect(routine.locator(':scope > summary')).toContainText('done')
   await expect(routine).toContainText('15 / 20')
 
+  await revealRoutine(page, 'Morning reset')
+  await routine.getByRole('listitem', { name: 'Drink water' }).locator('summary').click()
   await routine.getByRole('button', { name: 'Mark Drink water skipped' }).click()
-  await expect(routine).toContainText('Skipped')
+  await expect(routine.locator(':scope > summary')).toContainText('skipped')
+  await revealRoutine(page, 'Morning reset')
   await routine.getByRole('button', { name: 'Set Drink water to pending' }).click()
   await expect(routine).toContainText('1 of 2 resolved')
   await page.reload()
@@ -110,6 +115,7 @@ test('day choices agree across Today Planner and Review summaries with rollback'
 
   await gotoDestination(page, 'Today')
   await pickDate(page, 'Date', night)
+  await page.locator('.routine-settings > summary').click()
   await chooseOption(page, 'Morning template', 'Morning B')
   await chooseOption(page, 'Evening template', 'No evening template')
   await expect(page.getByRole('listitem', { name: 'Morning B' })).toBeVisible()
@@ -138,6 +144,7 @@ test('day choices agree across Today Planner and Review summaries with rollback'
 
   await page.goto(`/review/${night}`)
   await expect(page).toHaveURL(new RegExp(`/review/${night}$`))
+  await page.locator('.review-context > summary').click()
   await expect(page.getByRole('region', { name: 'Sleep summary' })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Routine activity summary' })).toContainText('Morning B')
   await expectNoHorizontalOverflow(page)

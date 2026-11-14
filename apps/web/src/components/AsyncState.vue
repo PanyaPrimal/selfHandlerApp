@@ -38,11 +38,22 @@ defineEmits<{
 }>()
 
 const errorState = ref<HTMLElement | null>(null)
+const hasSettled = ref(false)
+const settledEmpty = ref(false)
+// Keep the existing slot mounted during a refresh: focus, disclosures and
+// in-progress inputs belong to the screen, not to the lifetime of a request.
+watch(() => [props.loading, props.error, props.empty] as const, ([loading, error, empty]) => {
+  if (!loading && !error) {
+    hasSettled.value = true
+    settledEmpty.value = empty
+  }
+}, { immediate: true })
+const showingEmpty = computed(() => (props.loading || props.error) ? settledEmpty.value : props.empty)
 
 watch(
   () => props.error,
   async (error) => {
-    if (!error) {
+    if (!error || hasSettled.value) {
       return
     }
 
@@ -54,7 +65,7 @@ watch(
 
 <template>
   <div
-    v-if="loading"
+    v-if="loading && !hasSettled"
     class="state-block async-state"
     :class="{ panel }"
     role="status"
@@ -69,7 +80,7 @@ watch(
   </div>
 
   <div
-    v-else-if="error"
+    v-if="error && !loading"
     ref="errorState"
     class="state-block error async-state focus-target"
     :class="{ panel }"
@@ -80,7 +91,9 @@ watch(
     <button type="button" class="secondary" @click="$emit('retry')">{{ resolvedRetryLabel }}</button>
   </div>
 
-  <div v-else-if="empty" class="state-block async-state" :class="{ panel }">
+  <span v-if="loading && hasSettled" class="visually-hidden" role="status" aria-live="polite">{{ resolvedLoadingTitle }}</span>
+
+  <div v-if="hasSettled && showingEmpty" class="state-block async-state" :class="{ panel }">
     <slot name="empty">
       <div v-if="showEmptyIcon" class="state-icon" aria-hidden="true"></div>
       <h3>{{ resolvedEmptyTitle }}</h3>
@@ -88,5 +101,5 @@ watch(
     </slot>
   </div>
 
-  <slot v-else />
+  <slot v-if="hasSettled && !showingEmpty" />
 </template>

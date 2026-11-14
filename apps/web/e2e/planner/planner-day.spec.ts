@@ -1,3 +1,4 @@
+import { revealForm } from '../interface/support'
 import { expect, test, type Page } from '@playwright/test'
 import { registerViaUi, uniqueCredentials } from '../support/auth'
 import {
@@ -33,6 +34,8 @@ function addDays(iso: string, amount: number): string {
 
 async function createDailyRoutine(page: Page, name: string): Promise<void> {
   await page.goto('/routines')
+
+  await revealForm(page, 'Create routine')
 
   const form = page.getByRole('form', { name: 'Create routine' })
   await form.getByLabel('Name').fill(name)

@@ -52,6 +52,7 @@ const items = ref<StorageItem[]>([])
 const projects = ref<StorageProject[]>([])
 const inboxCount = ref(0)
 const search = ref('')
+const closedExpanded = ref(false)
 const expandedItems = reactive<Record<number, boolean>>({})
 
 const captureTitle = ref('')
@@ -119,6 +120,7 @@ const matchingRoots = computed(() => roots.value.filter((item) => {
 const inbox = computed(() => matchingRoots.value.filter((item) => item.status === 'inbox'))
 const active = computed(() => matchingRoots.value.filter((item) => item.status === 'active'))
 const closed = computed(() => matchingRoots.value.filter((item) => item.status === 'done' || item.status === 'dropped'))
+const visibleClosed = computed(() => closedExpanded.value || search.value.trim() || closed.value.some(item => item.id === highlightedItem.value) ? closed.value : closed.value.slice(0, 3))
 const aiActiveConnection = computed(() => aiSettings.value?.data.find(
   (connection) => connection.id === aiSettings.value?.active_connection_id,
 ) ?? null)
@@ -472,9 +474,9 @@ onBeforeUnmount(() => { clearAiExpiryTimer(); loadGeneration++; window.removeEve
     <div v-if="aiError" class="notice error" role="alert" aria-live="assertive">{{ aiError }}</div>
     <div v-else-if="aiFeedback" class="notice success" role="status" aria-live="polite">{{ aiFeedback }}</div>
 
-    <section class="panel" aria-labelledby="capture-heading">
+    <section class="panel storage-capture" aria-labelledby="capture-heading">
       <h2 id="capture-heading">{{ i18n.t('storage.capture') }}</h2>
-      <form class="capture-form" :aria-label="i18n.t('storage.captureItem')" novalidate @submit.prevent="capture">
+      <form class="capture-form" :class="{ 'is-purchase': captureType === 'purchase' }" :aria-label="i18n.t('storage.captureItem')" novalidate @submit.prevent="capture">
         <UiTextInput
           ref="captureInput"
           v-model="captureTitle"
@@ -502,7 +504,7 @@ onBeforeUnmount(() => { clearAiExpiryTimer(); loadGeneration++; window.removeEve
     >
       <UiTextInput v-model="search" :label="i18n.t('daily.search')" name="task-search" type="search" />
       <p v-if="search.trim() && !matchingRoots.length" class="muted" role="status">{{ i18n.t('daily.searchEmpty') }}</p>
-      <section class="panel" aria-labelledby="inbox-heading">
+      <section id="task-inbox" class="panel storage-inbox" aria-labelledby="inbox-heading">
         <div class="section-heading">
           <h2 id="inbox-heading">{{ i18n.t('storage.inbox') }}</h2>
           <span class="kind-chip">{{ i18n.plural(inboxCount, { one: 'storage.unsorted.one', few: 'storage.unsorted.few', many: 'storage.unsorted.many', other: 'storage.unsorted.other' }) }}</span>
@@ -573,7 +575,7 @@ onBeforeUnmount(() => { clearAiExpiryTimer(); loadGeneration++; window.removeEve
         </ul>
       </section>
 
-      <section class="panel" aria-labelledby="active-heading">
+      <section id="task-active" class="panel storage-active" aria-labelledby="active-heading">
         <div class="section-heading">
           <h2 id="active-heading">{{ i18n.t('storage.inProgress') }}</h2>
         </div>
@@ -685,7 +687,7 @@ onBeforeUnmount(() => { clearAiExpiryTimer(); loadGeneration++; window.removeEve
         </ul>
       </section>
 
-      <section class="panel" aria-labelledby="projects-heading">
+      <section class="panel storage-projects" aria-labelledby="projects-heading">
         <div class="section-heading">
           <h2 id="projects-heading">{{ i18n.t('storage.projects') }}</h2>
           <button type="button" class="secondary" @click="showProjectForm = !showProjectForm">
@@ -721,10 +723,10 @@ onBeforeUnmount(() => { clearAiExpiryTimer(); loadGeneration++; window.removeEve
         </ul>
       </section>
 
-      <section v-if="closed.length > 0" class="panel" aria-labelledby="closed-heading">
-        <h2 id="closed-heading">{{ i18n.t('storage.closed') }}</h2>
-        <ul class="item-list">
-          <li v-for="item in closed" :key="item.id" class="management-row" :class="{ 'is-deep-linked': item.id === highlightedItem }" :data-storage-item="item.id" :aria-label="item.title">
+      <section v-if="closed.length > 0" id="task-closed" class="panel storage-closed" aria-labelledby="closed-heading">
+        <div class="section-heading"><h2 id="closed-heading">{{ i18n.t('storage.closed') }}</h2><span class="muted">{{ closed.length }}</span></div>
+        <ul id="closed-tasks" class="item-list">
+          <li v-for="item in visibleClosed" :key="item.id" class="management-row" :class="{ 'is-deep-linked': item.id === highlightedItem }" :data-storage-item="item.id" :aria-label="item.title">
             <div class="management-copy">
               <strong>{{ item.title }}</strong>
                 <small v-if="item.local_sync_status" class="muted">{{ i18n.t('offline.queued') }}</small>
@@ -735,6 +737,7 @@ onBeforeUnmount(() => { clearAiExpiryTimer(); loadGeneration++; window.removeEve
             </div>
           </li>
         </ul>
+        <button v-if="closed.length > 3 && !search.trim() && !closed.some(item => item.id === highlightedItem)" type="button" class="secondary show-history" :aria-expanded="closedExpanded" aria-controls="closed-tasks" @click="closedExpanded = !closedExpanded">{{ closedExpanded ? i18n.t('ease.showLess') : i18n.t('ease.showClosed', { count: closed.length }) }}</button>
       </section>
     </AsyncState>
   </section>

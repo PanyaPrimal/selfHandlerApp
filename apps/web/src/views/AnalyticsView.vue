@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   ApiError,
@@ -122,6 +122,7 @@ function isCanonical(query: Record<string, string>): boolean {
 }
 
 async function loadFromRoute(): Promise<void> {
+  if (route.name !== 'analytics') return
   const sequence = ++loadSequence
   isLoading.value = true
   loadError.value = null
@@ -132,7 +133,7 @@ async function loadFromRoute(): Promise<void> {
 
   try {
     await bootstrap()
-    if (sequence !== loadSequence || !catalog.value) return
+    if (sequence !== loadSequence || route.name !== 'analytics' || !catalog.value) return
     const normalized = normalizeAnalyticsQuery(
       routeQuery(),
       catalog.value.metrics.map((definition) => definition.key),
@@ -272,6 +273,7 @@ async function downloadReport(format: 'csv' | 'pdf'): Promise<void> {
 }
 
 watch(() => route.fullPath, () => { void loadFromRoute() }, { immediate: true })
+onBeforeUnmount(() => { loadSequence++ })
 </script>
 
 <template>
@@ -348,6 +350,7 @@ watch(() => route.fullPath, () => { void loadFromRoute() }, { immediate: true })
     </section>
 
     <AsyncState
+      :key="route.fullPath"
       :loading="isLoading"
       :error="loadError"
       :loading-title="i18n.t('analytics.loading')"

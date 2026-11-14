@@ -84,6 +84,9 @@ const recipeState = ref<NutritionLifecycleState>('active')
 const editingFoodId = ref<number | null>(null)
 const editingRecipeId = ref<number | null>(null)
 const recipesOpen = ref(false)
+const foodsOpen = ref(false)
+const settingsOpen = ref(false)
+const mealCreateOpen = ref(false)
 const editingMealId = ref<number | null>(null)
 const enqueue = createNutritionMutationQueue()
 
@@ -391,13 +394,14 @@ async function saveSettings(): Promise<void> {
 
 async function selectDate(value: string | null): Promise<void> {
   if (!value) return
+  isLoading.value = true
   selectedDate.value = value
   await router.replace({ query: { ...route.query, date: value } })
   await loadAll()
 }
 
 function format(value: string | number | null, suffix: string): string {
-  return value === null ? i18n.t('common.notSet') : `${i18n.number(Number(value))} ${suffix}`
+  return value === null ? i18n.t('common.notSet') : `${i18n.number(Number(value), { maximumFractionDigits: suffix === 'g' ? 1 : 0 })} ${suffix}`
 }
 
 function refinementMessage(status: NutritionDay['refinement']['status']): string {
@@ -423,18 +427,32 @@ onMounted(loadAll)
       <UiDatePicker :model-value="selectedDate" :label="i18n.t('nutrition.date')" name="nutrition-date" :locale="locale" :today="localToday()" @update:model-value="selectDate" />
     </header>
     <nav class="workspace-shortcuts" :aria-label="i18n.t('daily.sections')">
-      <a href="#nutrition-meals">{{ i18n.t('nutrition.logMeal') }}</a>
-      <a href="#nutrition-foods">{{ i18n.t('nutrition.foodCatalogue') }}</a>
+      <a href="#nutrition-meals" @click="mealCreateOpen = true">{{ i18n.t('nutrition.logMeal') }}</a>
+      <a href="#nutrition-foods" @click="foodsOpen = true">{{ i18n.t('nutrition.foodCatalogue') }}</a>
       <a href="#nutrition-recipes" @click="recipesOpen = true">{{ i18n.t('nutrition.recipes') }}</a>
-      <a href="#nutrition-settings">{{ i18n.t('nutrition.targetSettings') }}</a>
+      <a href="#nutrition-settings" @click="settingsOpen = true">{{ i18n.t('nutrition.targetSettings') }}</a>
     </nav>
 
     <p v-if="feedback" role="status" aria-live="polite" class="success-message">{{ feedback }}</p>
     <p v-if="error" role="alert" class="error-message">{{ error }}</p>
-    <AsyncState :loading="isLoading" :error="loadFailed ? i18n.t('nutrition.loadFailed') : null" :empty="false" @retry="loadAll" />
+    <AsyncState :key="selectedDate ?? ''" :loading="isLoading" :error="loadFailed ? i18n.t('nutrition.loadFailed') : null" :empty="false" @retry="loadAll">
 
-    <template v-if="!isLoading && !loadFailed && day">
-      <section class="panel" :aria-label="i18n.t('feedback.water')">
+    <template v-if="day && day.date === selectedDate">
+      <section class="panel" :aria-label="i18n.t('nutrition.progress')">
+        <div class="section-heading">
+          <div><p class="eyebrow">{{ i18n.t('nutrition.selectedDay') }}</p><h2>{{ i18n.t('nutrition.progress') }}</h2></div>
+          <span>{{ day.summary.meal_count }} {{ i18n.t('nutrition.mealsShort') }}</span>
+        </div>
+        <div class="summary-grid nutrition-metrics">
+          <article class="metric"><span>{{ i18n.t('nutrition.calories') }}</span><strong>{{ format(day.summary.calories, 'kcal') }}</strong><small>{{ format(day.target.calorie_target, 'kcal') }}</small></article>
+          <article class="metric"><span>{{ i18n.t('nutrition.protein') }}</span><strong>{{ format(day.summary.protein_grams, 'g') }}</strong><small>{{ format(day.target.protein_target_grams, 'g') }}</small></article>
+          <article class="metric"><span>{{ i18n.t('nutrition.fat') }}</span><strong>{{ format(day.summary.fat_grams, 'g') }}</strong><small>{{ format(day.target.fat_target_grams, 'g') }}</small></article>
+          <article class="metric"><span>{{ i18n.t('nutrition.carbs') }}</span><strong>{{ format(day.summary.carbs_grams, 'g') }}</strong><small>{{ format(day.target.carbs_target_grams, 'g') }}</small></article>
+          <article class="metric"><span>{{ i18n.t('nutrition.hydration') }}</span><strong>{{ format(day.summary.hydration_ml, 'ml') }}</strong><small>{{ format(day.target.water_target_ml, 'ml') }}</small></article>
+          <article class="metric"><span>{{ i18n.t('nutrition.quality') }}</span><strong>{{ format(day.summary.quality_score, '/ 100') }}</strong><small>{{ format(day.target.quality_target, '/ 100') }}</small></article>
+        </div>
+      </section>
+      <section class="panel water-quick" :aria-label="i18n.t('feedback.water')">
         <h2>{{ i18n.t('feedback.water') }}</h2><p class="muted">{{ i18n.t('feedback.waterHelp') }}</p>
         <form class="form-grid" :aria-label="i18n.t('feedback.water')" @submit.prevent="logWater">
           <UiNumberInput v-model="waterAmount" :label="i18n.t('feedback.waterAmount')" name="water-amount" :min="1" :step="1" required />
@@ -443,7 +461,9 @@ onMounted(loadAll)
       </section>
       <section id="nutrition-meals" class="panel">
         <div class="section-heading"><h2>{{ i18n.t('nutrition.meals') }}</h2></div>
-        <p class="muted">{{ i18n.t('feedback.mealHelp') }} <a href="#nutrition-foods">{{ i18n.t('nutrition.foodCatalogue') }}</a></p>
+        <details class="workspace-disclosure meal-create" :open="mealCreateOpen" @toggle="mealCreateOpen = ($event.target as HTMLDetailsElement).open; if (mealCreateOpen && !mealForm.entries.length) addMealEntry(mealForm)">
+        <summary>{{ i18n.t('nutrition.logMeal') }}</summary>
+        <p class="muted">{{ i18n.t('feedback.mealHelp') }} <a href="#nutrition-foods" @click="foodsOpen = true">{{ i18n.t('nutrition.foodCatalogue') }}</a></p>
         <form class="form-grid" :aria-label="i18n.t('nutrition.logMeal')" @submit.prevent="createMeal">
           <UiDatePicker :model-value="selectedDate" :label="i18n.t('nutrition.consumedDate')" name="meal-date" :locale="locale" :today="localToday()" :max="localToday()" @update:model-value="selectDate" />
           <UiTextInput v-model="mealForm.name" :label="i18n.t('nutrition.mealName')" name="meal-name" :helper="i18n.t('feedback.mealNameHelp')" />
@@ -455,6 +475,7 @@ onMounted(loadAll)
           </div></details>
           <div class="button-row wide-field"><button type="button" class="secondary" @click="addMealEntry(mealForm)">{{ i18n.t('nutrition.addEntry') }}</button><button type="submit" :disabled="isSaving">{{ i18n.t('nutrition.logMeal') }}</button></div>
         </form>
+        </details>
         <ul class="management-list" :aria-label="i18n.t('nutrition.meals')">
           <li v-for="meal in day.meals" :key="meal.id" class="management-row" :aria-label="meal.name">
             <template v-if="editingMealId !== meal.id"><div><strong>{{ meal.name }}</strong><p class="muted">{{ meal.consumed_at_local ?? i18n.t('nutrition.anyTime') }} · {{ meal.entries.reduce((sum, entry) => sum + Number(entry.calories), 0).toFixed(0) }} kcal</p></div><div class="management-actions"><button type="button" class="secondary" :aria-label="i18n.t('nutrition.editMealNamed', { name: meal.name })" @click="startMealEdit(meal)">{{ i18n.t('common.edit') }}</button><button type="button" class="danger" :aria-label="i18n.t('nutrition.deleteMealNamed', { name: meal.name })" @click="removeMeal(meal)">{{ i18n.t('common.delete') }}</button></div></template>
@@ -471,7 +492,8 @@ onMounted(loadAll)
               </div>
               <div class="button-row wide-field"><button type="button" class="secondary" @click="addMealEntry(mealDraft)">{{ i18n.t('nutrition.addEntry') }}</button><button type="submit">{{ i18n.t('nutrition.saveMeal') }}</button><button type="button" class="secondary" @click="editingMealId = null">{{ i18n.t('common.cancel') }}</button></div>
             </form>
-            <div class="attachment-parent wide-field" :data-attachment-parent="`meal:${meal.id}`">
+            <details class="attachment-parent wide-field meal-photos" :data-attachment-parent="`meal:${meal.id}`" :open="meal.attachments.length > 0">
+              <summary>{{ i18n.t('calm.photos') }}<span v-if="meal.attachments.length"> · {{ meal.attachments.length }}</span></summary>
               <AttachmentGallery
                 :attachments="meal.attachments"
                 :parent-label="meal.name"
@@ -483,30 +505,18 @@ onMounted(loadAll)
                 :disabled="meal.attachments.length >= 10"
                 @uploaded="addMealAttachment(meal, $event)"
               />
-            </div>
+            </details>
           </li>
         </ul>
       </section>
 
-      <section class="panel" :aria-label="i18n.t('nutrition.progress')">
-        <div class="section-heading">
-          <div><p class="eyebrow">{{ i18n.t('nutrition.selectedDay') }}</p><h2>{{ i18n.t('nutrition.progress') }}</h2></div>
-          <span>{{ day.summary.meal_count }} {{ i18n.t('nutrition.mealsShort') }}</span>
-        </div>
-        <div class="summary-grid nutrition-metrics">
-          <article class="metric"><span>{{ i18n.t('nutrition.calories') }}</span><strong>{{ format(day.summary.calories, 'kcal') }}</strong><small>{{ format(day.target.calorie_target, 'kcal') }}</small></article>
-          <article class="metric"><span>{{ i18n.t('nutrition.protein') }}</span><strong>{{ format(day.summary.protein_grams, 'g') }}</strong><small>{{ format(day.target.protein_target_grams, 'g') }}</small></article>
-          <article class="metric"><span>{{ i18n.t('nutrition.fat') }}</span><strong>{{ format(day.summary.fat_grams, 'g') }}</strong><small>{{ format(day.target.fat_target_grams, 'g') }}</small></article>
-          <article class="metric"><span>{{ i18n.t('nutrition.carbs') }}</span><strong>{{ format(day.summary.carbs_grams, 'g') }}</strong><small>{{ format(day.target.carbs_target_grams, 'g') }}</small></article>
-          <article class="metric"><span>{{ i18n.t('nutrition.hydration') }}</span><strong>{{ format(day.summary.hydration_ml, 'ml') }}</strong><small>{{ format(day.target.water_target_ml, 'ml') }}</small></article>
-          <article class="metric"><span>{{ i18n.t('nutrition.quality') }}</span><strong>{{ format(day.summary.quality_score, '/ 100') }}</strong><small>{{ format(day.target.quality_target, '/ 100') }}</small></article>
-        </div>
-      </section>
 
-      <section class="panel" :aria-label="i18n.t('nutrition.dailyTarget')">
+
+      <details class="panel workspace-disclosure" :aria-label="i18n.t('nutrition.dailyTarget')">
+        <summary>{{ i18n.t('nutrition.dailyTarget') }}</summary>
         <div class="section-heading"><div><p class="eyebrow">{{ i18n.t('nutrition.stableReference') }}</p><h2>{{ i18n.t('nutrition.dailyTarget') }}</h2></div><strong>{{ i18n.t(nutritionTargetCopyKey(day.target.status)) }}</strong></div>
         <p class="muted">{{ i18n.t('feedback.targetHelp') }}</p>
-        <div class="button-row"><RouterLink to="/account">{{ i18n.t('daily.completeProfile') }}</RouterLink><a href="#nutrition-settings">{{ i18n.t('nutrition.targetSettings') }}</a><button type="button" class="secondary" :disabled="isSaving" @click="refreshTarget">{{ i18n.t('feedback.recalculate') }}</button></div>
+        <div class="button-row"><RouterLink to="/account">{{ i18n.t('daily.completeProfile') }}</RouterLink><a href="#nutrition-settings" @click="settingsOpen = true">{{ i18n.t('nutrition.targetSettings') }}</a><button type="button" class="secondary" :disabled="isSaving" @click="refreshTarget">{{ i18n.t('feedback.recalculate') }}</button></div>
         <p class="muted">{{ i18n.t('nutrition.targetEstimate') }}</p>
         <dl class="nutrition-breakdown">
           <div><dt>{{ i18n.t('nutrition.formula') }}</dt><dd>{{ day.target.formula === 'katch_mcardle' ? 'Katch-McArdle' : 'Mifflin-St Jeor' }}</dd></div>
@@ -518,9 +528,10 @@ onMounted(loadAll)
         </dl>
         <p v-if="day.target.calculation_basis.missing_fields.length" class="muted">{{ i18n.t('nutrition.missingFields') }}: {{ day.target.calculation_basis.missing_fields.map((field) => i18n.t(profileFieldLabels[field] ?? 'account.unknownField')).join(', ') }}. <RouterLink to="/account">{{ i18n.t('daily.completeProfile') }}</RouterLink></p>
         <p class="muted">{{ refinementMessage(day.refinement.status) }}</p>
-      </section>
+      </details>
 
-      <section id="nutrition-foods" class="panel">
+      <details id="nutrition-foods" class="panel workspace-disclosure" :open="foodsOpen" @toggle="foodsOpen = ($event.target as HTMLDetailsElement).open">
+        <summary>{{ i18n.t('nutrition.foodCatalogue') }}</summary>
         <div class="section-heading"><div><p class="eyebrow">{{ i18n.t('nutrition.references') }}</p><h2>{{ i18n.t('nutrition.foodCatalogue') }}</h2></div></div>
         <form class="form-grid" :aria-label="i18n.t('nutrition.createFood')" @submit.prevent="createFood">
           <UiTextInput v-model="foodForm.name" :label="i18n.t('nutrition.foodName')" name="food-name" required />
@@ -555,9 +566,9 @@ onMounted(loadAll)
             </form>
           </li>
         </ul>
-      </section>
+      </details>
 
-      <details id="nutrition-recipes" class="panel optional-section" :open="recipesOpen" @toggle="recipesOpen = ($event.target as HTMLDetailsElement).open">
+      <details id="nutrition-recipes" class="panel workspace-disclosure" :open="recipesOpen" @toggle="recipesOpen = ($event.target as HTMLDetailsElement).open">
         <summary>{{ i18n.t('nutrition.recipes') }} · {{ i18n.t('feedback.optional') }}</summary>
         <div class="section-heading"><h2>{{ i18n.t('nutrition.recipes') }}</h2></div>
         <form class="form-grid" :aria-label="i18n.t('nutrition.createRecipe')" @submit.prevent="createRecipe">
@@ -588,15 +599,16 @@ onMounted(loadAll)
         </ul>
       </details>
 
-      <section id="nutrition-settings" class="panel"><div class="section-heading"><h2>{{ i18n.t('nutrition.targetSettings') }}</h2></div><form class="form-grid" :aria-label="i18n.t('nutrition.targetSettings')" @submit.prevent="saveSettings"><UiSelect v-model="settingsForm.bodyGoalId" :label="i18n.t('nutrition.bodyGoal')" name="nutrition-body-goal" :options="goalOptions" nullable /><UiSelect v-model="macroMode" :label="i18n.t('feedback.macroMode')" name="macro-mode" :options="macroModeOptions" />
+      <details id="nutrition-settings" class="panel workspace-disclosure" :open="settingsOpen" @toggle="settingsOpen = ($event.target as HTMLDetailsElement).open"><summary>{{ i18n.t('nutrition.targetSettings') }}</summary><div class="section-heading"><h2>{{ i18n.t('nutrition.targetSettings') }}</h2></div><form class="form-grid" :aria-label="i18n.t('nutrition.targetSettings')" @submit.prevent="saveSettings"><UiSelect v-model="settingsForm.bodyGoalId" :label="i18n.t('nutrition.bodyGoal')" name="nutrition-body-goal" :options="goalOptions" nullable /><UiSelect v-model="macroMode" :label="i18n.t('feedback.macroMode')" name="macro-mode" :options="macroModeOptions" />
           <template v-if="macroMode === 'grams'">
             <UiNumberInput v-model="macroGrams.protein" :label="i18n.t('feedback.proteinGrams')" name="protein-grams" :min="0" :max="1000" :step="0.01" required />
             <UiNumberInput v-model="macroGrams.fat" :label="i18n.t('feedback.fatGrams')" name="fat-grams" :min="0" :max="1000" :step="0.01" required />
             <UiNumberInput v-model="macroGrams.carbs" :label="i18n.t('feedback.carbsGrams')" name="carbs-grams" :min="0" :max="1000" :step="0.01" required />
           </template>
-          <template v-else><UiNumberInput v-model="settingsForm.protein" :label="i18n.t('nutrition.proteinPercent')" name="nutrition-protein-percent" :min="10" :max="35" /><UiNumberInput v-model="settingsForm.fat" :label="i18n.t('nutrition.fatPercent')" name="nutrition-fat-percent" :min="20" :max="35" /><UiNumberInput v-model="settingsForm.carbs" :label="i18n.t('nutrition.carbsPercent')" name="nutrition-carbs-percent" :min="45" :max="65" /></template><UiNumberInput v-model="settingsForm.water" :label="i18n.t('nutrition.waterOverride')" name="nutrition-water-override" :min="1000" :max="6000" /><div class="button-row wide-field"><button type="submit" :disabled="isSaving">{{ i18n.t('feedback.saveTargets') }}</button><p class="muted">{{ i18n.t('feedback.settingsHelp') }}</p></div></form></section>
+          <template v-else><UiNumberInput v-model="settingsForm.protein" :label="i18n.t('nutrition.proteinPercent')" name="nutrition-protein-percent" :min="10" :max="35" /><UiNumberInput v-model="settingsForm.fat" :label="i18n.t('nutrition.fatPercent')" name="nutrition-fat-percent" :min="20" :max="35" /><UiNumberInput v-model="settingsForm.carbs" :label="i18n.t('nutrition.carbsPercent')" name="nutrition-carbs-percent" :min="45" :max="65" /></template><UiNumberInput v-model="settingsForm.water" :label="i18n.t('nutrition.waterOverride')" name="nutrition-water-override" :min="1000" :max="6000" /><div class="button-row wide-field"><button type="submit" :disabled="isSaving">{{ i18n.t('feedback.saveTargets') }}</button><p class="muted">{{ i18n.t('feedback.settingsHelp') }}</p></div></form></details>
 
-      <section class="panel"><div class="section-heading"><h2>{{ i18n.t('nutrition.recentHistory') }}</h2></div><ul class="nutrition-history"><li v-for="summary in history" :key="summary.date"><time :datetime="summary.date">{{ summary.date }}</time><strong>{{ format(summary.calories, 'kcal') }}</strong><span>{{ format(summary.hydration_ml, 'ml') }}</span></li></ul></section>
+      <details class="panel workspace-disclosure"><summary>{{ i18n.t('nutrition.recentHistory') }}</summary><div class="section-heading"><h2>{{ i18n.t('nutrition.recentHistory') }}</h2></div><ul class="nutrition-history"><li v-for="summary in history" :key="summary.date"><time :datetime="summary.date">{{ summary.date }}</time><strong>{{ format(summary.calories, 'kcal') }}</strong><span>{{ format(summary.hydration_ml, 'ml') }}</span></li></ul></details>
     </template>
+    </AsyncState>
   </div>
 </template>

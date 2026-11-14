@@ -339,6 +339,7 @@ void load()
     <div v-if="feedback" class="notice success" role="status">{{ feedback }}</div>
 
     <AsyncState
+      :key="date ?? ''"
       :loading="isLoading"
       :error="loadError"
       :loading-title="i18n.t('planner.loading')"

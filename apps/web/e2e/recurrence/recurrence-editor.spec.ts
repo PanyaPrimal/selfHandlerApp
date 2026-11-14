@@ -1,3 +1,4 @@
+import { revealForm } from '../interface/support'
 import { expect, test } from '@playwright/test'
 import { registerViaUi, uniqueCredentials } from '../support/auth'
 import {
@@ -11,6 +12,8 @@ import {
 test('recurrence is edited with the shared controls and saved as one schedule', async ({ page }, testInfo) => {
   await registerViaUi(page, uniqueCredentials(testInfo, 'Recurrence'))
   await page.goto('/routines')
+
+  await revealForm(page, 'Create routine')
 
   const form = page.getByRole('form', { name: 'Create routine' })
 
@@ -58,6 +61,8 @@ test('the editor explains that the schedule locks once results exist', async ({ 
   await registerViaUi(page, uniqueCredentials(testInfo, 'RecurrenceLock'))
   await page.goto('/routines')
 
+  await revealForm(page, 'Create routine')
+
   const createForm = page.getByRole('form', { name: 'Create routine' })
   await createForm.getByLabel('Name').fill('Locked schedule')
   await createForm.getByRole('button', { name: 'Create routine' }).click()
@@ -73,6 +78,8 @@ test('the editor explains that the schedule locks once results exist', async ({ 
 test('a routine reloaded after saving keeps the schedule it was given', async ({ page }, testInfo) => {
   await registerViaUi(page, uniqueCredentials(testInfo, 'RecurrenceReload'))
   await page.goto('/routines')
+
+  await revealForm(page, 'Create routine')
 
   const form = page.getByRole('form', { name: 'Create routine' })
   await form.getByLabel('Name').fill('Persisted schedule')

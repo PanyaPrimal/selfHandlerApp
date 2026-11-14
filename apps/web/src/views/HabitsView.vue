@@ -557,7 +557,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
       <UiDatePicker :model-value="selectedDate" :label="i18n.t('habit.date')" name="habit_date" :locale="locale" :today="today" @update:model-value="changeDate" />
     </section>
 
-    <AsyncState :loading="isLoading" :error="loadError" :loading-title="i18n.t('habit.loading')" panel @retry="load">
+    <AsyncState :key="selectedDate ?? ''" :loading="isLoading" :error="loadError" :loading-title="i18n.t('habit.loading')" panel @retry="load">
       <section class="panel" aria-labelledby="habit-list-heading">
         <div class="section-heading">
           <h2 id="habit-list-heading">{{ i18n.t(listLabelKeys[state]) }}</h2>

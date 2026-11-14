@@ -31,6 +31,8 @@ import IntakeEditor from '../components/supplements/IntakeEditor.vue'
 import StockEditor from '../components/supplements/StockEditor.vue'
 import SupplementEditor from '../components/supplements/SupplementEditor.vue'
 import { useI18n } from '../i18n'
+import { supplementDisplayQuantity } from '../supplements/quantity'
+import { courseUpdate } from '../supplements/course-update'
 
 type Tab = 'day' | 'catalogue' | 'courses' | 'stock'
 const route = useRoute()
@@ -108,6 +110,7 @@ async function load(): Promise<void> {
 
 async function chooseDate(value: string | null): Promise<void> {
   if (!value) return
+  loading.value = true
   selectedDate.value = value
   await router.replace({ query: { ...route.query, date: value } })
   await load()
@@ -143,8 +146,7 @@ async function saveCourse(payload: SupplementCourseInput): Promise<void> {
   error.value = null
   try {
     if (editingCourse.value) {
-      const { supplement_id: _, ...update } = payload
-      await updateSupplementCourse(editingCourse.value.id, update)
+      await updateSupplementCourse(editingCourse.value.id, courseUpdate(editingCourse.value, payload))
     } else await createSupplementCourse(payload)
     feedback.value = i18n.t(editingCourse.value ? 'supplements.courseUpdated' : 'supplements.courseCreated')
     editingCourse.value = null
@@ -224,14 +226,14 @@ onMounted(load)
     <div class="supplement-tabs" role="tablist" :aria-label="i18n.t('supplements.sections')">
       <button v-for="tab in (['day', 'catalogue', 'courses', 'stock'] as Tab[])" :key="tab" type="button" role="tab" :aria-selected="activeTab === tab" :class="{ 'is-active': activeTab === tab }" @click="activeTab = tab">{{ i18n.t(`supplements.tab.${tab}` as never) }}</button>
     </div>
-    <AsyncState :loading="loading" :error="loadError" :empty="false" :loading-title="i18n.t('common.loading')" @retry="load">
+    <AsyncState :key="selectedDate" :loading="loading" :error="loadError" :empty="false" :loading-title="i18n.t('common.loading')" @retry="load">
       <template v-if="day && activeTab === 'day'">
         <AdherenceCard :summary="day.summary" />
         <section class="panel" aria-labelledby="intakes-heading">
           <div class="section-heading"><div><h2 id="intakes-heading">{{ i18n.t('supplements.plannedIntakes') }}</h2><p class="muted">{{ i18n.t('supplements.intakeHelp') }}</p></div></div>
           <div v-if="day.occurrences.length" class="supplement-occurrences">
             <article v-for="occurrence in day.occurrences" :key="occurrence.id" class="supplement-occurrence" :class="{ 'is-highlighted': highlightedCourse === occurrence.course_id }">
-              <header><div><span class="token-caption">{{ occurrence.time }} · {{ i18n.t(`supplements.context.${occurrence.intake_context}` as never) }}</span><h3>{{ occurrence.course_name }}</h3><p class="muted">{{ occurrence.dose_quantity }} {{ i18n.t(`supplements.unit.${occurrence.dose_display_unit}` as never) }} · {{ i18n.t(`supplements.status.${occurrence.status}` as never) }}</p></div></header>
+              <header><div><span class="token-caption">{{ occurrence.time }} · {{ i18n.t(`supplements.context.${occurrence.intake_context}` as never) }}</span><h3>{{ occurrence.course_name }}</h3><p class="muted">{{ supplementDisplayQuantity(occurrence.intake?.dose_quantity ?? occurrence.dose_quantity, occurrence.intake?.dose_display_unit ?? occurrence.dose_display_unit) }} {{ i18n.t(`supplements.unit.${occurrence.intake?.dose_display_unit ?? occurrence.dose_display_unit}` as never) }} · {{ i18n.t(`supplements.status.${occurrence.status}` as never) }}</p></div></header>
               <IntakeEditor :occurrence="occurrence" :busy="busyKey === `intake-${occurrence.id}`" @save="saveIntake(occurrence.id, $event)" @clear="clearIntake(occurrence.id)" />
             </article>
           </div>

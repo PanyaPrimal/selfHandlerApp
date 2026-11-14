@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_description">Завдання на сьогодні та прострочені</string>
+    <string name="widget_today">Сьогодні</string>
+    <plurals name="widget_task_count">
+        <item quantity="one">%d завдання</item>
+        <item quantity="few">%d завдання</item>
+        <item quantity="many">%d завдань</item>
+        <item quantity="other">%d завдання</item>
+    </plurals>
+    <string name="widget_empty">На сьогодні завдань немає</string>
+    <string name="widget_signed_out">Увійдіть у SelfHandler</string>
+    <string name="widget_offline">Немає зв’язку</string>
+    <string name="widget_offline_since">Немає зв’язку · оновлено %1$s</string>
+    <string name="widget_action_failed">Не вдалося позначити завдання. Спробуйте ще раз.</string>
+    <string name="widget_not_configured">У цій збірці не задано адресу сервера</string>
+    <string name="widget_overdue">Прострочено · %1$s</string>
+    <string name="widget_mark_done">Позначити «%1$s» виконаним</string>
+    <string name="widget_refresh">Оновити</string>
+    <string name="widget_add">Додати завдання</string>
+    <string name="widget_add_title">Нове завдання на сьогодні</string>
+    <string name="widget_add_hint">Що потрібно зробити?</string>
+    <string name="widget_add_submit">Додати</string>
+    <string name="widget_cancel">Скасувати</string>
+    <string name="widget_add_empty">Введіть назву завдання</string>
+    <string name="widget_add_failed">Не вдалося додати завдання. Перевірте зв’язок і спробуйте ще раз.</string>
+    <string name="widget_added">Завдання додано</string>
+</resources>

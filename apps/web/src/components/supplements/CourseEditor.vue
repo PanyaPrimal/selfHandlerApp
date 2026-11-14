@@ -43,8 +43,11 @@ function toggleWeekday(day: Weekday): void {
 }
 function addSlot(): void {
   if (draft.schedule.slots.length >= 8) return
-  const index = draft.schedule.slots.length + 1
-  draft.schedule.slots.push({ slot: `slot_${index}`, time: '08:00', intake_context: 'unspecified' })
+  // Never reuse a deleted slot's identity: old intake facts still reference it.
+  const slot = `slot_${crypto.randomUUID().replaceAll('-', '').slice(0, 24)}`
+  const hours = Array.from({ length: 24 }, (_, hour) => `${String((hour + 8) % 24).padStart(2, '0')}:00`)
+  const time = hours.find((candidate) => !draft.schedule.slots.some((item) => item.time === candidate)) ?? '08:00'
+  draft.schedule.slots.push({ slot, time, intake_context: 'unspecified' })
 }
 function removeSlot(index: number): void { if (draft.schedule.slots.length > 1) draft.schedule.slots.splice(index, 1) }
 function setCycle(enabled: boolean): void { cycleEnabled.value = enabled; draft.schedule.cycle = enabled ? { on_days: 7, off_days: 7 } : null }
@@ -67,7 +70,7 @@ function save(): void {
     <UiTextInput :model-value="draft.name ?? ''" name="course-name" :label="t('supplements.courseName')" @update:model-value="draft.name = $event || null" />
     <UiTextInput v-model="draft.dose_quantity" name="course-dose" :label="t('supplements.dose')" required />
     <UiSelect v-model="draft.dose_display_unit" name="course-unit" :label="t('supplements.displayUnit')" :options="unitOptions" required />
-    <UiDatePicker v-model="draft.starts_on" name="course-start" :label="t('supplements.startsOn')" :locale="locale" :today="today" :min="today" required />
+    <UiDatePicker v-model="draft.starts_on" name="course-start" :label="t('supplements.startsOn')" :locale="locale" :today="today" :min="course?.starts_on ?? today" required />
     <UiDatePicker v-model="draft.ends_on" name="course-end" :label="t('supplements.endsOn')" :locale="locale" :today="today" :min="draft.starts_on" required />
     <UiSelect v-model="draft.schedule.frequency" name="course-frequency" :label="t('supplements.frequency')" :options="[{ value: 'daily', label: t('supplements.daily') }, { value: 'weekly', label: t('supplements.weekly') }]" required />
     <UiNumberInput v-model="draft.schedule.interval_count" name="course-interval" :label="t('supplements.interval')" :min="1" :max="52" required />
@@ -82,8 +85,8 @@ function save(): void {
     </template>
     <fieldset class="wide slot-list">
       <legend>{{ t('supplements.slots') }}</legend>
-      <div v-for="(slot, index) in draft.schedule.slots" :key="index" class="slot-row">
-        <UiTextInput v-model="slot.slot" :name="`slot-${index}-name`" :label="t('supplements.slotName')" required />
+      <div v-for="(slot, index) in draft.schedule.slots" :key="slot.slot" class="slot-row">
+        <span class="muted">{{ t('supplements.time') }} {{ index + 1 }}</span>
         <UiTimeField v-model="slot.time" :name="`slot-${index}-time`" :label="t('supplements.time')" required />
         <UiSelect v-model="slot.intake_context" :name="`slot-${index}-context`" :label="t('supplements.context')" :options="contextOptions" required />
         <button type="button" class="ghost" :disabled="draft.schedule.slots.length === 1" @click="removeSlot(index)">{{ t('common.delete') }}</button>

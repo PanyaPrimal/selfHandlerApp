@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Mirrors the web light palette (style.css surface-warm/ink/muted/accent/error). -->
+    <color name="widget_surface">#FFFAF2</color>
+    <color name="widget_border">#E4E9E6</color>
+    <color name="widget_ink">#25332E</color>
+    <color name="widget_muted">#56645E</color>
+    <color name="widget_accent">#306B55</color>
+    <color name="widget_accent_soft">#EAF3EE</color>
+    <color name="widget_error">#9A553F</color>
+</resources>

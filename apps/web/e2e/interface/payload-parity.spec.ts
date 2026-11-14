@@ -1,3 +1,4 @@
+import { revealForm } from './support'
 import { expect, test } from '@playwright/test'
 import { registerViaUi, uniqueCredentials } from '../support/auth'
 import { chooseOption, chooseSegment, pickDate, searchAndChoose, setSwitch, setTime, toggleOption } from './support'
@@ -11,6 +12,8 @@ import { chooseOption, chooseSegment, pickDate, searchAndChoose, setSwitch, setT
 test('routine create sends the same body the native controls produced', async ({ page }, testInfo) => {
   await registerViaUi(page, uniqueCredentials(testInfo, 'ParityRoutine'))
   await page.goto('/routines')
+
+  await revealForm(page, 'Create routine')
 
   const form = page.getByRole('form', { name: 'Create routine' })
   await form.getByLabel('Name').fill('Parity routine')

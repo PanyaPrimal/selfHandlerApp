@@ -46,6 +46,7 @@ interface RoutineForm {
 const routines = ref<Routine[]>([])
 const archivedView = ref(false)
 const editingId = ref<number | null>(null)
+const routineEditorOpen = ref(false)
 const isLoading = ref(true)
 const loadError = ref<string | null>(null)
 const isSubmitting = ref(false)
@@ -350,7 +351,8 @@ onBeforeUnmount(() => window.removeEventListener('workspace-synchronized', refre
 
     <SleepWorkspace />
 
-    <section class="panel" aria-labelledby="routine-form-heading">
+    <details class="panel workspace-disclosure" :open="routineEditorOpen || editingId !== null" @toggle="routineEditorOpen = ($event.target as HTMLDetailsElement).open">
+      <summary>{{ i18n.t(editingId === null ? 'routine.create' : 'routine.edit') }}</summary>
       <div class="section-heading">
         <h2 id="routine-form-heading">{{ i18n.t(editingId === null ? 'routine.create' : 'routine.edit') }}</h2>
         <button v-if="editingId !== null" type="button" class="secondary" @click="cancelEdit">{{ i18n.t('routine.cancelEdit') }}</button>
@@ -481,7 +483,7 @@ onBeforeUnmount(() => window.removeEventListener('workspace-synchronized', refre
           </button>
         </div>
       </form>
-    </section>
+    </details>
 
     <section class="panel" :aria-labelledby="archivedView ? 'archived-routines-heading' : 'current-routines-heading'">
       <div class="section-heading archive-heading">

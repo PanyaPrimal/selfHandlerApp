@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_description">Tasks due today and overdue</string>
+    <string name="widget_today">Today</string>
+    <plurals name="widget_task_count">
+        <item quantity="one">%d task</item>
+        <item quantity="other">%d tasks</item>
+    </plurals>
+    <string name="widget_empty">Nothing due today</string>
+    <string name="widget_signed_out">Sign in to SelfHandler</string>
+    <string name="widget_offline">No connection</string>
+    <string name="widget_offline_since">No connection · updated %1$s</string>
+    <string name="widget_action_failed">Could not mark the task as done. Try again.</string>
+    <string name="widget_not_configured">This build has no server address</string>
+    <string name="widget_overdue">Overdue · %1$s</string>
+    <string name="widget_mark_done">Mark %1$s as done</string>
+    <string name="widget_priority_mark" translatable="false">!</string>
+    <string name="widget_refresh">Refresh</string>
+    <string name="widget_add">Add task</string>
+    <string name="widget_add_title">New task for today</string>
+    <string name="widget_add_hint">What needs doing?</string>
+    <string name="widget_add_submit">Add</string>
+    <string name="widget_cancel">Cancel</string>
+    <string name="widget_add_empty">Enter a task title</string>
+    <string name="widget_add_failed">Could not add the task. Check the connection and try again.</string>
+    <string name="widget_added">Task added</string>
+</resources>
