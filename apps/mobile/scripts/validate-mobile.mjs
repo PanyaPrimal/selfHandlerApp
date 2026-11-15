@@ -40,8 +40,8 @@ assert.doesNotMatch(config, /\bserver\s*:/, 'A remote Capacitor server URL is fo
 
 const packageJson = JSON.parse(read(resolve(mobile, 'package.json')))
 for (const [name, version] of Object.entries({
-  '@capacitor/android': '8.5.0',
-  '@capacitor/core': '8.5.0',
+  '@capacitor/android': '8.5.3',
+  '@capacitor/core': '8.5.3',
   '@capacitor/app': '8.1.1',
   '@capacitor/camera': '8.2.2',
   '@capacitor/device': '8.0.3',
