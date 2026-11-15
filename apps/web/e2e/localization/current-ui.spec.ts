@@ -1,8 +1,9 @@
 import { expect, test, type Page } from '@playwright/test'
 import { registerViaUi, uniqueCredentials } from '../support/auth'
+import { revealForm } from '../interface/support'
 
 const routes = [
-  ['/', 'Добрый вечер'],
+  ['/', 'Мой день'],
   ['/routines', 'Рутины и сон'],
   ['/goals', 'Цели, связанные с действиями'],
   ['/review', 'Вечерний обзор'],
@@ -36,6 +37,7 @@ test('every current route renders Russian product copy and localized formatting'
   await selectLocale(page, 'UK')
   await page.goto('/routines')
   await expect(page.getByRole('heading', { name: 'Рутини та сон' })).toBeVisible()
+  await revealForm(page, 'Створити рутину')
   await expect(page.getByRole('form', { name: 'Створити рутину' })
     .getByRole('radio', { name: 'Щодня', exact: true })).toBeVisible()
 

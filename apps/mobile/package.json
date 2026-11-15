@@ -13,10 +13,10 @@
     "android:release": "npm run sync:android && cd android && gradlew.bat assembleRelease"
   },
   "dependencies": {
-    "@capacitor/android": "8.5.0",
+    "@capacitor/android": "8.5.3",
     "@capacitor/app": "8.1.1",
     "@capacitor/camera": "8.2.2",
-    "@capacitor/core": "8.5.0",
+    "@capacitor/core": "8.5.3",
     "@capacitor/device": "8.0.3",
     "@capacitor/file-transfer": "2.0.5",
     "@capacitor/filesystem": "8.1.2",
@@ -25,7 +25,7 @@
   },
   "devDependencies": {
     "@capacitor/assets": "3.0.5",
-    "@capacitor/cli": "8.5.0"
+    "@capacitor/cli": "8.5.3"
   },
   "overrides": {
     "minimatch": "3.1.4",

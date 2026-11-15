@@ -126,5 +126,5 @@ test('rapid locale changes ignore an older response that finishes last', async (
   await expect(page.locator('html')).toHaveAttribute('lang', 'uk')
   await page.waitForTimeout(700)
   await expect(page.locator('html')).toHaveAttribute('lang', 'uk')
-  await expect(page.getByRole('heading', { name: /Добрий вечір/ })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Мій день', exact: true })).toBeVisible()
 })

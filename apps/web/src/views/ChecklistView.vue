@@ -265,12 +265,13 @@ onBeforeUnmount(() => { loadGeneration++; window.removeEventListener('workspace-
               :aria-label="i18n.t('lists.drag', { name: row.item.title })"
               @pointerdown="startDrag($event, row)"
             >⠿</button>
-            <input
-              type="checkbox"
+            <button
+              type="button"
+              role="checkbox"
+              aria-checked="false"
               class="checklist-check"
-              :checked="false"
               :aria-label="i18n.t('lists.check', { name: row.item.title })"
-              @change="toggle(row.item)"
+              @click="toggle(row.item)"
             />
             <textarea
               v-model="titles[row.item.id]"
@@ -285,7 +286,7 @@ onBeforeUnmount(() => { loadGeneration++; window.removeEventListener('workspace-
           </div>
           <div v-if="draft && draft.afterId === row.item.id && !drag" class="checklist-row is-draft" :style="{ '--depth': draft.depth }">
             <span class="checklist-handle" aria-hidden="true" />
-            <input type="checkbox" class="checklist-check" disabled />
+            <span class="checklist-check is-placeholder" aria-hidden="true" />
             <textarea
               v-model="draft.title"
               data-checklist-draft
@@ -329,12 +330,13 @@ onBeforeUnmount(() => { loadGeneration++; window.removeEventListener('workspace-
             :style="{ '--depth': row.depth }"
           >
             <span class="checklist-handle" aria-hidden="true" />
-            <input
-              type="checkbox"
+            <button
+              type="button"
+              role="checkbox"
+              aria-checked="true"
               class="checklist-check"
-              checked
               :aria-label="i18n.t('lists.uncheck', { name: row.item.title })"
-              @change="toggle(row.item)"
+              @click="toggle(row.item)"
             />
             <span class="checklist-title">{{ row.item.title }}</span>
             <button type="button" class="checklist-delete" :aria-label="i18n.t('lists.delete', { name: row.item.title })" @click="remove(row.item)">×</button>
@@ -369,7 +371,17 @@ onBeforeUnmount(() => { loadGeneration++; window.removeEventListener('workspace-
   color: var(--subtle); font-size: 1.15rem; cursor: grab; touch-action: none;
 }
 .checklist.is-dragging .checklist-handle { cursor: grabbing; }
-.checklist-check { width: 22px; height: 22px; margin: 9px 5px; accent-color: var(--accent); cursor: pointer; }
+.checklist-check {
+  display: grid; place-items: center; width: 22px; height: 22px; margin: 9px 5px; padding: 0;
+  border: 1.5px solid var(--border-strong); border-radius: 6px; background: var(--surface, transparent); cursor: pointer;
+}
+.checklist-check:focus-visible { outline: none; border-color: var(--accent); box-shadow: var(--focus-halo); }
+.checklist-check[aria-checked="true"] { border-color: var(--accent); background: var(--accent); }
+.checklist-check[aria-checked="true"]::after {
+  content: ''; width: 10px; height: 5px; margin-top: -3px;
+  border-left: 2px solid #ffffff; border-bottom: 2px solid #ffffff; transform: rotate(-45deg);
+}
+.checklist-check.is-placeholder { opacity: .4; cursor: default; }
 .checklist-title {
   width: 100%; min-height: 40px; padding: 8px 4px; border: 0; background: transparent; color: var(--ink);
   font: inherit; font-size: 1.08rem; line-height: 1.4; resize: none; field-sizing: content; overflow-wrap: anywhere;
