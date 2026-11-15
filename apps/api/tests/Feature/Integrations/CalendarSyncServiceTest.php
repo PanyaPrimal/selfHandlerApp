@@ -33,6 +33,8 @@ class CalendarSyncServiceTest extends TestCase
     {
         parent::setUp();
         Cache::flush();
+        // The fixtures use fixed August 2026 dates; keep them inside the sync window.
+        $this->travelTo(CarbonImmutable::parse('2026-08-20T12:00:00Z'));
     }
 
     public function test_pull_is_minimal_idempotent_and_zero_export_by_default(): void
