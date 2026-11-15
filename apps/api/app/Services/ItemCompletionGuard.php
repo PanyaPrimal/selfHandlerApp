@@ -39,7 +39,7 @@ class ItemCompletionGuard
     /**
      * Titles of the direct children that still block this item.
      *
-     * Direct children only: nesting is one level, so there is no tree to walk.
+     * Direct children only: a blocker describes the next step of its own parent.
      *
      * @return list<string>
      */

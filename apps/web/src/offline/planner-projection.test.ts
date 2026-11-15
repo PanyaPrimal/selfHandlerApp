@@ -9,7 +9,7 @@ const day = (date: string, entries: PlannerEntry[] = []): PlannerDayResponse => 
   window: { materialized_until: '2026-12-31', beyond: false }, sources: ['routine', 'storage', 'time_block'] })
 const command = (path: string, method: string, body: unknown, localId?: number): PlannerMutation => ({ path, method, body: body === null ? null : JSON.stringify(body), localId, created: 1, status: 'pending' })
 const block = (extra = {}) => command('/planner/time-blocks', 'POST', { title: 'Dentist', block_date: today, starts_at: '14:00', ends_at: '15:00', ...extra }, -1)
-const item = (extra = {}): StorageItem => ({ id: 3, title: 'Buy supplies', type: 'task', status: 'active', description: null, tags: [], due_on: today,
+const item = (extra = {}): StorageItem => ({ id: 3, title: 'Buy supplies', type: 'task', status: 'active', description: null, tags: [], position: 0, due_on: today,
   priority: 'normal', parent_id: null, project_id: null, is_blocker: false, estimated_amount: null, estimated_currency_code: null, completed_at: null, dropped_at: null, ...extra })
 const state = (items: StorageItem[]): StorageState => ({ items, projects: [], inboxCount: 0 })
 

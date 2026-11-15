@@ -175,31 +175,119 @@ class StorageApiTest extends StorageTestCase
         $this->patchJson("/api/storage/items/{$parent->id}", ['status' => Item::STATUS_DONE])->assertOk();
     }
 
-    public function test_nesting_is_limited_to_one_level_and_cycles_are_refused(): void
+    public function test_nesting_is_limited_to_three_levels_and_cycles_are_refused(): void
     {
         $owner = $this->createUser();
         $this->actingAs($owner);
 
         $parent = $this->createItem($owner, ['title' => 'Parent']);
         $child = $this->createItem($owner, ['title' => 'Child', 'parent_id' => $parent->id]);
+        $grandchild = $this->createItem($owner, ['title' => 'Grandchild', 'parent_id' => $child->id]);
         $loose = $this->createItem($owner, ['title' => 'Loose']);
 
-        // A child cannot become a parent.
-        $this->patchJson("/api/storage/items/{$loose->id}", ['parent_id' => $child->id])
+        // The third level is allowed.
+        $this->patchJson("/api/storage/items/{$loose->id}", ['parent_id' => $child->id])->assertOk();
+        $this->patchJson("/api/storage/items/{$loose->id}", ['parent_id' => null])->assertOk();
+
+        // A fourth level is not.
+        $this->patchJson("/api/storage/items/{$loose->id}", ['parent_id' => $grandchild->id])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('parent_id');
 
-        // A parent cannot become a child.
+        // A group cannot be nested so deep that its own children pass the limit.
         $this->patchJson("/api/storage/items/{$parent->id}", ['parent_id' => $loose->id])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('parent_id');
 
-        // Nothing can be its own parent.
+        // Nothing can sit inside itself or inside its own descendant.
         $this->patchJson("/api/storage/items/{$loose->id}", ['parent_id' => $loose->id])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('parent_id');
+        $this->patchJson("/api/storage/items/{$parent->id}", ['parent_id' => $grandchild->id])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('parent_id');
 
         $this->assertNull($loose->fresh()->parent_id);
+        $this->assertNull($parent->fresh()->parent_id);
+    }
+
+    public function test_new_items_go_last_and_position_reorders_siblings(): void
+    {
+        $owner = $this->createUser();
+        $this->actingAs($owner);
+        $project = $this->createProject($owner, 'Home');
+
+        $ids = collect(['One', 'Two', 'Three'])->map(fn (string $title) => $this->postJson('/api/storage/items', [
+            'title' => $title, 'project_id' => $project->id,
+        ])->assertCreated()->json('data.id'))->all();
+        $this->postJson('/api/storage/items', ['title' => 'Elsewhere'])->assertCreated();
+
+        $order = fn () => Item::query()->where('project_id', $project->id)->whereNull('parent_id')
+            ->orderBy('position')->orderBy('id')->pluck('title')->all();
+        $this->assertSame(['One', 'Two', 'Three'], $order());
+
+        $this->patchJson("/api/storage/items/{$ids[2]}", ['position' => 0])->assertOk()->assertJsonPath('data.position', 0);
+        $this->assertSame(['Three', 'One', 'Two'], $order());
+
+        // Inserting at an index shifts the following siblings.
+        $this->postJson('/api/storage/items', ['title' => 'Between', 'project_id' => $project->id, 'position' => 1])->assertCreated();
+        $this->assertSame(['Three', 'Between', 'One', 'Two'], $order());
+    }
+
+    public function test_children_join_their_parents_list_and_follow_it(): void
+    {
+        $owner = $this->createUser();
+        $this->actingAs($owner);
+        $home = $this->createProject($owner, 'Home');
+        $work = $this->createProject($owner, 'Work');
+
+        $parentId = $this->postJson('/api/storage/items', ['title' => 'Parent', 'project_id' => $home->id])->json('data.id');
+        $childId = $this->postJson('/api/storage/items', ['title' => 'Child', 'parent_id' => $parentId])
+            ->assertCreated()->assertJsonPath('data.project_id', $home->id)->json('data.id');
+        $grandchildId = $this->postJson('/api/storage/items', ['title' => 'Grandchild', 'parent_id' => $childId])
+            ->assertCreated()->json('data.id');
+
+        $this->patchJson("/api/storage/items/{$parentId}", ['project_id' => $work->id])->assertOk();
+
+        $this->assertSame($work->id, Item::query()->find($childId)->project_id);
+        $this->assertSame($work->id, Item::query()->find($grandchildId)->project_id);
+    }
+
+    public function test_a_cascading_check_closes_the_group_and_its_finished_parents(): void
+    {
+        $owner = $this->createUser();
+        $this->actingAs($owner);
+
+        $parent = $this->createItem($owner, ['title' => 'Trip']);
+        $child = $this->createItem($owner, ['title' => 'Packing', 'parent_id' => $parent->id]);
+        $blocker = $this->createItem($owner, ['title' => 'Socks', 'parent_id' => $child->id, 'is_blocker' => true]);
+        $leaf = $this->createItem($owner, ['title' => 'Charger', 'parent_id' => $child->id]);
+        $sibling = $this->createItem($owner, ['title' => 'Tickets', 'parent_id' => $parent->id]);
+
+        // Checking a group closes everything below it, blockers included.
+        $this->patchJson("/api/storage/items/{$child->id}", ['status' => Item::STATUS_DONE, 'cascade' => true])->assertOk();
+        $this->assertSame(Item::STATUS_DONE, $blocker->fresh()->status);
+        $this->assertSame(Item::STATUS_DONE, $leaf->fresh()->status);
+        $this->assertNotNull($leaf->fresh()->completed_at);
+        $this->assertSame(Item::STATUS_INBOX, $parent->fresh()->status, 'An open sibling keeps the parent open.');
+
+        // The last open child closes its parent.
+        $this->patchJson("/api/storage/items/{$sibling->id}", ['status' => Item::STATUS_DONE, 'cascade' => true])->assertOk();
+        $this->assertSame(Item::STATUS_DONE, $parent->fresh()->status);
+
+        // Unchecking a nested item reopens every closed parent above it.
+        $this->patchJson("/api/storage/items/{$leaf->id}", ['status' => Item::STATUS_ACTIVE, 'cascade' => true])->assertOk();
+        $this->assertSame(Item::STATUS_ACTIVE, $child->fresh()->status);
+        $this->assertSame(Item::STATUS_ACTIVE, $parent->fresh()->status);
+        $this->assertSame(Item::STATUS_DONE, $blocker->fresh()->status, 'Siblings keep their own state.');
+
+        // Unchecking a group reopens the group below it.
+        $this->patchJson("/api/storage/items/{$parent->id}", ['status' => Item::STATUS_DONE, 'cascade' => true])->assertOk();
+        $this->patchJson("/api/storage/items/{$parent->id}", ['status' => Item::STATUS_ACTIVE, 'cascade' => true])->assertOk();
+        foreach ([$child, $blocker, $leaf, $sibling] as $row) {
+            $this->assertSame(Item::STATUS_ACTIVE, $row->fresh()->status);
+            $this->assertNull($row->fresh()->completed_at);
+        }
     }
 
     public function test_deleting_a_parent_keeps_its_children(): void

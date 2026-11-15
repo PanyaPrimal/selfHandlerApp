@@ -6,6 +6,7 @@ use App\Models\Item;
 use App\Models\Project;
 use App\Models\Tag;
 use App\Services\ItemCompletionGuard;
+use App\Services\ItemTree;
 use App\Services\StorageSummary;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -24,6 +25,7 @@ class ItemController extends Controller
     public function __construct(
         private readonly ItemCompletionGuard $completion,
         private readonly StorageSummary $summary,
+        private readonly ItemTree $tree,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -82,10 +84,16 @@ class ItemController extends Controller
         $user = $request->user();
         $data = $this->validated($request);
         $tags = $this->pullTags($data);
+        $position = $this->pullPosition($data);
+        unset($data['cascade']);
 
-        $item = DB::transaction(function () use ($data, $tags, $user): Item {
+        $item = DB::transaction(function () use ($data, $tags, $user, $position): Item {
             if (($data['type'] ?? Item::TYPE_TASK) === Item::TYPE_PURCHASE && ! array_key_exists('status', $data)) {
                 $data['status'] = Item::STATUS_ACTIVE;
+            }
+            // A child lives in its parent's list unless the request says otherwise.
+            if (($data['parent_id'] ?? null) !== null && ! array_key_exists('project_id', $data)) {
+                $data['project_id'] = Item::query()->whereKey($data['parent_id'])->value('project_id');
             }
             $item = new Item(['user_id' => $user->id, ...$data]);
 
@@ -94,6 +102,7 @@ class ItemController extends Controller
             }
 
             $item->save();
+            $this->tree->place($item, $position);
 
             if ($tags !== null) {
                 $this->syncTags($item, $tags);
@@ -112,22 +121,39 @@ class ItemController extends Controller
 
         $data = $this->validated($request, partial: true, item: $item);
         $tags = $this->pullTags($data);
+        $position = $this->pullPosition($data);
+        $cascade = (bool) ($data['cascade'] ?? false);
+        unset($data['cascade']);
 
-        if (($data['status'] ?? null) === Item::STATUS_DONE) {
+        // A checklist checkbox closes the whole group, blockers included, so
+        // only a plain completion has to wait for blocking children.
+        if (($data['status'] ?? null) === Item::STATUS_DONE && ! $cascade) {
             $this->completion->assertCompletable($item);
         }
 
-        DB::transaction(function () use ($data, $item, $tags): void {
+        DB::transaction(function () use ($data, $item, $tags, $position, $cascade): void {
             $status = $data['status'] ?? null;
             unset($data['status']);
 
             $item->fill($data);
+            $moved = $item->isDirty(['parent_id', 'project_id']);
+            $projectChanged = $item->isDirty('project_id');
 
             if ($status !== null) {
                 $item->applyStatus($status);
             }
 
             $item->save();
+
+            if ($moved || $position !== null) {
+                $this->tree->place($item, $position);
+            }
+            if ($projectChanged) {
+                $this->tree->moveSubtreeToProject($item);
+            }
+            if ($cascade && $status !== null) {
+                $this->tree->cascade($item);
+            }
 
             if ($tags !== null) {
                 $this->syncTags($item, $tags);
@@ -190,6 +216,18 @@ class ItemController extends Controller
     }
 
     /**
+     * @param  array<string, mixed>  $data
+     * @return int|null the requested 0-based index among siblings
+     */
+    private function pullPosition(array &$data): ?int
+    {
+        $position = array_key_exists('position', $data) ? (int) $data['position'] : null;
+        unset($data['position']);
+
+        return $position;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function validated(Request $request, bool $partial = false, ?Item $item = null): array
@@ -208,6 +246,8 @@ class ItemController extends Controller
             'project_id' => ['sometimes', 'nullable', 'integer'],
             'parent_id' => ['sometimes', 'nullable', 'integer'],
             'is_blocker' => ['sometimes', 'boolean'],
+            'position' => ['sometimes', 'integer', 'min:0', 'max:100000'],
+            'cascade' => ['sometimes', 'boolean'],
             'tags' => ['sometimes', 'array', 'max:20'],
             'tags.*' => ['string', 'max:64'],
         ]);
@@ -290,21 +330,20 @@ class ItemController extends Controller
             return;
         }
 
-        // One level of nesting: a child cannot become a parent. This keeps the
-        // blocking rule a single query instead of a walk down a tree.
-        if ($parent->parent_id !== null) {
-            $validator->errors()->add(
-                'parent_id',
-                __('messages.item_nested'),
-            );
+        if ($item && $this->tree->isDescendant($parent, $item)) {
+            $validator->errors()->add('parent_id', __('messages.item_cycle'));
 
             return;
         }
 
-        if ($item && $item->children()->exists()) {
+        // Up to three levels: the parent's depth, this item and whatever
+        // already hangs below it must fit together.
+        $height = $item ? $this->tree->height($item) : 0;
+
+        if ($this->tree->depth($parent) + 1 + $height > Item::MAX_DEPTH) {
             $validator->errors()->add(
                 'parent_id',
-                __('messages.item_children'),
+                __($height > 0 ? 'messages.item_children' : 'messages.item_nested'),
             );
         }
     }

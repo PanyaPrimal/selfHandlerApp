@@ -58,7 +58,7 @@ describe('Storage receipt metadata', () => {
 
   it('uses the original item for project count changes after a newer item list omits a deleted record', () => {
     const entries = snapshots(5, 4)
-    const deleted: LocalCommand = { ...command, method: 'DELETE', path: '/storage/items/81', body: null, storageBefore: { ...receipt.data, description: null, priority: null, estimated_amount: null, estimated_currency_code: null, due_on: null, is_blocker: false, completed_at: null, dropped_at: null, type: 'task', status: 'inbox' } }
+    const deleted: LocalCommand = { ...command, method: 'DELETE', path: '/storage/items/81', body: null, storageBefore: { ...receipt.data, description: null, priority: null, estimated_amount: null, estimated_currency_code: null, due_on: null, position: 0, is_blocker: false, completed_at: null, dropped_at: null, type: 'task', status: 'inbox' } }
     const result = acknowledgedStorageEntries(owner, entries, deleted, undefined, 5)
     const projects = result.put.find(row => row.key.endsWith('read:/storage/projects'))!.value as CachedRead
     expect(projects.data).toMatchObject({ data: [{ open_count: 49, completed_count: 5 }] })

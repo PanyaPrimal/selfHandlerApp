@@ -51,6 +51,9 @@ class Item extends Model
     /** Statuses that still need attention, and therefore still block a parent. */
     public const OPEN_STATUSES = [self::STATUS_INBOX, self::STATUS_ACTIVE];
 
+    /** Checklist depth: a top-level item, its child and its grandchild. */
+    public const MAX_DEPTH = 3;
+
     protected $fillable = [
         'user_id',
         'type',
@@ -70,6 +73,7 @@ class Item extends Model
         'type' => self::TYPE_TASK,
         'status' => self::STATUS_INBOX,
         'is_blocker' => false,
+        'position' => 0,
     ];
 
     protected function casts(): array
@@ -78,6 +82,7 @@ class Item extends Model
             'due_on' => 'date:Y-m-d',
             'estimated_amount' => 'decimal:4',
             'is_blocker' => 'boolean',
+            'position' => 'integer',
             'completed_at' => 'datetime',
             'dropped_at' => 'datetime',
         ];

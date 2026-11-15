@@ -317,6 +317,10 @@ components:
           type: [integer, 'null']
         parent_id:
           type: [integer, 'null']
+        position:
+          type: integer
+          minimum: 0
+          description: Manual order among siblings (children of one parent, or top-level items of one project); ties fall back to creation order.
         is_blocker:
           type: boolean
           description: Meaningful on a child; it blocks its parent's completion.
@@ -397,7 +401,14 @@ components:
           type: [integer, 'null']
         parent_id:
           type: [integer, 'null']
-          description: Must belong to the same user and must not already be a child.
+          description: Must belong to the same user, must not be the item or its descendant, and the result must stay within three levels. A new child without project_id joins its parent's project.
+        position:
+          type: integer
+          minimum: 0
+          description: 0-based index among siblings; siblings are renumbered. New items go last when omitted.
+        cascade:
+          type: boolean
+          description: With status, apply a checklist checkbox. done closes open tasks below and any parent whose children are all closed (blocking children included); reopening reopens the group below and closed parents above.
         is_blocker:
           type: boolean
         tags:

@@ -417,7 +417,7 @@ class PortabilitySchemaV1
                 'json' => [],
             ],
             'items' => [
-                'attributes' => ['type', 'title', 'description', 'status', 'priority', 'due_on', 'is_blocker', 'completed_at', 'dropped_at', 'created_at', 'updated_at', 'estimated_amount', 'estimated_currency_code'],
+                'attributes' => ['type', 'title', 'description', 'status', 'priority', 'due_on', 'is_blocker', 'position', 'completed_at', 'dropped_at', 'created_at', 'updated_at', 'estimated_amount', 'estimated_currency_code'],
                 'references' => [
                     'project_id' => [
                         'table' => 'projects',

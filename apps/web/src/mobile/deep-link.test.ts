@@ -12,6 +12,14 @@ describe('widgetRoute', () => {
     expect(widgetRoute('selfhandler://storage?item=abc')).toBe('/storage')
   })
 
+  it('opens one checklist, optionally focused on an item', () => {
+    expect(widgetRoute('selfhandler://lists/general')).toBe('/lists/general')
+    expect(widgetRoute('selfhandler://lists/12?item=7')).toBe('/lists/12?item=7')
+    expect(widgetRoute('selfhandler://lists/0')).toBeNull()
+    expect(widgetRoute('selfhandler://lists/12/../settings')).toBeNull()
+    expect(widgetRoute('selfhandler://lists')).toBeNull()
+  })
+
   it('rejects unknown schemes, destinations and malformed input', () => {
     expect(widgetRoute(null)).toBeNull()
     expect(widgetRoute('')).toBeNull()

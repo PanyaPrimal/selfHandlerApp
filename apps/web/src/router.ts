@@ -5,6 +5,8 @@ import AppShell from './layouts/AppShell.vue'
 import AccountView from './views/AccountView.vue'
 import BodyView from './views/BodyView.vue'
 import StorageView from './views/StorageView.vue'
+import ListsView from './views/ListsView.vue'
+import ChecklistView from './views/ChecklistView.vue'
 import ChangelogView from './views/ChangelogView.vue'
 import GoalsView from './views/GoalsView.vue'
 import HabitsView from './views/HabitsView.vue'
@@ -130,6 +132,16 @@ export const router = createRouter({
           path: 'storage',
           name: 'storage',
           component: StorageView,
+        },
+        {
+          path: 'lists',
+          name: 'lists',
+          component: ListsView,
+        },
+        {
+          path: 'lists/:list',
+          name: 'checklist',
+          component: ChecklistView,
         },
         {
           path: 'body',

@@ -34,6 +34,7 @@ const desktopDestinations: Destination[] = [
   { name: 'analytics', to: '/analytics', label: 'nav.analytics' },
   { name: 'planner', to: '/planner', label: 'nav.planner' },
   { name: 'storage', to: '/storage', label: 'nav.storage' },
+  { name: 'lists', to: '/lists', label: 'nav.lists' },
   { name: 'body', to: '/body', label: 'nav.body' },
 ]
 
@@ -51,12 +52,15 @@ const utilityDestinations: Destination[] = [
 const dailyNames = ['today', 'planner', 'storage']
 const mobileDestinations = dailyNames.map((name) => desktopDestinations.find((item) => item.name === name)!)
 const destinationGroups: { label: MessageKey; items: Destination[] }[] = [
-  { label: 'nav.daily', items: mobileDestinations },
+  { label: 'nav.daily', items: [...mobileDestinations, desktopDestinations.find((item) => item.name === 'lists')!] },
   { label: 'nav.health', items: desktopDestinations.filter((item) => ['routines', 'habits', 'workouts', 'nutrition', 'supplements', 'body'].includes(item.name)) },
   { label: 'nav.direction', items: desktopDestinations.filter((item) => ['goals', 'finance', 'review', 'analytics'].includes(item.name)) },
   { label: 'nav.workspace', items: utilityDestinations },
 ]
-const moreGroups = destinationGroups.slice(1)
+// Daily destinations that are not phone tabs still need a way in through "More".
+const moreGroups = destinationGroups
+  .map((group) => ({ ...group, items: group.items.filter((item) => !dailyNames.includes(item.name)) }))
+  .filter((group) => group.items.length)
 const moreDestinations = moreGroups.flatMap((group) => group.items)
 
 const route = useRoute()
@@ -72,7 +76,9 @@ const filteredGroups = computed(() => destinationGroups.map(group => ({
   ...group,
   items: group.items.filter(item => `${t(item.label)} ${item.name}`.toLocaleLowerCase().includes(navSearch.value.trim().toLocaleLowerCase())),
 })).filter(group => group.items.length))
-const filteredMoreGroups = computed(() => filteredGroups.value.filter(group => group.label !== 'nav.daily'))
+const filteredMoreGroups = computed(() => filteredGroups.value
+  .map(group => ({ ...group, items: group.items.filter(item => !dailyNames.includes(item.name)) }))
+  .filter(group => group.items.length))
 
 function isDestinationActive(destination: Destination): boolean {
   return route.path === destination.to || (destination.to !== '/' && route.path.startsWith(`${destination.to}/`))

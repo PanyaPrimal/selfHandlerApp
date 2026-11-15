@@ -41,6 +41,7 @@ class PortableBackupReader
             $this->validateProfile($profile);
             $this->upgradeHabitSchedules($records);
             $this->upgradeNutritionSettings($records);
+            $this->upgradeItemPositions($records);
             $portableIds = $this->validateRecords($records);
             $this->validateAttachments($manifest['attachments'], $portableIds, $zip);
             $this->validateCounts($manifest, $records, $stats);
@@ -332,6 +333,21 @@ class PortableBackupReader
         }
 
         return $ids;
+    }
+
+    /** Accept v1 backups created before checklist order existed: creation order applies. */
+    private function upgradeItemPositions(array &$records): void
+    {
+        if (! is_array($records['tables']['items'] ?? null)) {
+            return;
+        }
+        foreach ($records['tables']['items'] as &$row) {
+            if (is_array($row) && is_array($row['attributes'] ?? null)
+                && ! array_key_exists('position', $row['attributes'])) {
+                $row['attributes']['position'] = 0;
+            }
+        }
+        unset($row);
     }
 
     /** Accept v1 backups created before manual macro targets were introduced. */

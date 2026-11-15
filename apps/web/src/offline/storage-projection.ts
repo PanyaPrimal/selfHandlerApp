@@ -71,6 +71,100 @@ export function storageState(items: StorageItemsResponse, projects: StorageProje
   return { items: [...records.values()], projects: projects.map(project => ({ ...project })), inboxCount: items.inbox_count }
 }
 
+const OPEN_STATUSES = ['inbox', 'active']
+export const MAX_ITEM_DEPTH = 3
+
+/** Checklist order among siblings: manual position, then creation order (as on the server). */
+export function itemOrder(a: Pick<StorageItem, 'id' | 'position'>, b: Pick<StorageItem, 'id' | 'position'>): number {
+  return (a.position ?? 0) - (b.position ?? 0) || a.id - b.id
+}
+
+export function itemDescendants<T extends StorageItem>(items: T[], id: number): T[] {
+  const found: T[] = []
+  let level = [id]
+  for (let step = 0; level.length && step < MAX_ITEM_DEPTH; step++) {
+    const rows = items.filter(item => item.parent_id !== null && level.includes(item.parent_id))
+    found.push(...rows)
+    level = rows.map(row => row.id)
+  }
+  return found
+}
+
+export function itemAncestors<T extends StorageItem>(items: T[], item: StorageItem): T[] {
+  const found: T[] = []
+  let parentId = item.parent_id
+  while (parentId !== null && found.length < MAX_ITEM_DEPTH) {
+    const parent = items.find(row => row.id === parentId)
+    if (!parent) break
+    found.push(parent)
+    parentId = parent.parent_id
+  }
+  return found
+}
+
+export function itemDepth(items: StorageItem[], item: StorageItem): number {
+  return itemAncestors(items, item).length + 1
+}
+
+export function itemHeight(items: StorageItem[], id: number): number {
+  let height = 0
+  let level = [id]
+  while (level.length && height <= MAX_ITEM_DEPTH) {
+    level = items.filter(item => item.parent_id !== null && level.includes(item.parent_id)).map(item => item.id)
+    if (level.length) height++
+  }
+  return height
+}
+
+function isSibling(row: StorageItem, item: StorageItem): boolean {
+  return row.id !== item.id && (item.parent_id !== null
+    ? row.parent_id === item.parent_id
+    : row.parent_id === null && (row.project_id ?? null) === (item.project_id ?? null))
+}
+
+/** Mirror of the server's renumbering: the item takes a 0-based index among its siblings. */
+function placeItem(state: StorageState, item: ProjectedItem, index: number | null, mark: LocalStatus | undefined) {
+  const siblings = state.items.filter(row => isSibling(row, item)).sort(itemOrder)
+  const at = index === null ? siblings.length : Math.max(0, Math.min(index, siblings.length))
+  siblings.splice(at, 0, item)
+  const positions = new Map(siblings.map((row, position) => [row.id, position]))
+  state.items = state.items.map(row => {
+    const position = positions.get(row.id)
+    return position === undefined || row.id === item.id || row.position === position ? row : { ...row, position, local_sync_status: mark }
+  })
+  item.position = at
+}
+
+function setStatus(state: StorageState, id: number, status: StorageItem['status'], timestamp: string, mark: LocalStatus | undefined) {
+  state.items = state.items.map(row => {
+    if (row.id !== id || row.status === status) return row
+    const next = { ...row, status, completed_at: status === 'done' ? row.completed_at ?? timestamp : null,
+      dropped_at: status === 'dropped' ? row.dropped_at ?? timestamp : null, local_sync_status: mark }
+    countItem(state, row, -1)
+    countItem(state, next, 1)
+    return next
+  })
+}
+
+/** Mirror of the server's checklist cascade. */
+function cascadeItem(state: StorageState, item: ProjectedItem, timestamp: string, mark: LocalStatus | undefined) {
+  if (item.status === 'done') {
+    for (const row of itemDescendants(state.items, item.id)) {
+      if (row.type === 'task' && OPEN_STATUSES.includes(row.status)) setStatus(state, row.id, 'done', timestamp, mark)
+    }
+    for (const parent of itemAncestors(state.items, item)) {
+      const current = state.items.find(row => row.id === parent.id)!
+      const open = state.items.some(row => row.parent_id === parent.id && OPEN_STATUSES.includes(row.status))
+      if (open || !OPEN_STATUSES.includes(current.status) || current.type === 'purchase') break
+      setStatus(state, parent.id, 'done', timestamp, mark)
+    }
+    return
+  }
+  if (!OPEN_STATUSES.includes(item.status)) return
+  for (const row of itemDescendants(state.items, item.id)) if (row.status === 'done') setStatus(state, row.id, 'active', timestamp, mark)
+  for (const parent of itemAncestors(state.items, item)) if (parent.status === 'done') setStatus(state, parent.id, 'active', timestamp, mark)
+}
+
 function countItem(state: StorageState, item: StorageItem, delta: number) {
   if (item.status === 'inbox') state.inboxCount += delta
   const project = state.projects.find(row => row.id === item.project_id)
@@ -116,20 +210,35 @@ export function applyStorageMutation(base: StorageState, command: StorageMutatio
     return { state, result: undefined }
   }
   if (!before && !creating) return { state, result: undefined }
-  const type = body.type ?? before?.type ?? 'task'
-  const status = body.status ?? before?.status ?? (type === 'purchase' ? 'active' : 'inbox')
-  const tags = Array.isArray(body.tags) ? [...new Set((body.tags as string[]).map(tag => tag.trim()).filter(Boolean))].map((name, index) => ({ id: -(index + 1), name })) : before?.tags ?? []
+  const { cascade, position, ...fields } = body
+  const type = fields.type ?? before?.type ?? 'task'
+  const status = fields.status ?? before?.status ?? (type === 'purchase' ? 'active' : 'inbox')
+  const tags = Array.isArray(fields.tags) ? [...new Set((fields.tags as string[]).map(tag => tag.trim()).filter(Boolean))].map((name, index) => ({ id: -(index + 1), name })) : before?.tags ?? []
+  // A new child lives in its parent's list unless the request names one.
+  const inherited = creating && typeof fields.parent_id === 'number' && !('project_id' in fields)
+    ? { project_id: state.items.find(item => item.id === fields.parent_id)?.project_id ?? null } : {}
   const row = { id, title: '', description: null, priority: null, estimated_amount: null, estimated_currency_code: null,
-    due_on: null, project_id: null, parent_id: null, is_blocker: false,
-    ...before, ...body, type, status, tags,
+    due_on: null, project_id: null, parent_id: null, position: 0, is_blocker: false,
+    ...before, ...fields, ...inherited, type, status, tags,
     completed_at: status === 'done' ? before?.completed_at ?? timestamp : null,
     dropped_at: status === 'dropped' ? before?.dropped_at ?? timestamp : null,
     ...confirmedRow, local_sync_status: mark } as ProjectedItem
   row.title = row.title.trim()
   if (before) countItem(state, before, -1)
   countItem(state, row, 1)
-  state.items = [...state.items.filter(item => item.id !== id), row]
-  return { state, result: { data: row } }
+  state.items = state.items.filter(item => item.id !== id)
+  const requested = typeof position === 'number' ? position : null
+  if (creating || requested !== null || before?.parent_id !== row.parent_id || before?.project_id !== row.project_id) {
+    placeItem(state, row, requested, mark)
+    if (confirmedRow && typeof confirmedRow.position === 'number') row.position = confirmedRow.position
+  }
+  state.items.push(row)
+  if (before && before.project_id !== row.project_id) {
+    const below = new Set(itemDescendants(state.items, id).map(item => item.id))
+    state.items = state.items.map(item => below.has(item.id) ? { ...item, project_id: row.project_id, local_sync_status: mark } : item)
+  }
+  if (cascade === true && 'status' in fields) cascadeItem(state, row, timestamp, mark)
+  return { state, result: { data: state.items.find(item => item.id === id) } }
 }
 
 export function projectStorage(base: StorageState, commands: StorageMutation[]): StorageState {
@@ -176,9 +285,12 @@ export function validateStorageMutation(state: StorageState, command: StorageMut
   if (body.parent_id != null) {
     const parent = state.items.find(row => row.id === body.parent_id)
     if (!parent) errors.parent_id = 'missing'
-    else if (parent.id === target.id || parent.parent_id !== null || (target.id !== null && state.items.some(row => row.parent_id === target.id))) errors.parent_id = 'nested'
+    else if (parent.id === target.id || (target.id !== null && itemDescendants(state.items, target.id).some(row => row.id === parent.id))
+      || itemDepth(state.items, parent) + 1 + (target.id !== null ? itemHeight(state.items, target.id) : 0) > MAX_ITEM_DEPTH) errors.parent_id = 'nested'
   }
-  if (body.status === 'done' && state.items.some(row => row.parent_id === target.id && row.is_blocker && ['inbox', 'active'].includes(row.status))) errors.status = 'blocked'
+  if ('position' in body && (typeof body.position !== 'number' || !Number.isInteger(body.position) || body.position < 0 || body.position > 100000)) errors.position = 'invalid'
+  if ('cascade' in body && typeof body.cascade !== 'boolean') errors.cascade = 'invalid'
+  if (body.status === 'done' && body.cascade !== true && state.items.some(row => row.parent_id === target.id && row.is_blocker && ['inbox', 'active'].includes(row.status))) errors.status = 'blocked'
   const type = body.type ?? item?.type ?? 'task'
   if (type === 'purchase' && body.status === 'done') errors.status = 'invalid'
   const amount = 'estimated_amount' in body ? body.estimated_amount : item?.estimated_amount ?? null

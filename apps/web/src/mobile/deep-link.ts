@@ -14,8 +14,11 @@ export function widgetRoute(url: string | null | undefined): string | null {
 
   // `selfhandler://storage` parses the destination as the host.
   const destination = `${parsed.host}${parsed.pathname}`.replace(/\/+$/, '')
-  if (destination !== 'storage') return null
-
   const item = parsed.searchParams.get('item')
-  return item && /^[1-9]\d{0,17}$/.test(item) ? `/storage?item=${item}` : '/storage'
+  const query = item && /^[1-9]\d{0,17}$/.test(item) ? `?item=${item}` : ''
+  if (destination === 'storage') return `/storage${query}`
+
+  // `selfhandler://lists/general` or `selfhandler://lists/12`: one checklist.
+  const list = /^lists\/(general|[1-9]\d{0,17})$/.exec(destination)
+  return list ? `/lists/${list[1]}${query}` : null
 }

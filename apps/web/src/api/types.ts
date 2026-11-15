@@ -1622,6 +1622,8 @@ export interface StorageItem {
   due_on: string | null
   project_id: number | null
   parent_id: number | null
+  /** Manual order among siblings; ties fall back to creation order. */
+  position: number
   is_blocker: boolean
   completed_at: string | null
   dropped_at: string | null
@@ -1649,6 +1651,10 @@ export interface StorageItemPayload {
   due_on?: string | null
   project_id?: number | null
   parent_id?: number | null
+  /** 0-based index among siblings; the server renumbers the rest. */
+  position?: number
+  /** With status: a checklist checkbox that applies to the whole group. */
+  cascade?: boolean
   is_blocker?: boolean
   tags?: string[]
 }

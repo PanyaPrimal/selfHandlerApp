@@ -8,7 +8,7 @@ import { storageState } from './storage-projection'
 const owner = 73
 const today = '2026-09-19'
 const tomorrow = '2026-09-20'
-const item: StorageItem = { id: 8, title: 'Task', type: 'task', status: 'active', due_on: today, description: null, tags: [], priority: null,
+const item: StorageItem = { id: 8, title: 'Task', type: 'task', status: 'active', due_on: today, description: null, tags: [], priority: null, position: 0,
   project_id: 2, parent_id: null, is_blocker: false, estimated_amount: null, estimated_currency_code: null, completed_at: null, dropped_at: null }
 const entry = (row: StorageItem): PlannerEntry => ({ source: 'storage', source_id: row.id, title: row.title, time: null, status: row.status,
   actions: ['move'], meta: { type: row.type, priority: row.priority, project_id: row.project_id } })

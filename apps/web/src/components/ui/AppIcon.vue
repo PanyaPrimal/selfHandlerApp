@@ -5,6 +5,7 @@ const paths: Record<string, string> = {
   search: 'M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm5 12 6 6',
   planner: 'M5 5h14v15H5zM8 3v4m8-4v4M5 10h14',
   storage: 'M5 5h14v15H5zM8 9h8m-8 4h6m-6 4h4',
+  lists: 'M4 6.5l1.5 1.5L8.5 5M4 12.5l1.5 1.5 3-3M4 18.5l1.5 1.5 3-3M11 7h9M11 13h9M11 19h9',
   habits: 'm4 12 5 5L20 6',
   routines: 'M20 7A9 9 0 1 0 21 14M20 3v5h-5',
   workouts: 'm5 5 14 14M3 7l4-4m10 18 4-4M2 5l3-3m14 20 3-3',

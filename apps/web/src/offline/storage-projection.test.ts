@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { StorageItemsResponse } from '../api/types'
-import { applyStorageMutation, projectStorage, remapStorageCommand, storageItemsResponse, storageReferences, storageState, validateStorageMutation, type StorageMutation } from './storage-projection'
+import { applyStorageMutation, itemOrder, projectStorage, remapStorageCommand, storageItemsResponse, storageReferences, storageState, validateStorageMutation, type StorageMutation } from './storage-projection'
 
 const empty: StorageItemsResponse = { data: [], inbox_count: 0, types: ['task', 'idea', 'purchase'], statuses: ['inbox', 'active', 'done', 'dropped'], priorities: ['low', 'normal', 'high'] }
 const mutation = (path: string, method: string, body: unknown, localId?: number): StorageMutation => ({ path, method, body: body === null ? null : JSON.stringify(body), localId, status: 'pending', created: Date.UTC(2026, 8, 19) })
@@ -81,11 +81,31 @@ describe('offline Storage projection', () => {
   })
 
   it('refuses unknown relationships and nesting deeper than the server supports', () => {
-    const state = projectStorage(storageState(empty, []), [create('Parent', -1), create('Child', -2, { parent_id: -1 })])
-    expect(validateStorageMutation(state, create('Unknown', -3, { parent_id: 99, project_id: 12 }))).toEqual({ parent_id: 'missing', project_id: 'missing' })
-    expect(validateStorageMutation(state, create('Grandchild', -3, { parent_id: -2 }))).toEqual({ parent_id: 'nested' })
+    const state = projectStorage(storageState(empty, []), [create('Parent', -1), create('Child', -2, { parent_id: -1 }), create('Grandchild', -3, { parent_id: -2 })])
+    expect(validateStorageMutation(state, create('Unknown', -4, { parent_id: 99, project_id: 12 }))).toEqual({ parent_id: 'missing', project_id: 'missing' })
+    expect(validateStorageMutation(state, create('Sibling', -4, { parent_id: -2 }))).toEqual({})
+    expect(validateStorageMutation(state, create('Fourth level', -4, { parent_id: -3 }))).toEqual({ parent_id: 'nested' })
     expect(validateStorageMutation(state, mutation('/storage/items/-1', 'PATCH', { parent_id: -2 }))).toEqual({ parent_id: 'nested' })
     expect(validateStorageMutation(state, mutation('/storage/items/99', 'DELETE', null))).toEqual({ request: 'missing' })
+  })
+
+  it('mirrors checklist order, list inheritance and the checkbox cascade', () => {
+    let state = projectStorage(storageState(empty, []), [
+      create('One', -1, { project_id: null }), create('Two', -2), create('Three', -3),
+      create('Child', -4, { parent_id: -1 }), create('Grandchild', -5, { parent_id: -4 }), create('Other child', -6, { parent_id: -1 }),
+    ])
+    const roots = () => state.items.filter(row => row.parent_id === null).sort(itemOrder).map(row => row.title)
+    expect(roots()).toEqual(['One', 'Two', 'Three'])
+    state = applyStorageMutation(state, mutation('/storage/items/-3', 'PATCH', { position: 0 })).state
+    expect(roots()).toEqual(['Three', 'One', 'Two'])
+    const status = (id: number) => state.items.find(row => row.id === id)?.status
+    state = applyStorageMutation(state, mutation('/storage/items/-4', 'PATCH', { status: 'done', cascade: true })).state
+    expect([status(-4), status(-5), status(-1)]).toEqual(['done', 'done', 'inbox'])
+    state = applyStorageMutation(state, mutation('/storage/items/-6', 'PATCH', { status: 'done', cascade: true })).state
+    expect(status(-1)).toBe('done')
+    state = applyStorageMutation(state, mutation('/storage/items/-5', 'PATCH', { status: 'active', cascade: true })).state
+    expect([status(-5), status(-4), status(-1), status(-6)]).toEqual(['active', 'active', 'active', 'done'])
+    expect(state.items.some(row => 'cascade' in row)).toBe(false)
   })
 
   it('validates purchase money pairs, completion and real calendar dates before local acceptance', () => {
