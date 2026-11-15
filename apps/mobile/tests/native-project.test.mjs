@@ -58,11 +58,16 @@ test('Task widget is system-bound, private, and translated', () => {
   assert.match(manifest, /android\.appwidget\.action\.APPWIDGET_UPDATE/)
   assert.match(manifest, /android:permission="android\.permission\.BIND_REMOTEVIEWS"/)
   assert.doesNotMatch(store, /token/i)
+  const info = readFileSync(resolve(mobile, 'android/app/src/main/res/xml/tasks_widget_info.xml'), 'utf8')
+  assert.match(info, /android:configure="app\.selfhandler\.mobile\.widget\.ListPickerActivity"/)
+  assert.match(info, /android:widgetFeatures="reconfigurable"/)
+  const api = readFileSync(resolve(mobile, 'android/app/src/main/java/app/selfhandler/mobile/widget/TasksApi.java'), 'utf8')
+  assert.match(api, /put\("cascade", true\)/, 'A widget checkbox must apply to the whole group like the web list.')
   assert.match(gradle, /buildConfigField "String", "API_ORIGIN"/)
   assert.match(gradle, /\^https:/)
   for (const locale of ['values', 'values-ru', 'values-uk']) {
     const strings = readFileSync(resolve(mobile, `android/app/src/main/res/${locale}/strings_widget.xml`), 'utf8')
-    for (const key of ['widget_today', 'widget_empty', 'widget_signed_out', 'widget_add_title', 'widget_add_failed']) {
+    for (const key of ['widget_today', 'widget_general', 'widget_done_count', 'widget_empty', 'widget_signed_out', 'widget_add_title', 'widget_add_failed', 'widget_mark_open', 'widget_pick_title', 'widget_list_missing']) {
       assert.match(strings, new RegExp(`name="${key}"`), `${locale} is missing ${key}`)
     }
   }

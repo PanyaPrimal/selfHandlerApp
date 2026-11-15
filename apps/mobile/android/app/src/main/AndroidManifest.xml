@@ -49,6 +49,20 @@
             android:taskAffinity=""
             android:theme="@android:style/Theme.NoDisplay" />
 
+        <!-- The launcher opens this to pick the widget's list, so it must be exported; it only
+             accepts widget ids that belong to TasksWidgetProvider. -->
+        <activity
+            android:name=".widget.ListPickerActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:label="@string/widget_pick_title"
+            android:taskAffinity=""
+            android:theme="@style/AppTheme.QuickAdd">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
         <activity
             android:name=".widget.QuickAddActivity"
             android:excludeFromRecents="true"

@@ -29,8 +29,8 @@ android {
         applicationId "app.selfhandler.mobile"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 6
-        versionName "0.4.0"
+        versionCode 7
+        versionName "0.5.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField "String", "API_ORIGIN", "\"${selfhandlerApiOrigin}\""
         aaptOptions {

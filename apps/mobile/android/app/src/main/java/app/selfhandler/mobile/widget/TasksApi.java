@@ -12,15 +12,14 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
 import app.selfhandler.mobile.BuildConfig;
 
 /**
- * Minimal client for the existing Storage API. It reuses the app's mobile session token and the
- * build-time public origin; the backend is unchanged. Writes carry a fresh workspace operation id,
+ * Minimal client for the Storage checklist API. It reuses the app's mobile session token and the
+ * build-time public origin. Writes carry a fresh workspace operation id,
  * so a retried request is replayed by the server instead of being applied twice.
  */
 final class TasksApi {
@@ -50,52 +49,68 @@ final class TasksApi {
         return BuildConfig.API_ORIGIN.startsWith("https://");
     }
 
-    /** Open tasks due today or earlier, sorted by due date, priority and title. */
-    List<WidgetTask> dueTasks(String today) throws IOException {
-        List<WidgetTask> tasks = new ArrayList<>();
-        for (String status : new String[] {"inbox", "active"}) {
-            JSONObject body = request("GET", "/api/storage/items?type=task&status=" + status + "&limit=" + PAGE_LIMIT, null);
-            JSONArray data = body.optJSONArray("data");
-            if (data == null) continue;
-            for (int index = 0; index < data.length(); index++) {
-                JSONObject item = data.optJSONObject(index);
-                if (item == null) continue;
-                WidgetTask task = WidgetTask.fromJson(item);
-                if (task.dueOn != null && task.dueOn.compareTo(today) <= 0 && !task.title.isEmpty()) tasks.add(task);
-            }
+    /** A list the widget can show: the general list or one open Storage project. */
+    static final class ListChoice {
+        final String key;
+        final String name;
+
+        ListChoice(String key, String name) {
+            this.key = key;
+            this.name = name;
         }
-        sort(tasks);
+    }
+
+    /** Every open or finished task of one list; dropped items are not part of a checklist. */
+    List<WidgetTask> listTasks(String list) throws IOException {
+        String project = TaskWidgetStore.GENERAL.equals(list) ? "" : list;
+        JSONObject body = request("GET", "/api/storage/items?type=task&limit=" + PAGE_LIMIT + "&project_id=" + project, null);
+        List<WidgetTask> tasks = new ArrayList<>();
+        JSONArray data = body.optJSONArray("data");
+        if (data == null) return tasks;
+        for (int index = 0; index < data.length(); index++) {
+            JSONObject item = data.optJSONObject(index);
+            if (item == null || "dropped".equals(item.optString("status")) || !"task".equals(item.optString("type"))) continue;
+            WidgetTask task = WidgetTask.fromJson(item);
+            if (!task.title.isEmpty()) tasks.add(task);
+        }
         return tasks;
     }
 
-    void complete(long id) throws IOException {
+    /** Open Storage projects, which are the named lists. */
+    List<ListChoice> lists() throws IOException {
+        JSONObject body = request("GET", "/api/storage/projects", null);
+        List<ListChoice> lists = new ArrayList<>();
+        JSONArray data = body.optJSONArray("data");
+        if (data == null) return lists;
+        for (int index = 0; index < data.length(); index++) {
+            JSONObject project = data.optJSONObject(index);
+            if (project == null || project.optBoolean("is_archived", false)) continue;
+            lists.add(new ListChoice(String.valueOf(project.optLong("id")), project.optString("name", "")));
+        }
+        return lists;
+    }
+
+    /** A checklist checkbox: the server applies it to the whole group. */
+    void toggle(long id, boolean done) throws IOException {
         JSONObject payload = new JSONObject();
         try {
-            payload.put("status", "done");
+            payload.put("status", done ? "done" : "active").put("cascade", true);
         } catch (JSONException exception) {
             throw new IOException("Invalid task payload.", exception);
         }
         request("PATCH", "/api/storage/items/" + id, payload);
     }
 
-    void create(String title, String dueOn) throws IOException {
+    /** Adds an item at the end of the list. */
+    void create(String title, String list) throws IOException {
         JSONObject payload = new JSONObject();
         try {
-            payload.put("type", "task").put("status", "inbox").put("title", title).put("due_on", dueOn);
-        } catch (JSONException exception) {
+            payload.put("type", "task").put("status", "active").put("title", title)
+                .put("project_id", TaskWidgetStore.GENERAL.equals(list) ? JSONObject.NULL : Long.parseLong(list));
+        } catch (JSONException | NumberFormatException exception) {
             throw new IOException("Invalid task payload.", exception);
         }
         request("POST", "/api/storage/items", payload);
-    }
-
-    static void sort(List<WidgetTask> tasks) {
-        Collections.sort(tasks, (left, right) -> {
-            int due = left.dueOn.compareTo(right.dueOn);
-            if (due != 0) return due;
-            int priority = Integer.compare(left.priorityRank(), right.priorityRank());
-            if (priority != 0) return priority;
-            return left.title.compareToIgnoreCase(right.title);
-        });
     }
 
     private JSONObject request(String method, String path, JSONObject payload) throws IOException {

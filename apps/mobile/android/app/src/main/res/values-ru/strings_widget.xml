@@ -1,28 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="widget_description">Задачи на сегодня и просроченные</string>
-    <string name="widget_today">Сегодня</string>
+    <string name="widget_description">Чек-лист из SelfHandler: вложенные пункты, выполненные внизу</string>
+    <!-- Название виджета в списке виджетов лаунчера. -->
+    <string name="widget_today">Список</string>
+    <string name="widget_general">Общий</string>
     <plurals name="widget_task_count">
-        <item quantity="one">%d задача</item>
-        <item quantity="few">%d задачи</item>
-        <item quantity="many">%d задач</item>
-        <item quantity="other">%d задачи</item>
+        <item quantity="one">Открыто: %d</item>
+        <item quantity="few">Открыто: %d</item>
+        <item quantity="many">Открыто: %d</item>
+        <item quantity="other">Открыто: %d</item>
     </plurals>
-    <string name="widget_empty">На сегодня задач нет</string>
+    <string name="widget_done_count">Выполнено: %1$d</string>
+    <string name="widget_empty">Список пуст</string>
     <string name="widget_signed_out">Войдите в SelfHandler</string>
     <string name="widget_offline">Нет связи</string>
     <string name="widget_offline_since">Нет связи · обновлено %1$s</string>
-    <string name="widget_action_failed">Не удалось отметить задачу. Попробуйте ещё раз.</string>
+    <string name="widget_action_failed">Не удалось сохранить изменение. Попробуйте ещё раз.</string>
     <string name="widget_not_configured">В этой сборке не задан адрес сервера</string>
+    <string name="widget_list_missing">Список удалён или в архиве. Подержите виджет, чтобы выбрать другой.</string>
     <string name="widget_overdue">Просрочено · %1$s</string>
-    <string name="widget_mark_done">Отметить «%1$s» выполненной</string>
+    <string name="widget_mark_done">Отметить «%1$s» выполненным</string>
+    <string name="widget_mark_open">Снять отметку с «%1$s»</string>
     <string name="widget_refresh">Обновить</string>
-    <string name="widget_add">Добавить задачу</string>
-    <string name="widget_add_title">Новая задача на сегодня</string>
-    <string name="widget_add_hint">Что нужно сделать?</string>
+    <string name="widget_add">Добавить пункт</string>
+    <string name="widget_add_title">Новый пункт · %1$s</string>
+    <string name="widget_add_hint">Пункт</string>
     <string name="widget_add_submit">Добавить</string>
     <string name="widget_cancel">Отмена</string>
-    <string name="widget_add_empty">Введите название задачи</string>
-    <string name="widget_add_failed">Не удалось добавить задачу. Проверьте связь и попробуйте ещё раз.</string>
-    <string name="widget_added">Задача добавлена</string>
+    <string name="widget_add_empty">Введите текст пункта</string>
+    <string name="widget_add_failed">Не удалось добавить пункт. Проверьте связь и попробуйте ещё раз.</string>
+    <string name="widget_added">Пункт добавлен</string>
+    <string name="widget_pick_title">Какой список показывать в виджете?</string>
+    <string name="widget_pick_loading">Загружаю списки…</string>
+    <string name="widget_pick_failed">Не удалось загрузить списки. Сейчас доступен только общий.</string>
 </resources>

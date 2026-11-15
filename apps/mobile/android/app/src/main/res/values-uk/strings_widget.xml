@@ -1,28 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="widget_description">Завдання на сьогодні та прострочені</string>
-    <string name="widget_today">Сьогодні</string>
+    <string name="widget_description">Чек-лист із SelfHandler: вкладені пункти, виконані внизу</string>
+    <!-- Назва віджета у списку віджетів лаунчера. -->
+    <string name="widget_today">Список</string>
+    <string name="widget_general">Загальний</string>
     <plurals name="widget_task_count">
-        <item quantity="one">%d завдання</item>
-        <item quantity="few">%d завдання</item>
-        <item quantity="many">%d завдань</item>
-        <item quantity="other">%d завдання</item>
+        <item quantity="one">Відкрито: %d</item>
+        <item quantity="few">Відкрито: %d</item>
+        <item quantity="many">Відкрито: %d</item>
+        <item quantity="other">Відкрито: %d</item>
     </plurals>
-    <string name="widget_empty">На сьогодні завдань немає</string>
+    <string name="widget_done_count">Виконано: %1$d</string>
+    <string name="widget_empty">Список порожній</string>
     <string name="widget_signed_out">Увійдіть у SelfHandler</string>
     <string name="widget_offline">Немає зв’язку</string>
     <string name="widget_offline_since">Немає зв’язку · оновлено %1$s</string>
-    <string name="widget_action_failed">Не вдалося позначити завдання. Спробуйте ще раз.</string>
+    <string name="widget_action_failed">Не вдалося зберегти зміну. Спробуйте ще раз.</string>
     <string name="widget_not_configured">У цій збірці не задано адресу сервера</string>
+    <string name="widget_list_missing">Список видалено або він в архіві. Утримуйте віджет, щоб вибрати інший.</string>
     <string name="widget_overdue">Прострочено · %1$s</string>
     <string name="widget_mark_done">Позначити «%1$s» виконаним</string>
+    <string name="widget_mark_open">Зняти позначку з «%1$s»</string>
     <string name="widget_refresh">Оновити</string>
-    <string name="widget_add">Додати завдання</string>
-    <string name="widget_add_title">Нове завдання на сьогодні</string>
-    <string name="widget_add_hint">Що потрібно зробити?</string>
+    <string name="widget_add">Додати пункт</string>
+    <string name="widget_add_title">Новий пункт · %1$s</string>
+    <string name="widget_add_hint">Пункт</string>
     <string name="widget_add_submit">Додати</string>
     <string name="widget_cancel">Скасувати</string>
-    <string name="widget_add_empty">Введіть назву завдання</string>
-    <string name="widget_add_failed">Не вдалося додати завдання. Перевірте зв’язок і спробуйте ще раз.</string>
-    <string name="widget_added">Завдання додано</string>
+    <string name="widget_add_empty">Введіть текст пункту</string>
+    <string name="widget_add_failed">Не вдалося додати пункт. Перевірте зв’язок і спробуйте ще раз.</string>
+    <string name="widget_added">Пункт додано</string>
+    <string name="widget_pick_title">Який список показувати у віджеті?</string>
+    <string name="widget_pick_loading">Завантажую списки…</string>
+    <string name="widget_pick_failed">Не вдалося завантажити списки. Зараз доступний лише загальний.</string>
 </resources>

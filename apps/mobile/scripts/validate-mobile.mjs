@@ -82,6 +82,10 @@ assert.match(manifest, /android\.appwidget\.action\.APPWIDGET_UPDATE/)
 assert.match(manifest, /\.widget\.TasksWidgetService"[^>]*android:exported="false"[^>]*android:permission="android\.permission\.BIND_REMOTEVIEWS"/s)
 assert.match(manifest, /\.widget\.WidgetActionActivity"[^>]*android:exported="false"[^>]*android:taskAffinity=""/s)
 assert.match(manifest, /\.widget\.QuickAddActivity"[^>]*android:exported="false"/s)
+// The launcher opens the list picker, so it is exported but only answers the configure action.
+assert.match(manifest, /\.widget\.ListPickerActivity"[^>]*android:exported="true"[^>]*>\s*<intent-filter>\s*<action android:name="android\.appwidget\.action\.APPWIDGET_CONFIGURE" \/>\s*<\/intent-filter>/s)
+assert.match(read(resolve(javaRoot, 'widget/ListPickerActivity.java')), /getAppWidgetInfo\(widgetId\)[\s\S]*TasksWidgetProvider\.class/,
+  'The list picker must only configure widgets of this app.')
 const widgetStore = read(resolve(javaRoot, 'widget/TaskWidgetStore.java'))
 assert.doesNotMatch(widgetStore, /SessionVault\.|token/i, 'The widget cache must not store the session token.')
 assert.match(widgetStore, /Context\.MODE_PRIVATE/)
@@ -113,6 +117,8 @@ for (const required of [
   'app/src/main/res/xml/tasks_widget_info.xml',
   'app/src/main/res/layout/widget_tasks.xml',
   'app/src/main/res/layout/widget_task_item.xml',
+  'app/src/main/res/layout/widget_done_header.xml',
+  'app/src/main/res/layout/activity_list_picker.xml',
   'app/src/main/res/values/strings_widget.xml',
   'app/src/main/res/values-ru/strings_widget.xml',
   'app/src/main/res/values-uk/strings_widget.xml',

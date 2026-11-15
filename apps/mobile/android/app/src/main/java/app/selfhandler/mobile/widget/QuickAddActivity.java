@@ -1,6 +1,7 @@
 package app.selfhandler.mobile.widget;
 
 import android.app.PendingIntent;
+import android.appwidget.AppWidgetManager;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
@@ -22,7 +23,7 @@ import java.util.concurrent.Executors;
 import app.selfhandler.mobile.R;
 import app.selfhandler.mobile.SessionVault;
 
-/** Small dialog over the home screen that adds one task due today to the inbox. */
+/** Small dialog over the home screen that adds one item at the end of the widget's list. */
 public class QuickAddActivity extends AppCompatActivity {
     private static final int MAX_TITLE_LENGTH = 200;
     private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor();
@@ -31,9 +32,12 @@ public class QuickAddActivity extends AppCompatActivity {
     private TextView error;
     private Button add;
     private boolean saving;
+    private String list = TaskWidgetStore.GENERAL;
 
-    static PendingIntent pendingIntent(Context context) {
-        return PendingIntent.getActivity(context, 4, new Intent(context, QuickAddActivity.class),
+    static PendingIntent pendingIntent(Context context, int widgetId) {
+        Intent intent = new Intent(context, QuickAddActivity.class)
+            .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId);
+        return PendingIntent.getActivity(context, 4000 + widgetId, intent,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
@@ -43,6 +47,11 @@ public class QuickAddActivity extends AppCompatActivity {
         setContentView(R.layout.activity_quick_add);
         setFinishOnTouchOutside(true);
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE);
+
+        int widgetId = getIntent().getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
+        list = TaskWidgetStore.listFor(this, widgetId);
+        TextView title = findViewById(R.id.quick_add_title);
+        title.setText(getString(R.string.widget_add_title, TasksWidgetProvider.listName(this, widgetId)));
 
         input = findViewById(R.id.quick_add_input);
         error = findViewById(R.id.quick_add_error);
@@ -79,10 +88,11 @@ public class QuickAddActivity extends AppCompatActivity {
         setSaving(true);
         Context application = getApplicationContext();
         String finalTitle = title;
+        String finalList = list;
         EXECUTOR.execute(() -> {
             int failure = 0;
             try {
-                new TasksApi(token).create(finalTitle, TasksWidgetProvider.today());
+                new TasksApi(token).create(finalTitle, finalList);
             } catch (TasksApi.UnauthorizedException exception) {
                 failure = R.string.widget_signed_out;
             } catch (TasksApi.NotConfiguredException exception) {
